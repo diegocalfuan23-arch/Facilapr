@@ -5,6 +5,8 @@ import { useActionState, useEffect, useState } from "react";
 import {
   Building2,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Gauge,
   Globe,
   Loader2,
@@ -150,7 +152,11 @@ function Campo({
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
       {children}
-      {ayuda && <p className="text-[0.8rem] text-muted-foreground">{ayuda}</p>}
+      {ayuda && (
+        <p className="hidden text-[0.8rem] text-muted-foreground sm:block">
+          {ayuda}
+        </p>
+      )}
     </div>
   );
 }
@@ -163,13 +169,19 @@ type Seccion =
   | "cortes"
   | "datos";
 
-const SECCIONES: { id: Seccion; label: string; icono: typeof Building2 }[] = [
-  { id: "comite", label: "Comité", icono: Building2 },
-  { id: "regional", label: "País y moneda", icono: Globe },
-  { id: "facturacion", label: "Facturación", icono: ReceiptText },
-  { id: "medidores", label: "Medidores", icono: Gauge },
-  { id: "cortes", label: "Cortes", icono: Scissors },
-  { id: "datos", label: "Datos y privacidad", icono: ShieldCheck },
+const SECCIONES: {
+  id: Seccion;
+  label: string;
+  /** Qué hay adentro: se muestra en la lista del celular. */
+  resumen: string;
+  icono: typeof Building2;
+}[] = [
+  { id: "comite", label: "Comité", resumen: "Tus datos y tu enlace", icono: Building2 },
+  { id: "regional", label: "País y moneda", resumen: "País, moneda y zona horaria", icono: Globe },
+  { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
+  { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge },
+  { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors },
+  { id: "datos", label: "Datos y privacidad", resumen: "Respaldo y borrado de datos", icono: ShieldCheck },
 ];
 
 export function ConfiguracionForm({
@@ -180,15 +192,26 @@ export function ConfiguracionForm({
   resumenDatos: ResumenDatos;
 }) {
   const [seccion, setSeccion] = useState<Seccion>("comite");
+  // Solo celular: primero la lista de temas y, al tocar uno, su contenido. En
+  // pantallas grandes se ven siempre las dos cosas (menú a un lado).
+  const [vistaMovil, setVistaMovil] = useState<"lista" | "detalle">("lista");
+
+  function abrirSeccion(id: Seccion) {
+    setSeccion(id);
+    setVistaMovil("detalle");
+    window.scrollTo({ top: 0 });
+  }
+
+  const actual = SECCIONES.find((x) => x.id === seccion);
 
   return (
     <>
-      <div>
+      <div className={cn(vistaMovil === "detalle" && "hidden lg:block")}>
         <h1 className="text-[1.35rem] font-semibold tracking-tight">
           Configuración
         </h1>
         <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-          Los datos de tu comité y las reglas con que se emiten las boletas.
+          Tu comité y sus reglas de cobro.
         </p>
       </div>
 
@@ -199,30 +222,64 @@ export function ConfiguracionForm({
         <nav
           aria-label="Secciones de configuración"
           data-tour="cfg-nav"
-          className="flex shrink-0 gap-1 overflow-x-auto lg:w-56 lg:flex-col lg:overflow-visible"
+          className={cn(
+            "shrink-0 flex-col gap-2 lg:flex lg:w-56 lg:gap-1",
+            vistaMovil === "lista" ? "flex" : "hidden"
+          )}
         >
-          {SECCIONES.map(({ id, label, icono: Icono }) => (
+          {SECCIONES.map(({ id, label, resumen, icono: Icono }) => (
             <button
               key={id}
               type="button"
               data-tour={`cfg-${id}`}
-              onClick={() => setSeccion(id)}
+              onClick={() => abrirSeccion(id)}
               aria-current={seccion === id ? "page" : undefined}
               className={cn(
-                "flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2.5 text-[0.9rem] font-medium transition-colors lg:w-full",
+                // Celular: fila con borde, ícono, nombre, resumen y flecha.
+                "flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-colors",
+                // Pantallas grandes: pestaña lateral compacta.
+                "lg:gap-2.5 lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-3 lg:py-2.5",
                 seccion === id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  ? "lg:bg-primary lg:text-primary-foreground"
+                  : "lg:text-muted-foreground lg:hover:bg-muted lg:hover:text-foreground"
               )}
             >
-              <Icono className="size-4 shrink-0" />
-              {label}
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-auto lg:bg-transparent lg:text-inherit">
+                <Icono className="size-4.5 lg:size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[0.95rem] font-medium lg:text-[0.9rem]">
+                  {label}
+                </span>
+                <span className="block text-[0.78rem] text-muted-foreground lg:hidden">
+                  {resumen}
+                </span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground lg:hidden" />
             </button>
           ))}
         </nav>
 
         {/* min-w-0 evita que un campo ancho empuje el menú fuera de la vista. */}
-        <div className="flex min-w-0 flex-1 flex-col gap-5">
+        <div
+          className={cn(
+            "min-w-0 flex-1 flex-col gap-5 lg:flex",
+            vistaMovil === "detalle" ? "flex" : "hidden"
+          )}
+        >
+          <button
+            type="button"
+            onClick={() => setVistaMovil("lista")}
+            className="-mb-1 flex items-center gap-1 self-start text-[0.9rem] font-medium text-primary lg:hidden"
+          >
+            <ChevronLeft className="size-4" />
+            Configuración
+            {actual && (
+              <span className="font-normal text-muted-foreground">
+                · {actual.label}
+              </span>
+            )}
+          </button>
       {seccion === "comite" && (
         <Bloque
           titulo="Datos del comité"
