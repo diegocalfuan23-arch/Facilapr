@@ -68,7 +68,7 @@ function Tarjeta({
   return (
     <div
       className={cn(
-        "rounded-xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]",
+        "min-w-0 rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5",
         className
       )}
     >
@@ -445,37 +445,37 @@ export default async function PanelPage({
           </div>
         </div>
 
-        <div className="grid border-t border-border sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 border-t border-border xl:grid-cols-4">
           {kpis.map((kpi, i) => (
             <Link
               key={kpi.etiqueta}
               href={kpi.href}
               className={cn(
-                "p-5 transition-colors hover:bg-muted/40",
+                "min-w-0 p-3.5 transition-colors hover:bg-muted/40 sm:p-5",
                 i > 0 && "xl:border-l xl:border-border",
-                i % 2 === 1 && "sm:border-l sm:border-border xl:border-l",
-                i > 1 && "sm:border-t sm:border-border xl:border-t-0"
+                i % 2 === 1 && "border-l border-border xl:border-l",
+                i > 1 && "border-t border-border xl:border-t-0"
               )}
             >
               <div className="flex items-center gap-2.5">
                 <span
                   className={cn(
-                    "flex size-9 items-center justify-center rounded-lg [&_svg]:size-4.5",
+                    "flex size-7 shrink-0 items-center justify-center rounded-lg sm:size-9 [&_svg]:size-4 sm:[&_svg]:size-4.5",
                     kpi.fondo,
                     kpi.texto
                   )}
                 >
                   {kpi.icono}
                 </span>
-                <span className="text-[0.9rem] text-muted-foreground">
+                <span className="truncate text-[0.82rem] text-muted-foreground sm:text-[0.9rem]">
                   {kpi.etiqueta}
                 </span>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4">
                 <span
                   className={cn(
-                    "text-[1.8rem] leading-none font-semibold tabular-nums",
+                    "text-[1.4rem] leading-none font-semibold tabular-nums sm:text-[1.8rem]",
                     kpi.texto
                   )}
                 >
@@ -484,7 +484,7 @@ export default async function PanelPage({
                 {kpi.delta !== null && <Delta valor={kpi.delta} />}
               </div>
 
-              <p className="mt-1.5 text-[0.83rem] text-muted-foreground">
+              <p className="mt-1.5 truncate text-[0.76rem] text-muted-foreground sm:text-[0.83rem]">
                 {kpi.detalle}
               </p>
             </Link>
@@ -493,7 +493,7 @@ export default async function PanelPage({
       </Tarjeta>
 
       {/* Dos tarjetas de tendencia + rendimiento del padrón a la derecha. */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Tarjeta>
           <h3 className="text-[1rem] font-semibold">Tasa de morosidad</h3>
           <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
@@ -631,7 +631,7 @@ export default async function PanelPage({
 
       {/* Ambas tarjetas terminan a la misma altura: la tabla reparte el
           espacio sobrante entre sus filas en vez de dejar un hueco al pie. */}
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Tarjeta className="flex flex-col lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h3 className="text-[1rem] font-semibold">Boletas recientes</h3>
@@ -656,7 +656,7 @@ export default async function PanelPage({
                 <thead>
                   <tr className="border-b border-border/50 text-left text-muted-foreground">
                     <th className="pb-2.5 font-medium">Socio</th>
-                    <th className="pb-2.5 font-medium">Período</th>
+                    <th className="hidden pb-2.5 font-medium sm:table-cell">Período</th>
                     <th className="pb-2.5 font-medium">Monto</th>
                     <th className="pb-2.5 font-medium">Vence</th>
                     <th className="pb-2.5 font-medium">Estado</th>
@@ -672,7 +672,7 @@ export default async function PanelPage({
                     return (
                       <tr key={b.id} className="border-b border-border/40 last:border-0">
                         <td className="py-3 font-medium">{b.socioNombre}</td>
-                        <td className="py-3 text-muted-foreground">
+                        <td className="hidden py-3 text-muted-foreground sm:table-cell">
                           {formatearPeriodo(b.periodo)}
                         </td>
                         <td className="py-3 tabular-nums">
