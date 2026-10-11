@@ -47,9 +47,9 @@ export const RECORRIDOS: Recorrido[] = [
       },
       {
         selector: '[data-tour="primeros-pasos"]',
-        titulo: "Tu avance",
+        titulo: "Tu avance y tu ayuda",
         texto:
-          "Este botón te acompaña en todas las pantallas. Ábrelo para ver los pasos que faltan y cuánto llevas.",
+          "Este botón te acompaña en todas las pantallas: muestra los pasos que te faltan y te vuelve a explicar el menú cuando quieras.",
         lado: "left",
       },
       {
@@ -105,7 +105,7 @@ export const RECORRIDOS: Recorrido[] = [
       {
         titulo: "Listo 🎉",
         texto:
-          "Al entrar a cada sección, te explicamos qué hace cada parte, solo la primera vez. Después puedes repetirlo desde Ayuda.",
+          "En cada pantalla verás un botón «?» junto a este: púlsalo y te explica, parte por parte, qué muestra esa pantalla.",
       },
     ],
   },

@@ -11,7 +11,6 @@ import {
 } from "@/app/panel/recorrido-actions";
 import { progresoPrimerosPasos } from "@/app/panel/primeros-pasos-actions";
 import {
-  RECORRIDOS,
   recorridoPorId,
   type PasoRecorrido,
   type Recorrido as DatosRecorrido,
@@ -227,25 +226,6 @@ export function Recorrido({ usuarioId }: { usuarioId: string }) {
       window.clearTimeout(espera);
     };
   }, [pathname, usuarioId, empezar]);
-
-  // Cada pantalla se explica sola la primera vez que se entra, una vez que el
-  // recorrido general ya salió (así no se apilan dos recorridos seguidos). Un
-  // comité que nunca vio el general, porque ya terminó lo esencial, no los ve.
-  useEffect(() => {
-    const r = RECORRIDOS.find((x) => x.ruta === pathname && x.id !== "resumen");
-    if (!r) return;
-    if (new URLSearchParams(window.location.search).get("recorrido")) return;
-
-    try {
-      if (localStorage.getItem(claveVisto(r.id))) return;
-      if (!localStorage.getItem(claveVisto("resumen"))) return;
-    } catch {
-      return;
-    }
-
-    const espera = window.setTimeout(() => void empezar(r), 1200);
-    return () => window.clearTimeout(espera);
-  }, [pathname, empezar, claveVisto]);
 
   return null;
 }
