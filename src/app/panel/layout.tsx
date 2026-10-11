@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Recorrido } from "@/components/panel/recorrido";
+import { DiagnosticoAncho } from "@/components/panel/diagnostico-ancho";
 import { PrimerosPasosFlotante } from "@/components/panel/primeros-pasos-flotante";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -30,6 +31,7 @@ export default async function PanelLayout({
       <SidebarProvider>
         <PanelSidebar apr={apr.nombre} comuna={apr.comuna} rol={rol} />
         {!esOperador && <Recorrido usuarioId={user.id} />}
+        <DiagnosticoAncho />
         {!esOperador && <PrimerosPasosFlotante />}
 
         {/* El gradiente va en el contenedor, no en el área de contenido: así
