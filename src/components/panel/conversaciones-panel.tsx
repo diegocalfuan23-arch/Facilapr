@@ -136,8 +136,11 @@ function ChatConSocio({
   useEffect(() => {
     setCargando(true);
     fetch(`/api/panel/conversaciones/${socioId}/mensajes`)
-      .then((r) => r.json())
-      .then((data: MensajeChat[]) => setMensajes(data))
+      .then((r) => (r.ok ? r.json() : []))
+      // Si el servidor responde un error (p. ej. el plan ya no incluye el chat),
+      // se muestra vacío en vez de romper la pantalla.
+      .then((data: unknown) => setMensajes(Array.isArray(data) ? (data as MensajeChat[]) : []))
+      .catch(() => setMensajes([]))
       .finally(() => setCargando(false));
 
     marcarLeidoDirectiva(socioId);

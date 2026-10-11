@@ -42,8 +42,9 @@ export function ChatComite({
 
   useEffect(() => {
     fetch("/api/socio/chat/mensajes")
-      .then((r) => r.json())
-      .then((data: MensajeChat[]) => setMensajes(data))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: unknown) => setMensajes(Array.isArray(data) ? (data as MensajeChat[]) : []))
+      .catch(() => setMensajes([]))
       .finally(() => setCargando(false));
 
     return escucharChat<MensajeChat>(socioId, (mensaje) => {
