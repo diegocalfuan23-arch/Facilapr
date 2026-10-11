@@ -13,6 +13,7 @@ import {
   ReceiptText,
   Scissors,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import {
   DatosPrivacidad,
@@ -23,6 +24,7 @@ import {
   guardarCortes,
   guardarDireccion,
   guardarFacturacion,
+  guardarIaChat,
   guardarMedidores,
   guardarRegional,
   type ResultadoAccion,
@@ -35,6 +37,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export type DatosConfiguracion = {
+  /** El plan incluye la IA dentro del chat (Grande). */
+  iaChatDisponible: boolean;
+  iaChatModo: string;
+  iaChatInstrucciones: string | null;
   /** Cómo y dónde pagar: sale en cada recibo. */
   infoPago: string | null;
   /** La dirección del comité: portal de socios y sitio. */
@@ -167,6 +173,7 @@ type Seccion =
   | "facturacion"
   | "medidores"
   | "cortes"
+  | "iaChat"
   | "datos";
 
 const SECCIONES: {
@@ -181,6 +188,7 @@ const SECCIONES: {
   { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
   { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge },
   { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors },
+  { id: "iaChat", label: "Asistente de chat", resumen: "Respuestas automáticas con IA", icono: Sparkles },
   { id: "datos", label: "Datos y privacidad", resumen: "Respaldo y borrado de datos", icono: ShieldCheck },
 ];
 
@@ -683,6 +691,71 @@ export function ConfiguracionForm({
           </div>
         </Bloque>
       )}
+
+      {seccion === "iaChat" &&
+        (datos.iaChatDisponible ? (
+          <Bloque
+            titulo="Asistente de IA en el chat"
+            descripcion="Responde a tus socios en segundos y te pasa la conversación cuando hace falta."
+            accion={guardarIaChat}
+          >
+            <Campo
+              id="iaChatModo"
+              label="Cuándo responde"
+              ayuda="Próximamente: responder solo si la directiva no contesta en unos minutos."
+            >
+              <select
+                id="iaChatModo"
+                name="iaChatModo"
+                defaultValue={datos.iaChatModo === "SIEMPRE" ? "SIEMPRE" : "APAGADO"}
+                className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              >
+                <option value="APAGADO">Apagado: solo responde la directiva</option>
+                <option value="SIEMPRE">Siempre responde primero</option>
+              </select>
+            </Campo>
+
+            <Campo
+              id="iaChatInstrucciones"
+              label="Instrucciones propias"
+              ayuda="Tono, reglas o respuestas a preguntas frecuentes. Ej: «Háblales de usted. Si preguntan por cortes, que llamen a la oficina de 9 a 13 h.»"
+            >
+              <Textarea
+                id="iaChatInstrucciones"
+                name="iaChatInstrucciones"
+                rows={5}
+                maxLength={1500}
+                defaultValue={datos.iaChatInstrucciones ?? ""}
+              />
+            </Campo>
+
+            <ul className="flex flex-col gap-1.5 rounded-lg bg-muted/50 px-4 py-3 text-[0.82rem] leading-relaxed text-muted-foreground">
+              <li>• Sus mensajes salen marcados como «Asistente del comité · IA».</li>
+              <li>• Responde con los datos de la cuenta del socio y los de tu comité. No promete plazos ni descuentos.</li>
+              <li>• Si es un reclamo, un corte o no sabe, marca la conversación como «Necesita respuesta humana».</li>
+              <li>• Si escribes tú en una conversación, la IA se pausa 4 horas ahí.</li>
+            </ul>
+          </Bloque>
+        ) : (
+          <section className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
+            <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <Sparkles className="size-5" />
+            </span>
+            <h2 className="mt-4 text-[1.05rem] font-semibold">
+              Asistente de IA en el chat
+            </h2>
+            <p className="mx-auto mt-2 max-w-[48ch] text-[0.9rem] leading-relaxed text-muted-foreground">
+              Responde a tus socios en segundos y te pasa la conversación cuando
+              hace falta. Está disponible en el plan Grande.
+            </p>
+            <a
+              href="mailto:hola@facilapr.cl?subject=Quiero%20la%20IA%20en%20el%20chat"
+              className="mt-4 inline-flex h-9 items-center rounded-lg bg-primary px-4 text-[0.9rem] font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Quiero activarlo
+            </a>
+          </section>
+        ))}
 
       {seccion === "datos" && (
         <DatosPrivacidad

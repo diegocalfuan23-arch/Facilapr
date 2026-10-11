@@ -1,12 +1,14 @@
 "use server";
 
 import { z } from "zod";
+import { after } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { mensajesSocio } from "@/lib/db/schema";
 import { requireSocio } from "@/lib/socio-session";
 import { enviarMensajeChat, type MensajeChat } from "@/lib/chat-socio";
 import { puede, type Plan } from "@/lib/planes";
+import { responderConIaSiCorresponde } from "@/lib/ia-chat";
 
 const mensajeSchema = z.string().trim().min(1).max(1000);
 
@@ -35,6 +37,9 @@ export async function enviarMensajeSocio(
     autorId: null,
     contenido: parsed.data,
   });
+
+  // La IA contesta después de responderle al socio: no lo hace esperar.
+  after(() => responderConIaSiCorresponde(socio.id));
 
   return { ok: true, mensaje };
 }

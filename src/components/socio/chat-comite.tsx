@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, MessageSquareText, Send, X } from "lucide-react";
+import { Loader2, MessageSquareText, Send, Sparkles, X } from "lucide-react";
 import {
   enviarMensajeSocio,
   marcarLeidoSocio,
@@ -48,7 +48,7 @@ export function ChatComite({
 
     return escucharChat<MensajeChat>(socioId, (mensaje) => {
       setMensajes((prev) => [...prev, mensaje]);
-      if (mensaje.remitente === "DIRECTIVA") {
+      if (mensaje.remitente !== "SOCIO") {
         setSinLeer((n) => (abiertoRef.current ? 0 : n + 1));
         if (abiertoRef.current) marcarLeidoSocio(slug);
       }
@@ -135,12 +135,20 @@ export function ChatComite({
                     m.remitente === "SOCIO" ? "items-end" : "items-start"
                   )}
                 >
+                  {m.remitente === "IA" && (
+                    <span className="flex items-center gap-1 px-1 text-[0.7rem] font-medium text-primary">
+                      <Sparkles className="size-3" />
+                      Asistente del comité · IA
+                    </span>
+                  )}
                   <div
                     className={cn(
                       "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[0.88rem] leading-relaxed whitespace-pre-line",
                       m.remitente === "SOCIO"
                         ? "rounded-br-md bg-primary text-primary-foreground"
-                        : "rounded-bl-md bg-muted text-foreground"
+                        : m.remitente === "IA"
+                          ? "rounded-bl-md border border-primary/20 bg-primary/5 text-foreground"
+                          : "rounded-bl-md bg-muted text-foreground"
                     )}
                   >
                     {m.contenido}

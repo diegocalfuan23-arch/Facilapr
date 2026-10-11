@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, MessageCircle, Send } from "lucide-react";
+import { Loader2, MessageCircle, Send, Sparkles } from "lucide-react";
 import {
   enviarMensajeDirectiva,
   marcarLeidoDirectiva,
@@ -24,6 +24,8 @@ export type ConversacionResumen = {
   ultimoMensaje: string;
   ultimaFecha: Date | null;
   sinLeer: number;
+  /** La IA le pasó la conversación a una persona y nadie ha respondido. */
+  necesitaHumano: boolean;
 };
 
 export function ConversacionesPanel({
@@ -82,6 +84,11 @@ export function ConversacionesPanel({
                 <div className="truncate text-[0.8rem] text-muted-foreground">
                   {c.ultimoMensaje}
                 </div>
+                {c.necesitaHumano && (
+                  <span className="mt-1 inline-flex rounded-full bg-tertiary/20 px-2 py-0.5 text-[0.68rem] font-semibold text-tertiary-foreground">
+                    Necesita respuesta humana
+                  </span>
+                )}
               </div>
               {sinLeerLocal[c.socioId] > 0 && (
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[0.68rem] font-semibold text-primary-foreground">
@@ -179,15 +186,23 @@ function ChatConSocio({
               key={m.id}
               className={cn(
                 "flex flex-col gap-0.5",
-                m.remitente === "DIRECTIVA" ? "items-end" : "items-start"
+                m.remitente === "SOCIO" ? "items-start" : "items-end"
               )}
             >
+              {m.remitente === "IA" && (
+                <span className="flex items-center gap-1 px-1 text-[0.7rem] font-medium text-primary">
+                  <Sparkles className="size-3" />
+                  Asistente IA{m.requiereHumano ? " · necesita una persona" : ""}
+                </span>
+              )}
               <div
                 className={cn(
                   "max-w-[75%] rounded-2xl px-3.5 py-2.5 text-[0.88rem] leading-relaxed whitespace-pre-line",
                   m.remitente === "DIRECTIVA"
                     ? "rounded-br-md bg-primary text-primary-foreground"
-                    : "rounded-bl-md bg-muted text-foreground"
+                    : m.remitente === "IA"
+                      ? "rounded-br-md border border-primary/20 bg-primary/5 text-foreground"
+                      : "rounded-bl-md bg-muted text-foreground"
                 )}
               >
                 {m.contenido}

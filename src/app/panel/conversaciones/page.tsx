@@ -43,6 +43,7 @@ export default async function ConversacionesPage() {
     ultimoMensaje: string;
     ultimaFecha: string;
     sinLeer: number;
+    necesitaHumano: boolean;
   }>(sql`
     select distinct on (s.id)
       s.id as "socioId",
@@ -54,14 +55,31 @@ export default async function ConversacionesPage() {
         where m2."socioId" = s.id
           and m2.remitente = 'SOCIO'
           and m2."leidoPorDirectiva" = false
-      ) as "sinLeer"
+      ) as "sinLeer",
+      -- La IA marcó que hace falta una persona y la directiva aún no ha respondido después.
+      exists (
+        select 1 from "MensajeSocio" x
+        where x."socioId" = s.id
+          and x."requiereHumano"
+          and not exists (
+            select 1 from "MensajeSocio" d
+            where d."socioId" = s.id
+              and d.remitente = 'DIRECTIVA'
+              and d."createdAt" > x."createdAt"
+          )
+      ) as "necesitaHumano"
     from "Socio" s
     join "MensajeSocio" m on m."socioId" = s.id
     where s."aprId" = ${apr.id}
     order by s.id, m."createdAt" desc
   `);
 
-  filas.sort((a, b) => +new Date(b.ultimaFecha) - +new Date(a.ultimaFecha));
+  // Primero las que esperan a una persona; después, las más recientes.
+  filas.sort(
+    (a, b) =>
+      Number(b.necesitaHumano) - Number(a.necesitaHumano) ||
+      +new Date(b.ultimaFecha) - +new Date(a.ultimaFecha)
+  );
 
   return (
     <ConversacionesPanel
@@ -71,6 +89,7 @@ export default async function ConversacionesPage() {
         ultimoMensaje: f.ultimoMensaje,
         ultimaFecha: f.ultimaFecha ? new Date(f.ultimaFecha) : null,
         sinLeer: f.sinLeer,
+        necesitaHumano: f.necesitaHumano,
       }))}
     />
   );

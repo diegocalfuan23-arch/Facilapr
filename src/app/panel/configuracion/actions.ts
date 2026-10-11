@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { aprs } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { cambiarSlug } from "@/lib/slug";
+import { puede, type Plan } from "@/lib/planes";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
 
@@ -274,5 +275,35 @@ export async function guardarDireccion(
 
   revalidatePath("/panel/configuracion");
   revalidatePath("/panel/sitio");
+  return { ok: true };
+}
+
+/** La IA dentro del chat con los socios (plan Grande): cuándo responde y con qué instrucciones. */
+export async function guardarIaChat(
+  _prev: ResultadoAccion | null,
+  formData: FormData
+): Promise<ResultadoAccion> {
+  const { apr } = await requireAdmin();
+
+  if (!puede(apr.plan as Plan, "iaChat")) {
+    return { ok: false, error: "La IA en el chat es del plan Grande." };
+  }
+
+  const modo = String(formData.get("iaChatModo") ?? "APAGADO");
+  if (modo !== "APAGADO" && modo !== "SIEMPRE") {
+    return { ok: false, error: "Elige cuándo debe responder la IA." };
+  }
+
+  const instrucciones = aTexto(formData.get("iaChatInstrucciones"));
+  if (instrucciones && instrucciones.length > 1500) {
+    return { ok: false, error: "Las instrucciones no pueden superar 1.500 caracteres." };
+  }
+
+  await db
+    .update(aprs)
+    .set({ iaChatModo: modo, iaChatInstrucciones: instrucciones, updatedAt: new Date() })
+    .where(eq(aprs.id, apr.id));
+
+  revalidatePath("/panel/configuracion");
   return { ok: true };
 }

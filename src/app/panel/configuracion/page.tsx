@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/apr-session";
+import { puede, type Plan } from "@/lib/planes";
 import { resumenDatos } from "@/app/panel/configuracion/datos-actions";
 import { ConfiguracionForm } from "@/components/panel/configuracion-form";
 
@@ -16,6 +17,9 @@ export default async function ConfiguracionPage() {
       resumenDatos={resumen}
       datos={{
         slug: apr.slug,
+        iaChatDisponible: puede(apr.plan as Plan, "iaChat"),
+        iaChatModo: apr.iaChatModo,
+        iaChatInstrucciones: apr.iaChatInstrucciones,
         infoPago: apr.infoPago,
         nombre: apr.nombre,
         razonSocial: apr.razonSocial,

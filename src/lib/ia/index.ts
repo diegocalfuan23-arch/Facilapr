@@ -78,6 +78,7 @@ export async function responder({
   mensajes,
   maxTokens = 700,
   forzarComplejo = false,
+  forzarSimple = false,
   respuestaEnlatada,
   aprId = null,
   origen,
@@ -87,12 +88,14 @@ export async function responder({
   maxTokens?: number;
   /** Salta la clasificación y usa el modelo caro. */
   forzarComplejo?: boolean;
+  /** Salta la clasificación y usa el modelo rápido (p. ej. el chat, donde importa responder en segundos). */
+  forzarSimple?: boolean;
   respuestaEnlatada: string;
   aprId?: string | null;
   origen: string;
 }): Promise<ResultadoIA> {
   const ultimo = mensajes.at(-1)?.texto ?? "";
-  const simple = !forzarComplejo && esConsultaSimple(ultimo);
+  const simple = forzarSimple || (!forzarComplejo && esConsultaSimple(ultimo));
   const modelo = simple ? MODELO_SIMPLE : MODELO_COMPLEJO;
 
   const encoder = new TextEncoder();

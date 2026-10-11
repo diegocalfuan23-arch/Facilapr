@@ -78,6 +78,12 @@ export const aprs = pgTable(
     tarifaMetroCubico: integer("tarifaMetroCubico"),
     /** Dónde y cómo pagar, en texto libre: varía mucho entre comités. */
     infoPago: text("infoPago"),
+    /** IA dentro del chat (plan Grande): APAGADO · SIEMPRE (· SIN_RESPUESTA, próximamente). */
+    iaChatModo: text("iaChatModo").notNull().default("APAGADO"),
+    /** Tono y reglas propias del comité para la IA del chat. */
+    iaChatInstrucciones: text("iaChatInstrucciones"),
+    /** Minutos de espera antes de que responda la IA, en el modo SIN_RESPUESTA. */
+    iaChatEsperaMin: integer("iaChatEsperaMin").notNull().default(10),
 
     // --- Datos del comité ---
     /** El nombre legal, que no siempre coincide con el de uso diario. */
@@ -509,6 +515,8 @@ export const solicitudesAccesoRelations = relations(
 export const remitenteMensajeEnum = pgEnum("RemitenteMensaje", [
   "SOCIO",
   "DIRECTIVA",
+  /** El asistente de IA del chat (plan Grande). */
+  "IA",
 ]);
 
 /**
@@ -532,6 +540,8 @@ export const mensajesSocio = pgTable(
     contenido: text("contenido").notNull(),
     leidoPorSocio: boolean("leidoPorSocio").notNull().default(false),
     leidoPorDirectiva: boolean("leidoPorDirectiva").notNull().default(false),
+    /** La IA no pudo resolverlo y le pasó la conversación a una persona. */
+    requiereHumano: boolean("requiereHumano").notNull().default(false),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [

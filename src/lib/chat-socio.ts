@@ -5,9 +5,11 @@ import { publicarMensajeEnVivo } from "@/lib/chat/tiempo-real";
 
 export type MensajeChat = {
   id: string;
-  remitente: "SOCIO" | "DIRECTIVA";
+  remitente: "SOCIO" | "DIRECTIVA" | "IA";
   contenido: string;
   createdAt: Date;
+  /** Solo en mensajes de la IA: pasó la conversación a una persona. */
+  requiereHumano?: boolean;
 };
 
 export async function historialChat(socioId: string): Promise<MensajeChat[]> {
@@ -15,7 +17,13 @@ export async function historialChat(socioId: string): Promise<MensajeChat[]> {
     where: eq(mensajesSocio.socioId, socioId),
     orderBy: [asc(mensajesSocio.createdAt)],
     limit: 200,
-    columns: { id: true, remitente: true, contenido: true, createdAt: true },
+    columns: {
+      id: true,
+      remitente: true,
+      contenido: true,
+      createdAt: true,
+      requiereHumano: true,
+    },
   });
 
   return filas;
@@ -32,11 +40,13 @@ export async function enviarMensajeChat({
   remitente,
   autorId,
   contenido,
+  requiereHumano = false,
 }: {
   socioId: string;
-  remitente: "SOCIO" | "DIRECTIVA";
+  remitente: "SOCIO" | "DIRECTIVA" | "IA";
   autorId: string | null;
   contenido: string;
+  requiereHumano?: boolean;
 }): Promise<MensajeChat> {
   const [mensaje] = await db
     .insert(mensajesSocio)
@@ -46,13 +56,17 @@ export async function enviarMensajeChat({
       autorId,
       contenido,
       leidoPorSocio: remitente === "SOCIO",
-      leidoPorDirectiva: remitente === "DIRECTIVA",
+      // Lo que escribe la IA no necesita lectura de la directiva: lo que sí
+      // la pide es requiereHumano, que se muestra aparte en Conversaciones.
+      leidoPorDirectiva: remitente !== "SOCIO",
+      requiereHumano,
     })
     .returning({
       id: mensajesSocio.id,
       remitente: mensajesSocio.remitente,
       contenido: mensajesSocio.contenido,
       createdAt: mensajesSocio.createdAt,
+      requiereHumano: mensajesSocio.requiereHumano,
     });
 
   publicarMensajeEnVivo(socioId, mensaje).catch((error) => {
