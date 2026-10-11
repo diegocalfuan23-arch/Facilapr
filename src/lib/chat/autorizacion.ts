@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
+import { puede, type Plan } from "@/lib/planes";
 
 type UsuarioChat = { id: string; rol?: string | null; aprId?: string | null };
 
@@ -15,16 +16,22 @@ export async function puedeEscucharChatSocio(user: UsuarioChat, socioId: string)
     const socio = await db.query.socios.findFirst({
       where: eq(socios.id, socioId),
       columns: { userId: true },
+      with: { apr: { columns: { plan: true } } },
     });
-    return socio?.userId === user.id;
+    return Boolean(
+      socio && socio.userId === user.id && puede(socio.apr.plan as Plan, "chat")
+    );
   }
 
   if (user.rol === "ADMIN") {
     const socio = await db.query.socios.findFirst({
       where: eq(socios.id, socioId),
       columns: { aprId: true },
+      with: { apr: { columns: { plan: true } } },
     });
-    return socio?.aprId === user.aprId;
+    return Boolean(
+      socio && socio.aprId === user.aprId && puede(socio.apr.plan as Plan, "chat")
+    );
   }
 
   return false;

@@ -1,10 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, gt, lt, ne } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { lecturas, socios, boletas } from "@/lib/db/schema";
+import { lecturas, socios, boletas, invitaciones } from "@/lib/db/schema";
+import { user as userTable } from "@/lib/db/auth-schema";
+import { LIMITE_TECNICOS, NOMBRE_PLAN, type Plan } from "@/lib/planes";
 import { requireApr, requireAdmin } from "@/lib/apr-session";
 import { crearInvitacion } from "@/lib/invitaciones";
 import {
@@ -588,6 +590,32 @@ export type ResultadoInvitacion =
 
 export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> {
   const { apr } = await requireAdmin();
+
+  // Técnicos con acceso + invitaciones sin usar: el tope del plan los cuenta a todos.
+  const limite = LIMITE_TECNICOS[apr.plan as Plan];
+  if (Number.isFinite(limite)) {
+    const [{ n: tecnicos }] = await db
+      .select({ n: count() })
+      .from(userTable)
+      .where(and(eq(userTable.aprId, apr.id), eq(userTable.rol, "OPERADOR")));
+    const [{ n: pendientes }] = await db
+      .select({ n: count() })
+      .from(invitaciones)
+      .where(
+        and(
+          eq(invitaciones.aprId, apr.id),
+          isNull(invitaciones.usadaPor),
+          gt(invitaciones.expiraEn, new Date())
+        )
+      );
+    if (tecnicos + pendientes >= limite) {
+      return {
+        ok: false,
+        error: `Tu plan ${NOMBRE_PLAN[apr.plan as Plan]} permite ${limite} ${limite === 1 ? "técnico" : "técnicos"}. Pasa a un plan mayor para invitar a más.`,
+      };
+    }
+  }
+
   const invitacion = await crearInvitacion(apr.id);
 
   const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";

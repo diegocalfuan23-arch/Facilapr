@@ -10,6 +10,7 @@ import { AsistenteSocio } from "@/components/socio/asistente-socio";
 import { ChatComite } from "@/components/socio/chat-comite";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { basePortal } from "@/lib/portal-socio";
+import { puede, type Plan } from "@/lib/planes";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -157,7 +158,9 @@ export default async function PanelSocioPage({ params }: Props) {
       </main>
 
       <AsistenteSocio nombreApr={socio.apr.nombre} slug={slug} />
-      <ChatComite socioId={socio.id} slug={slug} nombreApr={socio.apr.nombre} />
+      {puede(socio.apr.plan as Plan, "chat") && (
+        <ChatComite socioId={socio.id} slug={slug} nombreApr={socio.apr.nombre} />
+      )}
     </div>
   );
 }

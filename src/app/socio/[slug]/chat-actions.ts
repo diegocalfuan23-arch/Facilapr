@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { mensajesSocio } from "@/lib/db/schema";
 import { requireSocio } from "@/lib/socio-session";
 import { enviarMensajeChat, type MensajeChat } from "@/lib/chat-socio";
+import { puede, type Plan } from "@/lib/planes";
 
 const mensajeSchema = z.string().trim().min(1).max(1000);
 
@@ -18,6 +19,10 @@ export async function enviarMensajeSocio(
   contenido: string
 ): Promise<ResultadoEnvioChat> {
   const { socio } = await requireSocio(slug);
+
+  if (!puede(socio.apr.plan as Plan, "chat")) {
+    return { ok: false, error: "Tu comité no tiene el chat activado." };
+  }
 
   const parsed = mensajeSchema.safeParse(contenido);
   if (!parsed.success) {

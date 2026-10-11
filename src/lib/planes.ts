@@ -8,18 +8,27 @@ export type Plan = "BASICO" | "ESTANDAR" | "PREMIUM";
 export type Capacidad =
   | "landing"
   | "dominioPropio"
-  | "avisos";
+  | "avisos"
+  | "chat";
 
 const CAPACIDADES: Record<Plan, Capacidad[]> = {
   BASICO: [],
-  ESTANDAR: ["landing", "avisos"],
-  PREMIUM: ["landing", "avisos", "dominioPropio"],
+  ESTANDAR: ["landing", "avisos", "chat"],
+  PREMIUM: ["landing", "avisos", "chat", "dominioPropio"],
 };
 
+/** Los nombres con que se venden (landing): Pequeño, Estándar y Grande. */
 export const NOMBRE_PLAN: Record<Plan, string> = {
-  BASICO: "Básico",
+  BASICO: "Pequeño",
   ESTANDAR: "Estándar",
-  PREMIUM: "Premium",
+  PREMIUM: "Grande",
+};
+
+/** Cuántos técnicos puede tener el comité (con acceso o con invitación pendiente). */
+export const LIMITE_TECNICOS: Record<Plan, number> = {
+  BASICO: 1,
+  ESTANDAR: 3,
+  PREMIUM: Number.POSITIVE_INFINITY,
 };
 
 export function puede(plan: Plan, capacidad: Capacidad): boolean {

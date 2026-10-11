@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { socios, mensajesSocio } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { enviarMensajeChat, type MensajeChat } from "@/lib/chat-socio";
+import { puede, type Plan } from "@/lib/planes";
 
 const mensajeSchema = z.string().trim().min(1).max(1000);
 
@@ -18,6 +19,10 @@ export async function enviarMensajeDirectiva(
   contenido: string
 ): Promise<ResultadoEnvioChat> {
   const { user, apr } = await requireAdmin();
+
+  if (!puede(apr.plan as Plan, "chat")) {
+    return { ok: false, error: "El chat en tiempo real es del plan Estándar o superior." };
+  }
 
   const socio = await db.query.socios.findFirst({
     where: and(eq(socios.id, socioId), eq(socios.aprId, apr.id)),
