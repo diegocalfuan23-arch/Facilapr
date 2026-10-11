@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Recorrido } from "@/components/panel/recorrido";
-import { DiagnosticoAncho } from "@/components/panel/diagnostico-ancho";
 import { PrimerosPasosFlotante } from "@/components/panel/primeros-pasos-flotante";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -31,7 +30,6 @@ export default async function PanelLayout({
       <SidebarProvider>
         <PanelSidebar apr={apr.nombre} comuna={apr.comuna} rol={rol} />
         {!esOperador && <Recorrido usuarioId={user.id} />}
-        <DiagnosticoAncho />
         {!esOperador && <PrimerosPasosFlotante />}
 
         {/* El gradiente va en el contenedor, no en el área de contenido: así
@@ -77,7 +75,7 @@ export default async function PanelLayout({
 
           <div
             className={cn(
-              "flex w-full min-w-0 max-w-full flex-1 flex-col gap-5 p-4 sm:p-6",
+              "flex w-full min-w-0 max-w-full flex-1 flex-col gap-5 p-4 pb-28 sm:p-6",
               esOperador && "p-4 pb-28 md:p-6"
             )}
           >
