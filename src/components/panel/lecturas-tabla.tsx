@@ -228,7 +228,7 @@ export function LecturasTabla({
             Lecturas
           </h1>
           <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-            Cada lectura aprobada genera o actualiza la boleta del período.
+            Al aprobar una lectura se genera su boleta.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
