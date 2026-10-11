@@ -93,7 +93,7 @@ export function ConversacionesPanel({
         Conversaciones
       </h1>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[280px_1fr] overflow-hidden rounded-xl border border-border/60">
+      <div className="grid min-h-0 flex-1 grid-cols-[380px_1fr] overflow-hidden rounded-xl border border-border/60">
         <div className="flex flex-col overflow-y-auto border-r border-border/60 bg-card">
           {conversaciones.map((c) => (
             <button
@@ -103,11 +103,11 @@ export function ConversacionesPanel({
                 setSinLeerLocal((prev) => ({ ...prev, [c.socioId]: 0 }));
               }}
               className={cn(
-                "flex items-center gap-2.5 border-b border-border/50 p-3.5 text-left transition-colors hover:bg-muted/50",
+                "flex items-center gap-4 border-b border-border/50 px-5 py-4 text-left transition-colors hover:bg-muted/50",
                 seleccionado === c.socioId && "bg-muted"
               )}
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.72rem] font-semibold text-muted-foreground">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted text-[0.8rem] font-semibold text-muted-foreground">
                 {iniciales(c.nombre)}
               </span>
               <div className="min-w-0 flex-1">
@@ -121,30 +121,28 @@ export function ConversacionesPanel({
                     </span>
                   )}
                 </div>
-                {datosDelSocio(c) && (
-                  <div className="truncate text-[0.74rem] tabular-nums text-muted-foreground">
+                <div className="mt-1 flex items-center justify-between gap-4">
+                  <span className="truncate text-[0.76rem] tabular-nums text-muted-foreground">
                     {datosDelSocio(c)}
-                  </div>
-                )}
-                <div className="mt-0.5 truncate text-[0.8rem] text-foreground/70">
-                  {c.ultimoMensaje}
-                </div>
-                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  </span>
                   {c.deuda > 0 ? (
-                    <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[0.68rem] font-semibold text-destructive">
+                    <span className="shrink-0 rounded-full bg-destructive/10 px-2.5 py-0.5 text-[0.7rem] font-semibold text-destructive">
                       Debe {clp.format(c.deuda)}
                     </span>
                   ) : (
-                    <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[0.68rem] font-semibold text-forest">
+                    <span className="shrink-0 rounded-full bg-forest/10 px-2.5 py-0.5 text-[0.7rem] font-semibold text-forest">
                       Al día
                     </span>
                   )}
-                  {c.necesitaHumano && (
-                    <span className="rounded-full bg-tertiary/20 px-2 py-0.5 text-[0.68rem] font-semibold text-tertiary-foreground">
-                      Necesita respuesta humana
-                    </span>
-                  )}
                 </div>
+                <div className="mt-2 truncate text-[0.84rem] text-foreground/75">
+                  {c.ultimoMensaje}
+                </div>
+                {c.necesitaHumano && (
+                  <span className="mt-2 inline-flex rounded-full bg-tertiary/20 px-2.5 py-0.5 text-[0.7rem] font-semibold text-tertiary-foreground">
+                    Necesita respuesta humana
+                  </span>
+                )}
               </div>
               {sinLeerLocal[c.socioId] > 0 && (
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[0.68rem] font-semibold text-primary-foreground">
