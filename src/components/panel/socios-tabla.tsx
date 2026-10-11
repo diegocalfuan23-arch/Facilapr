@@ -418,7 +418,7 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
       ) : (
         <div className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           {/* Pestañas: filtran por estado sin sacar al usuario de la página. */}
-          <div className="flex gap-4 overflow-x-auto border-b border-border/60 px-3 sm:gap-6 sm:px-5">
+          <div className="flex gap-4 overflow-x-auto overflow-y-hidden border-b border-border/60 px-3 sm:gap-6 sm:px-5">
             {pestanas.map((p) => (
               <button
                 key={p.id}
