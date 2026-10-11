@@ -246,7 +246,7 @@ export const RECORRIDOS: Recorrido[] = [
         selector: '[aria-label^="Acciones para"]',
         titulo: "Qué puedes hacer con cada uno",
         texto:
-          "Editar sus datos, marcarlo como inactivo, restablecer su clave del portal (si olvidó la suya) o eliminarlo.",
+          "Editar sus datos, invitarlo al portal, mandarle un enlace para elegir una clave nueva (si olvidó la suya, sin que tú la veas) o eliminarlo.",
         lado: "left",
       },
     ],

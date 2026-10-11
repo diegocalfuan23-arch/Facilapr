@@ -909,6 +909,7 @@ export function SociosTabla({
 
       {restableciendo && (
         <RestablecerClaveDialog
+          comite={comite}
           socio={restableciendo}
           onCerrar={() => setRestableciendo(null)}
         />

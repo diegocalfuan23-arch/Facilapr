@@ -1,16 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { boletas, lecturas, socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
-import { hashPassword } from "better-auth/crypto";
-import {
-  account as accountTable,
-  session as sessionTable,
-} from "@/lib/db/auth-schema";
+import { cuentaDeSocio } from "@/lib/socios-acceso";
+import { huellaDeClave, urlRestablecerClave } from "@/lib/invitacion-socio";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
 
 const socioSchema = z.object({
@@ -244,54 +241,33 @@ export async function eliminarSociosSinMovimientos(
 }
 
 /**
- * La directiva le pone una clave nueva a un socio que olvidó la suya. No hay
- * recuperación por correo porque el socio entra con RUT (su correo es interno).
- * Una persona con varios arranques comparte una sola cuenta: se busca por RUT
- * dentro del comité, y solo se toca a alguien de este comité.
+ * Genera el enlace con el que un socio elige su clave nueva. La directiva NUNCA
+ * elige ni ve la clave: solo recibe este enlace para hacérselo llegar al socio
+ * (por WhatsApp, en general). El enlace es personal, vence en 48 horas y sirve
+ * una sola vez: apenas el socio cambia su clave, deja de funcionar.
+ *
+ * Una persona con varios arranques comparte una sola cuenta (se busca por RUT),
+ * y solo se toca a alguien de este comité.
  */
-export async function restablecerClaveSocio(
-  socioId: string,
-  claveNueva: string
-): Promise<ResultadoAccion> {
+export async function generarEnlaceRestablecerClave(
+  socioId: string
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
   const { apr } = await requireAdmin();
 
-  if (claveNueva.length < 8) {
-    return { ok: false, error: "La clave debe tener al menos 8 caracteres." };
+  if (!apr.slug) {
+    return {
+      ok: false,
+      error: "Primero define el enlace de tu comité en Configuración: va dentro del mensaje.",
+    };
   }
 
-  const socio = await db.query.socios.findFirst({
-    where: and(eq(socios.id, socioId), eq(socios.aprId, apr.id)),
-    columns: { id: true, rut: true, userId: true },
-  });
-  if (!socio) return { ok: false, error: "Socio no encontrado." };
-
-  let userId = socio.userId;
-  if (!userId && socio.rut) {
-    const conCuenta = await db.query.socios.findFirst({
-      where: and(eq(socios.aprId, apr.id), eq(socios.rut, socio.rut), isNotNull(socios.userId)),
-      columns: { userId: true },
-    });
-    userId = conCuenta?.userId ?? null;
-  }
-  if (!userId) {
+  const cuenta = await cuentaDeSocio(socioId, apr.id);
+  if (!cuenta) {
     return { ok: false, error: "Este socio todavía no tiene cuenta en el portal." };
   }
 
-  const claveHash = await hashPassword(claveNueva);
-
-  const actualizadas = await db
-    .update(accountTable)
-    .set({ password: claveHash, updatedAt: new Date() })
-    .where(and(eq(accountTable.userId, userId), eq(accountTable.providerId, "credential")))
-    .returning({ id: accountTable.id });
-
-  if (actualizadas.length === 0) {
-    return { ok: false, error: "No se encontró la cuenta de acceso de este socio." };
-  }
-
-  // Si la clave se olvidó o se filtró, cualquier sesión abierta con la vieja
-  // debe dejar de servir.
-  await db.delete(sessionTable).where(eq(sessionTable.userId, userId));
-
-  return { ok: true };
+  return {
+    ok: true,
+    url: urlRestablecerClave(apr.slug, cuenta.socio.id, huellaDeClave(cuenta.claveHash)),
+  };
 }

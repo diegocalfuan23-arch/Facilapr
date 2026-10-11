@@ -145,3 +145,23 @@ export function mensajeInvitacionPortal(
     `El enlace es personal y vence en ${DIAS_VIGENCIA_INVITACION} días.`,
   ].join("\n");
 }
+
+/** Horas que dura el enlace para crear una clave nueva (ver lib/invitacion-socio.ts). */
+export const HORAS_VIGENCIA_RESTABLECER = 48;
+
+/** El mensaje con el que la directiva le manda al socio el enlace para elegir una clave nueva. */
+export function mensajeRestablecerClave(
+  comite: string,
+  nombreSocio: string,
+  url: string
+) {
+  const nombre = nombreSocio.trim().split(/\s+/)[0] ?? "";
+  return [
+    `Hola ${nombre}, te escribe ${comite}.`,
+    "",
+    "Para cambiar tu clave de la cuenta en línea, elige una nueva aquí:",
+    url,
+    "",
+    `El enlace es personal, sirve una sola vez y vence en ${HORAS_VIGENCIA_RESTABLECER / 24} días. Si tú no lo pediste, ignora este mensaje.`,
+  ].join("\n");
+}

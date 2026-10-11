@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { signIn } from "@/lib/auth-client";
-import { aceptarInvitacion } from "@/app/socio/[slug]/actions";
+import {
+  aceptarInvitacion,
+  restablecerClaveConEnlace,
+} from "@/app/socio/[slug]/actions";
 import { CampoClave } from "@/components/auth/campo-clave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +18,12 @@ export function AceptarInvitacionForm({
   slug,
   codigo,
   base,
+  modo = "invitacion",
 }: {
   slug: string;
   codigo: string;
+  /** Invitación nueva, o enlace para cambiar la clave de una cuenta que ya existe. */
+  modo?: "invitacion" | "restablecer";
   /** Prefijo del portal (ver lib/portal-socio.ts): el panel es la base misma. */
   base: string;
 }) {
@@ -37,7 +43,10 @@ export function AceptarInvitacionForm({
     }
 
     setEnviando(true);
-    const r = await aceptarInvitacion(slug, codigo, clave);
+    const r =
+      modo === "restablecer"
+        ? await restablecerClaveConEnlace(slug, codigo, clave)
+        : await aceptarInvitacion(slug, codigo, clave);
     if (!r.ok) {
       setEnviando(false);
       setError(r.error);
@@ -55,7 +64,7 @@ export function AceptarInvitacionForm({
 
   return (
     <form onSubmit={handleSubmit} className="mt-7 flex flex-col gap-4">
-      <CampoClave id="clave" name="clave" label="Elige tu clave" confirmarId="confirmacion" />
+      <CampoClave id="clave" name="clave" label={modo === "restablecer" ? "Elige tu clave nueva" : "Elige tu clave"} confirmarId="confirmacion" />
 
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="confirmacion">Repite tu clave</Label>
@@ -81,7 +90,13 @@ export function AceptarInvitacionForm({
 
       <Button type="submit" disabled={enviando} className="mt-2 h-10 w-full">
         {enviando && <Loader2 className="animate-spin" />}
-        {enviando ? "Creando tu cuenta…" : "Crear mi cuenta y entrar"}
+        {enviando
+          ? modo === "restablecer"
+            ? "Guardando…"
+            : "Creando tu cuenta…"
+          : modo === "restablecer"
+            ? "Guardar mi clave y entrar"
+            : "Crear mi cuenta y entrar"}
       </Button>
     </form>
   );

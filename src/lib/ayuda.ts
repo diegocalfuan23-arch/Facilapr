@@ -307,7 +307,7 @@ export const ARTICULOS: Articulo[] = [
     slug: "restablecer-clave-socio",
     titulo: "Restablecer la clave de un socio",
     resumen:
-      "Si un socio olvidó su clave, le pones una nueva desde el panel y se la entregas.",
+      "Si un socio olvidó su clave, le mandas un enlace y él elige la nueva. Tú nunca la ves.",
     categoria: "Portal de socios",
     para: "Administrador",
     minutos: 2,
@@ -320,18 +320,18 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Elige «Restablecer clave»",
         texto:
-          "Solo está disponible para quien ya tiene cuenta en el portal. Si dice «Sin cuenta en el portal», todavía no ha pedido acceso.",
+          "Solo está disponible para quien ya tiene cuenta en el portal. Si dice «Sin cuenta en el portal», todavía no ha creado su acceso: invítalo con «Invitar al portal».",
       },
       {
-        titulo: "Revisa la clave nueva",
+        titulo: "Mándale el enlace",
         texto:
-          "Se propone una clave fácil de leer. Puedes generar otra con el botón de flechas, o escribir la que quieras (mínimo 8 caracteres).",
+          "Pulsa «Enviar por WhatsApp»: se abre el chat del socio con el mensaje y su enlace personal ya escritos. Si no tiene un teléfono válido, copia el enlace y hazlo llegar a su teléfono.",
+        nota: "La clave nunca pasa por ti ni por ningún mensaje: el socio la escribe él en su celular.",
       },
       {
-        titulo: "Guarda y entrégasela",
+        titulo: "El socio elige su clave nueva",
         texto:
-          "Pulsa Guardar clave, cópiala y dásela al socio por teléfono, WhatsApp o en persona. Entra con su RUT.",
-        nota: "La clave se muestra una sola vez, y se cierran las sesiones que tuviera abiertas.",
+          "Abre el enlace, escribe la clave dos veces y entra a su cuenta. El enlace sirve una sola vez y vence en 2 días; al usarlo se cierran las sesiones que tuviera abiertas.",
       },
     ],
   },

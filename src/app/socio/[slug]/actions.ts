@@ -6,7 +6,16 @@ import { and, isNotNull } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import { db } from "@/lib/db";
 import { aprs, socios } from "@/lib/db/schema";
-import { leerInvitacionSocio } from "@/lib/invitacion-socio";
+import {
+  huellaDeClave,
+  leerInvitacionSocio,
+  leerRestablecerClave,
+} from "@/lib/invitacion-socio";
+import { cuentaDeSocio } from "@/lib/socios-acceso";
+import {
+  account as accountTable,
+  session as sessionTable,
+} from "@/lib/db/auth-schema";
 import {
   solicitarAccesoSocio,
   crearCuentaSocio,
@@ -124,4 +133,43 @@ export async function aceptarInvitacion(
     await hashPassword(clave)
   );
   return { ok: true, email };
+}
+
+/**
+ * El socio abrió el enlace que le mandó su comité y elige una clave nueva. El
+ * enlace lleva una huella de la clave que tenía: si ya la cambió, la huella no
+ * coincide y el enlace no sirve (un solo uso). Se cierran sus sesiones abiertas.
+ */
+export async function restablecerClaveConEnlace(
+  slug: string,
+  codigo: string,
+  clave: string
+): Promise<ResultadoInvitacion> {
+  if (clave.length < 8) {
+    return { ok: false, error: "La clave debe tener al menos 8 caracteres." };
+  }
+
+  const dato = leerRestablecerClave(codigo);
+  if (!dato) {
+    return { ok: false, error: "Este enlace no es válido o ya venció. Pídele uno nuevo a tu comité." };
+  }
+
+  const apr = await db.query.aprs.findFirst({
+    where: eq(aprs.slug, slug),
+    columns: { id: true },
+  });
+  const cuenta = apr ? await cuentaDeSocio(dato.socioId, apr.id) : null;
+  if (!cuenta || !cuenta.socio.rut || huellaDeClave(cuenta.claveHash) !== dato.huella) {
+    return { ok: false, error: "Este enlace ya se usó o dejó de servir. Pídele uno nuevo a tu comité." };
+  }
+
+  await db
+    .update(accountTable)
+    .set({ password: await hashPassword(clave), updatedAt: new Date() })
+    .where(eq(accountTable.id, cuenta.accountId));
+
+  // Cualquier sesión abierta con la clave anterior deja de servir.
+  await db.delete(sessionTable).where(eq(sessionTable.userId, cuenta.userId));
+
+  return { ok: true, email: correoSocioDesdeRut(cuenta.socio.rut, cuenta.socio.aprId) };
 }

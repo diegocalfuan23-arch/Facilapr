@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import { hashPassword } from "better-auth/crypto";
 import { db } from "@/lib/db";
 import { solicitudesAcceso, socios } from "@/lib/db/schema";
@@ -225,4 +225,35 @@ export async function eliminarSolicitudAcceso(
 /** RUT normalizado -> correo sintético, para el login. */
 export function correoSocioDesdeRut(rut: string, aprId: string): string {
   return `${normalizarRut(rut).toLowerCase()}@${aprId}.socio.local`;
+}
+
+/**
+ * La cuenta de acceso de un socio y el hash de su clave actual. Una persona con
+ * varios arranques comparte una sola cuenta: se busca por RUT dentro del
+ * comité. Null si el socio todavía no tiene cuenta.
+ */
+export async function cuentaDeSocio(socioId: string, aprId: string) {
+  const socio = await db.query.socios.findFirst({
+    where: and(eq(socios.id, socioId), eq(socios.aprId, aprId)),
+    columns: { id: true, nombre: true, rut: true, userId: true, aprId: true },
+  });
+  if (!socio) return null;
+
+  let userId = socio.userId;
+  if (!userId && socio.rut) {
+    const otro = await db.query.socios.findFirst({
+      where: and(eq(socios.aprId, aprId), eq(socios.rut, socio.rut), isNotNull(socios.userId)),
+      columns: { userId: true },
+    });
+    userId = otro?.userId ?? null;
+  }
+  if (!userId) return null;
+
+  const credencial = await db.query.account.findFirst({
+    where: and(eq(accountTable.userId, userId), eq(accountTable.providerId, "credential")),
+    columns: { id: true, password: true },
+  });
+  if (!credencial?.password) return null;
+
+  return { socio, userId, accountId: credencial.id, claveHash: credencial.password };
 }

@@ -1,14 +1,16 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { Check, Copy, Loader2, MessageCircle, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
-import { useState, useTransition } from "react";
-import { Check, Copy, Loader2, RefreshCw } from "lucide-react";
-import { restablecerClaveSocio } from "@/app/panel/socios/actions";
-import { generarClave } from "@/lib/clave";
+import { generarEnlaceRestablecerClave } from "@/app/panel/socios/actions";
 import { formatearRut } from "@/lib/formato";
+import {
+  enlaceWhatsApp,
+  mensajeRestablecerClave,
+  telefonoValidoParaWhatsApp,
+} from "@/lib/whatsapp";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -18,134 +20,123 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type Socio = { id: string; nombre: string; rut: string | null };
+type Socio = { id: string; nombre: string; rut: string | null; telefono: string | null };
 
 /**
- * La clave del portal de socios no se recupera por correo: el socio entra con
- * RUT y no tiene un correo real. Si la olvida, la directiva le pone una nueva
- * desde aquí y se la entrega (por teléfono, WhatsApp o en persona).
+ * La clave del portal de socios no se recupera por correo (el socio entra con
+ * RUT y no tiene un correo real). Si la olvida, la directiva le manda un enlace
+ * y el socio elige la suya: la directiva nunca la ve ni la escribe, así no hay
+ * una clave viajando por mensajes.
  */
 export function RestablecerClaveDialog({
   socio,
+  comite,
   onCerrar,
 }: {
   socio: Socio;
+  comite: { nombre: string };
   onCerrar: () => void;
 }) {
-  const [clave, setClave] = useState(() => generarClave());
-  const [hecho, setHecho] = useState(false);
-  const [copiada, setCopiada] = useState(false);
+  const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [pendiente, iniciar] = useTransition();
+  const [copiado, setCopiado] = useState(false);
 
-  async function copiar() {
-    try {
-      await navigator.clipboard.writeText(clave);
-      toast.success("Clave copiada");
-      setCopiada(true);
-      setTimeout(() => setCopiada(false), 2000);
-    } catch {
-      // Sin permiso para el portapapeles: la clave queda visible para copiarla a mano.
-    }
+  useEffect(() => {
+    let vivo = true;
+    generarEnlaceRestablecerClave(socio.id)
+      .then((r) => {
+        if (!vivo) return;
+        if (r.ok) setUrl(r.url);
+        else setError(r.error);
+      })
+      .catch(() => vivo && setError("No pudimos generar el enlace. Inténtalo de nuevo."));
+    return () => {
+      vivo = false;
+    };
+  }, [socio.id]);
+
+  const puedeWhatsApp = telefonoValidoParaWhatsApp(socio.telefono);
+
+  function enviar() {
+    if (!url || !socio.telefono) return;
+    window.open(
+      enlaceWhatsApp(socio.telefono, mensajeRestablecerClave(comite.nombre, socio.nombre, url)),
+      "_blank",
+      "noopener"
+    );
   }
 
-  function guardar() {
-    setError(null);
-    iniciar(async () => {
-      const r = await restablecerClaveSocio(socio.id, clave);
-      if (r.ok) {
-        setHecho(true);
-        toast.success(`Clave de ${socio.nombre} restablecida`);
-      } else {
-        setError(r.error);
-        toast.error(r.error);
-      }
-    });
+  async function copiar() {
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiado(true);
+      toast.success("Enlace copiado");
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      // Sin permiso para el portapapeles: el enlace queda visible para copiarlo a mano.
+    }
   }
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>
-            {hecho ? "Clave restablecida" : "Restablecer clave"}
-          </DialogTitle>
+          <DialogTitle>Nueva clave para {socio.nombre}</DialogTitle>
           <DialogDescription>
-            {socio.nombre} · {formatearRut(socio.rut)}
+            {socio.rut ? `${formatearRut(socio.rut)} · ` : ""}
+            El socio elige su clave con un enlace que le mandas. Tú nunca la ves.
           </DialogDescription>
         </DialogHeader>
 
-        {hecho ? (
-          <div className="flex flex-col gap-3 text-[0.92rem]">
-            <p>
-              Entrégale esta clave a {socio.nombre}. Entra con su RUT, y
-              después no se vuelve a mostrar aquí.
-            </p>
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2.5">
-              <code className="flex-1 font-mono text-[1rem] tracking-wide">
-                {clave}
-              </code>
-              <Button type="button" variant="outline" size="sm" onClick={copiar}>
-                {copiada ? <Check className="text-forest" /> : <Copy />}
-                {copiada ? "Copiada" : "Copiar"}
-              </Button>
-            </div>
-            <p className="text-[0.82rem] text-muted-foreground">
-              Se cerró cualquier sesión que tuviera abierta.
-            </p>
+        {error ? (
+          <p className="rounded-lg bg-destructive/10 px-3.5 py-2.5 text-[0.88rem] text-destructive">
+            {error}
+          </p>
+        ) : !url ? (
+          <div className="flex items-center gap-2 py-4 text-[0.9rem] text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Preparando el enlace…
           </div>
         ) : (
           <div className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="clave-nueva">Clave nueva</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="clave-nueva"
-                  value={clave}
-                  onChange={(e) => setClave(e.target.value)}
-                  className="font-mono"
-                  autoComplete="off"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  aria-label="Generar otra clave"
-                  onClick={() => setClave(generarClave())}
-                >
-                  <RefreshCw />
-                </Button>
-              </div>
-              <p className="text-[0.82rem] text-muted-foreground">
-                Mínimo 8 caracteres. Reemplaza la que tenía y cierra sus
-                sesiones abiertas.
+            {puedeWhatsApp ? (
+              <Button onClick={enviar} className="h-10">
+                <MessageCircle />
+                Enviar por WhatsApp
+              </Button>
+            ) : (
+              <p className="rounded-lg bg-muted/60 px-3.5 py-2.5 text-[0.84rem] text-muted-foreground">
+                Este socio no tiene un teléfono válido. Copia el enlace y hazlo
+                llegar a su teléfono.
               </p>
-            </div>
-            {error && <p className="text-[0.88rem] text-destructive">{error}</p>}
+            )}
+
+            <button
+              type="button"
+              onClick={copiar}
+              className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-left font-mono text-[0.72rem] hover:bg-muted"
+            >
+              <span className="min-w-0 flex-1 truncate">{url}</span>
+              {copiado ? (
+                <Check className="size-4 shrink-0 text-forest" />
+              ) : (
+                <Copy className="size-4 shrink-0" />
+              )}
+            </button>
+
+            <p className="flex items-start gap-2 text-[0.8rem] leading-relaxed text-muted-foreground">
+              <ShieldCheck className="mt-0.5 size-4 shrink-0 text-forest" />
+              El enlace es personal, sirve una sola vez y vence en 2 días. Al
+              usarlo se cierran las sesiones que el socio tuviera abiertas.
+            </p>
           </div>
         )}
 
         <DialogFooter>
-          {hecho ? (
-            <Button type="button" onClick={onCerrar}>
-              Listo
-            </Button>
-          ) : (
-            <>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onCerrar}
-                disabled={pendiente}
-              >
-                Cancelar
-              </Button>
-              <Button type="button" onClick={guardar} disabled={pendiente}>
-                {pendiente && <Loader2 className="animate-spin" />}
-                Guardar clave
-              </Button>
-            </>
-          )}
+          <Button variant="outline" onClick={onCerrar}>
+            Cerrar
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
