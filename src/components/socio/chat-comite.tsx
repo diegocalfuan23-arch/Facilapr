@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, MessageSquareText, Send, Sparkles, X } from "lucide-react";
+import { Loader2, MessageSquareText, Send, X } from "lucide-react";
 import {
   enviarMensajeSocio,
   marcarLeidoSocio,
@@ -11,11 +11,14 @@ import type { MensajeChat } from "@/lib/chat-socio";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  BurbujaChat,
+  CLASE_BARRA_ESCRIBIR,
+  CLASE_BOTON_ENVIAR,
+  CLASE_CAJA_ESCRIBIR,
+  FONDO_CHAT,
+} from "@/components/chat/burbuja";
 
-const horaCorta = new Intl.DateTimeFormat("es-CL", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 /**
  * Chat directo con la directiva del comité — canal separado del asistente
@@ -129,61 +132,43 @@ export function ChatComite({
 
       {abierto && (
         <div className="fixed right-5 bottom-38 z-50 flex h-[480px] w-[min(360px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-          <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3.5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-secondary/15 text-secondary">
-              <MessageSquareText className="size-4" />
+          <div className="flex shrink-0 items-center gap-2.5 bg-[#008069] px-4 py-3 text-white">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15">
+              <MessageSquareText className="size-4.5" />
             </span>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold">
-                Chat con {nombreApr}
+                {nombreApr}
               </div>
-              <div className="text-[0.75rem] text-muted-foreground">
+              <div className="text-[0.74rem] text-white/80">
                 Te responde alguien de la directiva
               </div>
             </div>
           </div>
 
-          <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-4">
+          <div className={cn("flex flex-1 flex-col gap-1.5 overflow-y-auto px-3 py-3", FONDO_CHAT)}>
             {cargando ? (
               <div className="flex flex-1 items-center justify-center text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
               </div>
             ) : mensajes.length === 0 ? (
-              <p className="my-auto text-center text-[0.85rem] text-muted-foreground">
+              <p className="my-auto rounded-lg bg-white/70 px-3 py-2 text-center text-[0.85rem] text-neutral-600">
                 Escríbele a tu comité — un dirigente te responderá apenas
                 pueda.
               </p>
             ) : (
               mensajes.map((m) => (
-                <div
+                <BurbujaChat
                   key={m.id}
-                  className={cn(
-                    "flex flex-col gap-0.5",
-                    m.remitente === "SOCIO" ? "items-end" : "items-start"
-                  )}
+                  // En el portal «propio» es lo que escribe el socio.
+                  tono={m.remitente === "SOCIO" ? "propio" : m.remitente === "IA" ? "ia" : "ajeno"}
+                  lado={m.remitente === "SOCIO" ? "derecha" : "izquierda"}
+                  fecha={m.createdAt}
+                  etiqueta={m.remitente === "IA" ? "Asistente del comité · IA" : undefined}
+                  ancho="max-w-[85%]"
                 >
-                  {m.remitente === "IA" && (
-                    <span className="flex items-center gap-1 px-1 text-[0.7rem] font-medium text-primary">
-                      <Sparkles className="size-3" />
-                      Asistente del comité · IA
-                    </span>
-                  )}
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-2xl px-3.5 py-2.5 text-[0.88rem] leading-relaxed whitespace-pre-line",
-                      m.remitente === "SOCIO"
-                        ? "rounded-br-md bg-primary text-primary-foreground"
-                        : m.remitente === "IA"
-                          ? "rounded-bl-md border border-primary/20 bg-primary/5 text-foreground"
-                          : "rounded-bl-md bg-muted text-foreground"
-                    )}
-                  >
-                    {m.contenido}
-                  </div>
-                  <span className="px-1 text-[0.7rem] text-muted-foreground">
-                    {horaCorta.format(new Date(m.createdAt))}
-                  </span>
-                </div>
+                  {m.contenido}
+                </BurbujaChat>
               ))
             )}
             <div ref={finRef} />
@@ -194,23 +179,23 @@ export function ChatComite({
               e.preventDefault();
               enviar();
             }}
-            className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-3"
+            className={cn("shrink-0", CLASE_BARRA_ESCRIBIR)}
           >
             <Input
               value={entrada}
               onChange={(e) => setEntrada(e.target.value)}
-              placeholder="Escribe tu mensaje…"
+              placeholder="Escribe un mensaje"
               maxLength={1000}
               aria-label="Tu mensaje"
-              className="flex-1"
+              className={CLASE_CAJA_ESCRIBIR}
             />
             <Button
               type="submit"
-              size="icon"
               disabled={enviando || !entrada.trim()}
               aria-label="Enviar"
+              className={CLASE_BOTON_ENVIAR}
             >
-              <Send className="size-4" />
+              <Send className="size-[18px]" />
             </Button>
           </form>
         </div>

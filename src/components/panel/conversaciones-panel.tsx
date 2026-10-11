@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, MessageCircle, Send, Sparkles } from "lucide-react";
+import { Loader2, MessageCircle, Send } from "lucide-react";
 import {
   enviarMensajeDirectiva,
   marcarLeidoDirectiva,
@@ -17,11 +17,14 @@ import {
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  BurbujaChat,
+  CLASE_BARRA_ESCRIBIR,
+  CLASE_BOTON_ENVIAR,
+  CLASE_CAJA_ESCRIBIR,
+  FONDO_CHAT,
+} from "@/components/chat/burbuja";
 
-const horaCorta = new Intl.DateTimeFormat("es-CL", {
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 export type ConversacionResumen = {
   socioId: string;
@@ -239,7 +242,7 @@ function ChatConSocio({
 
   return (
     <>
-      <div className="flex items-center gap-2.5 border-b border-border/60 px-4 py-3">
+      <div className="flex items-center gap-2.5 border-b border-border/60 bg-[#f0f2f5] px-4 py-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.72rem] font-semibold text-muted-foreground">
           {iniciales(nombre)}
         </span>
@@ -270,47 +273,32 @@ function ChatConSocio({
         )}
       </div>
 
-      <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-4">
+      <div className={cn("flex flex-1 flex-col gap-1.5 overflow-y-auto px-[6%] py-4", FONDO_CHAT)}>
         {cargando ? (
           <div className="flex flex-1 items-center justify-center text-muted-foreground">
             <Loader2 className="size-5 animate-spin" />
           </div>
         ) : mensajes.length === 0 ? (
-          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-muted-foreground">
+          <div className="flex flex-1 flex-col items-center justify-center gap-2 text-neutral-500">
             <MessageCircle className="size-6" />
             <span className="text-[0.85rem]">Sin mensajes todavía</span>
           </div>
         ) : (
           mensajes.map((m) => (
-            <div
+            <BurbujaChat
               key={m.id}
-              className={cn(
-                "flex flex-col gap-0.5",
-                m.remitente === "SOCIO" ? "items-start" : "items-end"
-              )}
+              // En el panel «propio» es lo que escribe la directiva.
+              tono={m.remitente === "DIRECTIVA" ? "propio" : m.remitente === "IA" ? "ia" : "ajeno"}
+              lado={m.remitente === "SOCIO" ? "izquierda" : "derecha"}
+              fecha={m.createdAt}
+              etiqueta={
+                m.remitente === "IA"
+                  ? `Asistente IA${m.requiereHumano ? " · necesita una persona" : ""}`
+                  : undefined
+              }
             >
-              {m.remitente === "IA" && (
-                <span className="flex items-center gap-1 px-1 text-[0.7rem] font-medium text-primary">
-                  <Sparkles className="size-3" />
-                  Asistente IA{m.requiereHumano ? " · necesita una persona" : ""}
-                </span>
-              )}
-              <div
-                className={cn(
-                  "max-w-[75%] rounded-2xl px-3.5 py-2.5 text-[0.88rem] leading-relaxed whitespace-pre-line",
-                  m.remitente === "DIRECTIVA"
-                    ? "rounded-br-md bg-primary text-primary-foreground"
-                    : m.remitente === "IA"
-                      ? "rounded-br-md border border-primary/20 bg-primary/5 text-foreground"
-                      : "rounded-bl-md bg-muted text-foreground"
-                )}
-              >
-                {m.contenido}
-              </div>
-              <span className="px-1 text-[0.7rem] text-muted-foreground">
-                {horaCorta.format(new Date(m.createdAt))}
-              </span>
-            </div>
+              {m.contenido}
+            </BurbujaChat>
           ))
         )}
         <div ref={finRef} />
@@ -321,17 +309,22 @@ function ChatConSocio({
           e.preventDefault();
           enviar();
         }}
-        className="flex items-center gap-2 border-t border-border/60 p-3"
+        className={CLASE_BARRA_ESCRIBIR}
       >
         <Input
           value={entrada}
           onChange={(e) => setEntrada(e.target.value)}
-          placeholder="Escribe una respuesta…"
+          placeholder="Escribe una respuesta"
           maxLength={1000}
-          className="flex-1"
+          className={CLASE_CAJA_ESCRIBIR}
         />
-        <Button type="submit" size="icon" disabled={enviando || !entrada.trim()}>
-          <Send className="size-4" />
+        <Button
+          type="submit"
+          disabled={enviando || !entrada.trim()}
+          aria-label="Enviar"
+          className={CLASE_BOTON_ENVIAR}
+        >
+          <Send className="size-[18px]" />
         </Button>
       </form>
     </>
