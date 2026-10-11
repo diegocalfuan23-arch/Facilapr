@@ -116,7 +116,7 @@ function TarjetaResumen({
   nombres: string[];
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="min-w-0 rounded-xl border border-border bg-card p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-4">
       <div className="flex items-start justify-between">
         <span
           className={cn(
@@ -134,13 +134,15 @@ function TarjetaResumen({
       <div className="mt-1 flex items-end justify-between gap-2">
         <span
           className={cn(
-            "text-[1.6rem] leading-none font-semibold tabular-nums",
+            "text-[1.25rem] leading-none font-semibold tabular-nums sm:text-[1.6rem]",
             colorValor
           )}
         >
           {valor}
         </span>
-        <AvataresApilados nombres={nombres} />
+        <span className="hidden sm:block">
+          <AvataresApilados nombres={nombres} />
+        </span>
       </div>
     </div>
   );
@@ -354,7 +356,7 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
         </div>
       </div>
 
-      <div data-tour="socios-kpis" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="socios-kpis" className="grid grid-cols-2 gap-2 sm:gap-4 xl:grid-cols-4">
         <TarjetaResumen
           icono={<Users />}
           color="bg-primary/10 text-primary"
@@ -439,7 +441,7 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 p-3 sm:p-5">
             {/* El buscador no necesita todo el ancho: deja sitio a la derecha
                 para importar y filtrar, que es donde el ojo los busca. */}
             <div data-tour="socios-buscar" className="relative w-full max-w-md min-w-52 flex-1">

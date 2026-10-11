@@ -132,17 +132,19 @@ function TarjetaResumen({
   valor: number;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+    <div className="min-w-0 rounded-xl border border-border bg-card p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-4">
       <span
         className={cn(
-          "flex size-9 items-center justify-center rounded-lg [&_svg]:size-4.5",
+          "flex size-7 items-center justify-center rounded-lg sm:size-9 [&_svg]:size-4 sm:[&_svg]:size-4.5",
           color
         )}
       >
         {icono}
       </span>
-      <div className="mt-4 text-[0.87rem] text-muted-foreground">{etiqueta}</div>
-      <div className="mt-1 text-[1.6rem] leading-none font-semibold tabular-nums">
+      <div className="mt-2 truncate text-[0.74rem] text-muted-foreground sm:mt-4 sm:text-[0.87rem]">
+        {etiqueta}
+      </div>
+      <div className="mt-0.5 truncate text-[1.25rem] leading-none font-semibold tabular-nums sm:mt-1 sm:text-[1.6rem]">
         {valor}
       </div>
     </div>
@@ -298,7 +300,7 @@ export function LecturasTabla({
         </div>
       )}
 
-      <div data-tour="lec-kpis" className="grid gap-4 sm:grid-cols-3">
+      <div data-tour="lec-kpis" className="grid grid-cols-3 gap-2 sm:gap-4">
         <TarjetaResumen
           icono={<Clock />}
           color="bg-tertiary/15 text-tertiary"
@@ -370,8 +372,8 @@ export function LecturasTabla({
             ))}
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 p-5">
-            <div className="relative min-w-60 flex-1">
+          <div className="flex flex-wrap items-center gap-3 p-3 sm:p-5">
+            <div className="relative w-full sm:min-w-60 sm:flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={busqueda}
@@ -385,7 +387,7 @@ export function LecturasTabla({
               value={periodo}
               onChange={(e) => cambiarFiltro(() => setPeriodo(e.target.value))}
               aria-label="Filtrar por período"
-              className="h-10 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto"
             >
               <option value="todos">Todos los períodos</option>
               {periodos.map((p) => (

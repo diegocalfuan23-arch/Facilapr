@@ -35,7 +35,7 @@ export default async function PanelLayout({
         {/* El gradiente va en el contenedor, no en el área de contenido: así
             cubre también el header. Centrado en 50% 50% para que el velo quede
             al medio de la pantalla y se desvanezca hacia los bordes. */}
-        <SidebarInset className="bg-[radial-gradient(90%_70%_at_50%_50%,color-mix(in_oklch,var(--primary),transparent_90%),transparent_75%)]">
+        <SidebarInset className="min-w-0 bg-[radial-gradient(90%_70%_at_50%_50%,color-mix(in_oklch,var(--primary),transparent_90%),transparent_75%)]">
           <header
             className={cn(
               "flex h-14 shrink-0 items-center gap-2 px-4",
@@ -75,7 +75,7 @@ export default async function PanelLayout({
 
           <div
             className={cn(
-              "flex flex-1 flex-col gap-5 p-6",
+              "flex min-w-0 flex-1 flex-col gap-5 p-4 sm:p-6",
               esOperador && "p-4 pb-28 md:p-6"
             )}
           >
