@@ -354,7 +354,7 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="socios-kpis" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <TarjetaResumen
           icono={<Users />}
           color="bg-primary/10 text-primary"

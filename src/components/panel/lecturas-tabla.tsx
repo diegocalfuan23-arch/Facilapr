@@ -298,7 +298,7 @@ export function LecturasTabla({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div data-tour="lec-kpis" className="grid gap-4 sm:grid-cols-3">
         <TarjetaResumen
           icono={<Clock />}
           color="bg-tertiary/15 text-tertiary"

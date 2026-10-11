@@ -202,6 +202,13 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "bottom",
       },
       {
+        selector: enMenu("socios-kpis"),
+        titulo: "De un vistazo",
+        texto:
+          "Cuántos arranques tienes en total y cuántos están activos, y cuántos tienen teléfono o les falta la dirección. Sirven para ver qué datos te faltan por completar.",
+        lado: "bottom",
+      },
+      {
         selector: enMenu("socios-buscar"),
         titulo: "Buscar",
         texto: "Encuentra a alguien por su nombre, su RUT o su teléfono.",
@@ -222,11 +229,11 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "bottom",
       },
       {
-        selector: enMenu("socios-tabla"),
+        selector: '[data-tour="socios-tabla"] tbody tr:first-child',
         titulo: "Tu padrón",
         texto:
-          "Una fila por arranque. Marca varias casillas para desactivarlas o eliminarlas de una vez.",
-        lado: "top",
+          "Cada fila es un arranque con su medidor: el nombre y número, el RUT, el estado, el teléfono y la dirección. Marca varias casillas para desactivarlas o eliminarlas de una vez.",
+        lado: "bottom",
       },
       {
         selector: '[aria-label^="Acciones para"]',
@@ -274,6 +281,13 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "bottom",
       },
       {
+        selector: enMenu("lec-kpis"),
+        titulo: "De un vistazo",
+        texto:
+          "Cuántas lecturas esperan tu revisión, cuántas ya están aprobadas y cuántas rechazaste.",
+        lado: "bottom",
+      },
+      {
         selector: enMenu("lec-pestanas"),
         titulo: "Estados",
         texto:
@@ -281,7 +295,7 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "bottom",
       },
       {
-        selector: enMenu("lec-tabla"),
+        selector: '[data-tour="lec-tabla"] tbody tr:first-child',
         titulo: "Revisa y aprueba",
         texto:
           "Revisa que el consumo se vea razonable (un número muy alto o negativo es señal de error). Puedes corregir o eliminar una lectura mal digitada, y aprobar. Al aprobar se calcula la boleta.",
@@ -326,6 +340,13 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "bottom",
       },
       {
+        selector: enMenu("bol-kpis"),
+        titulo: "De un vistazo",
+        texto:
+          "Cuántas boletas hay, cuánto falta por cobrar, cuánto ya cobraste y cuántas están vencidas.",
+        lado: "bottom",
+      },
+      {
         selector: enMenu("bol-pestanas"),
         titulo: "Estados",
         texto:
@@ -333,11 +354,11 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "bottom",
       },
       {
-        selector: enMenu("bol-tabla"),
+        selector: '[data-tour="bol-tabla"] tbody tr:first-child',
         titulo: "Tus boletas",
         texto:
-          "Una fila por boleta, con su monto, lo pagado y su vencimiento. Si alguien abonó una parte, verás cuánto falta.",
-        lado: "top",
+          "Cada fila es una boleta: el socio, el período, el consumo, el monto, lo pagado y el vencimiento. Si alguien abonó una parte, verás cuánto falta.",
+        lado: "bottom",
       },
       {
         selector: '[aria-label^="Acciones para la boleta"]',
