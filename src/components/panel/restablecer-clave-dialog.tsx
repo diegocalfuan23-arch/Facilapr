@@ -80,7 +80,7 @@ export function RestablecerClaveDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="sm:max-w-[460px]">
+      <DialogContent className="min-w-0 sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>Nueva clave para {socio.nombre}</DialogTitle>
           <DialogDescription>
@@ -99,7 +99,7 @@ export function RestablecerClaveDialog({
             Preparando el enlace…
           </div>
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex min-w-0 flex-col gap-3">
             {puedeWhatsApp ? (
               <Button onClick={enviar} className="h-10">
                 <MessageCircle />
@@ -115,7 +115,7 @@ export function RestablecerClaveDialog({
             <button
               type="button"
               onClick={copiar}
-              className="flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-left font-mono text-[0.72rem] hover:bg-muted"
+              className="flex w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 text-left font-mono text-[0.72rem] hover:bg-muted"
             >
               <span className="min-w-0 flex-1 truncate">{url}</span>
               {copiado ? (
