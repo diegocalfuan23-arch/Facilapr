@@ -186,10 +186,13 @@ export function PanelSidebar({
   apr,
   comuna,
   rol,
+  chat = false,
 }: {
   apr: string;
   comuna: string;
   rol: "ADMIN" | "OPERADOR";
+  /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
+  chat?: boolean;
 }) {
   const pathname = usePathname();
   const inicio = rol === "ADMIN" ? "/panel" : "/panel/lecturas";
@@ -214,7 +217,14 @@ export function PanelSidebar({
         {rol === "ADMIN" ? (
           <>
             <GrupoEnlaces titulo="Gestión" icono={LayoutGrid} enlaces={gestion} pathname={pathname} />
-            <GrupoEnlaces titulo="Atención" icono={Headset} enlaces={atencion} pathname={pathname} />
+            <GrupoEnlaces
+              titulo="Atención"
+              icono={Headset}
+              enlaces={atencion.filter(
+                (e) => chat || e.href !== "/panel/conversaciones"
+              )}
+              pathname={pathname}
+            />
           </>
         ) : (
           <GrupoEnlaces titulo="Terreno" icono={Droplets} enlaces={soloOperador} pathname={pathname} />

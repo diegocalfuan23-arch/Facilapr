@@ -15,7 +15,7 @@ export default async function ConversacionesPage() {
 
   if (!puede(apr.plan as Plan, "chat")) {
     return (
-      <div className="mx-auto mt-8 flex max-w-md flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+      <div className="mt-8 flex w-full max-w-md flex-col items-center self-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
         <span className="flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
           <MessageCircle className="size-5" />
         </span>
