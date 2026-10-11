@@ -1,4 +1,4 @@
-import { CheckCheck, Sparkles } from "lucide-react";
+import { Check, CheckCheck, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -36,6 +36,7 @@ export function BurbujaChat({
   lado,
   fecha,
   etiqueta,
+  leido = false,
   children,
   ancho = "max-w-[78%]",
 }: {
@@ -43,6 +44,8 @@ export function BurbujaChat({
   lado: "izquierda" | "derecha";
   fecha: string | Date;
   etiqueta?: string;
+  /** Solo para mensajes propios: la otra parte ya lo leyó. */
+  leido?: boolean;
   children: React.ReactNode;
   ancho?: string;
 }) {
@@ -69,7 +72,12 @@ export function BurbujaChat({
         {/* La hora va dentro del globo, abajo a la derecha, como en WhatsApp. */}
         <span className="float-right mt-1.5 ml-3 flex translate-y-0.5 items-center gap-0.5 text-[0.66rem] text-neutral-500">
           {hora.format(new Date(fecha))}
-          {tono === "propio" && <CheckCheck className="size-3.5 text-[#53bdeb]" />}
+          {tono === "propio" &&
+            (leido ? (
+              <CheckCheck className="size-3.5 text-[#53bdeb]" />
+            ) : (
+              <Check className="size-3.5" />
+            ))}
         </span>
       </div>
     </div>

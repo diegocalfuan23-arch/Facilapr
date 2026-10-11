@@ -10,6 +10,8 @@ export type MensajeChat = {
   createdAt: Date;
   /** Solo en mensajes de la IA: pasó la conversación a una persona. */
   requiereHumano?: boolean;
+  /** La otra parte ya lo leyó (solo importa en mensajes de SOCIO y DIRECTIVA). */
+  leido?: boolean;
 };
 
 export async function historialChat(socioId: string): Promise<MensajeChat[]> {
@@ -23,10 +25,16 @@ export async function historialChat(socioId: string): Promise<MensajeChat[]> {
       contenido: true,
       createdAt: true,
       requiereHumano: true,
+      leidoPorSocio: true,
+      leidoPorDirectiva: true,
     },
   });
 
-  return filas;
+  return filas.map(({ leidoPorSocio, leidoPorDirectiva, ...m }) => ({
+    ...m,
+    // Lo que escribió el socio lo lee la directiva, y al revés.
+    leido: m.remitente === "SOCIO" ? leidoPorDirectiva : leidoPorSocio,
+  }));
 }
 
 /**
@@ -78,5 +86,5 @@ export async function enviarMensajeChat({
     console.error("No se pudo publicar el mensaje en tiempo real:", error);
   }
 
-  return mensaje;
+  return { ...mensaje, leido: false };
 }

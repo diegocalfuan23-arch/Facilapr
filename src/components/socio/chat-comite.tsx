@@ -25,6 +25,11 @@ import {
  * de IA (AsistenteSocio): acá responde una persona, no un modelo, y puede
  * tardar. Reemplaza al bot de WhatsApp que se eliminó del producto.
  */
+/** Hay algo nuevo que mostrar: mensajes nuevos o mensajes que pasaron a leídos. */
+function cambio(a: MensajeChat[], b: MensajeChat[]) {
+  return a.length !== b.length || a.filter((m) => m.leido).length !== b.filter((m) => m.leido).length;
+}
+
 /** Agrega un mensaje solo si no está ya (el eco en vivo y la respuesta del envío pueden coincidir). */
 function agregarSinRepetir(lista: MensajeChat[], m: MensajeChat) {
   return lista.some((x) => x.id === m.id) ? lista : [...lista, m];
@@ -71,11 +76,11 @@ export function ChatComite({
         .then((r) => (r.ok ? r.json() : null))
         .then((data: unknown) => {
           if (Array.isArray(data)) {
-            setMensajes((prev) => (data.length !== prev.length ? (data as MensajeChat[]) : prev));
+            setMensajes((prev) => (cambio(prev, data as MensajeChat[]) ? (data as MensajeChat[]) : prev));
           }
         })
         .catch(() => undefined);
-    }, 12_000);
+    }, 5_000);
 
     return () => {
       detener();
@@ -164,6 +169,7 @@ export function ChatComite({
                   tono={m.remitente === "SOCIO" ? "propio" : m.remitente === "IA" ? "ia" : "ajeno"}
                   lado={m.remitente === "SOCIO" ? "derecha" : "izquierda"}
                   fecha={m.createdAt}
+                  leido={m.leido}
                   etiqueta={m.remitente === "IA" ? "Asistente del comité · IA" : undefined}
                   ancho="max-w-[85%]"
                 >
