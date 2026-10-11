@@ -8,7 +8,12 @@ import {
 } from "@/app/panel/conversaciones/actions";
 import { escucharChat } from "@/lib/chat/cliente";
 import type { MensajeChat } from "@/lib/chat-socio";
-import { iniciales } from "@/lib/formato";
+import {
+  formatearRut,
+  formatearTelefono,
+  iniciales,
+  tiempoRelativo,
+} from "@/lib/formato";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +31,30 @@ export type ConversacionResumen = {
   sinLeer: number;
   /** La IA le pasó la conversación a una persona y nadie ha respondido. */
   necesitaHumano: boolean;
+  rut: string | null;
+  numeroCliente: string | null;
+  tipo: "SOCIO" | "USUARIO";
+  telefono: string | null;
+  /** Lo que debe en total (CLP); 0 si está al día. */
+  deuda: number;
 };
+
+const clp = new Intl.NumberFormat("es-CL", {
+  style: "currency",
+  currency: "CLP",
+  maximumFractionDigits: 0,
+});
+
+/** RUT · N.º de cliente · tipo, solo con lo que haya. */
+function datosDelSocio(c: ConversacionResumen) {
+  return [
+    c.rut ? formatearRut(c.rut) : null,
+    c.numeroCliente ? `N.º ${c.numeroCliente}` : null,
+    c.tipo === "USUARIO" ? "Usuario" : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 /** Agrega un mensaje solo si no está ya (el eco en vivo y la respuesta del envío pueden coincidir). */
 function agregarSinRepetir(lista: MensajeChat[], m: MensajeChat) {
@@ -83,17 +111,40 @@ export function ConversacionesPanel({
                 {iniciales(c.nombre)}
               </span>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-[0.9rem] font-medium">
-                  {c.nombre}
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="truncate text-[0.9rem] font-medium">
+                    {c.nombre}
+                  </span>
+                  {c.ultimaFecha && (
+                    <span className="shrink-0 text-[0.68rem] text-muted-foreground">
+                      {tiempoRelativo(c.ultimaFecha)}
+                    </span>
+                  )}
                 </div>
-                <div className="truncate text-[0.8rem] text-muted-foreground">
+                {datosDelSocio(c) && (
+                  <div className="truncate text-[0.74rem] tabular-nums text-muted-foreground">
+                    {datosDelSocio(c)}
+                  </div>
+                )}
+                <div className="mt-0.5 truncate text-[0.8rem] text-foreground/70">
                   {c.ultimoMensaje}
                 </div>
-                {c.necesitaHumano && (
-                  <span className="mt-1 inline-flex rounded-full bg-tertiary/20 px-2 py-0.5 text-[0.68rem] font-semibold text-tertiary-foreground">
-                    Necesita respuesta humana
-                  </span>
-                )}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  {c.deuda > 0 ? (
+                    <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[0.68rem] font-semibold text-destructive">
+                      Debe {clp.format(c.deuda)}
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[0.68rem] font-semibold text-forest">
+                      Al día
+                    </span>
+                  )}
+                  {c.necesitaHumano && (
+                    <span className="rounded-full bg-tertiary/20 px-2 py-0.5 text-[0.68rem] font-semibold text-tertiary-foreground">
+                      Necesita respuesta humana
+                    </span>
+                  )}
+                </div>
               </div>
               {sinLeerLocal[c.socioId] > 0 && (
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-[0.68rem] font-semibold text-primary-foreground">
@@ -109,10 +160,7 @@ export function ConversacionesPanel({
             <ChatConSocio
               key={seleccionado}
               socioId={seleccionado}
-              nombre={
-                conversaciones.find((c) => c.socioId === seleccionado)
-                  ?.nombre ?? ""
-              }
+              socio={conversaciones.find((c) => c.socioId === seleccionado)}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-[0.9rem] text-muted-foreground">
@@ -127,11 +175,12 @@ export function ConversacionesPanel({
 
 function ChatConSocio({
   socioId,
-  nombre,
+  socio,
 }: {
   socioId: string;
-  nombre: string;
+  socio: ConversacionResumen | undefined;
 }) {
+  const nombre = socio?.nombre ?? "";
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [cargando, setCargando] = useState(true);
   const [entrada, setEntrada] = useState("");
@@ -196,7 +245,31 @@ function ChatConSocio({
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.72rem] font-semibold text-muted-foreground">
           {iniciales(nombre)}
         </span>
-        <span className="font-medium">{nombre}</span>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-medium">{nombre}</div>
+          {socio && (
+            <div className="truncate text-[0.76rem] tabular-nums text-muted-foreground">
+              {[
+                datosDelSocio(socio),
+                socio.telefono ? formatearTelefono(socio.telefono) : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </div>
+          )}
+        </div>
+        {socio && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2.5 py-1 text-[0.74rem] font-semibold",
+              socio.deuda > 0
+                ? "bg-destructive/10 text-destructive"
+                : "bg-forest/10 text-forest"
+            )}
+          >
+            {socio.deuda > 0 ? `Debe ${clp.format(socio.deuda)}` : "Al día"}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto px-4 py-4">

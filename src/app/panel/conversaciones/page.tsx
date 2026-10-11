@@ -44,10 +44,30 @@ export default async function ConversacionesPage() {
     ultimaFecha: string;
     sinLeer: number;
     necesitaHumano: boolean;
+    rut: string | null;
+    numeroCliente: string | null;
+    tipo: "SOCIO" | "USUARIO";
+    telefono: string | null;
+    deuda: number;
   }>(sql`
     select distinct on (s.id)
       s.id as "socioId",
       s.nombre,
+      s.rut,
+      s."numeroCliente",
+      s.tipo,
+      s.telefono,
+      -- Lo que debe la persona: todas sus boletas impagas (una persona con varios
+      -- arranques comparte el RUT), sin contar las anuladas.
+      (
+        select coalesce(sum(b."montoTotal" - b."montoPagado"), 0)::int
+        from "Boleta" b
+        join "Socio" s2 on s2.id = b."socioId"
+        where s2."aprId" = s."aprId"
+          and (s2.id = s.id or (s.rut is not null and s2.rut = s.rut))
+          and b.estado <> 'ANULADA'
+          and b."montoPagado" < b."montoTotal"
+      ) as deuda,
       m.contenido as "ultimoMensaje",
       m."createdAt" as "ultimaFecha",
       (
@@ -90,6 +110,11 @@ export default async function ConversacionesPage() {
         ultimaFecha: f.ultimaFecha ? new Date(f.ultimaFecha) : null,
         sinLeer: f.sinLeer,
         necesitaHumano: f.necesitaHumano,
+        rut: f.rut,
+        numeroCliente: f.numeroCliente,
+        tipo: f.tipo,
+        telefono: f.telefono,
+        deuda: f.deuda,
       }))}
     />
   );
