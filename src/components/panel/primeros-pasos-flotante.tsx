@@ -100,12 +100,16 @@ export function PrimerosPasosFlotante() {
   const porcentaje = total > 0 ? hechos / total : 1;
   const nuevaAqui = recorridoDePantalla && !vistas.has(recorridoDePantalla.id);
 
+  // Con los primeros pasos completos desaparece el botón principal; solo queda el
+  // «?» de cada pantalla. El recorrido del menú se repite desde Ayuda.
+  if (!datos && !recorridoDePantalla) return null;
+
   return (
     <div
       ref={caja}
       className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3"
     >
-      {abierto && (
+      {datos && abierto && (
         <section
           aria-label="Ayuda del panel"
           className="w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl border border-border bg-card p-4 shadow-xl"
@@ -266,6 +270,7 @@ export function PrimerosPasosFlotante() {
           </button>
         )}
 
+        {datos && (
         <button
           type="button"
           data-tour="primeros-pasos"
@@ -307,10 +312,9 @@ export function PrimerosPasosFlotante() {
                 {hechos}/{total}
               </span>
             </>
-          ) : (
-            <Compass className="size-6" />
-          )}
+          ) : null}
         </button>
+        )}
       </div>
     </div>
   );
