@@ -26,7 +26,15 @@ export function SignOutButton({ compacto = false }: { compacto?: boolean }) {
         router.push("/login");
       }}
     >
-      {compacto ? <LogOut /> : "Cerrar sesión"}
+      {compacto ? (
+        <LogOut />
+      ) : (
+        <>
+          {/* En el celular solo el ícono: el texto no cabía junto al nombre del comité. */}
+          <LogOut className="sm:hidden" />
+          <span className="hidden sm:inline">Cerrar sesión</span>
+        </>
+      )}
     </Button>
   );
 }

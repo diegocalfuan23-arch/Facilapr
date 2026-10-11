@@ -214,3 +214,12 @@ body {
 .facilapr-tour .driver-popover-close-btn {
   color: var(--muted-foreground);
 }
+
+
+/* El panel nunca debe tener scroll horizontal: si un elemento se pasa de ancho,
+   se recorta en vez de ensanchar la página y dejar el encabezado fuera de vista. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
