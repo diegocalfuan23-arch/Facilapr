@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Droplets, MessageCircle, Send, X } from "lucide-react";
+import { Droplets, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -86,10 +86,11 @@ export function AsistenteSocio({
     <>
       <Button
         onClick={() => setAbierto((v) => !v)}
-        aria-label={abierto ? "Cerrar asistente" : "Abrir asistente"}
+        aria-label={abierto ? "Cerrar asistente" : "Abrir asistente con IA"}
+        title="Asistente con IA: pregúntale por tu deuda o tu consumo"
         className="fixed right-5 bottom-5 z-50 size-13 rounded-full shadow-lg"
       >
-        {abierto ? <X className="size-5" /> : <MessageCircle className="size-5" />}
+        {abierto ? <X className="size-5" /> : <Sparkles className="size-5" />}
       </Button>
 
       {abierto && (

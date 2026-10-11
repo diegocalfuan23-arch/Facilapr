@@ -82,6 +82,7 @@ export function ChatComite({
       <Button
         onClick={() => setAbierto((v) => !v)}
         aria-label={abierto ? "Cerrar chat" : "Abrir chat con tu comité"}
+        title="Chat con tu comité"
         variant="outline"
         className="fixed right-5 bottom-22 z-50 size-13 rounded-full border-border bg-card shadow-lg"
       >
