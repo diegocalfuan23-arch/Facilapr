@@ -46,7 +46,7 @@ const ESTADO_ESTILO: Record<Estado, { texto: string; clase: string }> = {
   RECHAZADA: { texto: "Rechazada", clase: "bg-destructive/15 text-destructive" },
 };
 
-function FilaSolicitud({
+function AccionesSolicitud({
   solicitud,
   onCambio,
   onEliminada,
@@ -64,7 +64,6 @@ function FilaSolicitud({
 
   const ocupada = aprobando || rechazando || eliminando;
   const pendiente = solicitud.estado === "PENDIENTE";
-  const estilo = ESTADO_ESTILO[solicitud.estado];
 
   function aprobar() {
     setError(null);
@@ -112,30 +111,7 @@ function FilaSolicitud({
   }
 
   return (
-    <TableRow>
-      <TableCell className="px-4 py-3.5">
-        <div className="flex items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.7rem] font-semibold text-muted-foreground">
-            {iniciales(solicitud.nombre)}
-          </span>
-          <span className="font-medium">{solicitud.nombre}</span>
-        </div>
-      </TableCell>
-      <TableCell className="px-4 py-3.5 font-mono text-[0.85rem] tabular-nums whitespace-nowrap text-muted-foreground">
-        {formatearRut(solicitud.rut)}
-      </TableCell>
-      <TableCell className="px-4 py-3.5 whitespace-nowrap text-muted-foreground">
-        {tiempoRelativo(solicitud.createdAt)}
-      </TableCell>
-      <TableCell className="px-4 py-3.5">
-        <span
-          title={solicitud.motivoRechazo ?? undefined}
-          className={`inline-flex rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap ${estilo.clase}`}
-        >
-          {estilo.texto}
-        </span>
-      </TableCell>
-      <TableCell className="px-4 py-3.5">
+    <>
         <div data-tour="sol-acciones" className="flex items-center justify-end gap-2">
           {error && (
             <p className="max-w-[22ch] text-right text-[0.78rem] text-destructive">
@@ -258,10 +234,86 @@ function FilaSolicitud({
             </DialogFooter>
           </DialogContent>
         </Dialog>
+    </>
+  );
+}
+
+function EstadoSolicitud({ solicitud }: { solicitud: Solicitud }) {
+  const estilo = ESTADO_ESTILO[solicitud.estado];
+  return (
+    <span
+      title={solicitud.motivoRechazo ?? undefined}
+      className={`inline-flex rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap ${estilo.clase}`}
+    >
+      {estilo.texto}
+    </span>
+  );
+}
+
+type PropsFila = {
+  solicitud: Solicitud;
+  onCambio: (id: string, cambios: Partial<Solicitud>) => void;
+  onEliminada: (id: string) => void;
+};
+
+function FilaSolicitud({ solicitud, onCambio, onEliminada }: PropsFila) {
+  return (
+    <TableRow>
+      <TableCell className="px-4 py-3.5">
+        <div className="flex items-center gap-3">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.7rem] font-semibold text-muted-foreground">
+            {iniciales(solicitud.nombre)}
+          </span>
+          <span className="font-medium">{solicitud.nombre}</span>
+        </div>
+      </TableCell>
+      <TableCell className="px-4 py-3.5 font-mono text-[0.85rem] tabular-nums whitespace-nowrap text-muted-foreground">
+        {formatearRut(solicitud.rut)}
+      </TableCell>
+      <TableCell className="px-4 py-3.5 whitespace-nowrap text-muted-foreground">
+        {tiempoRelativo(solicitud.createdAt)}
+      </TableCell>
+      <TableCell className="px-4 py-3.5">
+        <EstadoSolicitud solicitud={solicitud} />
+      </TableCell>
+      <TableCell className="px-4 py-3.5">
+        <AccionesSolicitud
+          solicitud={solicitud}
+          onCambio={onCambio}
+          onEliminada={onEliminada}
+        />
       </TableCell>
     </TableRow>
   );
 }
+
+/** La misma solicitud como tarjeta, para pantallas angostas. */
+function TarjetaSolicitud({ solicitud, onCambio, onEliminada }: PropsFila) {
+  return (
+    <li className="flex flex-col gap-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-[0.72rem] font-semibold text-muted-foreground">
+            {iniciales(solicitud.nombre)}
+          </span>
+          <div className="min-w-0">
+            <div className="truncate font-medium">{solicitud.nombre}</div>
+            <div className="truncate font-mono text-[0.8rem] tabular-nums text-muted-foreground">
+              {formatearRut(solicitud.rut)} · {tiempoRelativo(solicitud.createdAt)}
+            </div>
+          </div>
+        </div>
+        <EstadoSolicitud solicitud={solicitud} />
+      </div>
+      <AccionesSolicitud
+        solicitud={solicitud}
+        onCambio={onCambio}
+        onEliminada={onEliminada}
+      />
+    </li>
+  );
+}
+
 
 export function SolicitudesTabla({
   solicitudes,
@@ -298,7 +350,18 @@ export function SolicitudesTabla({
           </p>
         </div>
       ) : (
-        <div data-tour="sol-tabla" className="mt-6 overflow-x-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <>
+        <ul className="mt-6 flex flex-col divide-y divide-border/60 rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:hidden">
+          {lista.map((s) => (
+            <TarjetaSolicitud
+              key={s.id}
+              solicitud={s}
+              onCambio={onCambio}
+              onEliminada={onEliminada}
+            />
+          ))}
+        </ul>
+        <div data-tour="sol-tabla" className="mt-6 hidden overflow-x-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -321,6 +384,7 @@ export function SolicitudesTabla({
             </TableBody>
           </Table>
         </div>
+        </>
       )}
     </div>
   );
