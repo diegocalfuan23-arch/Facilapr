@@ -5,12 +5,14 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { aprs } from "@/lib/db/schema";
 import { session as sessionTable, user as userTable } from "@/lib/db/auth-schema";
+import { basePortal } from "@/lib/portal-socio";
 
 export type RolPanel = "ADMIN" | "OPERADOR";
 
 /**
  * Devuelve la sesión y el APR al que pertenece el usuario. Redirige a /login
- * si no hay sesión, de modo que toda página del panel quede protegida.
+ * si no hay sesión, de modo que toda página del panel quede protegida. Un
+ * socio (rol SOCIO) no entra al panel: se le lleva a su portal.
  *
  * Cada consulta del panel debe filtrar por el `aprId` que devuelve esta
  * función: es lo que impide que un comité vea los datos de otro.
@@ -37,6 +39,12 @@ export async function requireApr() {
     });
 
     if (apr) {
+      // Un socio inició sesión en el portal con este mismo navegador: el panel
+      // de la directiva no es suyo. Sin esta barrera podía abrir pantallas que
+      // solo piden "pertenecer al comité" (lecturas, modo terreno).
+      if (user.rol === "SOCIO") {
+        redirect(apr.slug ? await basePortal(apr.slug) : "/login");
+      }
       return { user, apr };
     }
   }
