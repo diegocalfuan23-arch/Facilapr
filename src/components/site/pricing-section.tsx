@@ -63,6 +63,7 @@ const planes: {
     incluye: "Todo lo del Estándar, más:",
     lista: [
       "Socios y técnicos sin tope",
+      { texto: "Asistente de IA dentro del chat: responde a tus socios en segundos", pronto: true },
       "Dominio propio y varios administradores con roles",
       { texto: "Conciliación de pagos con la cartola del banco", pronto: true },
       "Múltiples sedes o comités",
