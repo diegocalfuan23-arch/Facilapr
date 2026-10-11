@@ -67,8 +67,7 @@ export function TecnicosPanel({
             Técnicos
           </h1>
           <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-            Quienes cargan lecturas en terreno para tu comité. No ven socios
-            ni boletas — tú apruebas cada lectura antes de que cuente.
+            Quienes cargan lecturas en terreno. Solo ven lecturas.
           </p>
         </div>
         <InvitarTecnico />
@@ -81,9 +80,15 @@ export function TecnicosPanel({
             Todavía no tienes técnicos invitados.
           </p>
         ) : (
+          <>
+          <ul className="flex flex-col divide-y divide-border/60 rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:hidden">
+            {tecnicos.map((t) => (
+              <TarjetaTecnico key={t.id} tecnico={t} />
+            ))}
+          </ul>
           <div
             data-tour="tec-tabla"
-            className="overflow-x-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+            className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block"
           >
             <Table>
               <TableHeader>
@@ -102,6 +107,7 @@ export function TecnicosPanel({
               </TableBody>
             </Table>
           </div>
+          </>
         )}
       </section>
 
@@ -110,9 +116,14 @@ export function TecnicosPanel({
           <h2 className="mb-3 text-[0.95rem] font-semibold">
             Invitaciones pendientes
           </h2>
+          <ul className="flex flex-col divide-y divide-border/60 rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:hidden">
+            {invitacionesPendientes.map((inv) => (
+              <TarjetaInvitacion key={inv.id} invitacion={inv} />
+            ))}
+          </ul>
           <div
             data-tour="tec-invitaciones"
-            className="overflow-x-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
+            className="hidden overflow-x-auto rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:block"
           >
             <Table>
               <TableHeader>
@@ -137,7 +148,8 @@ export function TecnicosPanel({
   );
 }
 
-function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
+/** Desactivar / reactivar a un técnico, con su confirmación. La usan la tabla y la tarjeta. */
+function AccionesTecnico({ tecnico: t }: { tecnico: Tecnico }) {
   const router = useRouter();
   const [confirmando, setConfirmando] = useState(false);
   const [trabajando, iniciar] = useTransition();
@@ -161,6 +173,75 @@ function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
   }
 
   return (
+    <>
+      <div className="flex items-center justify-end gap-2">
+        {error && !confirmando && (
+          <p className="max-w-[24ch] text-right text-[0.78rem] text-destructive">
+            {error}
+          </p>
+        )}
+        {t.activo ? (
+          <Button variant="outline" size="sm" onClick={() => setConfirmando(true)}>
+            Desactivar
+          </Button>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={trabajando}
+            onClick={() => cambiar(() => reactivarOperador(t.id))}
+          >
+            {trabajando && <Loader2 className="animate-spin" />}
+            Reactivar
+          </Button>
+        )}
+      </div>
+
+      <Dialog open={confirmando} onOpenChange={setConfirmando}>
+        <DialogContent className="sm:max-w-105">
+          <DialogHeader>
+            <DialogTitle>Desactivar a {t.nombre}</DialogTitle>
+            <DialogDescription>
+              Dejará de poder entrar y se cerrará su sesión. Sus lecturas ya
+              cargadas se conservan en el historial. Puedes reactivarlo cuando
+              quieras.
+            </DialogDescription>
+          </DialogHeader>
+          {error && <p className="text-[0.85rem] text-destructive">{error}</p>}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmando(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={trabajando}
+              onClick={() => cambiar(() => desactivarOperador(t.id))}
+            >
+              {trabajando && <Loader2 className="animate-spin" />}
+              Desactivar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function EstadoTecnico({ activo }: { activo: boolean }) {
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap",
+        activo ? "bg-forest/15 text-forest" : "bg-destructive/10 text-destructive"
+      )}
+    >
+      {activo ? "Activo" : "Desactivado"}
+    </span>
+  );
+}
+
+function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
+  return (
     <TableRow>
       <TableCell className="px-4 py-3.5">
         <div className={cn("flex items-center gap-3", !t.activo && "opacity-60")}>
@@ -177,76 +258,75 @@ function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
         {fecha.format(t.desde)}
       </TableCell>
       <TableCell className="px-4 py-3.5">
-        <span
-          className={cn(
-            "inline-flex rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap",
-            t.activo
-              ? "bg-forest/15 text-forest"
-              : "bg-destructive/10 text-destructive"
-          )}
-        >
-          {t.activo ? "Activo" : "Desactivado"}
-        </span>
+        <EstadoTecnico activo={t.activo} />
       </TableCell>
       <TableCell className="px-4 py-3.5">
-        <div className="flex items-center justify-end gap-2">
-          {error && !confirmando && (
-            <p className="max-w-[24ch] text-right text-[0.78rem] text-destructive">
-              {error}
-            </p>
-          )}
-          {t.activo ? (
-            <Button variant="outline" size="sm" onClick={() => setConfirmando(true)}>
-              Desactivar
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={trabajando}
-              onClick={() => cambiar(() => reactivarOperador(t.id))}
-            >
-              {trabajando && <Loader2 className="animate-spin" />}
-              Reactivar
-            </Button>
-          )}
-        </div>
-
-        <Dialog open={confirmando} onOpenChange={setConfirmando}>
-          <DialogContent className="sm:max-w-105">
-            <DialogHeader>
-              <DialogTitle>Desactivar a {t.nombre}</DialogTitle>
-              <DialogDescription>
-                Dejará de poder entrar y se cerrará su sesión. Sus lecturas ya
-                cargadas se conservan en el historial. Puedes reactivarlo cuando
-                quieras.
-              </DialogDescription>
-            </DialogHeader>
-            {error && <p className="text-[0.85rem] text-destructive">{error}</p>}
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setConfirmando(false)}>
-                Cancelar
-              </Button>
-              <Button
-                variant="destructive"
-                disabled={trabajando}
-                onClick={() => cambiar(() => desactivarOperador(t.id))}
-              >
-                {trabajando && <Loader2 className="animate-spin" />}
-                Desactivar
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <AccionesTecnico tecnico={t} />
       </TableCell>
     </TableRow>
   );
 }
 
-function InvitacionFila({ invitacion }: { invitacion: InvitacionPendiente }) {
+/** El mismo técnico como tarjeta, para pantallas angostas. */
+function TarjetaTecnico({ tecnico: t }: { tecnico: Tecnico }) {
+  return (
+    <li className="flex flex-col gap-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className={cn("flex min-w-0 items-center gap-3", !t.activo && "opacity-60")}>
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-[0.72rem] font-semibold text-muted-foreground">
+            {iniciales(t.nombre)}
+          </span>
+          <div className="min-w-0">
+            <div className="truncate font-medium">{t.nombre}</div>
+            <div className="truncate text-[0.82rem] text-muted-foreground">
+              {t.correo}
+            </div>
+          </div>
+        </div>
+        <EstadoTecnico activo={t.activo} />
+      </div>
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-[0.8rem] text-muted-foreground">
+          Desde {fecha.format(t.desde)}
+        </span>
+        <AccionesTecnico tecnico={t} />
+      </div>
+    </li>
+  );
+}
+
+function useCancelarInvitacion(invitacion: InvitacionPendiente) {
   const router = useRouter();
   const [cancelando, iniciar] = useTransition();
 
+  function cancelar() {
+    iniciar(async () => {
+      await cancelarInvitacion(invitacion.id);
+      toast.success("Invitación cancelada");
+      router.refresh();
+    });
+  }
+
+  return { cancelando, cancelar };
+}
+
+function BotonCancelarInvitacion({ invitacion }: { invitacion: InvitacionPendiente }) {
+  const { cancelando, cancelar } = useCancelarInvitacion(invitacion);
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      disabled={cancelando}
+      onClick={cancelar}
+    >
+      {cancelando && <Loader2 className="animate-spin" />}
+      Cancelar
+    </Button>
+  );
+}
+
+function InvitacionFila({ invitacion }: { invitacion: InvitacionPendiente }) {
   return (
     <TableRow>
       <TableCell className="px-4 py-3.5">
@@ -270,25 +350,36 @@ function InvitacionFila({ invitacion }: { invitacion: InvitacionPendiente }) {
       </TableCell>
       <TableCell className="px-4 py-3.5">
         <div className="flex justify-end">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            disabled={cancelando}
-            onClick={() =>
-              iniciar(async () => {
-                await cancelarInvitacion(invitacion.id);
-                toast.success("Invitación cancelada");
-                router.refresh();
-              })
-            }
-          >
-            {cancelando && <Loader2 className="animate-spin" />}
-            Cancelar
-          </Button>
+          <BotonCancelarInvitacion invitacion={invitacion} />
         </div>
       </TableCell>
     </TableRow>
+  );
+}
+
+function TarjetaInvitacion({ invitacion }: { invitacion: InvitacionPendiente }) {
+  return (
+    <li className="flex flex-col gap-3 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-tertiary/15 text-tertiary-foreground">
+            <Clock className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <div className="font-medium">Invitación para técnico</div>
+            <div className="text-[0.8rem] text-muted-foreground">
+              Vence el {fecha.format(invitacion.expiraEn)}
+            </div>
+          </div>
+        </div>
+        <span className="inline-flex shrink-0 rounded-full bg-tertiary/15 px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap text-tertiary-foreground">
+          Sin usar
+        </span>
+      </div>
+      <div className="flex justify-end">
+        <BotonCancelarInvitacion invitacion={invitacion} />
+      </div>
+    </li>
   );
 }
 
