@@ -19,6 +19,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Send,
   SlidersHorizontal,
   Trash2,
   Upload,
@@ -68,9 +69,20 @@ import {
 import { cn } from "@/lib/utils";
 import { ImportarSociosDialog } from "@/components/panel/importar-socios-dialog";
 import { RestablecerClaveDialog } from "@/components/panel/restablecer-clave-dialog";
+import { InvitarPortalDialog } from "@/components/panel/invitar-portal-dialog";
+import {
+  enlaceWhatsApp,
+  mensajeInvitacionPortal,
+  telefonoValidoParaWhatsApp,
+} from "@/lib/whatsapp";
 import { formatearRut, formatearTelefono, iniciales } from "@/lib/formato";
 
-export type SocioFila = SocioEditable & { activo: boolean; conCuenta: boolean };
+export type SocioFila = SocioEditable & {
+  activo: boolean;
+  conCuenta: boolean;
+  /** Enlace personal para invitarlo al portal; null si no se puede. */
+  invitacionUrl: string | null;
+};
 
 type Pestana = "todos" | "activos" | "inactivos";
 type Columna = "nombre" | "rut" | "telefono";
@@ -177,7 +189,15 @@ function ColumnaOrdenable({
   );
 }
 
-export function SociosTabla({ socios }: { socios: SocioFila[] }) {
+export function SociosTabla({
+  socios,
+  comite,
+  urlSolicitud,
+}: {
+  socios: SocioFila[];
+  comite: { nombre: string; slug: string | null };
+  urlSolicitud: string | null;
+}) {
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<Pestana>("todos");
   const [orden, setOrden] = useState<{ columna: Columna; asc: boolean }>({
@@ -192,6 +212,7 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
   const [soloSinNumero, setSoloSinNumero] = useState(false);
   const [tipo, setTipo] = useState<"todos" | "SOCIO" | "USUARIO">("todos");
   const [importando, setImportando] = useState(false);
+  const [invitando, setInvitando] = useState(false);
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<SocioFila | null>(null);
   const [porEliminar, setPorEliminar] = useState<SocioFila | null>(null);
@@ -345,6 +366,10 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-[1.35rem] font-semibold tracking-tight">Socios</h1>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" data-tour="socios-invitar" onClick={() => setInvitando(true)}>
+            <Send />
+            Invitar al portal
+          </Button>
           <Button variant="outline" data-tour="socios-importar" onClick={() => setImportando(true)}>
             <Upload />
             Importar
@@ -745,6 +770,36 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
                                 ? "Marcar inactivo"
                                 : "Marcar activo"}
                             </DropdownMenuItem>
+                            {!socio.conCuenta && (
+                              <DropdownMenuItem
+                                disabled={
+                                  !socio.invitacionUrl ||
+                                  !telefonoValidoParaWhatsApp(socio.telefono)
+                                }
+                                onClick={() => {
+                                  if (!socio.invitacionUrl || !socio.telefono) return;
+                                  window.open(
+                                    enlaceWhatsApp(
+                                      socio.telefono,
+                                      mensajeInvitacionPortal(
+                                        comite.nombre,
+                                        socio.nombre,
+                                        socio.invitacionUrl
+                                      )
+                                    ),
+                                    "_blank",
+                                    "noopener"
+                                  );
+                                }}
+                              >
+                                <Send />
+                                {!comite.slug
+                                  ? "Define tu enlace para invitar"
+                                  : !telefonoValidoParaWhatsApp(socio.telefono)
+                                    ? "Sin teléfono: no se puede invitar"
+                                    : "Invitar al portal"}
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               disabled={!socio.conCuenta}
                               onClick={() => setRestableciendo(socio)}
@@ -832,6 +887,14 @@ export function SociosTabla({ socios }: { socios: SocioFila[] }) {
       <ImportarSociosDialog
         abierto={importando}
         onAbiertoChange={setImportando}
+      />
+
+      <InvitarPortalDialog
+        abierto={invitando}
+        onAbiertoChange={setInvitando}
+        socios={socios}
+        comite={comite}
+        urlSolicitud={urlSolicitud}
       />
 
       <SocioDialog abierto={creando} onAbiertoChange={setCreando} />

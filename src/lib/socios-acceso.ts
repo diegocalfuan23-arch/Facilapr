@@ -70,6 +70,57 @@ export async function solicitarAccesoSocio({
   return { ok: true };
 }
 
+/**
+ * Crea la cuenta de un socio directamente en las tablas de Better Auth (user +
+ * account), con rol SOCIO fijado desde el insert, y la vincula a su fila del
+ * padrón. La usan dos caminos: aprobar una solicitud de acceso y aceptar una
+ * invitación de la directiva.
+ *
+ * A propósito NO pasa por auth.api.signUp: ese flujo dispara el hook de
+ * auth.ts pensado para el registro de un dirigente nuevo (crea/vincula un
+ * Apr y el usuario nace ADMIN por defecto) — exactamente lo que no debe
+ * pasarle a un socio, ni siquiera un instante.
+ */
+export async function crearCuentaSocio(
+  socio: { id: string; nombre: string; rut: string; aprId: string },
+  claveHash: string
+): Promise<{ userId: string; email: string }> {
+  const userId = createId();
+  const email = correoSocioDesdeRut(socio.rut, socio.aprId);
+
+  await db.insert(userTable).values({
+    id: userId,
+    name: socio.nombre,
+    email,
+    // El correo es interno, el socio nunca lo ve ni tiene que verificarlo.
+    emailVerified: true,
+    // apr/rutComite/comuna existen para el registro de un dirigente nuevo,
+    // que declara esos datos para crear su comité. Un socio ya pertenece a
+    // un Apr existente (aprId abajo) y no declara nada de eso: quedan vacíos
+    // a propósito, no es un dato faltante.
+    apr: "",
+    rutComite: "",
+    comuna: "",
+    cargo: "socio",
+    aprId: socio.aprId,
+    rol: "SOCIO",
+  });
+
+  await db.insert(accountTable).values({
+    id: createId(),
+    userId,
+    providerId: "credential",
+    accountId: userId,
+    password: claveHash,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  });
+
+  await db.update(socios).set({ userId }).where(eq(socios.id, socio.id));
+
+  return { userId, email };
+}
+
 export type ResultadoAprobacion = { ok: true } | { ok: false; error: string };
 
 /**
@@ -101,48 +152,20 @@ export async function aprobarSolicitudAcceso(
     return { ok: false, error: "Este socio ya tiene una cuenta." };
   }
 
-  const userId = createId();
   // Sin RUT no hay solicitud de acceso (se pide con el RUT): no debería llegar.
   if (!solicitud.socio.rut) {
     return { ok: false, error: "Este socio no tiene RUT en el padrón." };
   }
-  const correoSintetico = correoSocioDesdeRut(
-    solicitud.socio.rut,
-    solicitud.socio.aprId
+
+  await crearCuentaSocio(
+    {
+      id: solicitud.socio.id,
+      nombre: solicitud.socio.nombre,
+      rut: solicitud.socio.rut,
+      aprId: solicitud.socio.aprId,
+    },
+    solicitud.claveHash
   );
-
-  await db.insert(userTable).values({
-    id: userId,
-    name: solicitud.socio.nombre,
-    email: correoSintetico,
-    // El correo es interno, el socio nunca lo ve ni tiene que verificarlo.
-    emailVerified: true,
-    // apr/rutComite/comuna existen para el registro de un dirigente nuevo,
-    // que declara esos datos para crear su comité. Un socio ya pertenece a
-    // un Apr existente (aprId abajo) y no declara nada de eso: quedan vacíos
-    // a propósito, no es un dato faltante.
-    apr: "",
-    rutComite: "",
-    comuna: "",
-    cargo: "socio",
-    aprId: solicitud.socio.aprId,
-    rol: "SOCIO",
-  });
-
-  await db.insert(accountTable).values({
-    id: createId(),
-    userId,
-    providerId: "credential",
-    accountId: userId,
-    password: solicitud.claveHash,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
-
-  await db
-    .update(socios)
-    .set({ userId })
-    .where(eq(socios.id, solicitud.socio.id));
 
   await db
     .update(solicitudesAcceso)

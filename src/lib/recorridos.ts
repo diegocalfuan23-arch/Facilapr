@@ -188,6 +188,13 @@ export const RECORRIDOS: Recorrido[] = [
     minutos: 2,
     pasos: [
       {
+        selector: enMenu("socios-invitar"),
+        titulo: "Invitar al portal",
+        texto:
+          "Manda por WhatsApp un enlace personal a cada socio con teléfono: abre su invitación, elige su clave y ya ve su cuenta, sus boletas y sus recibos. Sin pedir acceso ni esperar aprobación.",
+        lado: "bottom",
+      },
+      {
         selector: enMenu("socios-importar"),
         titulo: "Importar tu padrón",
         texto:

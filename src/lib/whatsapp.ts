@@ -125,3 +125,23 @@ export function mensajeBoleta(
   // Si se omitieron líneas entre párrafos pueden quedar varios saltos seguidos.
   return lineas.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+/** Días que dura el enlace de invitación al portal (ver lib/invitacion-socio.ts). */
+export const DIAS_VIGENCIA_INVITACION = 14;
+
+/** El mensaje con el que la directiva invita a un socio a su cuenta en línea. */
+export function mensajeInvitacionPortal(
+  comite: string,
+  nombreSocio: string,
+  url: string
+) {
+  const nombre = nombreSocio.trim().split(/\s+/)[0] ?? "";
+  return [
+    `Hola ${nombre}, te escribe ${comite}.`,
+    "",
+    "Ya puedes ver tu cuenta, tus boletas y tus recibos en línea. Crea tu clave aquí:",
+    url,
+    "",
+    `El enlace es personal y vence en ${DIAS_VIGENCIA_INVITACION} días.`,
+  ].join("\n");
+}

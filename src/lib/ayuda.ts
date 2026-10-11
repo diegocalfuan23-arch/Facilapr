@@ -280,9 +280,10 @@ export const ARTICULOS: Articulo[] = [
         nota: "Si lo cambias, el enlace anterior deja de funcionar: avísale a tus socios.",
       },
       {
-        titulo: "Comparte el enlace",
+        titulo: "Invita a tus socios por WhatsApp",
         texto:
-          "Mándalo por WhatsApp o pégalo donde tus socios lo vean. El mensaje con el que envías cada boleta ya lo incluye.",
+          "En Socios pulsa «Invitar al portal»: aparece la lista de los socios con teléfono que aún no tienen cuenta. Con «Invitar» se abre WhatsApp con un enlace personal; el socio lo abre, elige su clave y entra. El enlace vence en 14 días.",
+        nota: "Los socios sin teléfono pueden pedir acceso con RUT desde el enlace general, y tú los apruebas en Solicitudes.",
       },
       {
         titulo: "El socio pide acceso",

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { SociosTabla } from "@/components/panel/socios-tabla";
+import { urlInvitacionSocio } from "@/lib/invitacion-socio";
 
 export const metadata: Metadata = {
   title: "Socios",
@@ -34,10 +35,28 @@ export default async function SociosPage() {
     listado.filter((s) => s.userId && s.rut).map((s) => s.rut as string)
   );
 
-  const filas = listado.map(({ userId, ...s }) => ({
-    ...s,
-    conCuenta: Boolean(userId) || (s.rut !== null && rutsConCuenta.has(s.rut)),
-  }));
+  const filas = listado.map(({ userId, ...s }) => {
+    const conCuenta =
+      Boolean(userId) || (s.rut !== null && rutsConCuenta.has(s.rut));
+    return {
+      ...s,
+      conCuenta,
+      // Enlace personal de invitación: solo a quien aún no tiene cuenta, tiene
+      // RUT (la cuenta se arma con él) y el comité ya definió su enlace.
+      invitacionUrl:
+        apr.slug && !conCuenta && s.rut && s.telefono
+          ? urlInvitacionSocio(apr.slug, s.id)
+          : null,
+    };
+  });
 
-  return <SociosTabla socios={filas} />;
+  const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
+
+  return (
+    <SociosTabla
+      socios={filas}
+      comite={{ nombre: apr.nombre, slug: apr.slug }}
+      urlSolicitud={apr.slug ? `https://${dominio}/${apr.slug}/cuenta/solicitar` : null}
+    />
+  );
 }
