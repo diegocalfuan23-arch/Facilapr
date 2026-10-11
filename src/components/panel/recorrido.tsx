@@ -94,8 +94,14 @@ export function Recorrido({ usuarioId }: { usuarioId: string }) {
       }
       await esperar(350);
 
+      // Un elemento oculto (por ejemplo la tabla en el celular) no se puede
+      // resaltar: ese paso se omite.
+      const visible = (selector: string) => {
+        const el = document.querySelector(selector) as HTMLElement | null;
+        return Boolean(el && el.getClientRects().length > 0);
+      };
       const pasos: PasoRecorrido[] = r.pasos.filter(
-        (p) => !p.selector || p.clic || document.querySelector(p.selector)
+        (p) => !p.selector || p.clic || visible(p.selector)
       );
       if (pasos.length === 0) return;
 

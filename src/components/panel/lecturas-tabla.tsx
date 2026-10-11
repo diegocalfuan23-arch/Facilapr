@@ -396,7 +396,9 @@ export function LecturasTabla({
             </select>
           </div>
 
-          <div data-tour="lec-tabla" className="overflow-x-auto">
+          {/* Escritorio: tabla. Celular: una tarjeta por lectura, porque seis
+              columnas no caben y quedaban cortadas. */}
+          <div data-tour="lec-tabla" className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-b-border/50 hover:bg-transparent">
@@ -441,6 +443,28 @@ export function LecturasTabla({
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="md:hidden">
+            {visibles.length === 0 ? (
+              <p className="py-12 text-center text-[0.92rem] text-muted-foreground">
+                Ninguna lectura coincide con el filtro.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/60 border-t border-border/60">
+                {visibles.map((l) => (
+                  <TarjetaLectura
+                    key={l.id}
+                    lectura={l}
+                    onRechazar={() => setRechazando(l)}
+                    onAprobada={() => router.refresh()}
+                    onConfirmar={(motivo) => setConfirmando({ lectura: l, motivo })}
+                    onEditar={() => setEditando(l)}
+                    onEliminar={() => setEliminando(l)}
+                  />
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
@@ -531,6 +555,148 @@ export function LecturasTabla({
   );
 }
 
+/** Aprobar una lectura; sin anterior (o con una menor) se pregunta qué hacer. */
+function useAprobarLectura(
+  l: LecturaFila,
+  onAprobada: () => void,
+  onConfirmar: (motivo: Motivo) => void
+) {
+  const [aprobando, iniciar] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function aprobar() {
+    // Sin lectura anterior (o con una menor) no se aprueba de golpe:
+    // cobraría el medidor completo. Se pregunta qué hacer.
+    if (l.anterior === null) return onConfirmar("primera");
+    if (l.valor < l.anterior) return onConfirmar("menor");
+    iniciar(async () => {
+      setError(null);
+      const r = await aprobarLectura(l.id);
+      if (r.ok) {
+        toast.success("Lectura aprobada");
+        onAprobada();
+      } else if (r.codigo === "PRIMERA_LECTURA") onConfirmar("primera");
+      else if (r.codigo === "LECTURA_MENOR") onConfirmar("menor");
+      else setError(r.error);
+    });
+  }
+
+  return { aprobando, error, aprobar };
+}
+
+/** El valor de la lectura y lo que conviene saber de ella (anterior, consumo, nota). */
+function DetalleValor({ l }: { l: LecturaFila }) {
+  return (
+    <>
+      <div className="font-medium">{numero.format(l.valor)}</div>
+      {l.estado === "PENDIENTE" && (
+        <div
+          className={cn(
+            "text-[0.78rem]",
+            l.anterior === null
+              ? "text-tertiary-texto"
+              : l.valor < l.anterior
+                ? "text-destructive"
+                : "text-muted-foreground"
+          )}
+        >
+          {l.anterior === null
+            ? "Primera lectura: sin anterior"
+            : l.valor < l.anterior
+              ? `Menor que la anterior (${numero.format(l.anterior)})`
+              : `Anterior ${numero.format(l.anterior)} · +${numero.format(l.valor - l.anterior)} m³`}
+        </div>
+      )}
+      {l.inicial && (
+        <div className="text-[0.78rem] text-muted-foreground">
+          Lectura inicial (sin boleta)
+        </div>
+      )}
+      {l.observacion && l.observacion !== "Lectura inicial" && (
+        <div
+          title={l.observacion}
+          className="max-w-48 truncate text-[0.78rem] text-muted-foreground"
+        >
+          &ldquo;{l.observacion}&rdquo;
+        </div>
+      )}
+    </>
+  );
+}
+
+function EstadoLectura({ l }: { l: LecturaFila }) {
+  const estilo = ESTILO_ESTADO[l.estado];
+  const Icono = estilo.icono;
+  return (
+    <>
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap",
+          estilo.clase
+        )}
+      >
+        <Icono className="size-3.5" />
+        {estilo.texto}
+      </span>
+      {l.estado === "RECHAZADA" && l.motivoRechazo && (
+        <div
+          title={l.motivoRechazo}
+          className="mt-1 max-w-52 truncate text-[0.78rem] text-muted-foreground"
+        >
+          {l.motivoRechazo}
+        </div>
+      )}
+    </>
+  );
+}
+
+function MenuAccionesLectura({
+  l,
+  onEditar,
+  onEliminar,
+}: {
+  l: LecturaFila;
+  onEditar: () => void;
+  onEliminar: () => void;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={`Acciones para la lectura de ${l.socio}`}
+          >
+            <MoreHorizontal />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        {l.estado !== "RECHAZADA" && (
+          <DropdownMenuItem onClick={onEditar}>
+            <Pencil />
+            Editar
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem variant="destructive" onClick={onEliminar}>
+          <Trash2 />
+          Eliminar
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+type AccionesFila = {
+  lectura: LecturaFila;
+  onRechazar: () => void;
+  onAprobada: () => void;
+  onConfirmar: (motivo: Motivo) => void;
+  onEditar: () => void;
+  onEliminar: () => void;
+};
+
 function FilaLectura({
   lectura: l,
   onRechazar,
@@ -538,18 +704,8 @@ function FilaLectura({
   onConfirmar,
   onEditar,
   onEliminar,
-}: {
-  lectura: LecturaFila;
-  onRechazar: () => void;
-  onAprobada: () => void;
-  onConfirmar: (motivo: Motivo) => void;
-  onEditar: () => void;
-  onEliminar: () => void;
-}) {
-  const [aprobando, iniciar] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const estilo = ESTILO_ESTADO[l.estado];
-  const Icono = estilo.icono;
+}: AccionesFila) {
+  const { aprobando, error, aprobar } = useAprobarLectura(l, onAprobada, onConfirmar);
 
   return (
     <TableRow>
@@ -563,38 +719,7 @@ function FilaLectura({
         {formatearPeriodo(l.periodo)}
       </TableCell>
       <TableCell className="px-4 py-3.5 tabular-nums">
-        <div className="font-medium">{numero.format(l.valor)}</div>
-        {l.estado === "PENDIENTE" && (
-          <div
-            className={cn(
-              "text-[0.78rem]",
-              l.anterior === null
-                ? "text-tertiary-texto"
-                : l.valor < l.anterior
-                  ? "text-destructive"
-                  : "text-muted-foreground"
-            )}
-          >
-            {l.anterior === null
-              ? "Primera lectura: sin anterior"
-              : l.valor < l.anterior
-                ? `Menor que la anterior (${numero.format(l.anterior)})`
-                : `Anterior ${numero.format(l.anterior)} · +${numero.format(l.valor - l.anterior)} m³`}
-          </div>
-        )}
-        {l.inicial && (
-          <div className="text-[0.78rem] text-muted-foreground">
-            Lectura inicial (sin boleta)
-          </div>
-        )}
-        {l.observacion && l.observacion !== "Lectura inicial" && (
-          <div
-            title={l.observacion}
-            className="max-w-48 truncate text-[0.78rem] text-muted-foreground"
-          >
-            &ldquo;{l.observacion}&rdquo;
-          </div>
-        )}
+        <DetalleValor l={l} />
       </TableCell>
       <TableCell className="px-4 py-3.5">
         <div>{l.registradaPor ?? "—"}</div>
@@ -603,23 +728,7 @@ function FilaLectura({
         </div>
       </TableCell>
       <TableCell className="px-4 py-3.5">
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap",
-            estilo.clase
-          )}
-        >
-          <Icono className="size-3.5" />
-          {estilo.texto}
-        </span>
-        {l.estado === "RECHAZADA" && l.motivoRechazo && (
-          <div
-            title={l.motivoRechazo}
-            className="mt-1 max-w-52 truncate text-[0.78rem] text-muted-foreground"
-          >
-            {l.motivoRechazo}
-          </div>
-        )}
+        <EstadoLectura l={l} />
       </TableCell>
       <TableCell className="py-3.5 pr-5 text-right">
         {l.estado === "PENDIENTE" ? (
@@ -634,27 +743,7 @@ function FilaLectura({
               <X />
               Rechazar
             </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={aprobando}
-              onClick={() => {
-                // Sin lectura anterior (o con una menor) no se aprueba de golpe:
-                // cobraría el medidor completo. Se pregunta qué hacer.
-                if (l.anterior === null) return onConfirmar("primera");
-                if (l.valor < l.anterior) return onConfirmar("menor");
-                iniciar(async () => {
-                  setError(null);
-                  const r = await aprobarLectura(l.id);
-                  if (r.ok) {
-                    toast.success("Lectura aprobada");
-                    onAprobada();
-                  } else if (r.codigo === "PRIMERA_LECTURA") onConfirmar("primera");
-                  else if (r.codigo === "LECTURA_MENOR") onConfirmar("menor");
-                  else setError(r.error);
-                });
-              }}
-            >
+            <Button type="button" size="sm" disabled={aprobando} onClick={aprobar}>
               {aprobando ? <Loader2 className="animate-spin" /> : <Check />}
               Aprobar
             </Button>
@@ -667,33 +756,62 @@ function FilaLectura({
         )}
       </TableCell>
       <TableCell className="w-12 py-3.5 pr-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                aria-label={`Acciones para la lectura de ${l.socio}`}
-              >
-                <MoreHorizontal />
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end">
-            {l.estado !== "RECHAZADA" && (
-              <DropdownMenuItem onClick={onEditar}>
-                <Pencil />
-                Editar
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem variant="destructive" onClick={onEliminar}>
-              <Trash2 />
-              Eliminar
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <MenuAccionesLectura l={l} onEditar={onEditar} onEliminar={onEliminar} />
       </TableCell>
     </TableRow>
+  );
+}
+
+/** La misma lectura como tarjeta, para pantallas angostas. */
+function TarjetaLectura({
+  lectura: l,
+  onRechazar,
+  onAprobada,
+  onConfirmar,
+  onEditar,
+  onEliminar,
+}: AccionesFila) {
+  const { aprobando, error, aprobar } = useAprobarLectura(l, onAprobada, onConfirmar);
+
+  return (
+    <li className="flex flex-col gap-3 px-4 py-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="font-medium">{l.socio}</div>
+          <div className="text-[0.78rem] tabular-nums text-muted-foreground">
+            {[l.rut, formatearPeriodo(l.periodo)].filter(Boolean).join(" · ")}
+          </div>
+        </div>
+        <MenuAccionesLectura l={l} onEditar={onEditar} onEliminar={onEliminar} />
+      </div>
+
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 tabular-nums">
+          <DetalleValor l={l} />
+        </div>
+        <div className="shrink-0 text-right">
+          <EstadoLectura l={l} />
+        </div>
+      </div>
+
+      <div className="text-[0.78rem] text-muted-foreground">
+        Registrada por {l.registradaPor ?? "—"} · {fechaHora.format(l.createdAt)}
+      </div>
+
+      {l.estado === "PENDIENTE" && (
+        <div className="grid grid-cols-2 gap-2">
+          <Button type="button" variant="outline" disabled={aprobando} onClick={onRechazar}>
+            <X />
+            Rechazar
+          </Button>
+          <Button type="button" disabled={aprobando} onClick={aprobar}>
+            {aprobando ? <Loader2 className="animate-spin" /> : <Check />}
+            Aprobar
+          </Button>
+        </div>
+      )}
+      {error && <p className="text-[0.78rem] text-destructive">{error}</p>}
+    </li>
   );
 }
 
