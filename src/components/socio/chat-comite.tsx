@@ -22,6 +22,11 @@ const horaCorta = new Intl.DateTimeFormat("es-CL", {
  * de IA (AsistenteSocio): acá responde una persona, no un modelo, y puede
  * tardar. Reemplaza al bot de WhatsApp que se eliminó del producto.
  */
+/** Agrega un mensaje solo si no está ya (el eco en vivo y la respuesta del envío pueden coincidir). */
+function agregarSinRepetir(lista: MensajeChat[], m: MensajeChat) {
+  return lista.some((x) => x.id === m.id) ? lista : [...lista, m];
+}
+
 export function ChatComite({
   socioId,
   slug,
@@ -47,13 +52,32 @@ export function ChatComite({
       .catch(() => setMensajes([]))
       .finally(() => setCargando(false));
 
-    return escucharChat<MensajeChat>(socioId, (mensaje) => {
-      setMensajes((prev) => [...prev, mensaje]);
+    const detener = escucharChat<MensajeChat>(socioId, (mensaje) => {
+      setMensajes((prev) => agregarSinRepetir(prev, mensaje));
       if (mensaje.remitente !== "SOCIO") {
         setSinLeer((n) => (abiertoRef.current ? 0 : n + 1));
         if (abiertoRef.current) marcarLeidoSocio(slug);
       }
     });
+
+    // Respaldo: si la conexión en vivo no avisa, se revisa el historial cada
+    // pocos segundos mientras la pestaña está a la vista.
+    const revisar = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      fetch("/api/socio/chat/mensajes")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: unknown) => {
+          if (Array.isArray(data)) {
+            setMensajes((prev) => (data.length !== prev.length ? (data as MensajeChat[]) : prev));
+          }
+        })
+        .catch(() => undefined);
+    }, 12_000);
+
+    return () => {
+      detener();
+      window.clearInterval(revisar);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [socioId, slug]);
 
@@ -74,7 +98,9 @@ export function ChatComite({
     if (!texto || enviando) return;
     setEntrada("");
     iniciarEnvio(async () => {
-      await enviarMensajeSocio(slug, texto);
+      const r = await enviarMensajeSocio(slug, texto);
+      // El mensaje propio se ve de inmediato; si luego llega el eco en vivo, no se repite.
+      if (r.ok) setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
     });
   }
 

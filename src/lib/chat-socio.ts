@@ -30,9 +30,8 @@ export async function historialChat(socioId: string): Promise<MensajeChat[]> {
 }
 
 /**
- * Guarda el mensaje y lo publica en el canal de Pusher del socio — el envío
- * a Pusher no bloquea la respuesta al remitente si falla (fire-and-forget),
- * el mensaje ya quedó guardado y aparecerá igual la próxima vez que alguien
+ * Guarda el mensaje y lo publica en el canal del socio. Si la publicación en
+ * vivo falla no se pierde nada: el mensaje ya quedó guardado y aparecerá igual la próxima vez que alguien
  * cargue el historial.
  */
 export async function enviarMensajeChat({
@@ -69,9 +68,15 @@ export async function enviarMensajeChat({
       requiereHumano: mensajesSocio.requiereHumano,
     });
 
-  publicarMensajeEnVivo(socioId, mensaje).catch((error) => {
+  // Se espera a que el servicio de tiempo real lo reciba. Si no se espera, en
+  // Vercel la función puede congelarse apenas responde y la petición queda a
+  // medias: el mensaje se guarda pero nadie lo ve en vivo. Si falla, el mensaje
+  // ya está guardado y aparece en el próximo refresco del historial.
+  try {
+    await publicarMensajeEnVivo(socioId, mensaje);
+  } catch (error) {
     console.error("No se pudo publicar el mensaje en tiempo real:", error);
-  });
+  }
 
   return mensaje;
 }

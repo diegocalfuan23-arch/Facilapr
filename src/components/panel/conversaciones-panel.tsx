@@ -28,6 +28,11 @@ export type ConversacionResumen = {
   necesitaHumano: boolean;
 };
 
+/** Agrega un mensaje solo si no está ya (el eco en vivo y la respuesta del envío pueden coincidir). */
+function agregarSinRepetir(lista: MensajeChat[], m: MensajeChat) {
+  return lista.some((x) => x.id === m.id) ? lista : [...lista, m];
+}
+
 export function ConversacionesPanel({
   conversaciones,
 }: {
@@ -145,10 +150,29 @@ function ChatConSocio({
 
     marcarLeidoDirectiva(socioId);
 
-    return escucharChat<MensajeChat>(socioId, (mensaje) => {
-      setMensajes((prev) => [...prev, mensaje]);
+    const detener = escucharChat<MensajeChat>(socioId, (mensaje) => {
+      setMensajes((prev) => agregarSinRepetir(prev, mensaje));
       if (mensaje.remitente === "SOCIO") marcarLeidoDirectiva(socioId);
     });
+
+    // Respaldo: si por algo la conexión en vivo no avisa, el historial se
+    // revisa cada pocos segundos mientras la pestaña está a la vista.
+    const revisar = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      fetch(`/api/panel/conversaciones/${socioId}/mensajes`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data: unknown) => {
+          if (Array.isArray(data)) {
+            setMensajes((prev) => (data.length !== prev.length ? (data as MensajeChat[]) : prev));
+          }
+        })
+        .catch(() => undefined);
+    }, 12_000);
+
+    return () => {
+      detener();
+      window.clearInterval(revisar);
+    };
   }, [socioId]);
 
   useEffect(() => {
@@ -160,7 +184,9 @@ function ChatConSocio({
     if (!texto || enviando) return;
     setEntrada("");
     iniciarEnvio(async () => {
-      await enviarMensajeDirectiva(socioId, texto);
+      const r = await enviarMensajeDirectiva(socioId, texto);
+      // El mensaje propio se ve de inmediato; si luego llega el eco en vivo, no se repite.
+      if (r.ok) setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
     });
   }
 
