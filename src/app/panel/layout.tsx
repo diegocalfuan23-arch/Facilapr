@@ -75,9 +75,6 @@ export default async function PanelLayout({
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-1 h-4" />
               <span className="text-sm font-medium">{apr.nombre}</span>
-              <div className="ml-auto">
-                <SignOutButton />
-              </div>
             </div>
           </header>
 

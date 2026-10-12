@@ -219,7 +219,7 @@ function TarjetaComite({
               <SidebarMenuButton
                 size="lg"
                 aria-label="Menú del comité"
-                className="data-popup-open:bg-muted hover:bg-muted"
+                className="text-foreground hover:bg-muted hover:text-foreground data-open:bg-muted data-open:text-foreground data-open:hover:bg-muted data-open:hover:text-foreground data-popup-open:bg-muted data-popup-open:text-foreground"
               />
             }
           >
