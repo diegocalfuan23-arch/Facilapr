@@ -1,9 +1,11 @@
-import { and, count, desc, eq, gt } from "drizzle-orm";
+import { and, count, desc, eq, gt, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, mensajesSocio, socios, usosIa } from "@/lib/db/schema";
+import { boletas, lecturas, mensajesSocio, pagos, socios, usosIa } from "@/lib/db/schema";
 import { responder, type Mensaje } from "@/lib/ia";
 import { enviarMensajeChat } from "@/lib/chat-socio";
+import { formatearRut, formatearTelefono } from "@/lib/formato";
 import { cuentasDelSocio } from "@/lib/socio-session";
+import { textoMedioPago } from "@/lib/pagos";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { puede, TOPE_IA_CHAT_DIARIO, type Plan } from "@/lib/planes";
 import { inArray } from "drizzle-orm";
@@ -98,6 +100,48 @@ async function intentar(socioId: string) {
     with: { socio: { columns: { nombre: true } } },
   });
 
+  // La ficha de la persona: todos sus arranques (mismo RUT) con sus datos propios.
+  const fichas = await db.query.socios.findMany({
+    where: and(
+      eq(socios.aprId, socio.aprId),
+      socio.rut ? or(eq(socios.id, socio.id), eq(socios.rut, socio.rut)) : eq(socios.id, socio.id)
+    ),
+    columns: {
+      id: true,
+      nombre: true,
+      tipo: true,
+      rut: true,
+      numeroCliente: true,
+      direccion: true,
+      telefono: true,
+      activo: true,
+    },
+  });
+  const idsCuentas = fichas.map((f) => f.id);
+
+  const pagosRecientes = listaBoletas.length
+    ? await db
+        .select({
+          boletaId: pagos.boletaId,
+          monto: pagos.monto,
+          fecha: pagos.fecha,
+          medio: pagos.medio,
+        })
+        .from(pagos)
+        .where(inArray(pagos.boletaId, listaBoletas.map((b) => b.id)))
+        .orderBy(desc(pagos.fecha))
+        .limit(6)
+    : [];
+  const periodoDe = new Map(listaBoletas.map((b) => [b.id, b.periodo]));
+
+  const lecturasRecientes = await db.query.lecturas.findMany({
+    where: and(inArray(lecturas.socioId, idsCuentas), eq(lecturas.estado, "APROBADA")),
+    orderBy: [desc(lecturas.createdAt)],
+    limit: 4 * idsCuentas.length,
+    columns: { socioId: true, valor: true, periodo: true },
+  });
+  const nombreDe = new Map(fichas.map((f) => [f.id, f.nombre]));
+
   const system = construirPrompt({
     comite: {
       nombre: apr.nombre,
@@ -108,6 +152,22 @@ async function intentar(socioId: string) {
     },
     nombreSocio: socio.nombre,
     variosArranques: cuentas.length > 1,
+    fichas: fichas.map((f) => ({
+      ...f,
+      rut: f.rut ? formatearRut(f.rut) : null,
+      telefono: f.telefono ? formatearTelefono(f.telefono) : null,
+    })),
+    pagos: pagosRecientes.map((p) => ({
+      periodo: periodoDe.get(p.boletaId) ?? "",
+      monto: p.monto,
+      fecha: p.fecha,
+      medio: textoMedioPago(p.medio),
+    })),
+    lecturas: lecturasRecientes.map((l) => ({
+      arranque: nombreDe.get(l.socioId) ?? "",
+      valor: l.valor,
+      periodo: l.periodo,
+    })),
     boletas: listaBoletas.map((b) => ({ ...b, arranque: b.socio.nombre })),
   });
 
@@ -176,6 +236,19 @@ export function construirPrompt(d: {
   };
   nombreSocio: string;
   variosArranques: boolean;
+  /** Sus datos personales, uno por arranque. */
+  fichas: {
+    nombre: string;
+    tipo: string;
+    rut: string | null;
+    numeroCliente: string | null;
+    direccion: string | null;
+    telefono: string | null;
+    activo: boolean;
+  }[];
+  pagos: { periodo: string; monto: number; fecha: Date; medio: string }[];
+  /** Lecturas del medidor aprobadas, de la más nueva a la más antigua. */
+  lecturas: { arranque: string; valor: number; periodo: string }[];
   boletas: {
     arranque: string;
     periodo: string;
@@ -200,6 +273,37 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
     d.comite.horario && `Horario de atención: ${d.comite.horario}`,
   ].filter(Boolean);
   if (datosComite.length > 0) partes.push(`Datos del comité:\n${datosComite.join("\n")}`);
+
+  if (d.fichas.length > 0) {
+    const fichas = d.fichas.map((f) =>
+      [
+        `- ${f.nombre}`,
+        f.tipo === "USUARIO" ? "usuario (no socio)" : "socio",
+        f.rut && `RUT ${f.rut}`,
+        f.numeroCliente && `N.º de arranque ${f.numeroCliente}`,
+        f.direccion && `dirección ${f.direccion}`,
+        f.telefono && `teléfono ${f.telefono}`,
+        f.activo ? "cuenta activa" : "cuenta inactiva",
+      ]
+        .filter(Boolean)
+        .join(", ")
+    );
+    partes.push(`Datos personales del socio (los que el comité tiene registrados; puedes compartírselos a él mismo):\n${fichas.join("\n")}`);
+  }
+
+  if (d.lecturas.length > 0) {
+    const filas = d.lecturas.map(
+      (l) => `- ${d.variosArranques ? `[${l.arranque}] ` : ""}${formatearPeriodo(l.periodo)}: ${l.valor} m³ en el medidor`
+    );
+    partes.push(`Lecturas de su medidor (las más recientes primero):\n${filas.join("\n")}`);
+  }
+
+  if (d.pagos.length > 0) {
+    const filas = d.pagos.map(
+      (p) => `- ${fecha.format(p.fecha)}: ${clp.format(p.monto)} (${p.medio}) por la boleta de ${formatearPeriodo(p.periodo)}`
+    );
+    partes.push(`Pagos que ya registró el comité (los más recientes primero):\n${filas.join("\n")}`);
+  }
 
   if (d.boletas.length === 0) {
     partes.push("Este socio todavía no tiene boletas emitidas.");
@@ -226,7 +330,7 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
 - Responde solo con los datos de arriba. Nunca inventes montos, fechas, plazos ni teléfonos.
 - Eres una IA y, si te lo preguntan, lo dices. No finjas ser una persona.
 - No prometas plazos, descuentos, repactaciones, reconexiones ni condonaciones: eso lo decide la directiva.
-- No hables de otros socios ni de datos que no aparezcan arriba.
+- Sus datos personales de arriba son suyos: si los pide, se los das. No hables de otros socios ni de datos que no aparezcan arriba. Si pide cambiar un dato, eso lo ve la directiva.
 - Si es un reclamo, una fuga o falta de agua, un corte, un cambio de datos personales, una queja o una persona pide hablar con alguien, o no puedes resolverlo con los datos de arriba, empieza tu respuesta con ${MARCA_HUMANO} y a continuación escribe un mensaje breve diciendo que avisarás a la directiva para que lo atienda personalmente.
 - Si la pregunta se resuelve con los datos de arriba, respóndela directamente sin la marca.
 - Escribe en texto plano, como en un mensaje de WhatsApp: sin asteriscos, sin negritas y sin listas con símbolos.`);
