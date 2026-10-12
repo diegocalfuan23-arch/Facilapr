@@ -10,12 +10,25 @@ const EVENTO = "mensaje-nuevo";
  * deja de escuchar. Usa Pusher o el servidor Socket.IO propio según
  * NEXT_PUBLIC_CHAT_TRANSPORTE (ver lib/chat/tiempo-real.ts).
  */
-export function escucharChat<T>(socioId: string, alRecibir: (mensaje: T) => void) {
+export type OpcionesEscribiendo = {
+  /** Quién soy yo en esta conversación: lo que escribe el otro es lo que se muestra. */
+  de: "SOCIO" | "DIRECTIVA";
+  alEscribir: (activo: boolean) => void;
+};
+
+export function escucharChat<T>(
+  socioId: string,
+  alRecibir: (mensaje: T) => void,
+  escribiendo?: OpcionesEscribiendo
+) {
   if (process.env.NEXT_PUBLIC_CHAT_TRANSPORTE !== "socketio") {
     const pusher = pusherClient();
     const canal = `private-chat-socio-${socioId}`;
     pusher.subscribe(canal).bind(EVENTO, alRecibir);
-    return () => pusher.unsubscribe(canal);
+    // «Escribiendo…» solo va por el servidor propio; con Pusher no hace nada.
+    return Object.assign(() => pusher.unsubscribe(canal), {
+      avisarEscribiendo: () => undefined,
+    });
   }
 
   const socket = io(process.env.NEXT_PUBLIC_CHAT_URL!, {
@@ -31,8 +44,26 @@ export function escucharChat<T>(socioId: string, alRecibir: (mensaje: T) => void
     },
   });
   socket.on(EVENTO, alRecibir);
-  return () => {
+
+  const alEscribirElOtro = (d: { de?: string; activo?: boolean }) => {
+    if (escribiendo && d.de !== escribiendo.de) escribiendo.alEscribir(d.activo === true);
+  };
+  socket.on("escribiendo", alEscribirElOtro);
+
+  const detener = () => {
     socket.off(EVENTO, alRecibir);
+    socket.off("escribiendo", alEscribirElOtro);
     socket.disconnect();
   };
+  return Object.assign(detener, {
+    /** Avisa a la otra persona que empecé o dejé de escribir. */
+    avisarEscribiendo: (activo: boolean) => {
+      if (!escribiendo || !socket.connected) return;
+      socket.emit("escribiendo", {
+        sala: `chat-socio-${socioId}`,
+        de: escribiendo.de,
+        activo,
+      });
+    },
+  });
 }

@@ -24,6 +24,23 @@ const hora = new Intl.DateTimeFormat("es-CL", {
   hour12: false,
 });
 
+/** Los tres puntitos de «está escribiendo…», con la forma de un globo ajeno. */
+export function IndicadorEscribiendo() {
+  return (
+    <div className="flex justify-start" role="status" aria-label="Está escribiendo">
+      <div className="flex items-center gap-1 rounded-lg rounded-tl-none bg-white px-3.5 py-3 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]">
+        {[0, 150, 300].map((retraso) => (
+          <span
+            key={retraso}
+            className="size-1.5 animate-bounce rounded-full bg-neutral-400"
+            style={{ animationDelay: `${retraso}ms` }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export type TonoBurbuja = "propio" | "ajeno" | "ia";
 
 /**

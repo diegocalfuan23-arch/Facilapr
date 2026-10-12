@@ -40,7 +40,9 @@ import {
   CLASE_BOTON_ENVIAR,
   CLASE_CAJA_ESCRIBIR,
   FONDO_CHAT,
+  IndicadorEscribiendo,
 } from "@/components/chat/burbuja";
+import { useEscribiendo } from "@/components/chat/use-escribiendo";
 
 
 export type ConversacionResumen = {
@@ -212,6 +214,8 @@ function ChatConSocio({
   const [editando, setEditando] = useState<MensajeChat | null>(null);
   const [eliminando, setEliminando] = useState<MensajeChat | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const { otroEscribe, alEscribirElOtro, conectar, alTeclear, alDejarDeEscribir } =
+    useEscribiendo();
 
   useEffect(() => {
     setCargando(true);
@@ -225,10 +229,18 @@ function ChatConSocio({
 
     marcarLeidoDirectiva(socioId);
 
-    const detener = escucharChat<MensajeChat>(socioId, (mensaje) => {
-      setMensajes((prev) => agregarSinRepetir(prev, mensaje));
-      if (mensaje.remitente === "SOCIO") marcarLeidoDirectiva(socioId);
-    });
+    const detener = escucharChat<MensajeChat>(
+      socioId,
+      (mensaje) => {
+        setMensajes((prev) => agregarSinRepetir(prev, mensaje));
+        if (mensaje.remitente === "SOCIO") {
+          alEscribirElOtro(false);
+          marcarLeidoDirectiva(socioId);
+        }
+      },
+      { de: "DIRECTIVA", alEscribir: alEscribirElOtro }
+    );
+    conectar(detener.avisarEscribiendo);
 
     // Respaldo: si por algo la conexión en vivo no avisa, el historial se
     // revisa cada pocos segundos mientras la pestaña está a la vista.
@@ -245,19 +257,21 @@ function ChatConSocio({
     }, 5_000);
 
     return () => {
+      conectar(null);
       detener();
       window.clearInterval(revisar);
     };
-  }, [socioId]);
+  }, [socioId, alEscribirElOtro, conectar]);
 
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [mensajes]);
+  }, [mensajes, otroEscribe]);
 
   function enviar() {
     const texto = entrada.trim();
     if (!texto || enviando) return;
     setEntrada("");
+    alDejarDeEscribir();
     if (editando) {
       const id = editando.id;
       setEditando(null);
@@ -313,7 +327,9 @@ function ChatConSocio({
         </span>
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium">{nombre}</div>
-          {socio && (
+          {otroEscribe ? (
+            <div className="text-[0.76rem] font-medium text-[#00a884]">escribiendo…</div>
+          ) : socio && (
             <div className="truncate text-[0.76rem] tabular-nums text-muted-foreground">
               {[
                 datosDelSocio(socio),
@@ -395,6 +411,7 @@ function ChatConSocio({
             </BurbujaChat>
           ))
         )}
+        {otroEscribe && <IndicadorEscribiendo />}
         <div ref={finRef} />
       </div>
 
@@ -424,7 +441,11 @@ function ChatConSocio({
       >
         <Input
           value={entrada}
-          onChange={(e) => setEntrada(e.target.value)}
+          onChange={(e) => {
+            setEntrada(e.target.value);
+            if (e.target.value.trim()) alTeclear();
+            else alDejarDeEscribir();
+          }}
           placeholder={editando ? "Corrige tu mensaje" : "Escribe una respuesta"}
           maxLength={1000}
           className={CLASE_CAJA_ESCRIBIR}

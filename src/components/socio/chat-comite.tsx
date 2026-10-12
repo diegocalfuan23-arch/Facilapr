@@ -17,8 +17,9 @@ import {
   CLASE_BOTON_ENVIAR,
   CLASE_CAJA_ESCRIBIR,
   FONDO_CHAT,
+  IndicadorEscribiendo,
 } from "@/components/chat/burbuja";
-
+import { useEscribiendo } from "@/components/chat/use-escribiendo";
 
 /**
  * Chat directo con la directiva del comité — canal separado del asistente
@@ -27,7 +28,8 @@ import {
  */
 /** Hay algo nuevo que mostrar: mensajes nuevos o mensajes que pasaron a leídos. */
 function cambio(a: MensajeChat[], b: MensajeChat[]) {
-  const marcas = (l: MensajeChat[]) => l.filter((m) => m.leido).length * 1000 + l.filter((m) => m.editado).length;
+  const marcas = (l: MensajeChat[]) =>
+    l.filter((m) => m.leido).length * 1000 + l.filter((m) => m.editado).length;
   return a.length !== b.length || marcas(a) !== marcas(b);
 }
 
@@ -53,21 +55,36 @@ export function ChatComite({
   const [sinLeer, setSinLeer] = useState(0);
   const finRef = useRef<HTMLDivElement>(null);
   const abiertoRef = useRef(abierto);
+  const {
+    otroEscribe,
+    alEscribirElOtro,
+    conectar,
+    alTeclear,
+    alDejarDeEscribir,
+  } = useEscribiendo();
 
   useEffect(() => {
     fetch("/api/socio/chat/mensajes")
       .then((r) => (r.ok ? r.json() : []))
-      .then((data: unknown) => setMensajes(Array.isArray(data) ? (data as MensajeChat[]) : []))
+      .then((data: unknown) =>
+        setMensajes(Array.isArray(data) ? (data as MensajeChat[]) : []),
+      )
       .catch(() => setMensajes([]))
       .finally(() => setCargando(false));
 
-    const detener = escucharChat<MensajeChat>(socioId, (mensaje) => {
-      setMensajes((prev) => agregarSinRepetir(prev, mensaje));
-      if (mensaje.remitente !== "SOCIO") {
-        setSinLeer((n) => (abiertoRef.current ? 0 : n + 1));
-        if (abiertoRef.current) marcarLeidoSocio(slug);
-      }
-    });
+    const detener = escucharChat<MensajeChat>(
+      socioId,
+      (mensaje) => {
+        setMensajes((prev) => agregarSinRepetir(prev, mensaje));
+        if (mensaje.remitente !== "SOCIO") {
+          alEscribirElOtro(false);
+          setSinLeer((n) => (abiertoRef.current ? 0 : n + 1));
+          if (abiertoRef.current) marcarLeidoSocio(slug);
+        }
+      },
+      { de: "SOCIO", alEscribir: alEscribirElOtro },
+    );
+    conectar(detener.avisarEscribiendo);
 
     // Respaldo: si la conexión en vivo no avisa, se revisa el historial cada
     // pocos segundos mientras la pestaña está a la vista.
@@ -77,18 +94,22 @@ export function ChatComite({
         .then((r) => (r.ok ? r.json() : null))
         .then((data: unknown) => {
           if (Array.isArray(data)) {
-            setMensajes((prev) => (cambio(prev, data as MensajeChat[]) ? (data as MensajeChat[]) : prev));
+            setMensajes((prev) =>
+              cambio(prev, data as MensajeChat[])
+                ? (data as MensajeChat[])
+                : prev,
+            );
           }
         })
         .catch(() => undefined);
     }, 5_000);
 
     return () => {
+      conectar(null);
       detener();
       window.clearInterval(revisar);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [socioId, slug]);
+  }, [socioId, slug, alEscribirElOtro, conectar]);
 
   useEffect(() => {
     abiertoRef.current = abierto;
@@ -100,12 +121,13 @@ export function ChatComite({
 
   useEffect(() => {
     if (abierto) finRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [mensajes, abierto]);
+  }, [mensajes, abierto, otroEscribe]);
 
   function enviar() {
     const texto = entrada.trim();
     if (!texto || enviando) return;
     setEntrada("");
+    alDejarDeEscribir();
     iniciarEnvio(async () => {
       const r = await enviarMensajeSocio(slug, texto);
       // El mensaje propio se ve de inmediato; si luego llega el eco en vivo, no se repite.
@@ -143,42 +165,57 @@ export function ChatComite({
               <MessageSquareText className="size-4.5" />
             </span>
             <div className="min-w-0">
-              <div className="truncate text-sm font-semibold">
-                {nombreApr}
-              </div>
+              <div className="truncate text-sm font-semibold">{nombreApr}</div>
               <div className="text-[0.74rem] text-white/80">
-                Te responde alguien de la directiva
+                {otroEscribe
+                  ? "escribiendo…"
+                  : "Te responde alguien de la directiva"}
               </div>
             </div>
           </div>
 
-          <div className={cn("flex flex-1 flex-col gap-1.5 overflow-y-auto px-3 py-3", FONDO_CHAT)}>
+          <div
+            className={cn(
+              "flex flex-1 flex-col gap-1.5 overflow-y-auto px-3 py-3",
+              FONDO_CHAT,
+            )}
+          >
             {cargando ? (
               <div className="flex flex-1 items-center justify-center text-muted-foreground">
                 <Loader2 className="size-5 animate-spin" />
               </div>
             ) : mensajes.length === 0 ? (
               <p className="my-auto rounded-lg bg-white/70 px-3 py-2 text-center text-[0.85rem] text-neutral-600">
-                Escríbele a tu comité — un dirigente te responderá apenas
-                pueda.
+                Escríbele a tu comité — un dirigente te responderá apenas pueda.
               </p>
             ) : (
               mensajes.map((m) => (
                 <BurbujaChat
                   key={m.id}
                   // En el portal «propio» es lo que escribe el socio.
-                  tono={m.remitente === "SOCIO" ? "propio" : m.remitente === "IA" ? "ia" : "ajeno"}
+                  tono={
+                    m.remitente === "SOCIO"
+                      ? "propio"
+                      : m.remitente === "IA"
+                        ? "ia"
+                        : "ajeno"
+                  }
                   lado={m.remitente === "SOCIO" ? "derecha" : "izquierda"}
                   fecha={m.createdAt}
                   leido={m.leido}
                   editado={m.editado}
-                  etiqueta={m.remitente === "IA" ? "Asistente del comité · IA" : undefined}
+                  etiqueta={
+                    m.remitente === "IA"
+                      ? "Asistente del comité · IA"
+                      : undefined
+                  }
                   ancho="max-w-[85%]"
                 >
                   {m.contenido}
                 </BurbujaChat>
               ))
             )}
+            {otroEscribe && <IndicadorEscribiendo />}
             <div ref={finRef} />
           </div>
 
@@ -191,7 +228,11 @@ export function ChatComite({
           >
             <Input
               value={entrada}
-              onChange={(e) => setEntrada(e.target.value)}
+              onChange={(e) => {
+                setEntrada(e.target.value);
+                if (e.target.value.trim()) alTeclear();
+                else alDejarDeEscribir();
+              }}
               placeholder="Escribe un mensaje"
               maxLength={1000}
               aria-label="Tu mensaje"
