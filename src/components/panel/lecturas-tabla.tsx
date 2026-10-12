@@ -403,7 +403,7 @@ export function LecturasTabla({
           <div data-tour="lec-tabla" className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
-                <TableRow className="border-b-border/50 hover:bg-transparent">
+                <TableRow className="border-b-border/40 hover:bg-transparent">
                   {["Socio", "Período", "Lectura", "Registrada por", "Estado"].map(
                     (h) => (
                       <TableHead

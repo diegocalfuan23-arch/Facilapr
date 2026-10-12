@@ -716,7 +716,7 @@ export function SociosTabla({
           <div data-tour="socios-tabla" className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
-                <TableRow className="border-b-border/50 hover:bg-transparent">
+                <TableRow className="border-b-border/40 hover:bg-transparent">
                   <TableHead className="h-11 w-11 pl-5">
                     <Checkbox
                       checked={todasMarcadas}
