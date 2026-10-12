@@ -94,13 +94,18 @@ export function LecturasMasivasDialog({
 
   const validas = vista?.filas.filter((f) => !f.error && f.socioId) ?? [];
   const conProblema = (vista?.filas.length ?? 0) - validas.length;
-  const monto = (consumo: number | null) =>
-    vista?.tarifas && consumo !== null
-      ? vista.tarifas.cargoFijo + consumo * vista.tarifas.valorM3
-      : null;
+  // Cada arranque se estima con su tarifa: la comercial si el comité definió una.
+  const monto = (consumo: number | null, socioId: string | null) => {
+    if (!vista?.tarifas || consumo === null) return null;
+    const t =
+      socioId && vista.tarifasComercial && vista.comercialIds.includes(socioId)
+        ? vista.tarifasComercial
+        : vista.tarifas;
+    return t.cargoFijo + consumo * t.valorM3;
+  };
   const totalM3 = validas.reduce((s, f) => s + (f.consumo ?? 0), 0);
   const totalMonto = vista?.tarifas
-    ? validas.reduce((s, f) => s + (monto(f.consumo) ?? 0), 0)
+    ? validas.reduce((s, f) => s + (monto(f.consumo, f.socioId) ?? 0), 0)
     : null;
 
   function confirmar() {
@@ -277,7 +282,7 @@ export function LecturasMasivasDialog({
                       )}
                       {mensual && vista.tarifas && (
                         <td className="px-3 py-1.5 text-right tabular-nums">
-                          {monto(f.consumo) !== null ? clp.format(monto(f.consumo)!) : "—"}
+                          {monto(f.consumo, f.socioId) !== null ? clp.format(monto(f.consumo, f.socioId)!) : "—"}
                         </td>
                       )}
                       <td className="px-3 py-1.5">

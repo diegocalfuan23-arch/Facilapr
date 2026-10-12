@@ -39,7 +39,7 @@ export default async function BoletasPage() {
   const padron = await db.query.socios.findMany({
     where: eq(socios.aprId, apr.id),
     orderBy: [asc(socios.nombre)],
-    columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true },
+    columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true, uso: true },
   });
 
   // Ultima lectura aprobada de cada arranque: sugiere la anterior al crear una boleta.
@@ -61,6 +61,11 @@ export default async function BoletasPage() {
       tarifas={
         apr.tarifaCargoFijo !== null && apr.tarifaMetroCubico !== null
           ? { cargoFijo: apr.tarifaCargoFijo, valorM3: apr.tarifaMetroCubico }
+          : null
+      }
+      tarifasComercial={
+        apr.tarifaCargoFijoComercial !== null && apr.tarifaMetroCubicoComercial !== null
+          ? { cargoFijo: apr.tarifaCargoFijoComercial, valorM3: apr.tarifaMetroCubicoComercial }
           : null
       }
       comite={{

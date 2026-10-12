@@ -13,6 +13,8 @@ export type OpcionSocio = {
   rut: string | null;
   numeroCliente?: string | null;
   tipo?: "SOCIO" | "USUARIO";
+  /** Para qué se usa el agua: de ahí sale la tarifa que se le aplica. */
+  uso?: "RESIDENCIAL" | "COMERCIAL";
   /** Su ultima lectura aprobada, si la pantalla la necesita (p. ej. nueva boleta). */
   ultimaLectura?: number | null;
 };

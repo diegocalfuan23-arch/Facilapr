@@ -95,6 +95,16 @@ export async function guardarFacturacion(
     };
   }
 
+  // Tarifa de los arranques comerciales: opcional. Vacía = pagan la misma que todos.
+  const cargoFijoComercial = aEntero(formData.get("tarifaCargoFijoComercial"));
+  const valorM3Comercial = aEntero(formData.get("tarifaMetroCubicoComercial"));
+  if ((cargoFijoComercial === null) !== (valorM3Comercial === null)) {
+    return {
+      ok: false,
+      error: "En la tarifa comercial completa el cargo fijo y el valor por m³, o deja los dos vacíos.",
+    };
+  }
+
   if (dia < 1 || dia > 28) {
     return {
       ok: false,
@@ -126,6 +136,8 @@ export async function guardarFacturacion(
     .set({
       tarifaCargoFijo: cargoFijo,
       tarifaMetroCubico: valorM3,
+      tarifaCargoFijoComercial: cargoFijoComercial,
+      tarifaMetroCubicoComercial: valorM3Comercial,
       diaGeneracionBoletas: dia,
       diasVencimiento: dias,
       prefijoBoleta: prefijo || "BOL-",

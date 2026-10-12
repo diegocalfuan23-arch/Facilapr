@@ -57,6 +57,8 @@ export type DatosConfiguracion = {
   /** Tarifa única del comité: cargo fijo + valor por m³ (CLP). */
   tarifaCargoFijo: number | null;
   tarifaMetroCubico: number | null;
+  tarifaCargoFijoComercial: number | null;
+  tarifaMetroCubicoComercial: number | null;
   diaGeneracionBoletas: number;
   diasVencimiento: number;
   prefijoBoleta: string;
@@ -448,6 +450,32 @@ export function ConfiguracionForm({
                 defaultValue={datos.tarifaMetroCubico ?? ""}
               />
             </Campo>
+            <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 sm:col-span-2">
+              <div className="text-[0.88rem] font-medium">Tarifa comercial (opcional)</div>
+              <p className="mt-0.5 mb-3 text-[0.8rem] text-muted-foreground">
+                Si cobras distinto a los arranques que marcaste como comerciales, escribe su tarifa. Si la dejas vacía, pagan lo mismo que todos.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo id="tarifaCargoFijoComercial" label="Cargo fijo comercial ($)">
+                  <Input
+                    id="tarifaCargoFijoComercial"
+                    name="tarifaCargoFijoComercial"
+                    inputMode="numeric"
+                    placeholder="Igual al general"
+                    defaultValue={datos.tarifaCargoFijoComercial ?? ""}
+                  />
+                </Campo>
+                <Campo id="tarifaMetroCubicoComercial" label="Valor por m³ comercial ($)">
+                  <Input
+                    id="tarifaMetroCubicoComercial"
+                    name="tarifaMetroCubicoComercial"
+                    inputMode="numeric"
+                    placeholder="Igual al general"
+                    defaultValue={datos.tarifaMetroCubicoComercial ?? ""}
+                  />
+                </Campo>
+              </div>
+            </div>
             <Campo
               id="diaGeneracionBoletas"
               label="Día de emisión"

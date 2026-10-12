@@ -36,6 +36,10 @@ export type PrevisualizacionMasiva =
       filas: LecturaResuelta[];
       /** Para estimar el monto de cada una en pantalla; null si faltan las tarifas. */
       tarifas: { cargoFijo: number; valorM3: number } | null;
+      /** La tarifa de los arranques comerciales, si el comité definió una distinta. */
+      tarifasComercial: { cargoFijo: number; valorM3: number } | null;
+      /** Los arranques comerciales de esta carga, para estimar con su tarifa. */
+      comercialIds: string[];
     }
   | { ok: false; error: string };
 
@@ -126,7 +130,27 @@ export async function previsualizarLecturas(
       ? { cargoFijo: apr.tarifaCargoFijo, valorM3: apr.tarifaMetroCubico }
       : null;
 
-  return { ok: true, modo, periodo, notas: deteccion.notas, filas, tarifas };
+  const tarifasComercial =
+    apr.tarifaCargoFijoComercial !== null && apr.tarifaMetroCubicoComercial !== null
+      ? { cargoFijo: apr.tarifaCargoFijoComercial, valorM3: apr.tarifaMetroCubicoComercial }
+      : null;
+  const comerciales = tarifasComercial
+    ? await db.query.socios.findMany({
+        where: and(eq(socios.aprId, apr.id), eq(socios.uso, "COMERCIAL")),
+        columns: { id: true },
+      })
+    : [];
+
+  return {
+    ok: true,
+    modo,
+    periodo,
+    notas: deteccion.notas,
+    filas,
+    tarifas,
+    tarifasComercial,
+    comercialIds: comerciales.map((c) => c.id),
+  };
 }
 
 /** Paso 2: guarda las que la directiva confirmó. Se vuelve a validar en el servidor. */

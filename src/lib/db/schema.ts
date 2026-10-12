@@ -76,6 +76,9 @@ export const aprs = pgTable(
     /** Tarifas en CLP. Enteros: en Chile no se usan decimales. */
     tarifaCargoFijo: integer("tarifaCargoFijo"),
     tarifaMetroCubico: integer("tarifaMetroCubico"),
+    /** Tarifa de los arranques comerciales. Si falta alguna de las dos, se usa la general. */
+    tarifaCargoFijoComercial: integer("tarifaCargoFijoComercial"),
+    tarifaMetroCubicoComercial: integer("tarifaMetroCubicoComercial"),
     /** Dónde y cómo pagar, en texto libre: varía mucho entre comités. */
     infoPago: text("infoPago"),
     /** IA dentro del chat (plan Grande): APAGADO · SIEMPRE (· SIN_RESPUESTA, próximamente). */

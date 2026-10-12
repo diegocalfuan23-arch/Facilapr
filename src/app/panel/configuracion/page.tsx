@@ -52,6 +52,8 @@ export default async function ConfiguracionPage() {
         sitioWeb: apr.sitioWeb,
         tarifaCargoFijo: apr.tarifaCargoFijo,
         tarifaMetroCubico: apr.tarifaMetroCubico,
+        tarifaCargoFijoComercial: apr.tarifaCargoFijoComercial,
+        tarifaMetroCubicoComercial: apr.tarifaMetroCubicoComercial,
         diaGeneracionBoletas: apr.diaGeneracionBoletas,
         diasVencimiento: apr.diasVencimiento,
         prefijoBoleta: apr.prefijoBoleta,

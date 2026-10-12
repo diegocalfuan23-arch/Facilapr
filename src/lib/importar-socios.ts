@@ -25,6 +25,8 @@ export type FilaSocio = {
   telefono: string;
   direccion: string;
   numeroCliente: string;
+  /** Uso del agua según el archivo; vacío si no trae esa columna (no se toca el que ya tenía). */
+  uso: "RESIDENCIAL" | "COMERCIAL" | "";
 };
 
 /** Lo que ya hay en el padrón, para detectar "ya existe". */
@@ -102,6 +104,14 @@ export function claveCuenta(
  * columna de nombre arma una tabla con lo que tenga a su derecha: RUT, teléfono,
  * dirección y N.º. El tipo (socio o usuario) sale de los títulos.
  */
+/** «Comercial», «comercio»… → COMERCIAL; «residencial», «domiciliario»… → RESIDENCIAL; lo demás, sin dato. */
+function usoDeTexto(valor: string): FilaSocio["uso"] {
+  const v = sinTildes(valor);
+  if (/comerc/.test(v)) return "COMERCIAL";
+  if (/resid|domicil|casa|particular/.test(v)) return "RESIDENCIAL";
+  return "";
+}
+
 export function detectarSocios(tabla: string[][]): Deteccion {
   const limite = Math.min(tabla.length, 30);
   let filaEncabezado = -1;
@@ -172,6 +182,7 @@ export function detectarSocios(tabla: string[][]): Deteccion {
     let colRut = enRegion(esRut);
     if (colRut < 0 && inicio + 1 < fin && traeRut(inicio + 1)) colRut = inicio + 1;
     const colTelefono = enRegion(esTelefono);
+    const colUso = enRegion((c) => /^(uso|categoria)/.test(sinTildes(c)));
     const colDireccion = enRegion(esDireccion);
     let colNumero = enRegion(esNumero);
     if (
@@ -210,6 +221,7 @@ export function detectarSocios(tabla: string[][]): Deteccion {
         telefono: colTelefono >= 0 ? celda(r, colTelefono) : "",
         direccion: colDireccion >= 0 ? celda(r, colDireccion) : "",
         numeroCliente: numero,
+        uso: colUso >= 0 ? usoDeTexto(celda(r, colUso)) : "",
       });
       cuantas++;
     }
@@ -221,6 +233,7 @@ export function detectarSocios(tabla: string[][]): Deteccion {
     if (colTelefono >= 0) columnas.push(`teléfono (${letraColumna(colTelefono)})`);
     if (colDireccion >= 0) columnas.push(`dirección (${letraColumna(colDireccion)})`);
     if (colNumero >= 0) columnas.push(`N.º (${letraColumna(colNumero)})`);
+    if (colUso >= 0) columnas.push(`uso (${letraColumna(colUso)})`);
     notas.push(
       `${tipo === "USUARIO" ? "Usuarios" : "Socios"}: ${cuantas} filas. Columnas: ${columnas.join(", ")}.`
     );

@@ -11,11 +11,13 @@ import { leerTabla } from "@/lib/tabla";
 import {
   aMonto,
   calcularDesdeLecturas,
+  tarifasPara,
   estadoQueCorresponde,
   normalizarPeriodo,
   type EstadoBoleta,
 } from "@/lib/boletas";
 import { normalizarRut } from "@/lib/formato";
+import { usoDeSocio } from "@/lib/tarifas";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
 
@@ -158,14 +160,11 @@ export async function guardarBoleta(
   const consumoDirecto = conLecturas
     ? datos.lecturaActual! - datos.lecturaAnterior!
     : null;
-  const hayTarifas =
-    apr.tarifaCargoFijo !== null && apr.tarifaMetroCubico !== null;
+  const tarifasSocio = tarifasPara(apr, await usoDeSocio(datos.socioId));
+  const hayTarifas = tarifasSocio.cargoFijo !== null && tarifasSocio.valorM3 !== null;
   const calculo =
     conLecturas && hayTarifas
-      ? calcularDesdeLecturas(datos.lecturaAnterior, datos.lecturaActual, {
-          cargoFijo: apr.tarifaCargoFijo,
-          valorM3: apr.tarifaMetroCubico,
-        })
+      ? calcularDesdeLecturas(datos.lecturaAnterior, datos.lecturaActual, tarifasSocio)
       : null;
 
   if (calculo && "error" in calculo) {
@@ -540,8 +539,9 @@ export async function importarBoletas(
   // Traemos los socios del comité de una vez: evita una consulta por línea.
   const delComite = await db.query.socios.findMany({
     where: eq(socios.aprId, apr.id),
-    columns: { id: true, rut: true, tipo: true, numeroCliente: true },
+    columns: { id: true, rut: true, tipo: true, numeroCliente: true, uso: true },
   });
+  const usoPorId = new Map(delComite.map((s) => [s.id, s.uso]));
   const porRut = new Map<string, string[]>();
   const porNumero = new Map<string, string>(); // "SOCIO|3" → id
   for (const s of delComite) {
@@ -612,10 +612,7 @@ export async function importarBoletas(
     const lecAnt = iLecAnt >= 0 ? aMonto(campos[iLecAnt] ?? "") : null;
     const lecAct = iLecAct >= 0 ? aMonto(campos[iLecAct] ?? "") : null;
 
-    const calculo = calcularDesdeLecturas(lecAnt, lecAct, {
-      cargoFijo: apr.tarifaCargoFijo,
-      valorM3: apr.tarifaMetroCubico,
-    });
+    const calculo = calcularDesdeLecturas(lecAnt, lecAct, tarifasPara(apr, usoPorId.get(socioId)));
 
     if (calculo && "error" in calculo) {
       omitidas.push({ linea: nLinea, motivo: calculo.error });

@@ -145,3 +145,27 @@ export function aMonto(valor: string): number | null {
   const n = Number(limpio);
   return Number.isFinite(n) ? n : null;
 }
+
+/**
+ * La tarifa que corresponde a un arranque según su uso. Los comerciales usan la
+ * suya si el comité la definió completa (cargo fijo y valor del m³); si no, se
+ * les cobra como a todos.
+ */
+export function tarifasPara(
+  apr: {
+    tarifaCargoFijo: number | null;
+    tarifaMetroCubico: number | null;
+    tarifaCargoFijoComercial: number | null;
+    tarifaMetroCubicoComercial: number | null;
+  },
+  uso: string | null | undefined
+): { cargoFijo: number | null; valorM3: number | null } {
+  if (
+    uso === "COMERCIAL" &&
+    apr.tarifaCargoFijoComercial !== null &&
+    apr.tarifaMetroCubicoComercial !== null
+  ) {
+    return { cargoFijo: apr.tarifaCargoFijoComercial, valorM3: apr.tarifaMetroCubicoComercial };
+  }
+  return { cargoFijo: apr.tarifaCargoFijo, valorM3: apr.tarifaMetroCubico };
+}

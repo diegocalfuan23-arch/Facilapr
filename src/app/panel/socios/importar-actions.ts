@@ -106,6 +106,7 @@ export async function importarSociosRevisados(
     telefono: texto(f.telefono, 30),
     direccion: texto(f.direccion, 200),
     numeroCliente: texto(f.numeroCliente, 30),
+    uso: f.uso === "COMERCIAL" || f.uso === "RESIDENCIAL" ? f.uso : "",
   }));
 
   const existentes = await existentesDe(apr.id);
@@ -129,6 +130,8 @@ export async function importarSociosRevisados(
       ...(f.telefono ? { telefono: normalizarTelefono(f.telefono) } : {}),
       ...(f.direccion ? { direccion: f.direccion } : {}),
       ...(f.numeroCliente ? { numeroCliente: f.numeroCliente } : {}),
+      // Sin columna de uso, un socio nuevo parte residencial y uno existente conserva el suyo.
+      ...(f.uso ? { uso: f.uso } : {}),
     };
 
     const v = veredictos[i];

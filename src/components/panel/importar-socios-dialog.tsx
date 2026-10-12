@@ -257,6 +257,7 @@ function Revision({
           telefono: f.telefono,
           direccion: f.direccion,
           numeroCliente: f.numeroCliente,
+          uso: f.uso,
         })),
         { desactivarAusentes }
       );

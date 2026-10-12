@@ -215,11 +215,14 @@ export function BoletasTabla({
   boletas,
   socios,
   tarifas,
+  tarifasComercial,
   comite,
 }: {
   boletas: BoletaFila[];
   socios: SocioOpcion[];
   tarifas: { cargoFijo: number; valorM3: number } | null;
+  /** Tarifa de los arranques comerciales, si el comité la definió. */
+  tarifasComercial: { cargoFijo: number; valorM3: number } | null;
   comite: DatosComiteWhatsApp;
 }) {
   const [busqueda, setBusqueda] = useState("");
@@ -760,6 +763,7 @@ export function BoletasTabla({
         onAbiertoChange={setCreando}
         socios={socios}
         tarifas={tarifas}
+        tarifasComercial={tarifasComercial}
       />
 
       {editando && (
@@ -768,6 +772,7 @@ export function BoletasTabla({
           onAbiertoChange={(v) => !v && setEditando(null)}
           socios={socios}
           tarifas={tarifas}
+          tarifasComercial={tarifasComercial}
           boleta={editando}
         />
       )}
@@ -836,15 +841,23 @@ function BoletaDialog({
   abierto,
   onAbiertoChange,
   socios,
-  tarifas,
+  tarifas: tarifasGenerales,
+  tarifasComercial,
   boleta,
 }: {
   abierto: boolean;
   onAbiertoChange: (v: boolean) => void;
   socios: SocioOpcion[];
   tarifas: { cargoFijo: number; valorM3: number } | null;
+  tarifasComercial: { cargoFijo: number; valorM3: number } | null;
   boleta?: BoletaFila;
 }) {
+  // La tarifa depende del uso del arranque elegido: comercial o residencial.
+  const [usoElegido, setUsoElegido] = useState<string>(
+    socios.find((s) => s.id === boleta?.socioId)?.uso ?? "RESIDENCIAL"
+  );
+  const tarifas =
+    usoElegido === "COMERCIAL" && tarifasComercial ? tarifasComercial : tarifasGenerales;
   // Las lecturas se controlan para mostrar el consumo y el monto mientras se escribe.
   const [lecAnt, setLecAnt] = useState(String(boleta?.lecturaAnterior ?? ""));
   const [lecAct, setLecAct] = useState(String(boleta?.lecturaActual ?? ""));
@@ -889,6 +902,7 @@ function BoletaDialog({
             defaultId={boleta?.socioId}
             // Al elegir un arranque en una boleta nueva, se sugiere su ultima lectura.
             onElegir={(s) => {
+              setUsoElegido(s?.uso ?? "RESIDENCIAL");
               if (!boleta) setLecAnt(s?.ultimaLectura != null ? String(s.ultimaLectura) : "");
             }}
           />

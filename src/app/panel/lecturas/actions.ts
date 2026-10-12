@@ -13,8 +13,10 @@ import {
   calcularDesdeLecturas,
   estadoQueCorresponde,
   normalizarPeriodo,
+  tarifasPara,
   type EstadoBoleta,
 } from "@/lib/boletas";
+import { usoDeSocio } from "@/lib/tarifas";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
 
@@ -171,10 +173,11 @@ async function aprobarNucleo(
 
   const lecturaAnterior = anterior[0]?.valor ?? 0;
 
-  const calculo = calcularDesdeLecturas(lecturaAnterior, actual.valor, {
-    cargoFijo: apr.tarifaCargoFijo,
-    valorM3: apr.tarifaMetroCubico,
-  });
+  const calculo = calcularDesdeLecturas(
+    lecturaAnterior,
+    actual.valor,
+    tarifasPara(apr, await usoDeSocio(actual.socioId))
+  );
 
   if (calculo && "error" in calculo) {
     return {
@@ -446,10 +449,7 @@ export async function editarLectura(
   const boleta = await boletaDeLectura(l);
   let calculo: ReturnType<typeof calcularDesdeLecturas> = null;
   if (boleta) {
-    calculo = calcularDesdeLecturas(anterior ?? 0, valor, {
-      cargoFijo: apr.tarifaCargoFijo,
-      valorM3: apr.tarifaMetroCubico,
-    });
+    calculo = calcularDesdeLecturas(anterior ?? 0, valor, tarifasPara(apr, await usoDeSocio(l.socioId)));
     if (calculo && "error" in calculo) return { ok: false, error: calculo.error };
     if (!calculo) {
       return { ok: false, error: "No se pudo recalcular la boleta con esa lectura." };
