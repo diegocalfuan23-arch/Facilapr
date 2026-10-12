@@ -370,6 +370,7 @@ export async function registrarPago(
   const total = await recalcularBoleta(boletaId);
 
   revalidatePath("/panel/boletas");
+  revalidatePath("/panel/pagos");
   revalidatePath("/panel");
   return {
     ok: true,
@@ -426,6 +427,7 @@ export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
   await recalcularBoleta(pago.boletaId);
 
   revalidatePath("/panel/boletas");
+  revalidatePath("/panel/pagos");
   revalidatePath("/panel");
   return { ok: true };
 }

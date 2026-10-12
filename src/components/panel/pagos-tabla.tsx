@@ -1,14 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
-import { FileDown, ReceiptText, Search, Wallet } from "lucide-react";
+import { FileDown, Plus, Search, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 import { MEDIOS_PAGO, textoMedioPago } from "@/lib/pagos";
+import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
+import type { OpcionSocio } from "@/components/panel/socio-buscador";
+import type { DatosComiteWhatsApp } from "@/lib/whatsapp";
 
 export type PagoFila = {
   id: string;
@@ -41,7 +43,18 @@ const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Todos los pagos que ha registrado el comité, con búsqueda y filtro por medio. */
-export function PagosTabla({ pagos }: { pagos: PagoFila[] }) {
+export function PagosTabla({
+  pagos,
+  socios,
+  boletasPendientes,
+  comite,
+}: {
+  pagos: PagoFila[];
+  socios: OpcionSocio[];
+  boletasPendientes: BoletaPendiente[];
+  comite: DatosComiteWhatsApp;
+}) {
+  const [registrando, setRegistrando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [medio, setMedio] = useState<string>("todos");
   const [visibles, setVisibles] = useState(POR_PAGINA);
@@ -75,13 +88,9 @@ export function PagosTabla({ pagos }: { pagos: PagoFila[] }) {
             Todo lo que han pagado tus socios, con su comprobante.
           </p>
         </div>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href="/panel/boletas" />}
-        >
-          <ReceiptText />
-          Registrar un pago en Boletas
+        <Button onClick={() => setRegistrando(true)}>
+          <Plus />
+          Registrar pago
         </Button>
       </div>
 
@@ -104,8 +113,8 @@ export function PagosTabla({ pagos }: { pagos: PagoFila[] }) {
           </span>
           <h2 className="mt-4 text-[1rem] font-semibold">Aún no hay pagos registrados</h2>
           <p className="mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed text-muted-foreground">
-            Cuando un socio pague, regístralo desde Boletas con “Registrar pago”.
-            Aquí quedará el historial y el comprobante para enviarle.
+            Cuando un socio pague, toca “Registrar pago”, busca al socio y elige su
+            boleta. Aquí quedará el historial y el comprobante para enviarle.
           </p>
         </div>
       ) : (
@@ -206,6 +215,15 @@ export function PagosTabla({ pagos }: { pagos: PagoFila[] }) {
             </>
           )}
         </div>
+      )}
+
+      {registrando && (
+        <NuevoPagoDialog
+          socios={socios}
+          boletas={boletasPendientes}
+          comite={comite}
+          onCerrar={() => setRegistrando(false)}
+        />
       )}
     </div>
   );
