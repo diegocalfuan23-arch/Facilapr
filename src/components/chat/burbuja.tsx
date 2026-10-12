@@ -37,6 +37,8 @@ export function BurbujaChat({
   fecha,
   etiqueta,
   leido = false,
+  editado = false,
+  acciones,
   children,
   ancho = "max-w-[78%]",
 }: {
@@ -46,6 +48,10 @@ export function BurbujaChat({
   etiqueta?: string;
   /** Solo para mensajes propios: la otra parte ya lo leyó. */
   leido?: boolean;
+  /** Se corrigió el texto después de enviarlo. */
+  editado?: boolean;
+  /** Menú que aparece al pasar el mouse (editar, eliminar…). */
+  acciones?: React.ReactNode;
   children: React.ReactNode;
   ancho?: string;
 }) {
@@ -54,7 +60,7 @@ export function BurbujaChat({
     <div className={cn("flex", derecha ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "relative rounded-lg px-2.5 pt-1.5 pb-1 text-[0.9rem] leading-snug whitespace-pre-line text-neutral-900 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]",
+          "group relative rounded-lg px-2.5 pt-1.5 pb-1 text-[0.9rem] leading-snug whitespace-pre-line text-neutral-900 shadow-[0_1px_0.5px_rgba(11,20,26,0.13)]",
           ancho,
           tono === "propio" && "bg-[#d9fdd3]",
           tono === "ajeno" && "bg-white",
@@ -62,6 +68,11 @@ export function BurbujaChat({
           derecha ? "rounded-tr-none" : "rounded-tl-none"
         )}
       >
+        {acciones && (
+          <div className="absolute top-0.5 right-0.5 opacity-0 transition-opacity group-hover:opacity-100 has-[[data-popup-open]]:opacity-100 focus-within:opacity-100">
+            {acciones}
+          </div>
+        )}
         {etiqueta && (
           <div className="mb-0.5 flex items-center gap-1 text-[0.68rem] font-semibold text-primary">
             <Sparkles className="size-3" />
@@ -71,6 +82,7 @@ export function BurbujaChat({
         {children}
         {/* La hora va dentro del globo, abajo a la derecha, como en WhatsApp. */}
         <span className="float-right mt-1.5 ml-3 flex translate-y-0.5 items-center gap-0.5 text-[0.66rem] text-neutral-500">
+          {editado && <span className="italic">editado</span>}
           {hora.format(new Date(fecha))}
           {tono === "propio" &&
             (leido ? (

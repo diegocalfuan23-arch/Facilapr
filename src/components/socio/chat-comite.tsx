@@ -27,7 +27,8 @@ import {
  */
 /** Hay algo nuevo que mostrar: mensajes nuevos o mensajes que pasaron a leídos. */
 function cambio(a: MensajeChat[], b: MensajeChat[]) {
-  return a.length !== b.length || a.filter((m) => m.leido).length !== b.filter((m) => m.leido).length;
+  const marcas = (l: MensajeChat[]) => l.filter((m) => m.leido).length * 1000 + l.filter((m) => m.editado).length;
+  return a.length !== b.length || marcas(a) !== marcas(b);
 }
 
 /** Agrega un mensaje solo si no está ya (el eco en vivo y la respuesta del envío pueden coincidir). */
@@ -170,6 +171,7 @@ export function ChatComite({
                   lado={m.remitente === "SOCIO" ? "derecha" : "izquierda"}
                   fecha={m.createdAt}
                   leido={m.leido}
+                  editado={m.editado}
                   etiqueta={m.remitente === "IA" ? "Asistente del comité · IA" : undefined}
                   ancho="max-w-[85%]"
                 >

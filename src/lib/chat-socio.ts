@@ -12,6 +12,8 @@ export type MensajeChat = {
   requiereHumano?: boolean;
   /** La otra parte ya lo leyó (solo importa en mensajes de SOCIO y DIRECTIVA). */
   leido?: boolean;
+  /** La directiva corrigió el texto después de enviarlo. */
+  editado?: boolean;
 };
 
 export async function historialChat(socioId: string): Promise<MensajeChat[]> {
@@ -27,11 +29,13 @@ export async function historialChat(socioId: string): Promise<MensajeChat[]> {
       requiereHumano: true,
       leidoPorSocio: true,
       leidoPorDirectiva: true,
+      editadoAt: true,
     },
   });
 
-  return filas.map(({ leidoPorSocio, leidoPorDirectiva, ...m }) => ({
+  return filas.map(({ leidoPorSocio, leidoPorDirectiva, editadoAt, ...m }) => ({
     ...m,
+    editado: editadoAt !== null,
     // Lo que escribió el socio lo lee la directiva, y al revés.
     leido: m.remitente === "SOCIO" ? leidoPorDirectiva : leidoPorSocio,
   }));
@@ -86,5 +90,5 @@ export async function enviarMensajeChat({
     console.error("No se pudo publicar el mensaje en tiempo real:", error);
   }
 
-  return { ...mensaje, leido: false };
+  return { ...mensaje, leido: false, editado: false };
 }

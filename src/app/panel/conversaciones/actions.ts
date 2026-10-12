@@ -67,3 +67,49 @@ export async function marcarLeidoDirectiva(socioId: string) {
       )
     );
 }
+
+/** Mensajes que la persona de la directiva escribió ella misma (no los del socio ni los de la IA). */
+async function mensajePropio(mensajeId: string) {
+  const { user, apr } = await requireAdmin();
+  const [fila] = await db
+    .select({ id: mensajesSocio.id, socioId: mensajesSocio.socioId })
+    .from(mensajesSocio)
+    .innerJoin(socios, eq(socios.id, mensajesSocio.socioId))
+    .where(
+      and(
+        eq(mensajesSocio.id, mensajeId),
+        eq(socios.aprId, apr.id),
+        eq(mensajesSocio.remitente, "DIRECTIVA"),
+        eq(mensajesSocio.autorId, user.id)
+      )
+    )
+    .limit(1);
+  return fila ?? null;
+}
+
+export async function editarMensajeDirectiva(
+  mensajeId: string,
+  contenido: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const parsed = mensajeSchema.safeParse(contenido);
+  if (!parsed.success) return { ok: false, error: "Escribe un mensaje válido." };
+
+  const fila = await mensajePropio(mensajeId);
+  if (!fila) return { ok: false, error: "Solo puedes editar tus propios mensajes." };
+
+  await db
+    .update(mensajesSocio)
+    .set({ contenido: parsed.data, editadoAt: new Date() })
+    .where(eq(mensajesSocio.id, fila.id));
+  return { ok: true };
+}
+
+export async function eliminarMensajeDirectiva(
+  mensajeId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const fila = await mensajePropio(mensajeId);
+  if (!fila) return { ok: false, error: "Solo puedes eliminar tus propios mensajes." };
+
+  await db.delete(mensajesSocio).where(eq(mensajesSocio.id, fila.id));
+  return { ok: true };
+}

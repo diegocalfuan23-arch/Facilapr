@@ -542,6 +542,8 @@ export const mensajesSocio = pgTable(
     leidoPorDirectiva: boolean("leidoPorDirectiva").notNull().default(false),
     /** La IA no pudo resolverlo y le pasó la conversación a una persona. */
     requiereHumano: boolean("requiereHumano").notNull().default(false),
+    /** Cuándo la directiva corrigió el texto; null si nunca se editó. */
+    editadoAt: timestamp("editadoAt", { precision: 3 }),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [

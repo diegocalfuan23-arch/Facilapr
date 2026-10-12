@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, MessageCircle, Send } from "lucide-react";
+import { ChevronDown, Loader2, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
 import {
+  editarMensajeDirectiva,
+  eliminarMensajeDirectiva,
   enviarMensajeDirectiva,
   marcarLeidoDirectiva,
 } from "@/app/panel/conversaciones/actions";
@@ -14,9 +16,24 @@ import {
   iniciales,
   tiempoRelativo,
 } from "@/lib/formato";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   BurbujaChat,
   CLASE_BARRA_ESCRIBIR,
@@ -61,7 +78,8 @@ function datosDelSocio(c: ConversacionResumen) {
 
 /** Hay algo nuevo que mostrar: mensajes nuevos o mensajes que pasaron a leídos. */
 function cambio(a: MensajeChat[], b: MensajeChat[]) {
-  return a.length !== b.length || a.filter((m) => m.leido).length !== b.filter((m) => m.leido).length;
+  const marcas = (l: MensajeChat[]) => l.filter((m) => m.leido).length * 1000 + l.filter((m) => m.editado).length;
+  return a.length !== b.length || marcas(a) !== marcas(b);
 }
 
 /** Agrega un mensaje solo si no está ya (el eco en vivo y la respuesta del envío pueden coincidir). */
@@ -191,6 +209,8 @@ function ChatConSocio({
   const [cargando, setCargando] = useState(true);
   const [entrada, setEntrada] = useState("");
   const [enviando, iniciarEnvio] = useTransition();
+  const [editando, setEditando] = useState<MensajeChat | null>(null);
+  const [eliminando, setEliminando] = useState<MensajeChat | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -238,10 +258,50 @@ function ChatConSocio({
     const texto = entrada.trim();
     if (!texto || enviando) return;
     setEntrada("");
+    if (editando) {
+      const id = editando.id;
+      setEditando(null);
+      iniciarEnvio(async () => {
+        const r = await editarMensajeDirectiva(id, texto);
+        if (r.ok) {
+          setMensajes((prev) =>
+            prev.map((m) => (m.id === id ? { ...m, contenido: texto, editado: true } : m))
+          );
+        } else {
+          toast.error(r.error);
+        }
+      });
+      return;
+    }
     iniciarEnvio(async () => {
       const r = await enviarMensajeDirectiva(socioId, texto);
       // El mensaje propio se ve de inmediato; si luego llega el eco en vivo, no se repite.
       if (r.ok) setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
+    });
+  }
+
+  function empezarEdicion(m: MensajeChat) {
+    setEditando(m);
+    setEntrada(m.contenido);
+  }
+
+  function cancelarEdicion() {
+    setEditando(null);
+    setEntrada("");
+  }
+
+  function confirmarEliminar() {
+    const m = eliminando;
+    if (!m) return;
+    setEliminando(null);
+    iniciarEnvio(async () => {
+      const r = await eliminarMensajeDirectiva(m.id);
+      if (r.ok) {
+        setMensajes((prev) => prev.filter((x) => x.id !== m.id));
+        if (editando?.id === m.id) cancelarEdicion();
+      } else {
+        toast.error(r.error);
+      }
     });
   }
 
@@ -297,6 +357,34 @@ function ChatConSocio({
               lado={m.remitente === "SOCIO" ? "izquierda" : "derecha"}
               fecha={m.createdAt}
               leido={m.leido}
+              editado={m.editado}
+              acciones={
+                m.remitente === "DIRECTIVA" ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label="Opciones del mensaje"
+                          className="flex size-6 items-center justify-center rounded-full bg-[#d9fdd3] text-neutral-500 hover:text-neutral-800"
+                        >
+                          <ChevronDown className="size-4" />
+                        </button>
+                      }
+                    />
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={() => empezarEdicion(m)}>
+                        <Pencil />
+                        Editar
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setEliminando(m)}>
+                        <Trash2 />
+                        Eliminar
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : undefined
+              }
               etiqueta={
                 m.remitente === "IA"
                   ? `Asistente IA${m.requiereHumano ? " · necesita una persona" : ""}`
@@ -310,6 +398,23 @@ function ChatConSocio({
         <div ref={finRef} />
       </div>
 
+      {editando && (
+        <div className="flex items-center gap-2 border-t border-border/60 bg-[#f0f2f5] px-4 pt-2 text-[0.8rem] text-neutral-600">
+          <Pencil className="size-3.5 shrink-0" />
+          <span className="min-w-0 flex-1 truncate">
+            Editando: {editando.contenido}
+          </span>
+          <button
+            type="button"
+            onClick={cancelarEdicion}
+            aria-label="Cancelar edición"
+            className="rounded-full p-1 hover:bg-black/5"
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
+
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -320,7 +425,7 @@ function ChatConSocio({
         <Input
           value={entrada}
           onChange={(e) => setEntrada(e.target.value)}
-          placeholder="Escribe una respuesta"
+          placeholder={editando ? "Corrige tu mensaje" : "Escribe una respuesta"}
           maxLength={1000}
           className={CLASE_CAJA_ESCRIBIR}
         />
@@ -333,6 +438,25 @@ function ChatConSocio({
           <Send className="size-[18px]" />
         </Button>
       </form>
+
+      <Dialog open={!!eliminando} onOpenChange={(v) => !v && setEliminando(null)}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle>¿Eliminar este mensaje?</DialogTitle>
+            <DialogDescription>
+              Desaparece también de la conversación del socio. No se puede deshacer.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEliminando(null)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={confirmarEliminar}>
+              Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
