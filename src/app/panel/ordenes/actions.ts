@@ -119,10 +119,19 @@ export async function solicitarOrden(
  * - Reanudación: aprobar vuelve a activar un arranque dado de baja.
  * Rechazar cierra la solicitud; el motivo, si se escribe, también lo ve el socio.
  */
+/** Lo que debe un arranque del comité: para avisar antes de darlo de baja. */
+export async function deudaDeArranque(socioId: string): Promise<number> {
+  const { apr } = await requireApr();
+  if (!(await socioDelComite(apr.id, socioId))) return 0;
+  return deudaDe(socioId);
+}
+
 export async function resolverSolicitud(
   ordenId: string,
   aprobar: boolean,
-  respuesta?: string
+  respuesta?: string,
+  /** La directiva sabe que el arranque tiene deuda y igual lo da de baja. */
+  confirmaDeuda = false
 ): Promise<ResultadoOrden> {
   const { user, apr } = await requireApr();
   if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede resolver solicitudes." };
@@ -136,6 +145,11 @@ export async function resolverSolicitud(
   const texto = respuesta?.trim().slice(0, 500) || null;
   if (aprobar && orden.tipo === "RECLAMO" && !texto) {
     return { ok: false, error: "Escribe la respuesta al reclamo." };
+  }
+
+  // Dar de baja no borra la deuda: si la hay, la directiva tiene que haberlo visto y confirmado.
+  if (aprobar && orden.tipo === "BAJA" && !confirmaDeuda && (await deudaDe(orden.socioId)) > 0) {
+    return { ok: false, error: "Este arranque tiene deuda. Confirma que quieres darlo de baja igual." };
   }
 
   const aTerreno = aprobar && (orden.tipo === "REPOSICION" || orden.tipo === "REPARACION");

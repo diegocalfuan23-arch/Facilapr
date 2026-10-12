@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Camera, Check, Loader2, MessageCircle, Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelarOrden,
   darDeAlta,
+  deudaDeArranque,
   ordenarCorte,
   pedirOtraEvidencia,
   resolverSolicitud,
@@ -404,10 +405,25 @@ function ResolverDialog({
   const [respuesta, setRespuesta] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
+  // Solo para bajas: lo que debe hoy el arranque, y si la directiva ya lo vio.
+  const [deuda, setDeuda] = useState<number | null>(null);
+  const [confirmaDeuda, setConfirmaDeuda] = useState(false);
 
   const reclamo = orden.tipo === "RECLAMO";
   const baja = orden.tipo === "BAJA";
   const reanudacion = orden.tipo === "REANUDACION";
+  useEffect(() => {
+    if (orden.tipo !== "BAJA" || !aprobar) return;
+    let vivo = true;
+    deudaDeArranque(orden.socioId)
+      .then((d) => vivo && setDeuda(d))
+      .catch(() => vivo && setDeuda(0));
+    return () => {
+      vivo = false;
+    };
+  }, [orden.tipo, orden.socioId, aprobar]);
+
+  const conDeuda = baja && aprobar && (deuda ?? 0) > 0;
   const pideTexto = reclamo || !aprobar || baja || reanudacion;
 
   const titulo = !aprobar
@@ -462,6 +478,22 @@ function ResolverDialog({
               />
             </div>
           )}
+          {conDeuda && (
+            <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-3 text-[0.84rem]">
+              <input
+                type="checkbox"
+                className="mt-0.5"
+                checked={confirmaDeuda}
+                onChange={(e) => setConfirmaDeuda(e.target.checked)}
+              />
+              <span>
+                <span className="font-semibold text-destructive">
+                  Este arranque debe {clp.format(deuda ?? 0)}.
+                </span>{" "}
+                Dar de baja no borra la deuda: queda pendiente de cobro. Confirmo que quiero darlo de baja igual.
+              </span>
+            </label>
+          )}
           {error && <p className="text-[0.88rem] text-destructive">{error}</p>}
         </div>
 
@@ -471,11 +503,11 @@ function ResolverDialog({
           </Button>
           <Button
             variant={!aprobar ? "destructive" : "default"}
-            disabled={pendiente || (aprobar && reclamo && !respuesta.trim())}
+            disabled={pendiente || (aprobar && reclamo && !respuesta.trim()) || (baja && aprobar && deuda === null) || (conDeuda && !confirmaDeuda)}
             onClick={() =>
               iniciar(async () => {
                 setError(null);
-                const r = await resolverSolicitud(orden.id, aprobar, respuesta);
+                const r = await resolverSolicitud(orden.id, aprobar, respuesta, confirmaDeuda);
                 if (r.ok) {
                   toast.success(aprobar ? "Listo" : "Solicitud rechazada");
                   onCerrar();
