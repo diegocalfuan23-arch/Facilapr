@@ -699,10 +699,6 @@ export function SociosTabla({
                   <UserX />
                   Desactivar
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => setAccionMasiva("eliminar")}>
-                  <Trash2 />
-                  Eliminar
-                </Button>
                 <Button variant="ghost" size="sm" onClick={() => setSeleccion(new Set())}>
                   Quitar selección
                 </Button>
