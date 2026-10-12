@@ -15,6 +15,7 @@ import {
   LifeBuoy,
   LayoutGrid,
   Headset,
+  Wallet,
 } from "lucide-react";
 import { Logo } from "@/components/marca/logo";
 import {
@@ -44,6 +45,7 @@ const gestion = [
   { href: "/panel", label: "Resumen", icon: LayoutDashboard },
   { href: "/panel/socios", label: "Socios", icon: Users },
   { href: "/panel/boletas", label: "Boletas", icon: ReceiptText },
+  { href: "/panel/pagos", label: "Pagos", icon: Wallet },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
   { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
