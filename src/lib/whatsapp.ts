@@ -191,3 +191,63 @@ export function mensajeComprobantePago(
     `Descarga tu comprobante: ${datos.comprobanteUrl}`,
   ].join("\n");
 }
+
+/** Primer nombre del socio, para saludar. */
+const primerNombre = (nombre: string) => nombre.trim().split(/\s+/)[0] ?? "";
+
+const enlaceCuenta = (comite: DatosComiteWhatsApp) =>
+  comite.slug ? `https://${DOMINIO_RAIZ}/${comite.slug}/cuenta/entrar` : "";
+
+/** Aviso antes de cortar: lo que debe, hace cuánto, y cuánto tiempo tiene para regularizar. */
+export function mensajeAvisoCorte(
+  comite: DatosComiteWhatsApp,
+  d: { socioNombre: string; deuda: number; diasVencida: number; diasAviso: number }
+) {
+  const lineas = [
+    `Hola ${primerNombre(d.socioNombre)}, te escribe ${comite.nombre}.`,
+    "",
+    `Tu cuenta de agua tiene ${clp.format(d.deuda)} vencidos hace ${d.diasVencida} días. Para evitar el corte del servicio, regulariza tu deuda dentro de los próximos ${d.diasAviso} días.`,
+  ];
+  if (comite.infoPago?.trim()) lineas.push("", `Cómo pagar: ${comite.infoPago.trim()}`);
+  lineas.push("", "Si ya pagaste, envíanos el comprobante por este mismo WhatsApp y lo registramos.");
+  return lineas.join("\n");
+}
+
+/** El corte ya se hizo: por qué, y cómo pedir la reposición. */
+export function mensajeCorteRealizado(
+  comite: DatosComiteWhatsApp,
+  d: { socioNombre: string; deuda: number | null; costoReconexion: number | null }
+) {
+  const link = enlaceCuenta(comite);
+  return [
+    `Hola ${primerNombre(d.socioNombre)}, te escribe ${comite.nombre}.`,
+    "",
+    `Te informamos que el servicio de agua de tu arranque fue cortado por morosidad${d.deuda ? ` (deuda de ${clp.format(d.deuda)})` : ""}.`,
+    "",
+    `Cuando regularices tu situación, pide la reposición ${link ? `desde tu cuenta en línea (${link}) o ` : ""}respondiendo este mensaje.${d.costoReconexion ? ` La reconexión tiene un costo de ${clp.format(d.costoReconexion)}.` : ""}`,
+  ].join("\n");
+}
+
+export function mensajeReposicion(comite: DatosComiteWhatsApp, d: { socioNombre: string }) {
+  return [
+    `Hola ${primerNombre(d.socioNombre)}, te escribe ${comite.nombre}.`,
+    "",
+    "Tu servicio de agua fue repuesto. ¡Gracias por regularizar tu cuenta!",
+  ].join("\n");
+}
+
+/** La respuesta a algo que el socio pidió (reclamo, reparación, baja…). */
+export function mensajeRespuestaSolicitud(
+  comite: DatosComiteWhatsApp,
+  d: { socioNombre: string; tipo: string; aprobada: boolean; respuesta: string | null }
+) {
+  const link = enlaceCuenta(comite);
+  const lineas = [
+    `Hola ${primerNombre(d.socioNombre)}, te escribe ${comite.nombre}.`,
+    "",
+    `Revisamos tu solicitud de ${d.tipo.toLowerCase()}: ${d.aprobada ? "quedó aprobada" : "no pudimos aprobarla"}.`,
+  ];
+  if (d.respuesta) lineas.push("", d.respuesta);
+  if (link) lineas.push("", `Puedes ver el detalle en tu cuenta: ${link}`);
+  return lineas.join("\n");
+}

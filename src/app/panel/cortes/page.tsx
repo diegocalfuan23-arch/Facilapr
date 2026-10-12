@@ -38,6 +38,13 @@ export default async function CortesPage() {
       morosos={morosos}
       socios={padron}
       diasGracia={apr.diasGraciaCorte}
+      comite={{
+        nombre: apr.nombre,
+        slug: apr.slug,
+        infoPago: apr.infoPago,
+        diasAviso: apr.diasAvisoCorte,
+        costoReconexion: apr.costoReconexion,
+      }}
     />
   );
 }

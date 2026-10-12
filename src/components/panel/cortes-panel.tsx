@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Camera, Check, Loader2, Plus, Scissors } from "lucide-react";
+import { Camera, Check, Loader2, MessageCircle, Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelarOrden,
@@ -27,6 +27,15 @@ import { cn } from "@/lib/utils";
 import { formatearRut } from "@/lib/formato";
 import { ESTADOS_ORDEN, TIPOS_ORDEN, type TipoCampo } from "@/lib/ordenes";
 import type { MorosoFila, OrdenFila } from "@/lib/ordenes-datos";
+import {
+  enlaceWhatsApp,
+  mensajeAvisoCorte,
+  mensajeCorteRealizado,
+  mensajeReposicion,
+  mensajeRespuestaSolicitud,
+  telefonoValidoParaWhatsApp,
+  type DatosComiteWhatsApp,
+} from "@/lib/whatsapp";
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
@@ -48,12 +57,14 @@ export function CortesPanel({
   morosos,
   socios,
   diasGracia,
+  comite,
 }: {
   ordenes: OrdenFila[];
   cortados: OrdenFila[];
   morosos: MorosoFila[];
   socios: OpcionSocio[];
   diasGracia: number;
+  comite: DatosComiteWhatsApp & { diasAviso: number; costoReconexion: number | null };
 }) {
   const [pestana, setPestana] = useState<Pestana>(morosos.length > 0 ? "morosos" : "tramite");
   const [creando, setCreando] = useState(false);
@@ -74,6 +85,28 @@ export function CortesPanel({
     { id: "cortados", texto: "Cortados", n: cortados.length },
     { id: "historial", texto: "Historial", n: historial.length },
   ];
+
+  /** Abre WhatsApp con el mensaje ya escrito: solo falta tocar enviar. */
+  function avisar(telefono: string | null, texto: string) {
+    if (!telefono) return;
+    window.open(enlaceWhatsApp(telefono, texto), "_blank", "noopener");
+  }
+
+  function BotonAvisar({ telefono, texto, etiqueta = "Avisar" }: { telefono: string | null; texto: string; etiqueta?: string }) {
+    const valido = telefonoValidoParaWhatsApp(telefono);
+    return (
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={!valido}
+        title={valido ? undefined : "Este socio no tiene un teléfono válido para WhatsApp"}
+        onClick={() => avisar(telefono, texto)}
+      >
+        <MessageCircle />
+        {etiqueta}
+      </Button>
+    );
+  }
 
   function ejecutar(accion: () => Promise<ResultadoOrden>, exito: string) {
     iniciar(async () => {
@@ -131,6 +164,12 @@ export function CortesPanel({
                 detalle={[m.rut ? formatearRut(m.rut) : null, m.direccion, `vencida hace ${m.diasVencida} días`]}
                 derecha={<span className="font-mono text-[0.95rem] font-semibold text-destructive tabular-nums">{clp.format(m.deuda)}</span>}
                 acciones={
+                  <>
+                  <BotonAvisar
+                    telefono={m.telefono}
+                    etiqueta="Avisar antes de cortar"
+                    texto={mensajeAvisoCorte(comite, { socioNombre: m.nombre, deuda: m.deuda, diasVencida: m.diasVencida, diasAviso: comite.diasAviso })}
+                  />
                   <Button
                     size="sm"
                     variant="outline"
@@ -140,6 +179,7 @@ export function CortesPanel({
                     <Scissors />
                     Ordenar corte
                   </Button>
+                  </>
                 }
               />
             ))}
@@ -224,6 +264,12 @@ export function CortesPanel({
                 detalle={[o.socioRut ? formatearRut(o.socioRut) : null, o.socioDireccion, o.deudaAlOrdenar ? `debía ${clp.format(o.deudaAlOrdenar)}` : null]}
                 miniatura={o.tieneFoto ? `/api/panel/ordenes/${o.id}/foto` : undefined}
                 acciones={
+                  <>
+                  <BotonAvisar
+                    telefono={o.socioTelefono}
+                    etiqueta="Avisar corte"
+                    texto={mensajeCorteRealizado(comite, { socioNombre: o.socioNombre, deuda: o.deudaAlOrdenar, costoReconexion: comite.costoReconexion })}
+                  />
                   <Button
                     size="sm"
                     variant="outline"
@@ -232,6 +278,7 @@ export function CortesPanel({
                   >
                     Ordenar reposición
                   </Button>
+                  </>
                 }
               />
             ))}
@@ -246,6 +293,26 @@ export function CortesPanel({
                 titulo={`${TIPOS_ORDEN[o.tipo].texto} · ${o.socioNombre}`}
                 detalle={[ESTADOS_ORDEN[o.estado], fecha.format(new Date(o.creada)), o.detalle]}
                 miniatura={o.tieneFoto ? `/api/panel/ordenes/${o.id}/foto` : undefined}
+                acciones={
+                  o.tipo === "REPOSICION" && o.estado === "COMPLETADA" && o.origen !== "SOCIO" ? (
+                    <BotonAvisar
+                      telefono={o.socioTelefono}
+                      etiqueta="Avisar reposición"
+                      texto={mensajeReposicion(comite, { socioNombre: o.socioNombre })}
+                    />
+                  ) : o.origen === "SOCIO" && (o.estado === "COMPLETADA" || o.estado === "RECHAZADA") ? (
+                    <BotonAvisar
+                      telefono={o.socioTelefono}
+                      etiqueta="Avisar respuesta"
+                      texto={mensajeRespuestaSolicitud(comite, {
+                        socioNombre: o.socioNombre,
+                        tipo: TIPOS_ORDEN[o.tipo].texto,
+                        aprobada: o.estado === "COMPLETADA",
+                        respuesta: o.nota,
+                      })}
+                    />
+                  ) : undefined
+                }
               />
             ))}
           </Lista>

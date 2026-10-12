@@ -27,6 +27,7 @@ export type MorosoFila = {
   nombre: string;
   rut: string | null;
   direccion: string | null;
+  telefono: string | null;
   deuda: number;
   /** Días que lleva vencida su boleta más antigua. */
   diasVencida: number;
@@ -103,6 +104,7 @@ export async function morososParaCorte(
       nombre: socios.nombre,
       rut: socios.rut,
       direccion: socios.direccion,
+      telefono: socios.telefono,
       deuda: sql<number>`sum(${boletas.montoTotal} - ${boletas.montoPagado})::int`,
       masAntigua: sql<Date>`min(${boletas.fechaVencimiento})`,
     })
@@ -117,7 +119,7 @@ export async function morososParaCorte(
         lt(boletas.fechaVencimiento, limite)
       )
     )
-    .groupBy(socios.id, socios.nombre, socios.rut, socios.direccion);
+    .groupBy(socios.id, socios.nombre, socios.rut, socios.direccion, socios.telefono);
 
   return filas
     .filter((f) => !excluirSocioIds.has(f.socioId))
@@ -126,6 +128,7 @@ export async function morososParaCorte(
       nombre: f.nombre,
       rut: f.rut,
       direccion: f.direccion,
+      telefono: f.telefono,
       deuda: f.deuda,
       diasVencida: Math.max(0, Math.floor((ahora - new Date(f.masAntigua).getTime()) / 86_400_000)),
     }))

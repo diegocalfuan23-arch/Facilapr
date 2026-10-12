@@ -7,6 +7,8 @@ import { enviarMensajeChat } from "@/lib/chat-socio";
 import { formatearRut, formatearTelefono } from "@/lib/formato";
 import { cuentasDelSocio } from "@/lib/socio-session";
 import { textoMedioPago } from "@/lib/pagos";
+import { cortadosActuales, ordenesDeSocios } from "@/lib/ordenes-datos";
+import { ESTADOS_ORDEN, TIPOS_ORDEN } from "@/lib/ordenes";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { puede, type Plan } from "@/lib/planes";
 import { inArray } from "drizzle-orm";
@@ -135,6 +137,10 @@ async function intentar(socioId: string) {
   });
   const nombreDe = new Map(fichas.map((f) => [f.id, f.nombre]));
 
+  // Estado del servicio y solicitudes: cortes, reposiciones, reclamos, bajas.
+  const ordenesSocio = await ordenesDeSocios(idsCuentas);
+  const cortados = cortadosActuales(ordenesSocio);
+
   const system = construirPrompt({
     comite: {
       nombre: apr.nombre,
@@ -145,6 +151,19 @@ async function intentar(socioId: string) {
     },
     nombreSocio: socio.nombre,
     variosArranques: cuentas.length > 1,
+    servicio: {
+      diasGracia: apr.diasGraciaCorte,
+      diasAviso: apr.diasAvisoCorte,
+      costoReconexion: apr.costoReconexion,
+      cortados: cortados.map((o) => ({ arranque: o.socioNombre, desde: new Date(o.creada) })),
+      solicitudes: ordenesSocio.slice(0, 8).map((o) => ({
+        arranque: o.socioNombre,
+        tipo: TIPOS_ORDEN[o.tipo].texto,
+        estado: ESTADOS_ORDEN[o.estado === "POR_CONFIRMAR" ? "EN_TRAMITE" : o.estado],
+        creada: new Date(o.creada),
+        respuesta: o.tipo === "RECLAMO" || o.tipo === "BAJA" ? o.respuesta : null,
+      })),
+    },
     fichas: fichas.map((f) => ({
       ...f,
       rut: f.rut ? formatearRut(f.rut) : null,
@@ -229,6 +248,14 @@ export function construirPrompt(d: {
   };
   nombreSocio: string;
   variosArranques: boolean;
+  /** Cortes por morosidad y solicitudes del socio, y las reglas del comité. */
+  servicio: {
+    diasGracia: number;
+    diasAviso: number;
+    costoReconexion: number | null;
+    cortados: { arranque: string; desde: Date }[];
+    solicitudes: { arranque: string; tipo: string; estado: string; creada: Date; respuesta: string | null }[];
+  };
   /** Sus datos personales, uno por arranque. */
   fichas: {
     nombre: string;
@@ -298,6 +325,52 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
     partes.push(`Pagos que ya registró el comité (los más recientes primero):\n${filas.join("\n")}`);
   }
 
+  {
+    const ahora = Date.now();
+    const vencidas = d.boletas.filter(
+      (b) => saldo(b.montoTotal, b.montoPagado) > 0 && b.estado !== "ANULADA" && b.fechaVencimiento.getTime() < ahora
+    );
+    const masAntigua = vencidas.reduce<Date | null>(
+      (min, b) => (!min || b.fechaVencimiento < min ? b.fechaVencimiento : min),
+      null
+    );
+    const lineas: string[] = [
+      `Política de cortes del comité: se corta el servicio por morosidad a quienes llevan más de ${d.servicio.diasGracia} días con deuda vencida, y antes se avisa con ${d.servicio.diasAviso} días.`,
+      d.servicio.costoReconexion ? `Costo de reconexión: ${clp.format(d.servicio.costoReconexion)}.` : "",
+    ].filter(Boolean);
+
+    if (d.servicio.cortados.length > 0) {
+      lineas.push(
+        ...d.servicio.cortados.map(
+          (c) => `Servicio CORTADO por morosidad${d.variosArranques ? ` en ${c.arranque}` : ""} desde el ${fecha.format(c.desde)}.`
+        )
+      );
+    } else if (masAntigua) {
+      const dias = Math.floor((ahora - masAntigua.getTime()) / 86_400_000);
+      lineas.push(
+        `Su deuda más antigua lleva ${dias} días vencida. ${
+          dias > d.servicio.diasGracia
+            ? "Ya pasó el plazo de gracia: el comité puede ordenar el corte."
+            : `Le quedan ${d.servicio.diasGracia - dias} días de gracia antes de que se pueda ordenar el corte.`
+        }`
+      );
+    } else {
+      lineas.push("No tiene deuda vencida: no hay riesgo de corte.");
+    }
+    partes.push(`Cortes y estado del servicio:\n${lineas.join("\n")}`);
+
+    if (d.servicio.solicitudes.length > 0) {
+      partes.push(
+        `Sus solicitudes (reclamos, reposición, reparación, baja), las más recientes primero:\n${d.servicio.solicitudes
+          .map(
+            (s) =>
+              `- ${s.tipo}${d.variosArranques ? ` [${s.arranque}]` : ""}, ${fecha.format(s.creada)}: ${s.estado.toLowerCase()}${s.respuesta ? `. Respuesta del comité: ${s.respuesta}` : ""}`
+          )
+          .join("\n")}`
+      );
+    }
+  }
+
   if (d.boletas.length === 0) {
     partes.push("Este socio todavía no tiene boletas emitidas.");
   } else {
@@ -324,7 +397,9 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
 - Eres una IA y, si te lo preguntan, lo dices. No finjas ser una persona.
 - No prometas plazos, descuentos, repactaciones, reconexiones ni condonaciones: eso lo decide la directiva.
 - Sus datos personales de arriba son suyos: si los pide, se los das. No hables de otros socios ni de datos que no aparezcan arriba. Si pide cambiar un dato, eso lo ve la directiva.
-- Si es un reclamo, una fuga o falta de agua, un corte, un cambio de datos personales, una queja o una persona pide hablar con alguien, o no puedes resolverlo con los datos de arriba, empieza tu respuesta con ${MARCA_HUMANO} y a continuación escribe un mensaje breve diciendo que avisarás a la directiva para que lo atienda personalmente.
+- Si pregunta por cortes por deuda (si se lo van a cortar, cuántos días le quedan, cuánto cuesta reconectar o qué hacer), respóndelo con los datos de cortes de arriba. Nunca prometas que no se lo cortarán ni cuándo lo reconectarán: eso lo decide la directiva.
+- Para pedir una reposición, una reparación, hacer un reclamo o dar de baja el servicio, dile que lo haga desde la sección «Solicitudes» de su cuenta en línea: tú no puedes crear solicitudes. Si pregunta cómo va una, dile el estado que ves arriba.
+- Si es una fuga o falta de agua ahora mismo, un cambio de datos personales, una queja fuerte o una persona pide hablar con alguien, o no puedes resolverlo con los datos de arriba, empieza tu respuesta con ${MARCA_HUMANO} y a continuación escribe un mensaje breve diciendo que avisarás a la directiva para que lo atienda personalmente.
 - Si la pregunta se resuelve con los datos de arriba, respóndela directamente sin la marca.
 - Escribe en texto plano, como en un mensaje de WhatsApp: sin asteriscos, sin negritas y sin listas con símbolos.`);
 
