@@ -113,3 +113,17 @@ export async function eliminarMensajeDirectiva(
   await db.delete(mensajesSocio).where(eq(mensajesSocio.id, fila.id));
   return { ok: true };
 }
+
+/** Pausar o reanudar la IA solo en la conversación de un socio. */
+export async function pausarIaConversacion(socioId: string, pausada: boolean) {
+  const { apr } = await requireAdmin();
+
+  const r = await db
+    .update(socios)
+    .set({ iaPausada: pausada, updatedAt: new Date() })
+    // El filtro por aprId impide tocar un socio de otro comité.
+    .where(and(eq(socios.id, socioId), eq(socios.aprId, apr.id)))
+    .returning({ id: socios.id });
+
+  return r.length > 0;
+}

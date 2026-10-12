@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, ChevronDown, Loader2, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2, MessageCircle, Pencil, Send, Sparkles, Trash2, X } from "lucide-react";
 import {
   editarMensajeDirectiva,
   eliminarMensajeDirectiva,
   enviarMensajeDirectiva,
   marcarLeidoDirectiva,
+  pausarIaConversacion,
 } from "@/app/panel/conversaciones/actions";
 import { escucharChat } from "@/lib/chat/cliente";
 import type { MensajeChat } from "@/lib/chat-socio";
@@ -20,6 +21,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -60,6 +62,8 @@ export type ConversacionResumen = {
   telefono: string | null;
   /** Lo que debe en total (CLP); 0 si está al día. */
   deuda: number;
+  /** La IA está pausada solo en esta conversación. */
+  iaPausada: boolean;
 };
 
 const clp = new Intl.NumberFormat("es-CL", {
@@ -99,6 +103,10 @@ export function ConversacionesPanel({
 }) {
   const [seleccionado, setSeleccionado] = useState<string | null>(
     conversaciones[0]?.socioId ?? null
+  );
+  // Qué conversaciones tienen la IA pausada; se mantiene aquí para no perderlo al cambiar de chat.
+  const [iaPausadas, setIaPausadas] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(conversaciones.map((c) => [c.socioId, c.iaPausada]))
   );
   // En pantallas angostas se ve una cosa a la vez: la lista o el chat abierto.
   const [verChat, setVerChat] = useState(false);
@@ -204,6 +212,9 @@ export function ConversacionesPanel({
               key={seleccionado}
               socioId={seleccionado}
               socio={conversaciones.find((c) => c.socioId === seleccionado)}
+              iaActiva={ia.disponible && ia.modo !== "APAGADO"}
+              iaPausada={iaPausadas[seleccionado] ?? false}
+              onIaPausada={(pausada) => setIaPausadas((prev) => ({ ...prev, [seleccionado]: pausada }))}
               onVolver={() => setVerChat(false)}
             />
           ) : (
@@ -220,14 +231,33 @@ export function ConversacionesPanel({
 function ChatConSocio({
   socioId,
   socio,
+  iaActiva,
+  iaPausada,
+  onIaPausada,
   onVolver,
 }: {
   socioId: string;
   socio: ConversacionResumen | undefined;
+  /** El comité tiene la IA encendida: solo entonces se ofrece pausarla por conversación. */
+  iaActiva: boolean;
+  iaPausada: boolean;
+  onIaPausada: (pausada: boolean) => void;
   /** Solo en pantallas angostas: volver a la lista. */
   onVolver: () => void;
 }) {
   const nombre = socio?.nombre ?? "";
+
+  function alternarIa(activa: boolean) {
+    onIaPausada(!activa);
+    void pausarIaConversacion(socioId, !activa).then((ok) => {
+      if (ok) {
+        toast.success(activa ? "IA activada en esta conversación" : "IA pausada en esta conversación");
+      } else {
+        onIaPausada(activa);
+        toast.error("No pudimos cambiarlo. Inténtalo de nuevo.");
+      }
+    });
+  }
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
   const [cargando, setCargando] = useState(true);
   const [entrada, setEntrada] = useState("");
@@ -369,6 +399,16 @@ function ChatConSocio({
             </div>
           )}
         </div>
+        {iaActiva && (
+          <label
+            title="Pausa la IA solo en esta conversación"
+            className="flex shrink-0 cursor-pointer items-center gap-1.5 text-[0.76rem] text-neutral-600"
+          >
+            <Sparkles className="size-3.5" />
+            <span className="hidden sm:inline">IA</span>
+            <Switch size="sm" checked={!iaPausada} onCheckedChange={alternarIa} aria-label="IA en esta conversación" />
+          </label>
+        )}
         {socio && (
           <span
             className={cn(

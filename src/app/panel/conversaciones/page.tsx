@@ -50,6 +50,7 @@ export default async function ConversacionesPage() {
     tipo: "SOCIO" | "USUARIO";
     telefono: string | null;
     deuda: number;
+    iaPausada: boolean;
   }>(sql`
     select distinct on (s.id)
       s.id as "socioId",
@@ -58,6 +59,7 @@ export default async function ConversacionesPage() {
       s."numeroCliente",
       s.tipo,
       s.telefono,
+      s."iaPausada" as "iaPausada",
       -- Lo que debe la persona: todas sus boletas impagas (una persona con varios
       -- arranques comparte el RUT), sin contar las anuladas.
       (
@@ -124,6 +126,7 @@ export default async function ConversacionesPage() {
         tipo: f.tipo,
         telefono: f.telefono,
         deuda: f.deuda,
+        iaPausada: f.iaPausada,
       }))}
     />
   );

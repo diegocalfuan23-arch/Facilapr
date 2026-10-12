@@ -230,6 +230,8 @@ export const socios = pgTable(
     /** N.º de arranque dentro de su tipo (el socio 3 y el usuario 3 son distintos). */
     numeroCliente: text("numeroCliente"),
     activo: boolean("activo").notNull().default(true),
+    /** La directiva pausó la IA del chat solo en la conversación de este arranque. */
+    iaPausada: boolean("iaPausada").notNull().default(false),
     /**
      * La cuenta de Better Auth del socio, si tiene panel propio. Sin FK
      * formal a propósito: `user` vive en auth-schema.ts, un módulo aparte

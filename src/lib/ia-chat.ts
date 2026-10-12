@@ -53,6 +53,9 @@ async function intentar(socioId: string) {
   });
   if (!socio) return;
 
+  // La directiva pausó la IA en esta conversación: responde solo una persona.
+  if (socio.iaPausada) return;
+
   const apr = socio.apr;
   if (!puede(apr.plan as Plan, "iaChat") || apr.iaChatModo !== "SIEMPRE") return;
   if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return;
