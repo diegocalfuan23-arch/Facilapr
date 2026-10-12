@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { ChevronDown, Loader2, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2, MessageCircle, Pencil, Send, Trash2, X } from "lucide-react";
 import {
   editarMensajeDirectiva,
   eliminarMensajeDirectiva,
@@ -100,6 +100,8 @@ export function ConversacionesPanel({
   const [seleccionado, setSeleccionado] = useState<string | null>(
     conversaciones[0]?.socioId ?? null
   );
+  // En pantallas angostas se ve una cosa a la vez: la lista o el chat abierto.
+  const [verChat, setVerChat] = useState(false);
   // Se descuenta localmente al abrir un chat, sin esperar a recargar toda la lista.
   const [sinLeerLocal, setSinLeerLocal] = useState<Record<string, number>>(
     () => Object.fromEntries(conversaciones.map((c) => [c.socioId, c.sinLeer]))
@@ -122,7 +124,7 @@ export function ConversacionesPanel({
   }
 
   return (
-    <div className="flex h-[calc(100vh-7rem)] flex-col">
+    <div className="flex h-[calc(100dvh-8rem)] flex-col lg:h-[calc(100vh-7rem)]">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-[1.35rem] font-semibold tracking-tight">
           Conversaciones
@@ -130,13 +132,19 @@ export function ConversacionesPanel({
         <BotonIaChat ajustes={ia} />
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[380px_1fr] overflow-hidden rounded-xl border border-border/60">
-        <div className="flex flex-col overflow-y-auto border-r border-border/60 bg-card">
+      <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-xl border border-border/60 lg:grid-cols-[380px_1fr]">
+        <div
+          className={cn(
+            "flex-col overflow-y-auto border-border/60 bg-card lg:flex lg:border-r",
+            verChat ? "hidden" : "flex"
+          )}
+        >
           {conversaciones.map((c) => (
             <button
               key={c.socioId}
               onClick={() => {
                 setSeleccionado(c.socioId);
+                setVerChat(true);
                 setSinLeerLocal((prev) => ({ ...prev, [c.socioId]: 0 }));
               }}
               className={cn(
@@ -190,12 +198,13 @@ export function ConversacionesPanel({
           ))}
         </div>
 
-        <div className="flex min-h-0 flex-col bg-background">
+        <div className={cn("min-h-0 flex-col bg-background lg:flex", verChat ? "flex" : "hidden")}>
           {seleccionado ? (
             <ChatConSocio
               key={seleccionado}
               socioId={seleccionado}
               socio={conversaciones.find((c) => c.socioId === seleccionado)}
+              onVolver={() => setVerChat(false)}
             />
           ) : (
             <div className="flex flex-1 items-center justify-center text-[0.9rem] text-muted-foreground">
@@ -211,9 +220,12 @@ export function ConversacionesPanel({
 function ChatConSocio({
   socioId,
   socio,
+  onVolver,
 }: {
   socioId: string;
   socio: ConversacionResumen | undefined;
+  /** Solo en pantallas angostas: volver a la lista. */
+  onVolver: () => void;
 }) {
   const nombre = socio?.nombre ?? "";
   const [mensajes, setMensajes] = useState<MensajeChat[]>([]);
@@ -330,7 +342,15 @@ function ChatConSocio({
 
   return (
     <>
-      <div className="flex items-center gap-2.5 border-b border-border/60 bg-[#f0f2f5] px-4 py-3">
+      <div className="flex items-center gap-2.5 border-b border-border/60 bg-[#f0f2f5] px-3 py-3 sm:px-4">
+        <button
+          type="button"
+          onClick={onVolver}
+          aria-label="Volver a las conversaciones"
+          className="-ml-1 rounded-full p-1.5 text-muted-foreground hover:bg-black/5 lg:hidden"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.72rem] font-semibold text-muted-foreground">
           {iniciales(nombre)}
         </span>
