@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Droplets, LayoutDashboard, Receipt, Wallet } from "lucide-react";
+import { Droplets } from "lucide-react";
 import { desc, inArray } from "drizzle-orm";
 import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
 import { db } from "@/lib/db";
@@ -9,6 +9,7 @@ import { saldo, formatearPeriodo } from "@/lib/boletas";
 import { SignOutSocioButton } from "@/components/socio/sign-out-button";
 import { AsistenteSocio } from "@/components/socio/asistente-socio";
 import { ChatComite } from "@/components/socio/chat-comite";
+import { PortalNav } from "@/components/socio/portal-nav";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { basePortal } from "@/lib/portal-socio";
 import { puede, type Plan } from "@/lib/planes";
@@ -71,6 +72,11 @@ export default async function PanelSocioPage({ params }: Props) {
     (b) => b.estado !== "ANULADA" && b.montoPagado > 0
   );
   const totalPagado = pagos.reduce((acc, b) => acc + b.montoPagado, 0);
+  const cantidadPendientes = listaBoletas.filter(
+    (b) => b.estado === "PENDIENTE" || b.estado === "VENCIDA"
+  ).length;
+  // Las boletas vienen de la más nueva a la más antigua.
+  const ultimoConsumo = listaBoletas.find((b) => b.consumoM3 !== null)?.consumoM3 ?? null;
 
   return (
     <div className="min-h-screen bg-background lg:pl-64">
@@ -86,22 +92,7 @@ export default async function PanelSocioPage({ params }: Props) {
           </div>
         </div>
 
-        <nav className="flex flex-col gap-1 p-3 text-[0.92rem]">
-          {[
-            { href: "#resumen", texto: "Resumen", Icono: LayoutDashboard },
-            { href: "#boletas", texto: "Boletas", Icono: Receipt },
-            { href: "#pagos", texto: "Pagos", Icono: Wallet },
-          ].map(({ href, texto, Icono }) => (
-            <a
-              key={href}
-              href={href}
-              className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 font-medium text-foreground/80 hover:bg-muted hover:text-foreground"
-            >
-              <Icono className="size-[18px]" />
-              {texto}
-            </a>
-          ))}
-        </nav>
+        <PortalNav />
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border p-4">
           <div className="min-w-0">
@@ -128,7 +119,11 @@ export default async function PanelSocioPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[720px] px-6 py-10 lg:max-w-[840px] lg:py-12">
+      <main className="mx-auto max-w-[720px] px-6 py-10 pb-40 lg:max-w-[840px] lg:py-12">
+        <h1 className="mb-6 hidden text-[1.5rem] font-semibold tracking-tight lg:block">
+          Hola, {socio.nombre.split(" ")[0]}
+        </h1>
+
         <InstalarApp />
 
         <section
@@ -152,6 +147,29 @@ export default async function PanelSocioPage({ params }: Props) {
             </p>
           )}
         </section>
+
+        <div className="mt-4 grid grid-cols-3 gap-3">
+          {[
+            { etiqueta: "Pendientes", valor: String(cantidadPendientes) },
+            { etiqueta: "Total pagado", valor: clp.format(totalPagado) },
+            {
+              etiqueta: "Último consumo",
+              valor: ultimoConsumo !== null ? `${ultimoConsumo} m³` : "—",
+            },
+          ].map((d) => (
+            <div
+              key={d.etiqueta}
+              className="min-w-0 rounded-xl border border-border/60 bg-card px-3.5 py-3"
+            >
+              <div className="truncate text-[0.74rem] text-muted-foreground">
+                {d.etiqueta}
+              </div>
+              <div className="mt-0.5 truncate text-[1.05rem] font-semibold tabular-nums">
+                {d.valor}
+              </div>
+            </div>
+          ))}
+        </div>
 
         <section id="boletas" className="mt-10 scroll-mt-6">
           <h2 className="text-[1.05rem] font-semibold">Tus boletas</h2>
