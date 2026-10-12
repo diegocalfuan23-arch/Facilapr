@@ -16,8 +16,12 @@ import { inArray } from "drizzle-orm";
  * algo delicado. Solo lee: no promete plazos ni descuentos y no toca datos.
  */
 
-/** Si la directiva escribió hace menos de esto, la IA se queda callada. */
-const PAUSA_HORAS = 4;
+/**
+ * Si la directiva escribió hace menos de esto, la IA se queda callada: hay una
+ * persona atendiendo. Pasado ese rato vuelve a responder sola, para que un socio
+ * nunca quede esperando.
+ */
+const PAUSA_MINUTOS = 10;
 /** Respuestas de IA por comité en 24 horas: protege el costo. */
 const TOPE_DIARIO = 300;
 /** Marca con la que el modelo avisa que necesita una persona. */
@@ -61,7 +65,7 @@ async function intentar(socioId: string) {
   const respondidoA = recientes[0].id;
 
   // Si una persona de la directiva escribió hace poco, ella lleva la conversación.
-  const desde = new Date(Date.now() - PAUSA_HORAS * 3_600_000);
+  const desde = new Date(Date.now() - PAUSA_MINUTOS * 60_000);
   const humano = await db.query.mensajesSocio.findFirst({
     where: and(
       eq(mensajesSocio.socioId, socioId),

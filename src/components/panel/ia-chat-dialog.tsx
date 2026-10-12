@@ -161,7 +161,7 @@ function IaChatDialog({
               <li>• Sus mensajes salen marcados como «Asistente del comité · IA».</li>
               <li>• Usa los datos de la cuenta del socio y de tu comité. No promete plazos ni descuentos.</li>
               <li>• Si es un reclamo, un corte o no sabe, marca la conversación como «Necesita respuesta humana».</li>
-              <li>• Si escribes tú en una conversación, la IA se pausa 4 horas ahí.</li>
+              <li>• Si escribes tú en una conversación, la IA se pausa 10 minutos ahí y luego vuelve a responder.</li>
             </ul>
 
             {error && <p className="text-[0.88rem] text-destructive">{error}</p>}
