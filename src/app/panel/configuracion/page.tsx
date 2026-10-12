@@ -50,7 +50,7 @@ export default async function ConfiguracionPage({
           { texto: "Dominio propio", incluida: puede(plan, "dominioPropio") },
         ],
         usoIa: puede(plan, "iaChat")
-          ? await usoIaChat(apr.id, plan, apr.iaChatTokensExtra)
+          ? await usoIaChat(apr.id, plan)
           : null,
       }}
       resumenDatos={resumen}

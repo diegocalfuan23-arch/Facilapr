@@ -84,8 +84,6 @@ export const aprs = pgTable(
     iaChatInstrucciones: text("iaChatInstrucciones"),
     /** Minutos de espera antes de que responda la IA, en el modo SIN_RESPUESTA. */
     iaChatEsperaMin: integer("iaChatEsperaMin").notNull().default(10),
-    /** Tokens de IA del chat comprados como packs (add-on); se usan cuando se agota la cuota del mes. */
-    iaChatTokensExtra: integer("iaChatTokensExtra").notNull().default(0),
 
     // --- Datos del comité ---
     /** El nombre legal, que no siempre coincide con el de uso diario. */

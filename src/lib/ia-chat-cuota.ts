@@ -10,11 +10,24 @@ const TOKENS_POR_RESPUESTA_INICIAL = 2_000;
  * Lo que pasa de la cuota de un mes se descuenta de los packs: así no hace falta
  * guardar un saldo que haya que mantener, y no hay carreras al responder.
  */
-export async function usoIaChat(
-  aprId: string,
-  plan: Plan,
-  extraComprado: number
-): Promise<UsoIaChat> {
+/**
+ * Tokens de packs comprados. Se lee aparte (no es parte del esquema de Drizzle)
+ * para que, si la columna todavía no existe en la base, el resto del panel siga
+ * funcionando y los packs valgan 0.
+ */
+async function packsComprados(aprId: string) {
+  try {
+    const { rows } = await db.execute<{ extra: number }>(
+      sql`select "iaChatTokensExtra" as extra from "Apr" where "id" = ${aprId}`
+    );
+    return Number(rows[0]?.extra ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+export async function usoIaChat(aprId: string, plan: Plan): Promise<UsoIaChat> {
+  const extraComprado = await packsComprados(aprId);
   const { rows } = await db.execute<{ mes: string; tokens: string; n: number }>(sql`
     select date_trunc('month', "createdAt") as mes,
            coalesce(sum("tokensEntrada" + "tokensSalida"), 0)::bigint as tokens,

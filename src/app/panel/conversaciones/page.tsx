@@ -109,7 +109,7 @@ export default async function ConversacionesPage() {
         modo: apr.iaChatModo,
         instrucciones: apr.iaChatInstrucciones,
         uso: puede(apr.plan as Plan, "iaChat")
-          ? await usoIaChat(apr.id, apr.plan as Plan, apr.iaChatTokensExtra)
+          ? await usoIaChat(apr.id, apr.plan as Plan)
           : null,
       }}
       conversaciones={filas.map((f) => ({

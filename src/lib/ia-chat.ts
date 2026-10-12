@@ -78,7 +78,7 @@ async function intentar(socioId: string) {
   if (humano) return;
 
   // Sin tokens (cuota del mes y packs agotados) la IA calla y responde la directiva.
-  const uso = await usoIaChat(apr.id, apr.plan as Plan, apr.iaChatTokensExtra);
+  const uso = await usoIaChat(apr.id, apr.plan as Plan);
   if (uso.disponible <= 0) return;
 
   // Las boletas de todos los arranques de la persona.
