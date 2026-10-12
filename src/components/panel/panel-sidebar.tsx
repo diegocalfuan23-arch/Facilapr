@@ -191,7 +191,7 @@ function GrupoEnlaces({
                 <EnlaceMenu {...enlace} activo={pathname === enlace.href} />
               </Link>
               {(insignias[enlace.href] ?? 0) > 0 && (
-                <SidebarMenuBadge className="bg-primary text-primary-foreground">
+                <SidebarMenuBadge className="top-1/2 -translate-y-1/2 bg-primary text-primary-foreground">
                   {insignias[enlace.href]}
                 </SidebarMenuBadge>
               )}
