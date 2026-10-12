@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { Camera, Check, Loader2, MessageCircle, Plus, Scissors } from "lucide-react";
+import { Camera, Check, Eye, Loader2, MessageCircle, Plus, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import {
   cancelarOrden,
@@ -38,6 +38,7 @@ import {
   telefonoValidoParaWhatsApp,
   type DatosComiteWhatsApp,
 } from "@/lib/whatsapp";
+import { SituacionSocioDialog } from "@/components/panel/situacion-socio-dialog";
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
@@ -71,6 +72,7 @@ export function CortesPanel({
   const [pestana, setPestana] = useState<Pestana>(morosos.length > 0 ? "morosos" : "tramite");
   const [creando, setCreando] = useState(false);
   const [ejecutando, setEjecutando] = useState<OrdenFila | null>(null);
+  const [viendo, setViendo] = useState<OrdenFila | null>(null);
   const [resolviendo, setResolviendo] = useState<{ orden: OrdenFila; aprobar: boolean } | null>(null);
   const [pendiente, iniciar] = useTransition();
 
@@ -244,6 +246,10 @@ export function CortesPanel({
                 detalle={[o.socioDireccion, o.detalle, `pedida por ${o.origen === "SOCIO" ? "el socio" : "el técnico"} ${fecha.format(new Date(o.creada))}`]}
                 acciones={
                   <>
+                    <Button size="sm" variant="ghost" onClick={() => setViendo(o)}>
+                      <Eye />
+                      Ver situación
+                    </Button>
                     <Button size="sm" disabled={pendiente} onClick={() => setResolviendo({ orden: o, aprobar: true })}>
                       {o.tipo === "RECLAMO" ? "Responder" : o.tipo === "BAJA" ? "Dar de baja" : o.tipo === "REANUDACION" ? "Reanudar" : "Aprobar"}
                     </Button>
@@ -336,6 +342,14 @@ export function CortesPanel({
           titulo="Nueva orden"
           descripcion="Elige el arranque y qué hay que hacer en terreno."
           onCerrar={() => setCreando(false)}
+        />
+      )}
+
+      {viendo && (
+        <SituacionSocioDialog
+          ordenId={viendo.id}
+          titulo={viendo.socioNombre}
+          onCerrar={() => setViendo(null)}
         />
       )}
 
