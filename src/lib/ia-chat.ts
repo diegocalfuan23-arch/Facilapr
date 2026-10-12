@@ -1,4 +1,4 @@
-import { and, desc, eq, gt, or } from "drizzle-orm";
+import { and, desc, eq, gt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, lecturas, mensajesSocio, pagos, socios } from "@/lib/db/schema";
 import { usoIaChat } from "@/lib/ia-chat-cuota";
@@ -170,20 +170,31 @@ async function intentar(socioId: string) {
       "Le avisé a la directiva para que te responda personalmente.";
   }
 
-  // Si mientras la IA pensaba entró otro mensaje, esa nueva entrada tendrá su propia respuesta.
-  const ultimo = await db.query.mensajesSocio.findFirst({
-    where: eq(mensajesSocio.socioId, socioId),
-    orderBy: [desc(mensajesSocio.createdAt)],
-    columns: { id: true },
-  });
-  if (ultimo?.id !== respondidoA) return;
+  // Se envía bajo un candado por conversación: si el socio manda dos mensajes
+  // seguidos se disparan dos respuestas a la vez, y sin esto recibiría las dos.
+  // La segunda ve que ya hay respuesta y se va.
+  await db.transaction(async (tx) => {
+    const { rows } = await tx.execute<{ ok: boolean }>(
+      sql`select pg_try_advisory_xact_lock(hashtext(${socioId})) as ok`
+    );
+    if (!rows[0]?.ok) return;
 
-  await enviarMensajeChat({
-    socioId,
-    remitente: "IA",
-    autorId: null,
-    contenido: texto,
-    requiereHumano,
+    // Si mientras la IA pensaba entró otro mensaje (del socio o de la directiva),
+    // esta respuesta ya no corresponde.
+    const ultimo = await tx.query.mensajesSocio.findFirst({
+      where: eq(mensajesSocio.socioId, socioId),
+      orderBy: [desc(mensajesSocio.createdAt)],
+      columns: { id: true },
+    });
+    if (ultimo?.id !== respondidoA) return;
+
+    await enviarMensajeChat({
+      socioId,
+      remitente: "IA",
+      autorId: null,
+      contenido: texto,
+      requiereHumano,
+    });
   });
 }
 
