@@ -258,14 +258,6 @@ function TarjetaComite({
                   <CreditCard />
                   Mi plan
                 </DropdownMenuItem>
-                <DropdownMenuItem render={<Link href="/panel/configuracion" />}>
-                  <Settings />
-                  Configuración
-                </DropdownMenuItem>
-                <DropdownMenuItem render={<Link href="/panel/ayuda" />}>
-                  <LifeBuoy />
-                  Ayuda
-                </DropdownMenuItem>
                 <DropdownMenuSeparator />
               </DropdownMenuGroup>
             )}
