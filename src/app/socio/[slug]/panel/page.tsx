@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Droplets, LayoutDashboard, Receipt, Wallet } from "lucide-react";
 import { desc, inArray } from "drizzle-orm";
 import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
 import { db } from "@/lib/db";
@@ -72,8 +73,50 @@ export default async function PanelSocioPage({ params }: Props) {
   const totalPagado = pagos.reduce((acc, b) => acc + b.montoPagado, 0);
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b border-border">
+    <div className="min-h-screen bg-background lg:pl-64">
+      {/* Escritorio: menú fijo a la izquierda. En el celular se mantiene el encabezado de arriba. */}
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card lg:flex">
+        <div className="flex items-center gap-3 border-b border-border px-5 py-5">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <Droplets className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="truncate font-semibold">{socio.apr.nombre}</div>
+            <div className="text-[0.78rem] text-muted-foreground">Portal del socio</div>
+          </div>
+        </div>
+
+        <nav className="flex flex-col gap-1 p-3 text-[0.92rem]">
+          {[
+            { href: "#resumen", texto: "Resumen", Icono: LayoutDashboard },
+            { href: "#boletas", texto: "Boletas", Icono: Receipt },
+            { href: "#pagos", texto: "Pagos", Icono: Wallet },
+          ].map(({ href, texto, Icono }) => (
+            <a
+              key={href}
+              href={href}
+              className="flex items-center gap-2.5 rounded-lg px-3 py-2.5 font-medium text-foreground/80 hover:bg-muted hover:text-foreground"
+            >
+              <Icono className="size-[18px]" />
+              {texto}
+            </a>
+          ))}
+        </nav>
+
+        <div className="mt-auto flex flex-col gap-3 border-t border-border p-4">
+          <div className="min-w-0">
+            <div className="truncate text-[0.9rem] font-medium">{socio.nombre}</div>
+            {cuentas.length > 1 && (
+              <div className="text-[0.78rem] text-muted-foreground">
+                {cuentas.length} arranques
+              </div>
+            )}
+          </div>
+          <SignOutSocioButton base={base} />
+        </div>
+      </aside>
+
+      <header className="border-b border-border lg:hidden">
         <div className="mx-auto flex max-w-[720px] items-center justify-between px-6 py-4">
           <div>
             <div className="font-semibold">{socio.nombre}</div>
@@ -85,10 +128,11 @@ export default async function PanelSocioPage({ params }: Props) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[720px] px-6 py-10">
+      <main className="mx-auto max-w-[720px] px-6 py-10 lg:max-w-[840px] lg:py-12">
         <InstalarApp />
 
         <section
+          id="resumen"
           className={`rounded-2xl border p-6 ${
             deudaTotal > 0
               ? "border-destructive/25 bg-destructive/5"
@@ -109,7 +153,7 @@ export default async function PanelSocioPage({ params }: Props) {
           )}
         </section>
 
-        <section className="mt-10">
+        <section id="boletas" className="mt-10 scroll-mt-6">
           <h2 className="text-[1.05rem] font-semibold">Tus boletas</h2>
 
           {listaBoletas.length === 0 ? (
@@ -170,7 +214,7 @@ export default async function PanelSocioPage({ params }: Props) {
           )}
         </section>
 
-        <section className="mt-10">
+        <section id="pagos" className="mt-10 scroll-mt-6">
           <div className="flex items-baseline justify-between gap-3">
             <h2 className="text-[1.05rem] font-semibold">Tus pagos</h2>
             {pagos.length > 0 && (
