@@ -24,6 +24,7 @@ export type SocioEditable = {
   nombre: string;
   rut: string | null;
   tipo: "SOCIO" | "USUARIO";
+  uso: "RESIDENCIAL" | "COMERCIAL";
   telefono: string | null;
   direccion: string | null;
   numeroCliente: string | null;
@@ -105,6 +106,19 @@ export function SocioDialog({
             >
               <option value="SOCIO">Socio</option>
               <option value="USUARIO">Usuario (no es socio, pero paga)</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="uso">Uso del agua</Label>
+            <select
+              id="uso"
+              name="uso"
+              defaultValue={socio?.uso ?? "RESIDENCIAL"}
+              className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              <option value="RESIDENCIAL">Residencial</option>
+              <option value="COMERCIAL">Comercial</option>
             </select>
           </div>
 

@@ -20,6 +20,8 @@ export type DatosDashboard = {
     vencidas: number;
   }[];
   consumo: { periodo: string; valor: number }[];
+  /** m³ de los períodos mostrados, según el uso del arranque. */
+  consumoPorUso: { residencial: number; comercial: number };
   recaudado: { periodo: string; valor: number }[];
   vencidas: { periodo: string; valor: number }[];
   boletas: {
@@ -67,6 +69,7 @@ export const DEMO: DatosDashboard = {
   ],
 
   // El consumo baja en invierno: menos riego, menos animales.
+  consumoPorUso: { residencial: 21800, comercial: 3900 },
   consumo: [
     { periodo: "Dic", valor: 4_120 },
     { periodo: "Ene", valor: 4_780 },

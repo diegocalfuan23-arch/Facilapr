@@ -23,6 +23,8 @@ import {
   SlidersHorizontal,
   Trash2,
   Upload,
+  Home,
+  Store,
   UserCheck,
   UserRound,
   UserX,
@@ -31,6 +33,7 @@ import {
 import {
   alternarActivo,
   desactivarSocios,
+  cambiarUsoSocios,
   eliminarSocio,
   eliminarSociosSinMovimientos,
 } from "@/app/panel/socios/actions";
@@ -213,6 +216,7 @@ export function SociosTabla({
   const [soloSinDireccion, setSoloSinDireccion] = useState(false);
   const [soloSinNumero, setSoloSinNumero] = useState(false);
   const [tipo, setTipo] = useState<"todos" | "SOCIO" | "USUARIO">("todos");
+  const [uso, setUso] = useState<"todos" | "RESIDENCIAL" | "COMERCIAL">("todos");
   const [importando, setImportando] = useState(false);
   const [invitando, setInvitando] = useState(false);
   const [creando, setCreando] = useState(false);
@@ -232,12 +236,14 @@ export function SociosTabla({
 
   const nSocios = socios.filter((s) => s.tipo === "SOCIO").length;
   const nUsuarios = socios.length - nSocios;
+  const nComerciales = socios.filter((s) => s.uso === "COMERCIAL").length;
 
   const filtrosActivos =
     Number(soloConTelefono) +
     Number(soloSinDireccion) +
     Number(soloSinNumero) +
-    Number(tipo !== "todos");
+    Number(tipo !== "todos") +
+    Number(uso !== "todos");
 
   const filtrados = useMemo(() => {
     const termino = busqueda.trim().toLowerCase();
@@ -250,6 +256,7 @@ export function SociosTabla({
       if (soloSinDireccion && socio.direccion) return false;
       if (soloSinNumero && socio.numeroCliente) return false;
       if (tipo !== "todos" && socio.tipo !== tipo) return false;
+      if (uso !== "todos" && socio.uso !== uso) return false;
 
       if (!termino) return true;
 
@@ -274,6 +281,7 @@ export function SociosTabla({
     });
   }, [
     socios,
+    uso,
     busqueda,
     pestana,
     orden,
@@ -289,11 +297,12 @@ export function SociosTabla({
       /[",;\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 
     const filas = [
-      ["nombre", "rut", "tipo", "telefono", "direccion", "numeroCliente", "activo"],
+      ["nombre", "rut", "tipo", "uso", "telefono", "direccion", "numeroCliente", "activo"],
       ...filtrados.map((s) => [
         s.nombre,
         s.rut ?? "",
         s.tipo === "USUARIO" ? "usuario" : "socio",
+        s.uso === "COMERCIAL" ? "comercial" : "residencial",
         s.telefono ?? "",
         s.direccion ?? "",
         s.numeroCliente ?? "",
@@ -633,6 +642,24 @@ export function SociosTabla({
                   </DropdownMenuGroup>
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
+                  <DropdownMenuLabel>Uso del agua</DropdownMenuLabel>
+                  <DropdownMenuRadioGroup
+                    value={uso}
+                    onValueChange={(v) =>
+                      cambiarFiltro(() => setUso(v as "todos" | "RESIDENCIAL" | "COMERCIAL"))
+                    }
+                  >
+                    <DropdownMenuRadioItem value="todos">Todos</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="RESIDENCIAL">
+                      Residencial ({socios.length - nComerciales})
+                    </DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="COMERCIAL">
+                      Comercial ({nComerciales})
+                    </DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuGroup>
                   <DropdownMenuLabel>Mostrar solo</DropdownMenuLabel>
                   <DropdownMenuCheckboxItem
                     checked={soloConTelefono}
@@ -668,6 +695,7 @@ export function SociosTabla({
                         setSoloSinDireccion(false);
                         setSoloSinNumero(false);
                         setTipo("todos");
+                        setUso("todos");
                       })
                     }
                   >
@@ -695,6 +723,36 @@ export function SociosTabla({
                 </button>
               )}
               <span className="ml-auto flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pendiente}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const r = await cambiarUsoSocios([...seleccion], "COMERCIAL");
+                      if (r.ok) toast.success("Marcados como comerciales");
+                      else toast.error(r.error);
+                    })
+                  }
+                >
+                  <Store />
+                  Comercial
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pendiente}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const r = await cambiarUsoSocios([...seleccion], "RESIDENCIAL");
+                      if (r.ok) toast.success("Marcados como residenciales");
+                      else toast.error(r.error);
+                    })
+                  }
+                >
+                  <Home />
+                  Residencial
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setAccionMasiva("desactivar")}>
                   <UserX />
                   Desactivar
@@ -784,11 +842,15 @@ export function SociosTabla({
                             <div className="truncate font-medium">
                               {socio.nombre}
                             </div>
-                            {(socio.numeroCliente || socio.tipo === "USUARIO") && (
+                            {(socio.numeroCliente || socio.tipo === "USUARIO" || socio.uso === "COMERCIAL") && (
                               <div className="text-[0.78rem] tabular-nums text-muted-foreground">
-                                {socio.tipo === "USUARIO" && "Usuario"}
-                                {socio.tipo === "USUARIO" && socio.numeroCliente && " · "}
-                                {socio.numeroCliente && `N.º ${socio.numeroCliente}`}
+                                {[
+                                  socio.tipo === "USUARIO" ? "Usuario" : null,
+                                  socio.uso === "COMERCIAL" ? "Comercial" : null,
+                                  socio.numeroCliente ? `N.º ${socio.numeroCliente}` : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ")}
                               </div>
                             )}
                           </div>
@@ -864,6 +926,7 @@ export function SociosTabla({
                             {[
                               socio.rut ? formatearRut(socio.rut) : null,
                               socio.tipo === "USUARIO" ? "Usuario" : null,
+                              socio.uso === "COMERCIAL" ? "Comercial" : null,
                               socio.numeroCliente ? `N.º ${socio.numeroCliente}` : null,
                             ]
                               .filter(Boolean)

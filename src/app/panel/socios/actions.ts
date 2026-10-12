@@ -16,6 +16,7 @@ const socioSchema = z.object({
   // arranques repite el suyo en cada uno.
   rut: z.string().trim().optional(),
   tipo: z.enum(["SOCIO", "USUARIO"]).default("SOCIO"),
+  uso: z.enum(["RESIDENCIAL", "COMERCIAL"]).default("RESIDENCIAL"),
   // Opcional: hay comités donde parte de los socios no ha entregado su número.
   // Sin teléfono el socio igual tiene boletas y panel; solo no recibe WhatsApp.
   telefono: z.string().trim().optional(),
@@ -40,6 +41,7 @@ export async function crearSocio(
     nombre: formData.get("nombre"),
     rut: formData.get("rut") || undefined,
     tipo: formData.get("tipo") || undefined,
+    uso: formData.get("uso") || undefined,
     telefono: formData.get("telefono") || undefined,
     direccion: formData.get("direccion") || undefined,
     numeroCliente: formData.get("numeroCliente") || undefined,
@@ -57,6 +59,7 @@ export async function crearSocio(
       nombre: datos.nombre,
       rut: datos.rut ? normalizarRut(datos.rut) : null,
       tipo: datos.tipo,
+      uso: datos.uso,
       telefono: telefonoOpcional(datos.telefono),
       direccion: datos.direccion,
       numeroCliente: datos.numeroCliente,
@@ -90,6 +93,7 @@ export async function editarSocio(
     nombre: formData.get("nombre"),
     rut: formData.get("rut") || undefined,
     tipo: formData.get("tipo") || undefined,
+    uso: formData.get("uso") || undefined,
     telefono: formData.get("telefono") || undefined,
     direccion: formData.get("direccion") || undefined,
     numeroCliente: formData.get("numeroCliente") || undefined,
@@ -108,6 +112,7 @@ export async function editarSocio(
         nombre: datos.nombre,
         rut: datos.rut ? normalizarRut(datos.rut) : null,
         tipo: datos.tipo,
+        uso: datos.uso,
         telefono: telefonoOpcional(datos.telefono),
         direccion: datos.direccion ?? null,
         numeroCliente: datos.numeroCliente ?? null,
@@ -270,4 +275,24 @@ export async function generarEnlaceRestablecerClave(
     ok: true,
     url: urlRestablecerClave(apr.slug, cuenta.socio.id, huellaDeClave(cuenta.claveHash)),
   };
+}
+
+/** Marcar varios arranques como residenciales o comerciales de una vez. */
+export async function cambiarUsoSocios(
+  ids: string[],
+  uso: "RESIDENCIAL" | "COMERCIAL"
+): Promise<ResultadoAccion> {
+  const { apr } = await requireAdmin();
+  if (uso !== "RESIDENCIAL" && uso !== "COMERCIAL") return { ok: false, error: "Uso no válido." };
+  if (!Array.isArray(ids) || ids.length === 0) return { ok: false, error: "No hay socios seleccionados." };
+
+  await db
+    .update(socios)
+    .set({ uso, updatedAt: new Date() })
+    // El filtro por aprId impide tocar socios de otro comité.
+    .where(and(eq(socios.aprId, apr.id), inArray(socios.id, ids.slice(0, 1000))));
+
+  revalidatePath("/panel/socios");
+  revalidatePath("/panel");
+  return { ok: true };
 }

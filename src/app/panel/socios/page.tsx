@@ -22,6 +22,7 @@ export default async function SociosPage() {
       nombre: true,
       rut: true,
       tipo: true,
+      uso: true,
       telefono: true,
       direccion: true,
       numeroCliente: true,

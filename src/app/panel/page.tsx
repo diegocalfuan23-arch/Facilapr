@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { and, countDistinct, desc, eq, gte, sql } from "drizzle-orm";
+import { and, countDistinct, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import {
   AlertTriangle,
   ArrowDown,
@@ -205,6 +205,16 @@ export default async function PanelPage({
     .where(and(eq(socios.aprId, apr.id), noAnulada))
     .groupBy(boletas.periodo);
 
+  // Cuánto consumen los arranques residenciales y los comerciales en esos mismos períodos.
+  const [usoConsumo] = await db
+    .select({
+      residencial: sql<number>`coalesce(sum(${boletas.consumoM3}) filter (where ${socios.uso} <> 'COMERCIAL'), 0)::int`,
+      comercial: sql<number>`coalesce(sum(${boletas.consumoM3}) filter (where ${socios.uso} = 'COMERCIAL'), 0)::int`,
+    })
+    .from(boletas)
+    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .where(and(eq(socios.aprId, apr.id), noAnulada, inArray(boletas.periodo, periodos)));
+
   const deP = new Map(porPeriodo.map((p) => [p.periodo, p]));
 
   /** Etiqueta corta del período: "Jul" a partir de "2026-07". */
@@ -329,6 +339,7 @@ export default async function PanelPage({
         ),
         cobranza: datosCobranza,
         consumo: serie("consumo"),
+        consumoPorUso: usoConsumo,
         recaudado: serieRecaudado,
         vencidas: serie("vencidas"),
         boletas: ultimasBoletas,
@@ -626,6 +637,29 @@ export default async function PanelPage({
               color="var(--primary)"
             />
           </div>
+
+          {/* Quién consume: el mismo período, separado por uso del agua. */}
+          {d.consumoPorUso.residencial + d.consumoPorUso.comercial > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4 text-[0.85rem]">
+              {[
+                { texto: "Residencial", valor: d.consumoPorUso.residencial },
+                { texto: "Comercial", valor: d.consumoPorUso.comercial },
+              ].map((u) => {
+                const total = d.consumoPorUso.residencial + d.consumoPorUso.comercial;
+                return (
+                  <div key={u.texto}>
+                    <div className="text-muted-foreground">{u.texto}</div>
+                    <div className="mt-0.5 text-[1.05rem] font-semibold tabular-nums">
+                      {u.valor.toLocaleString("es-CL")} m³
+                      <span className="ml-1.5 text-[0.78rem] font-normal text-muted-foreground">
+                        {Math.round((u.valor / total) * 100)} %
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Tarjeta>
       </div>
 

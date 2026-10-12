@@ -218,6 +218,8 @@ export const socios = pgTable(
     rut: text("rut"),
     /** SOCIO o USUARIO: el comité distingue a quien es socio de quien solo usa el agua. */
     tipo: text("tipo").$type<"SOCIO" | "USUARIO">().notNull().default("SOCIO"),
+    /** Para qué se usa el agua: RESIDENCIAL o COMERCIAL. */
+    uso: text("uso").$type<"RESIDENCIAL" | "COMERCIAL">().notNull().default("RESIDENCIAL"),
     /** E.164. Opcional, y se puede repetir: una persona con varios arranques
         usa el mismo número. */
     telefono: text("telefono"),
