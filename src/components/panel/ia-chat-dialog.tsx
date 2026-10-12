@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { guardarIaChat } from "@/app/panel/configuracion/actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -23,19 +24,6 @@ export type IaChatAjustes = {
   modo: string;
   instrucciones: string | null;
 };
-
-const MODOS = [
-  {
-    valor: "SIEMPRE",
-    titulo: "Responde primero",
-    detalle: "La IA contesta en segundos. Tú sigues cuando quieras.",
-  },
-  {
-    valor: "APAGADO",
-    titulo: "Apagada",
-    detalle: "Solo responde la directiva.",
-  },
-] as const;
 
 /** Botón de la cabecera de Conversaciones: muestra si la IA está activa y abre sus ajustes. */
 export function BotonIaChat({ ajustes }: { ajustes: IaChatAjustes }) {
@@ -79,7 +67,8 @@ function IaChatDialog({
   onGuardado: (a: IaChatAjustes) => void;
   onCerrar: () => void;
 }) {
-  const [modo, setModo] = useState(ajustes.modo === "SIEMPRE" ? "SIEMPRE" : "APAGADO");
+  const [activa, setActiva] = useState(ajustes.modo === "SIEMPRE");
+  const modo = activa ? "SIEMPRE" : "APAGADO";
   const [instrucciones, setInstrucciones] = useState(ajustes.instrucciones ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
@@ -119,27 +108,18 @@ function IaChatDialog({
           </p>
         ) : (
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label>Cuándo responde</Label>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {MODOS.map((m) => (
-                  <button
-                    key={m.valor}
-                    type="button"
-                    onClick={() => setModo(m.valor)}
-                    aria-pressed={modo === m.valor}
-                    className={cn(
-                      "rounded-lg border px-3.5 py-3 text-left transition-colors",
-                      modo === m.valor
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    )}
-                  >
-                    <div className="text-[0.9rem] font-medium">{m.titulo}</div>
-                    <div className="mt-0.5 text-[0.78rem] text-muted-foreground">{m.detalle}</div>
-                  </button>
-                ))}
+            <div className="flex items-center justify-between gap-4 rounded-lg border border-border px-4 py-3.5">
+              <div className="min-w-0">
+                <Label htmlFor="ia-activa" className="text-[0.92rem]">
+                  Responder automáticamente
+                </Label>
+                <p className="mt-0.5 text-[0.8rem] text-muted-foreground">
+                  {activa
+                    ? "La IA contesta en segundos. Tú sigues cuando quieras."
+                    : "Apagada: solo responde la directiva."}
+                </p>
               </div>
+              <Switch id="ia-activa" checked={activa} onCheckedChange={setActiva} />
             </div>
 
             <div className="flex flex-col gap-1.5">
