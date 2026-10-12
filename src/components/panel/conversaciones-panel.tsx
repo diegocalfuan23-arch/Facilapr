@@ -42,6 +42,7 @@ import {
   FONDO_CHAT,
   IndicadorEscribiendo,
 } from "@/components/chat/burbuja";
+import { BotonIaChat, type IaChatAjustes } from "@/components/panel/ia-chat-dialog";
 import { useEscribiendo } from "@/components/chat/use-escribiendo";
 
 
@@ -91,8 +92,10 @@ function agregarSinRepetir(lista: MensajeChat[], m: MensajeChat) {
 
 export function ConversacionesPanel({
   conversaciones,
+  ia,
 }: {
   conversaciones: ConversacionResumen[];
+  ia: IaChatAjustes;
 }) {
   const [seleccionado, setSeleccionado] = useState<string | null>(
     conversaciones[0]?.socioId ?? null
@@ -105,9 +108,12 @@ export function ConversacionesPanel({
   if (conversaciones.length === 0) {
     return (
       <div className="flex flex-col gap-2">
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">
-          Conversaciones
-        </h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-[1.35rem] font-semibold tracking-tight">
+            Conversaciones
+          </h1>
+          <BotonIaChat ajustes={ia} />
+        </div>
         <p className="mt-8 rounded-xl border border-dashed border-border px-4 py-14 text-center text-[0.9rem] text-muted-foreground">
           Todavía no hay mensajes de ningún socio.
         </p>
@@ -117,9 +123,12 @@ export function ConversacionesPanel({
 
   return (
     <div className="flex h-[calc(100vh-7rem)] flex-col">
-      <h1 className="mb-4 text-[1.35rem] font-semibold tracking-tight">
-        Conversaciones
-      </h1>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-[1.35rem] font-semibold tracking-tight">
+          Conversaciones
+        </h1>
+        <BotonIaChat ajustes={ia} />
+      </div>
 
       <div className="grid min-h-0 flex-1 grid-cols-[380px_1fr] overflow-hidden rounded-xl border border-border/60">
         <div className="flex flex-col overflow-y-auto border-r border-border/60 bg-card">

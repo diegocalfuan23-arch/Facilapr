@@ -103,6 +103,11 @@ export default async function ConversacionesPage() {
 
   return (
     <ConversacionesPanel
+      ia={{
+        disponible: puede(apr.plan as Plan, "iaChat"),
+        modo: apr.iaChatModo,
+        instrucciones: apr.iaChatInstrucciones,
+      }}
       conversaciones={filas.map((f) => ({
         socioId: f.socioId,
         nombre: f.nombre,
