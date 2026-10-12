@@ -4,76 +4,7 @@ import { useState } from "react";
 import { Check, Clock } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-/**
- * Los precios están en una unidad de reajuste (hoy UF). Se cambian aquí: la
- * unidad y los montos, sin tocar el resto. El plan anual cobra 11 meses y da 12
- * («1 mes gratis»).
- */
-const UNIDAD = "UF";
-const MESES_GRATIS = 1;
-
-type Item = string | { texto: string; pronto?: boolean };
-
-const planes: {
-  nombre: string;
-  descripcion: string;
-  /** Precio mensual en `UNIDAD`; null = a medida. */
-  mensual: number | null;
-  /** Lo que incluye además del plan anterior. */
-  incluye?: string;
-  lista: Item[];
-  cta: string;
-  destacado: boolean;
-}[] = [
-  {
-    nombre: "Comité Pequeño",
-    descripcion: "Para APR con hasta 200 socios.",
-    mensual: 0.7,
-    lista: [
-      "Boletas, lecturas y recibo en PDF por WhatsApp",
-      "Portal para cada socio, con asistente de IA",
-      "Hasta 200 socios cargados",
-      "1 técnico en terreno",
-      "Soporte por correo",
-    ],
-    cta: "Elegir plan",
-    destacado: false,
-  },
-  {
-    nombre: "Comité Estándar",
-    descripcion: "Para APR con hasta 800 socios.",
-    mensual: 1.5,
-    incluye: "Todo lo del Pequeño, más:",
-    lista: [
-      "Chat en tiempo real con tus socios",
-      { texto: "IA en el chat: responde a tus socios en segundos (unas 1.500 respuestas al mes)", pronto: true },
-      "Hasta 800 socios cargados",
-      "Hasta 3 técnicos en terreno",
-      "Sitio público con avisos de corte",
-      "Te cargamos tu padrón y dejamos todo configurado",
-      "Soporte prioritario",
-    ],
-    cta: "Elegir plan",
-    destacado: true,
-  },
-  {
-    nombre: "APR Grande",
-    descripcion: "Más de 800 socios o varias sedes.",
-    mensual: null,
-    incluye: "Todo lo del Estándar, más:",
-    lista: [
-      "Socios y técnicos sin tope",
-      { texto: "IA del chat con más capacidad (unas 5.000 respuestas al mes) y packs adicionales", pronto: true },
-      "Dominio propio y varios administradores con roles",
-      { texto: "Conciliación de pagos con la cartola del banco", pronto: true },
-      "Múltiples sedes o comités",
-      "Acompañamiento en la puesta en marcha",
-    ],
-    cta: "Conversemos",
-    destacado: false,
-  },
-];
+import { MESES_GRATIS, PLANES_COMERCIALES as planes, UNIDAD } from "@/lib/planes-comerciales";
 
 const formato = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
 

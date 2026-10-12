@@ -32,23 +32,16 @@ export default async function MiPlanPage() {
       <div>
         <h1 className="text-[1.35rem] font-semibold tracking-tight">Mi plan</h1>
         <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-          Lo que incluye tu plan y cuánto llevas usado.
+          Compara los planes, mira cuál tienes y cuánto llevas usado.
         </p>
       </div>
       <MiPlan
         plan={{
+          clave: plan,
           nombre: NOMBRE_PLAN[plan],
           desde: apr.createdAt.toISOString(),
           socios: { usados: nSocios, limite: finito(LIMITE_SOCIOS[plan]) },
           tecnicos: { usados: nTecnicos, limite: finito(LIMITE_TECNICOS[plan]) },
-          capacidades: [
-            { texto: "Boletas, lecturas y recibos en PDF", incluida: true },
-            { texto: "Portal para cada socio", incluida: true },
-            { texto: "Chat en tiempo real con tus socios", incluida: puede(plan, "chat") },
-            { texto: "IA que responde en el chat", incluida: puede(plan, "iaChat") },
-            { texto: "Sitio público con avisos de corte", incluida: puede(plan, "avisos") },
-            { texto: "Dominio propio", incluida: puede(plan, "dominioPropio") },
-          ],
           usoIa: puede(plan, "iaChat") ? await usoIaChat(apr.id, plan) : null,
         }}
       />
