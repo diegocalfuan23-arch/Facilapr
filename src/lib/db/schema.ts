@@ -328,6 +328,68 @@ export const pagos = pgTable(
   (table) => [index("Pago_boletaId_idx").on(table.boletaId)]
 );
 
+/**
+ * Órdenes de trabajo en terreno sobre un arranque: cortes por morosidad,
+ * reposiciones del servicio y reparaciones. Cada una pasa por EN_TRAMITE
+ * (alguien tiene que ir), POR_CONFIRMAR (el técnico subió la foto) y
+ * COMPLETADA (el comité la dio de alta). Las que piden el socio o el técnico
+ * parten en SOLICITADA hasta que el comité las aprueba.
+ */
+export const ordenes = pgTable(
+  "Orden",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    socioId: text("socioId")
+      .notNull()
+      .references(() => socios.id, { onDelete: "cascade" }),
+    /** CORTE | REPOSICION | REPARACION */
+    tipo: text("tipo").notNull(),
+    /** SOLICITADA | EN_TRAMITE | POR_CONFIRMAR | COMPLETADA | RECHAZADA | CANCELADA */
+    estado: text("estado").notNull(),
+    /** Quién la originó: COMITE | TECNICO | SOCIO. */
+    origen: text("origen").notNull(),
+    /** Para qué es (en una reparación, qué falla); en un corte, la mora que lo motiva. */
+    detalle: text("detalle"),
+    /** Lo que debía el arranque al ordenar el corte, en CLP. */
+    deudaAlOrdenar: integer("deudaAlOrdenar"),
+    solicitadaPorId: text("solicitadaPorId"),
+    ejecutadaPorId: text("ejecutadaPorId"),
+    ejecutadaAt: timestamp("ejecutadaAt", { precision: 3 }),
+    notaEjecucion: text("notaEjecucion"),
+    confirmadaPorId: text("confirmadaPorId"),
+    confirmadaAt: timestamp("confirmadaAt", { precision: 3 }),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("Orden_aprId_estado_idx").on(table.aprId, table.estado),
+    index("Orden_socioId_idx").on(table.socioId),
+  ]
+);
+
+/**
+ * Fotos que respaldan una orden. Se guardan en la base (comprimidas en el
+ * teléfono, unos 200 KB) para no depender de otro servicio de archivos; se
+ * sirven por una ruta que comprueba que la orden es del comité.
+ */
+export const evidenciasOrden = pgTable(
+  "EvidenciaOrden",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    ordenId: text("ordenId")
+      .notNull()
+      .references(() => ordenes.id, { onDelete: "cascade" }),
+    mime: text("mime").notNull(),
+    /** La imagen en base64, sin el prefijo data:. */
+    datos: text("datos").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("EvidenciaOrden_ordenId_idx").on(table.ordenId)]
+);
+
 export const boletasRelations = relations(boletas, ({ one }) => ({
   socio: one(socios, {
     fields: [boletas.socioId],

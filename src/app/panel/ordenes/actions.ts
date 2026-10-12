@@ -1,0 +1,214 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { boletas, evidenciasOrden, ordenes, socios } from "@/lib/db/schema";
+import { requireApr } from "@/lib/apr-session";
+import { MAX_FOTO_BASE64, type TipoOrden } from "@/lib/ordenes";
+
+export type ResultadoOrden = { ok: true } | { ok: false; error: string };
+
+const ABIERTAS = ["SOLICITADA", "EN_TRAMITE", "POR_CONFIRMAR"];
+
+function refrescar() {
+  revalidatePath("/panel/cortes");
+  revalidatePath("/panel/ordenes");
+}
+
+/** El arranque, si es del comité del usuario. */
+async function socioDelComite(aprId: string, socioId: string) {
+  const socio = await db.query.socios.findFirst({
+    where: and(eq(socios.id, socioId), eq(socios.aprId, aprId)),
+    columns: { id: true },
+  });
+  return socio ?? null;
+}
+
+/** Lo que debe ese arranque: sus boletas con saldo, sin las anuladas. */
+async function deudaDe(socioId: string) {
+  const [f] = await db
+    .select({
+      deuda: sql<number>`coalesce(sum(${boletas.montoTotal} - ${boletas.montoPagado}), 0)::int`,
+    })
+    .from(boletas)
+    .where(
+      and(
+        eq(boletas.socioId, socioId),
+        ne(boletas.estado, "ANULADA"),
+        sql`${boletas.montoPagado} < ${boletas.montoTotal}`
+      )
+    );
+  return f?.deuda ?? 0;
+}
+
+/** Solo la directiva decide a quién se le corta el servicio. */
+export async function ordenarCorte(socioId: string, detalle?: string): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede ordenar un corte." };
+  if (!(await socioDelComite(apr.id, socioId))) {
+    return { ok: false, error: "Ese socio no pertenece a tu comité." };
+  }
+
+  const abierta = await db.query.ordenes.findFirst({
+    where: and(
+      eq(ordenes.socioId, socioId),
+      eq(ordenes.tipo, "CORTE"),
+      inArray(ordenes.estado, ABIERTAS)
+    ),
+    columns: { id: true },
+  });
+  if (abierta) return { ok: false, error: "Ese socio ya tiene un corte en trámite." };
+
+  await db.insert(ordenes).values({
+    aprId: apr.id,
+    socioId,
+    tipo: "CORTE",
+    estado: "EN_TRAMITE",
+    origen: "COMITE",
+    detalle: detalle?.trim().slice(0, 300) || "Morosidad",
+    deudaAlOrdenar: await deudaDe(socioId),
+    solicitadaPorId: user.id,
+  });
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * Pedir una reposición o una reparación. Si la pide la directiva queda de una
+ * vez en trámite; si la pide un técnico, espera que la directiva la apruebe.
+ */
+export async function solicitarOrden(
+  socioId: string,
+  tipo: Exclude<TipoOrden, "CORTE">,
+  detalle?: string
+): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (tipo !== "REPOSICION" && tipo !== "REPARACION") {
+    return { ok: false, error: "Tipo de orden no válido." };
+  }
+  if (!(await socioDelComite(apr.id, socioId))) {
+    return { ok: false, error: "Ese socio no pertenece a tu comité." };
+  }
+
+  const abierta = await db.query.ordenes.findFirst({
+    where: and(eq(ordenes.socioId, socioId), eq(ordenes.tipo, tipo), inArray(ordenes.estado, ABIERTAS)),
+    columns: { id: true },
+  });
+  if (abierta) return { ok: false, error: "Ya hay una solicitud igual en curso para ese socio." };
+
+  const esDirectiva = user.rol === "ADMIN";
+  await db.insert(ordenes).values({
+    aprId: apr.id,
+    socioId,
+    tipo,
+    estado: esDirectiva ? "EN_TRAMITE" : "SOLICITADA",
+    origen: esDirectiva ? "COMITE" : "TECNICO",
+    detalle: detalle?.trim().slice(0, 300) || null,
+    solicitadaPorId: user.id,
+  });
+  refrescar();
+  return { ok: true };
+}
+
+/** La directiva aprueba (pasa a trámite) o rechaza una solicitud. */
+export async function resolverSolicitud(ordenId: string, aprobar: boolean): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede resolver solicitudes." };
+
+  const r = await db
+    .update(ordenes)
+    .set({ estado: aprobar ? "EN_TRAMITE" : "RECHAZADA", updatedAt: new Date() })
+    .where(and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id), eq(ordenes.estado, "SOLICITADA")))
+    .returning({ id: ordenes.id });
+  if (r.length === 0) return { ok: false, error: "Esa solicitud ya no está pendiente." };
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * Quien fue a terreno (el técnico, o el presidente si lo hace él) sube la foto
+ * como evidencia. La orden queda por dar de alta.
+ */
+export async function registrarEjecucion(
+  ordenId: string,
+  foto: { mime: string; base64: string },
+  nota?: string
+): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+
+  if (!/^image\/(jpeg|png|webp)$/.test(foto.mime)) {
+    return { ok: false, error: "La evidencia debe ser una foto (JPG, PNG o WebP)." };
+  }
+  if (!foto.base64 || foto.base64.length > MAX_FOTO_BASE64) {
+    return { ok: false, error: "La foto es muy pesada. Saca otra o acércate un poco menos." };
+  }
+  if (!/^[A-Za-z0-9+/=]+$/.test(foto.base64)) {
+    return { ok: false, error: "La foto no es válida." };
+  }
+
+  const orden = await db.query.ordenes.findFirst({
+    where: and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id)),
+    columns: { id: true, estado: true },
+  });
+  if (!orden) return { ok: false, error: "No encontramos esa orden." };
+  if (orden.estado !== "EN_TRAMITE") return { ok: false, error: "Esa orden no está en trámite." };
+
+  await db.insert(evidenciasOrden).values({ ordenId, mime: foto.mime, datos: foto.base64 });
+  await db
+    .update(ordenes)
+    .set({
+      estado: "POR_CONFIRMAR",
+      ejecutadaPorId: user.id,
+      ejecutadaAt: new Date(),
+      notaEjecucion: nota?.trim().slice(0, 300) || null,
+      updatedAt: new Date(),
+    })
+    .where(eq(ordenes.id, ordenId));
+  refrescar();
+  return { ok: true };
+}
+
+/** La directiva revisa la evidencia y da de alta la orden: el corte (o la reposición) queda vigente. */
+export async function darDeAlta(ordenId: string): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva da de alta una orden." };
+
+  const r = await db
+    .update(ordenes)
+    .set({ estado: "COMPLETADA", confirmadaPorId: user.id, confirmadaAt: new Date(), updatedAt: new Date() })
+    .where(and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id), eq(ordenes.estado, "POR_CONFIRMAR")))
+    .returning({ id: ordenes.id });
+  if (r.length === 0) return { ok: false, error: "Esa orden no está esperando el alta." };
+  refrescar();
+  return { ok: true };
+}
+
+/** La evidencia no sirve (foto borrosa, medidor equivocado): la orden vuelve a trámite para repetirla. */
+export async function pedirOtraEvidencia(ordenId: string): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede pedir otra evidencia." };
+
+  const r = await db
+    .update(ordenes)
+    .set({ estado: "EN_TRAMITE", updatedAt: new Date() })
+    .where(and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id), eq(ordenes.estado, "POR_CONFIRMAR")))
+    .returning({ id: ordenes.id });
+  if (r.length === 0) return { ok: false, error: "Esa orden no está esperando el alta." };
+  refrescar();
+  return { ok: true };
+}
+
+export async function cancelarOrden(ordenId: string): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede cancelar una orden." };
+
+  const r = await db
+    .update(ordenes)
+    .set({ estado: "CANCELADA", updatedAt: new Date() })
+    .where(and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id), inArray(ordenes.estado, ABIERTAS)))
+    .returning({ id: ordenes.id });
+  if (r.length === 0) return { ok: false, error: "Esa orden ya está cerrada." };
+  refrescar();
+  return { ok: true };
+}

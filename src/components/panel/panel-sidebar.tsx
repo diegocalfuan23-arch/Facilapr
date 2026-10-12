@@ -17,6 +17,8 @@ import {
   Headset,
   Wallet,
   ChevronsUpDown,
+  ClipboardList,
+  Scissors,
   CreditCard,
   LogOut,
 } from "lucide-react";
@@ -53,6 +55,7 @@ const gestion = [
   { href: "/panel/boletas", label: "Boletas", icon: ReceiptText },
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
+  { href: "/panel/cortes", label: "Cortes", icon: Scissors },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
   { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
 ];
@@ -72,6 +75,7 @@ const atencion = [
 /** Lo único que un OPERADOR puede ver: cargar lecturas, nada más. */
 const soloOperador = [
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
+  { href: "/panel/ordenes", label: "Órdenes", icon: ClipboardList },
 ];
 
 type Enlace = {

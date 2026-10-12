@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ClipboardList, Droplets } from "lucide-react";
 import { requireApr } from "@/lib/apr-session";
 import { PanelSidebar } from "@/components/panel/panel-sidebar";
 import { Logo } from "@/components/marca/logo";
@@ -62,6 +64,20 @@ export default async function PanelLayout({
                     Técnico de terreno
                   </div>
                 </div>
+                <Link
+                  href="/panel/lecturas"
+                  aria-label="Lecturas"
+                  className="flex size-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+                >
+                  <Droplets className="size-5" />
+                </Link>
+                <Link
+                  href="/panel/ordenes"
+                  aria-label="Órdenes de terreno"
+                  className="flex size-10 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
+                >
+                  <ClipboardList className="size-5" />
+                </Link>
                 <SignOutButton compacto />
               </div>
             )}
