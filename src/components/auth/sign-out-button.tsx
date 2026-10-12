@@ -5,6 +5,19 @@ import { LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
 import { Button } from "@/components/ui/button";
 
+/** Cierra la sesión y deja el navegador sin datos del panel. Lo usan el botón de arriba y el menú del pie del sidebar. */
+export async function cerrarSesionPanel(router: { push: (ruta: string) => void }) {
+  await signOut();
+  // Borra la copia de la pantalla de lecturas que guarda el service
+  // worker: en un teléfono compartido no debe sobrevivir a la sesión.
+  try {
+    await caches.delete("facilapr-terreno-v1");
+  } catch {
+    // Sin Cache API no hay nada que borrar.
+  }
+  router.push("/login");
+}
+
 /** `compacto`: solo el ícono, para el encabezado de la app del técnico. */
 export function SignOutButton({ compacto = false }: { compacto?: boolean }) {
   const router = useRouter();
@@ -14,17 +27,7 @@ export function SignOutButton({ compacto = false }: { compacto?: boolean }) {
       variant="outline"
       size={compacto ? "icon-lg" : "default"}
       aria-label="Cerrar sesión"
-      onClick={async () => {
-        await signOut();
-        // Borra la copia de la pantalla de lecturas que guarda el service
-        // worker: en un teléfono compartido no debe sobrevivir a la sesión.
-        try {
-          await caches.delete("facilapr-terreno-v1");
-        } catch {
-          // Sin Cache API no hay nada que borrar.
-        }
-        router.push("/login");
-      }}
+      onClick={() => cerrarSesionPanel(router)}
     >
       {compacto ? (
         <LogOut />

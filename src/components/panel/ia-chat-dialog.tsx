@@ -181,7 +181,7 @@ const entero = new Intl.NumberFormat("es-CL");
 const diaMes = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", timeZone: "UTC" });
 
 /** Cuota del mes, lo gastado, los packs adicionales y cómo pedir más. */
-function ConsumoIa({ uso }: { uso: UsoIaChat }) {
+export function ConsumoIa({ uso }: { uso: UsoIaChat }) {
   const pct = uso.cuotaMes > 0 ? Math.min(100, Math.round((uso.usadoMes / uso.cuotaMes) * 100)) : 100;
   const agotada = uso.disponible <= 0;
 

@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Recorrido } from "@/components/panel/recorrido";
-import { puede, type Plan } from "@/lib/planes";
+import { NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { PrimerosPasosFlotante } from "@/components/panel/primeros-pasos-flotante";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -33,6 +33,8 @@ export default async function PanelLayout({
           apr={apr.nombre}
           comuna={apr.comuna}
           rol={rol}
+          plan={NOMBRE_PLAN[apr.plan as Plan]}
+          usuario={{ nombre: user.name, correo: user.email }}
           chat={puede(apr.plan as Plan, "chat")}
         />
         {!esOperador && <Recorrido usuarioId={user.id} />}

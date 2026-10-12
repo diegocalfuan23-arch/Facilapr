@@ -1,7 +1,7 @@
 "use client";
 
 import Link, { useLinkStatus } from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
@@ -16,8 +16,13 @@ import {
   LayoutGrid,
   Headset,
   Wallet,
+  ChevronsUpDown,
+  CreditCard,
+  LogOut,
 } from "lucide-react";
 import { Logo } from "@/components/marca/logo";
+import { cerrarSesionPanel } from "@/components/auth/sign-out-button";
+import { iniciales } from "@/lib/formato";
 import {
   Sidebar,
   SidebarContent,
@@ -38,6 +43,7 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
@@ -184,15 +190,114 @@ function GrupoEnlaces({
   );
 }
 
+/**
+ * Tarjeta del comité al pie del menú: al tocarla se abre lo de la cuenta (plan,
+ * configuración, ayuda y cerrar sesión). Colapsado el menú, queda solo el avatar.
+ */
+function TarjetaComite({
+  apr,
+  comuna,
+  plan,
+  usuario,
+  rol,
+}: {
+  apr: string;
+  comuna: string;
+  plan: string;
+  usuario: { nombre: string; correo: string };
+  rol: "ADMIN" | "OPERADOR";
+}) {
+  const router = useRouter();
+  const { isMobile } = useSidebar();
+
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <SidebarMenuButton
+                size="lg"
+                aria-label="Menú del comité"
+                className="data-popup-open:bg-muted hover:bg-muted"
+              />
+            }
+          >
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-[0.72rem] font-semibold text-primary">
+              {iniciales(apr)}
+            </span>
+            <span className="grid min-w-0 flex-1 text-left text-xs leading-tight">
+              <span className="truncate font-medium">{apr}</span>
+              <span className="truncate text-muted-foreground">
+                {rol === "ADMIN" ? `Plan ${plan}` : comuna}
+              </span>
+            </span>
+            <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent
+            side={isMobile ? "bottom" : "right"}
+            align="end"
+            className="w-60"
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel className="flex flex-col gap-0.5 py-2">
+                <span className="truncate text-[0.85rem] font-medium text-foreground">
+                  {usuario.nombre}
+                </span>
+                <span className="truncate text-[0.75rem] font-normal text-muted-foreground">
+                  {usuario.correo}
+                </span>
+              </DropdownMenuLabel>
+            </DropdownMenuGroup>
+            <DropdownMenuSeparator />
+
+            {rol === "ADMIN" && (
+              <DropdownMenuGroup>
+                <DropdownMenuItem render={<Link href="/panel/configuracion?seccion=plan" />}>
+                  <CreditCard />
+                  Mi plan
+                </DropdownMenuItem>
+                <DropdownMenuItem render={<Link href="/panel/configuracion" />}>
+                  <Settings />
+                  Configuración
+                </DropdownMenuItem>
+                <DropdownMenuItem render={<Link href="/panel/ayuda" />}>
+                  <LifeBuoy />
+                  Ayuda
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+              </DropdownMenuGroup>
+            )}
+
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => cerrarSesionPanel(router)}
+            >
+              <LogOut />
+              Cerrar sesión
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
 export function PanelSidebar({
   apr,
   comuna,
   rol,
+  plan,
+  usuario,
   chat = false,
 }: {
   apr: string;
   comuna: string;
   rol: "ADMIN" | "OPERADOR";
+  /** Nombre comercial del plan (Pequeño, Estándar, Grande). */
+  plan: string;
+  usuario: { nombre: string; correo: string };
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat?: boolean;
 }) {
@@ -234,10 +339,7 @@ export function PanelSidebar({
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
-        <div className="flex flex-col gap-0.5 px-2 py-1 text-xs group-data-[collapsible=icon]:hidden">
-          <span className="truncate font-medium">{apr}</span>
-          <span className="truncate text-muted-foreground">{comuna}</span>
-        </div>
+        <TarjetaComite apr={apr} comuna={comuna} plan={plan} usuario={usuario} rol={rol} />
       </SidebarFooter>
 
       <SidebarRail />

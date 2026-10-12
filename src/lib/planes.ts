@@ -26,6 +26,13 @@ export const NOMBRE_PLAN: Record<Plan, string> = {
   PREMIUM: "Grande",
 };
 
+/** Cuántos socios (arranques) incluye cada plan. Hoy se muestra en "Mi plan"; no bloquea la carga. */
+export const LIMITE_SOCIOS: Record<Plan, number> = {
+  BASICO: 200,
+  ESTANDAR: 800,
+  PREMIUM: Number.POSITIVE_INFINITY,
+};
+
 /** Cuántos técnicos puede tener el comité (con acceso o con invitación pendiente). */
 export const LIMITE_TECNICOS: Record<Plan, number> = {
   BASICO: 1,
