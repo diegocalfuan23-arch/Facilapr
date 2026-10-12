@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Receipt, Wallet } from "lucide-react";
+import { LayoutDashboard, LifeBuoy, Receipt, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const ITEMS = [
   { clave: "resumen", sufijo: "", texto: "Resumen", Icono: LayoutDashboard },
   { clave: "boletas", sufijo: "/boletas", texto: "Boletas", Icono: Receipt },
   { clave: "pagos", sufijo: "/pagos", texto: "Pagos", Icono: Wallet },
+  { clave: "solicitudes", sufijo: "/solicitudes", texto: "Solicitudes", Icono: LifeBuoy },
 ] as const;
 
 /**
@@ -29,7 +30,9 @@ export function PortalNav({
     ? "boletas"
     : ruta.endsWith("/pagos")
       ? "pagos"
-      : "resumen";
+      : ruta.endsWith("/solicitudes")
+        ? "solicitudes"
+        : "resumen";
 
   return (
     <nav

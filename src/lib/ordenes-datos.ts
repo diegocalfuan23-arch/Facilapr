@@ -131,3 +131,41 @@ export async function morososParaCorte(
     }))
     .sort((a, b) => b.diasVencida - a.diasVencida);
 }
+
+/** Las solicitudes y órdenes de un grupo de arranques (las cuentas de un mismo socio), de la más nueva a la más antigua. */
+export async function ordenesDeSocios(socioIds: string[]): Promise<(OrdenFila & { respuesta: string | null })[]> {
+  if (socioIds.length === 0) return [];
+  const filas = await db
+    .select({
+      id: ordenes.id,
+      tipo: ordenes.tipo,
+      estado: ordenes.estado,
+      origen: ordenes.origen,
+      detalle: ordenes.detalle,
+      deudaAlOrdenar: ordenes.deudaAlOrdenar,
+      socioId: socios.id,
+      socioNombre: socios.nombre,
+      socioRut: socios.rut,
+      socioDireccion: socios.direccion,
+      socioTelefono: socios.telefono,
+      creada: ordenes.createdAt,
+      ejecutada: ordenes.ejecutadaAt,
+      nota: ordenes.notaEjecucion,
+    })
+    .from(ordenes)
+    .innerJoin(socios, eq(ordenes.socioId, socios.id))
+    .where(inArray(ordenes.socioId, socioIds))
+    .orderBy(desc(ordenes.createdAt))
+    .limit(60);
+
+  return filas.map((f) => ({
+    ...f,
+    tipo: f.tipo as TipoOrden,
+    estado: f.estado as EstadoOrden,
+    creada: f.creada.toISOString(),
+    ejecutada: f.ejecutada ? f.ejecutada.toISOString() : null,
+    tieneFoto: false,
+    // En reclamos y bajas, la nota es la respuesta de la directiva.
+    respuesta: f.nota,
+  }));
+}

@@ -5,7 +5,7 @@ import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, evidenciasOrden, ordenes, socios } from "@/lib/db/schema";
 import { requireApr } from "@/lib/apr-session";
-import { MAX_FOTO_BASE64, type TipoOrden } from "@/lib/ordenes";
+import { MAX_FOTO_BASE64 } from "@/lib/ordenes";
 
 export type ResultadoOrden = { ok: true } | { ok: false; error: string };
 
@@ -80,7 +80,7 @@ export async function ordenarCorte(socioId: string, detalle?: string): Promise<R
  */
 export async function solicitarOrden(
   socioId: string,
-  tipo: Exclude<TipoOrden, "CORTE">,
+  tipo: "REPOSICION" | "REPARACION",
   detalle?: string
 ): Promise<ResultadoOrden> {
   const { user, apr } = await requireApr();
@@ -111,17 +111,55 @@ export async function solicitarOrden(
   return { ok: true };
 }
 
-/** La directiva aprueba (pasa a trámite) o rechaza una solicitud. */
-export async function resolverSolicitud(ordenId: string, aprobar: boolean): Promise<ResultadoOrden> {
+/**
+ * La directiva resuelve una solicitud. Según el tipo:
+ * - Reposición o reparación: aprobar la pasa a terreno (en trámite).
+ * - Reclamo: aprobar es responderlo; la respuesta es obligatoria y la ve el socio.
+ * - Baja: aprobar da de baja el arranque (queda inactivo).
+ * Rechazar cierra la solicitud; el motivo, si se escribe, también lo ve el socio.
+ */
+export async function resolverSolicitud(
+  ordenId: string,
+  aprobar: boolean,
+  respuesta?: string
+): Promise<ResultadoOrden> {
   const { user, apr } = await requireApr();
   if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede resolver solicitudes." };
 
-  const r = await db
+  const orden = await db.query.ordenes.findFirst({
+    where: and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id), eq(ordenes.estado, "SOLICITADA")),
+    columns: { id: true, tipo: true, socioId: true },
+  });
+  if (!orden) return { ok: false, error: "Esa solicitud ya no está pendiente." };
+
+  const texto = respuesta?.trim().slice(0, 500) || null;
+  if (aprobar && orden.tipo === "RECLAMO" && !texto) {
+    return { ok: false, error: "Escribe la respuesta al reclamo." };
+  }
+
+  const aTerreno = aprobar && (orden.tipo === "REPOSICION" || orden.tipo === "REPARACION");
+  const estado = !aprobar ? "RECHAZADA" : aTerreno ? "EN_TRAMITE" : "COMPLETADA";
+
+  await db
     .update(ordenes)
-    .set({ estado: aprobar ? "EN_TRAMITE" : "RECHAZADA", updatedAt: new Date() })
-    .where(and(eq(ordenes.id, ordenId), eq(ordenes.aprId, apr.id), eq(ordenes.estado, "SOLICITADA")))
-    .returning({ id: ordenes.id });
-  if (r.length === 0) return { ok: false, error: "Esa solicitud ya no está pendiente." };
+    .set({
+      estado,
+      notaEjecucion: texto,
+      confirmadaPorId: estado === "EN_TRAMITE" ? null : user.id,
+      confirmadaAt: estado === "EN_TRAMITE" ? null : new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(ordenes.id, ordenId));
+
+  // La baja aprobada deja el arranque inactivo: ya no entra en cobros ni en listas activas.
+  if (aprobar && orden.tipo === "BAJA") {
+    await db
+      .update(socios)
+      .set({ activo: false, updatedAt: new Date() })
+      .where(and(eq(socios.id, orden.socioId), eq(socios.aprId, apr.id)));
+    revalidatePath("/panel/socios");
+  }
+
   refrescar();
   return { ok: true };
 }

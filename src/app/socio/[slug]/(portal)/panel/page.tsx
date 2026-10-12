@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
+import { requireSocio } from "@/lib/socio-session";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
 import { basePortal } from "@/lib/portal-socio";
 import { boletasDelPortal } from "@/lib/portal-socio-datos";
+import { cortadosActuales, ordenesDeSocios } from "@/lib/ordenes-datos";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import {
   clp,
@@ -23,6 +24,7 @@ export default async function ResumenSocioPage({ params }: Props) {
   const { socio } = await requireSocio(slug);
   const base = await basePortal(slug);
   const { cuentas, lista } = await boletasDelPortal(socio);
+  const cortados = cortadosActuales(await ordenesDeSocios(cuentas.map((c) => c.id)));
 
   const porPagar = lista.filter(estaPorPagar);
   const pendiente = porPagar[0];
@@ -39,6 +41,21 @@ export default async function ResumenSocioPage({ params }: Props) {
   return (
     <>
       <TituloPantalla titulo={`Hola, ${socio.nombre.split(" ")[0]}`} />
+
+      {cortados.length > 0 && (
+        <section className="mb-4 rounded-2xl border border-destructive/25 bg-destructive/5 p-5">
+          <h2 className="font-semibold text-destructive">
+            {cortados.length === 1 ? "Tu servicio está cortado" : "Tienes servicios cortados"}
+          </h2>
+          <p className="mt-1 text-[0.88rem] text-muted-foreground">
+            Cuando regularices tu situación, pide que te lo repongan desde{" "}
+            <Link href={`${base}/solicitudes`} className="font-medium text-primary hover:underline">
+              Solicitudes
+            </Link>
+            .
+          </p>
+        </section>
+      )}
 
       <InstalarApp />
 

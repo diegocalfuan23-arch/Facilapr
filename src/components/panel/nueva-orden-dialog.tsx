@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
-import { TIPOS_ORDEN, type TipoOrden } from "@/lib/ordenes";
+import { TIPOS_ORDEN, type TipoCampo } from "@/lib/ordenes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -32,13 +32,13 @@ export function NuevaOrdenDialog({
   onCerrar,
 }: {
   socios: OpcionSocio[];
-  tipos: TipoOrden[];
+  tipos: TipoCampo[];
   titulo: string;
   descripcion: string;
   onCerrar: () => void;
 }) {
   const [socioId, setSocioId] = useState<string | null>(null);
-  const [tipo, setTipo] = useState<TipoOrden>(tipos[0]);
+  const [tipo, setTipo] = useState<TipoCampo>(tipos[0]);
   const [detalle, setDetalle] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();

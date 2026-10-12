@@ -13,9 +13,19 @@ import {
   type ResultadoOrden,
 } from "@/app/panel/ordenes/actions";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { formatearRut } from "@/lib/formato";
-import { ESTADOS_ORDEN, TIPOS_ORDEN, type TipoOrden } from "@/lib/ordenes";
+import { ESTADOS_ORDEN, TIPOS_ORDEN, type TipoCampo } from "@/lib/ordenes";
 import type { MorosoFila, OrdenFila } from "@/lib/ordenes-datos";
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
@@ -48,6 +58,7 @@ export function CortesPanel({
   const [pestana, setPestana] = useState<Pestana>(morosos.length > 0 ? "morosos" : "tramite");
   const [creando, setCreando] = useState(false);
   const [ejecutando, setEjecutando] = useState<OrdenFila | null>(null);
+  const [resolviendo, setResolviendo] = useState<{ orden: OrdenFila; aprobar: boolean } | null>(null);
   const [pendiente, iniciar] = useTransition();
 
   const tramite = ordenes.filter((o) => o.estado === "EN_TRAMITE");
@@ -191,10 +202,10 @@ export function CortesPanel({
                 detalle={[o.socioDireccion, o.detalle, `pedida por ${o.origen === "SOCIO" ? "el socio" : "el técnico"} ${fecha.format(new Date(o.creada))}`]}
                 acciones={
                   <>
-                    <Button size="sm" disabled={pendiente} onClick={() => ejecutar(() => resolverSolicitud(o.id, true), "Solicitud aprobada")}>
-                      Aprobar
+                    <Button size="sm" disabled={pendiente} onClick={() => setResolviendo({ orden: o, aprobar: true })}>
+                      {o.tipo === "RECLAMO" ? "Responder" : o.tipo === "BAJA" ? "Dar de baja" : "Aprobar"}
                     </Button>
-                    <Button size="sm" variant="outline" disabled={pendiente} onClick={() => ejecutar(() => resolverSolicitud(o.id, false), "Solicitud rechazada")}>
+                    <Button size="sm" variant="outline" disabled={pendiente} onClick={() => setResolviendo({ orden: o, aprobar: false })}>
                       Rechazar
                     </Button>
                   </>
@@ -246,10 +257,18 @@ export function CortesPanel({
       {creando && (
         <NuevaOrdenDialog
           socios={socios}
-          tipos={["CORTE", "REPOSICION", "REPARACION"] satisfies TipoOrden[]}
+          tipos={["CORTE", "REPOSICION", "REPARACION"] satisfies TipoCampo[]}
           titulo="Nueva orden"
           descripcion="Elige el arranque y qué hay que hacer en terreno."
           onCerrar={() => setCreando(false)}
+        />
+      )}
+
+      {resolviendo && (
+        <ResolverDialog
+          orden={resolviendo.orden}
+          aprobar={resolviendo.aprobar}
+          onCerrar={() => setResolviendo(null)}
         />
       )}
 
@@ -298,5 +317,108 @@ function Fila({
       {derecha}
       {acciones && <div className="flex flex-wrap items-center gap-2">{acciones}</div>}
     </div>
+  );
+}
+
+/**
+ * Resolver una solicitud. En un reclamo la respuesta es obligatoria (el socio la
+ * ve en su portal); en una baja, aprobarla deja el arranque inactivo; al
+ * rechazar, el motivo es opcional pero también lo ve el socio.
+ */
+function ResolverDialog({
+  orden,
+  aprobar,
+  onCerrar,
+}: {
+  orden: OrdenFila;
+  aprobar: boolean;
+  onCerrar: () => void;
+}) {
+  const [respuesta, setRespuesta] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [pendiente, iniciar] = useTransition();
+
+  const reclamo = orden.tipo === "RECLAMO";
+  const baja = orden.tipo === "BAJA";
+  const pideTexto = reclamo || !aprobar || baja;
+
+  const titulo = !aprobar
+    ? `Rechazar ${TIPOS_ORDEN[orden.tipo].texto.toLowerCase()}`
+    : reclamo
+      ? "Responder el reclamo"
+      : baja
+        ? "Dar de baja el servicio"
+        : `Aprobar ${TIPOS_ORDEN[orden.tipo].texto.toLowerCase()}`;
+
+  const descripcion = !aprobar
+    ? "Si escribes un motivo, el socio lo ve en su portal."
+    : reclamo
+      ? "Tu respuesta le aparece al socio en su portal."
+      : baja
+        ? "El arranque queda inactivo y deja de aparecer en los cobros. Lo que debe hasta hoy no se borra."
+        : "Pasa a trámite: el técnico (o el presidente) va a terreno y sube la foto.";
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onCerrar()}>
+      <DialogContent className="sm:max-w-[440px]">
+        <DialogHeader>
+          <DialogTitle>
+            {titulo} · {orden.socioNombre}
+          </DialogTitle>
+          <DialogDescription>{descripcion}</DialogDescription>
+        </DialogHeader>
+
+        <div className="flex flex-col gap-3">
+          {orden.detalle && (
+            <p className="rounded-lg bg-muted/60 px-3.5 py-2.5 text-[0.86rem]">
+              <span className="font-medium">El socio escribió: </span>
+              {orden.detalle}
+            </p>
+          )}
+          {pideTexto && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="respuesta-orden">
+                {aprobar && reclamo ? "Respuesta" : "Mensaje para el socio (opcional)"}
+              </Label>
+              <Textarea
+                id="respuesta-orden"
+                rows={4}
+                maxLength={500}
+                value={respuesta}
+                onChange={(e) => setRespuesta(e.target.value)}
+                autoFocus
+              />
+            </div>
+          )}
+          {error && <p className="text-[0.88rem] text-destructive">{error}</p>}
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onCerrar}>
+            Cancelar
+          </Button>
+          <Button
+            variant={!aprobar ? "destructive" : "default"}
+            disabled={pendiente || (aprobar && reclamo && !respuesta.trim())}
+            onClick={() =>
+              iniciar(async () => {
+                setError(null);
+                const r = await resolverSolicitud(orden.id, aprobar, respuesta);
+                if (r.ok) {
+                  toast.success(aprobar ? "Listo" : "Solicitud rechazada");
+                  onCerrar();
+                } else {
+                  setError(r.error);
+                  toast.error(r.error);
+                }
+              })
+            }
+          >
+            {pendiente && <Loader2 className="animate-spin" />}
+            {!aprobar ? "Rechazar" : reclamo ? "Enviar respuesta" : baja ? "Dar de baja" : "Aprobar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
