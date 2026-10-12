@@ -32,6 +32,7 @@ import {
   enlaceWhatsApp,
   mensajeAvisoCorte,
   mensajeCorteRealizado,
+  mensajeReanudacion,
   mensajeReposicion,
   mensajeRespuestaSolicitud,
   telefonoValidoParaWhatsApp,
@@ -300,6 +301,12 @@ export function CortesPanel({
                       telefono={o.socioTelefono}
                       etiqueta="Avisar reposición"
                       texto={mensajeReposicion(comite, { socioNombre: o.socioNombre })}
+                    />
+                  ) : o.tipo === "REANUDACION" && o.estado === "COMPLETADA" ? (
+                    <BotonAvisar
+                      telefono={o.socioTelefono}
+                      etiqueta="Avisar reanudación"
+                      texto={mensajeReanudacion(comite, { socioNombre: o.socioNombre })}
                     />
                   ) : o.origen === "SOCIO" && (o.estado === "COMPLETADA" || o.estado === "RECHAZADA") ? (
                     <BotonAvisar

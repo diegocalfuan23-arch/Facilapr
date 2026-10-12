@@ -251,3 +251,11 @@ export function mensajeRespuestaSolicitud(
   if (link) lineas.push("", `Puedes ver el detalle en tu cuenta: ${link}`);
   return lineas.join("\n");
 }
+
+export function mensajeReanudacion(comite: DatosComiteWhatsApp, d: { socioNombre: string }) {
+  return [
+    `Hola ${primerNombre(d.socioNombre)}, te escribe ${comite.nombre}.`,
+    "",
+    "Aprobamos la reanudación de tu servicio de agua: tu arranque volvió a estar activo. Si hace falta reconectarlo en terreno, te avisaremos.",
+  ].join("\n");
+}

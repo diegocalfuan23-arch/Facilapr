@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useSyncExternalStore } from "react";
 import { LayoutDashboard, LifeBuoy, Receipt, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -18,13 +19,42 @@ const ITEMS = [
  * La pantalla activa se reconoce por el final de la dirección, que es igual
  * con o sin subdominio (/cuenta/boletas o /quema/cuenta/boletas).
  */
+const CLAVE_VISTO = "facilapr-solicitudes-vistas";
+const EVENTO_VISTO = "facilapr-solicitudes-vistas-cambio";
+
+/** Cuándo el socio miró por última vez sus solicitudes. Vive en este navegador: no hace falta guardarlo en la base. */
+function useVisto() {
+  return useSyncExternalStore(
+    (avisar) => {
+      window.addEventListener("storage", avisar);
+      window.addEventListener(EVENTO_VISTO, avisar);
+      return () => {
+        window.removeEventListener("storage", avisar);
+        window.removeEventListener(EVENTO_VISTO, avisar);
+      };
+    },
+    () => {
+      try {
+        return localStorage.getItem(CLAVE_VISTO) ?? "";
+      } catch {
+        return "";
+      }
+    },
+    () => ""
+  );
+}
+
 export function PortalNav({
   base,
   horizontal = false,
+  novedad = null,
 }: {
   base: string;
   horizontal?: boolean;
+  /** Cuándo cambió por última vez algo en sus solicitudes (ISO); null si no hay. */
+  novedad?: string | null;
 }) {
+  const visto = useVisto();
   const ruta = usePathname().replace(/\/+$/, "");
   const activa = ruta.endsWith("/boletas")
     ? "boletas"
@@ -33,6 +63,18 @@ export function PortalNav({
       : ruta.endsWith("/solicitudes")
         ? "solicitudes"
         : "resumen";
+
+  // Al abrir Solicitudes se marca todo como visto; en las demás pantallas, un punto avisa de lo nuevo.
+  const hayNovedad = Boolean(novedad) && activa !== "solicitudes" && (visto === "" || novedad! > visto);
+  useEffect(() => {
+    if (activa !== "solicitudes" || !novedad || visto >= novedad) return;
+    try {
+      localStorage.setItem(CLAVE_VISTO, novedad);
+      window.dispatchEvent(new Event(EVENTO_VISTO));
+    } catch {
+      // Sin almacenamiento, el punto seguirá apareciendo.
+    }
+  }, [activa, novedad, visto]);
 
   return (
     <nav
@@ -57,6 +99,9 @@ export function PortalNav({
         >
           <Icono className="size-[18px]" />
           {texto}
+          {clave === "solicitudes" && hayNovedad && (
+            <span aria-label="Hay novedades" className="size-2 rounded-full bg-primary" />
+          )}
         </Link>
       ))}
     </nav>

@@ -1,4 +1,7 @@
 import { Droplets } from "lucide-react";
+import { inArray, max } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { ordenes } from "@/lib/db/schema";
 import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
 import { basePortal } from "@/lib/portal-socio";
 import { puede, type Plan } from "@/lib/planes";
@@ -24,6 +27,18 @@ export default async function PortalSocioLayout({
   const base = await basePortal(slug);
   const cuentas = await cuentasDelSocio(socio);
 
+  // Lo último que cambió en sus solicitudes: el menú marca un punto si no lo ha visto.
+  let novedad: string | null = null;
+  try {
+    const [f] = await db
+      .select({ ultima: max(ordenes.updatedAt) })
+      .from(ordenes)
+      .where(inArray(ordenes.socioId, cuentas.map((c) => c.id)));
+    novedad = f?.ultima ? f.ultima.toISOString() : null;
+  } catch {
+    // Sin punto de novedades.
+  }
+
   return (
     <div className="min-h-screen bg-background lg:pl-64">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-card lg:flex">
@@ -37,7 +52,7 @@ export default async function PortalSocioLayout({
           </div>
         </div>
 
-        <PortalNav base={base} />
+        <PortalNav base={base} novedad={novedad} />
 
         <div className="mt-auto flex flex-col gap-3 border-t border-border p-4">
           <div className="min-w-0">
@@ -60,7 +75,7 @@ export default async function PortalSocioLayout({
           </div>
           <SignOutSocioButton base={base} />
         </div>
-        <PortalNav base={base} horizontal />
+        <PortalNav base={base} horizontal novedad={novedad} />
       </header>
 
       <main className="mx-auto max-w-[720px] px-6 py-8 pb-40 lg:max-w-[840px] lg:py-12">
