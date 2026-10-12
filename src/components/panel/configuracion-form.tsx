@@ -4,7 +4,6 @@ import { toast } from "sonner";
 import { useActionState, useEffect, useState } from "react";
 import {
   Building2,
-  CreditCard,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -36,7 +35,6 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { MiPlan, type DatosPlan } from "@/components/panel/mi-plan";
 
 export type DatosConfiguracion = {
   /** El plan incluye la IA dentro del chat (Estándar y Grande). */
@@ -170,7 +168,6 @@ function Campo({
 }
 
 type Seccion =
-  | "plan"
   | "comite"
   | "regional"
   | "facturacion"
@@ -186,7 +183,6 @@ const SECCIONES: {
   resumen: string;
   icono: typeof Building2;
 }[] = [
-  { id: "plan", label: "Mi plan", resumen: "Plan, límites y consumo de IA", icono: CreditCard },
   { id: "comite", label: "Comité", resumen: "Tus datos y tu enlace", icono: Building2 },
   { id: "regional", label: "País y moneda", resumen: "País, moneda y zona horaria", icono: Globe },
   { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
@@ -199,20 +195,14 @@ const SECCIONES: {
 export function ConfiguracionForm({
   datos,
   resumenDatos,
-  plan,
-  seccionInicial,
 }: {
   datos: DatosConfiguracion;
   resumenDatos: ResumenDatos;
-  plan: DatosPlan;
-  /** Sección con la que abre (p. ej. «plan» desde el menú del comité). */
-  seccionInicial?: string;
 }) {
-  const inicial = SECCIONES.find((x) => x.id === seccionInicial)?.id;
-  const [seccion, setSeccion] = useState<Seccion>(inicial ?? "comite");
+  const [seccion, setSeccion] = useState<Seccion>("comite");
   // Solo celular: primero la lista de temas y, al tocar uno, su contenido. En
   // pantallas grandes se ven siempre las dos cosas (menú a un lado).
-  const [vistaMovil, setVistaMovil] = useState<"lista" | "detalle">(inicial ? "detalle" : "lista");
+  const [vistaMovil, setVistaMovil] = useState<"lista" | "detalle">("lista");
 
   function abrirSeccion(id: Seccion) {
     setSeccion(id);
@@ -298,8 +288,6 @@ export function ConfiguracionForm({
               </span>
             )}
           </button>
-      {seccion === "plan" && <MiPlan plan={plan} />}
-
       {seccion === "comite" && (
         <Bloque
           titulo="Datos del comité"

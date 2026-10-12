@@ -267,7 +267,7 @@ function TarjetaComite({
 
             {rol === "ADMIN" && (
               <DropdownMenuGroup>
-                <DropdownMenuItem render={<Link href="/panel/configuracion?seccion=plan" />}>
+                <DropdownMenuItem render={<Link href="/panel/plan" />}>
                   <CreditCard />
                   Mi plan
                 </DropdownMenuItem>
