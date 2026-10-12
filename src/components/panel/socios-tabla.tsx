@@ -320,6 +320,93 @@ export function SociosTabla({
     paginaActual * POR_PAGINA
   );
 
+  /** Las acciones de un socio: el mismo menú en la tabla (escritorio) y en las tarjetas (celular). */
+  const menuAcciones = (socio: SocioFila) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Acciones para ${socio.nombre}`}
+              >
+                <MoreHorizontal />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setEditando(socio)}>
+              <Pencil />
+              Editar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() =>
+                startTransition(async () => {
+                  await alternarActivo(socio.id, !socio.activo);
+                  toast.success(
+                    socio.activo
+                      ? `${socio.nombre} quedó inactivo`
+                      : `${socio.nombre} quedó activo`
+                  );
+                })
+              }
+            >
+              {socio.activo ? <UserX /> : <UserCheck />}
+              {socio.activo
+                ? "Marcar inactivo"
+                : "Marcar activo"}
+            </DropdownMenuItem>
+            {!socio.conCuenta && (
+              <DropdownMenuItem
+                disabled={
+                  !socio.invitacionUrl ||
+                  !telefonoValidoParaWhatsApp(socio.telefono)
+                }
+                onClick={() => {
+                  if (!socio.invitacionUrl || !socio.telefono) return;
+                  window.open(
+                    enlaceWhatsApp(
+                      socio.telefono,
+                      mensajeInvitacionPortal(
+                        comite.nombre,
+                        socio.nombre,
+                        socio.invitacionUrl
+                      )
+                    ),
+                    "_blank",
+                    "noopener"
+                  );
+                }}
+              >
+                <Send />
+                {!comite.slug
+                  ? "Define tu enlace para invitar"
+                  : !telefonoValidoParaWhatsApp(socio.telefono)
+                    ? "Sin teléfono: no se puede invitar"
+                    : "Invitar al portal"}
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem
+              disabled={!socio.conCuenta}
+              onClick={() => setRestableciendo(socio)}
+            >
+              <KeyRound />
+              {socio.conCuenta
+                ? "Restablecer clave"
+                : "Sin cuenta en el portal"}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => setPorEliminar(socio)}
+            >
+              <Trash2 />
+              Eliminar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+  );
+
   const todasMarcadas =
     visibles.length > 0 && visibles.every((s) => seleccion.has(s.id));
 
@@ -624,7 +711,7 @@ export function SociosTabla({
           {/* TableHeader fuerza [&_tr]:border-b y TableRow trae el suyo: las
               dos se apilan en la misma fila y se ven como una línea gruesa.
               Un solo borde suave, declarado aquí, gana a ambas. */}
-          <div data-tour="socios-tabla" className="overflow-x-auto">
+          <div data-tour="socios-tabla" className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-b-border/50 hover:bg-transparent">
@@ -736,95 +823,87 @@ export function SociosTabla({
                         {socio.direccion ?? "—"}
                       </TableCell>
                       <TableCell className="w-12 py-3.5 pr-5">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger
-                            render={
-                              <Button
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Acciones para ${socio.nombre}`}
-                              >
-                                <MoreHorizontal />
-                              </Button>
-                            }
-                          />
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setEditando(socio)}>
-                              <Pencil />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                startTransition(async () => {
-                                  await alternarActivo(socio.id, !socio.activo);
-                                  toast.success(
-                                    socio.activo
-                                      ? `${socio.nombre} quedó inactivo`
-                                      : `${socio.nombre} quedó activo`
-                                  );
-                                })
-                              }
-                            >
-                              {socio.activo ? <UserX /> : <UserCheck />}
-                              {socio.activo
-                                ? "Marcar inactivo"
-                                : "Marcar activo"}
-                            </DropdownMenuItem>
-                            {!socio.conCuenta && (
-                              <DropdownMenuItem
-                                disabled={
-                                  !socio.invitacionUrl ||
-                                  !telefonoValidoParaWhatsApp(socio.telefono)
-                                }
-                                onClick={() => {
-                                  if (!socio.invitacionUrl || !socio.telefono) return;
-                                  window.open(
-                                    enlaceWhatsApp(
-                                      socio.telefono,
-                                      mensajeInvitacionPortal(
-                                        comite.nombre,
-                                        socio.nombre,
-                                        socio.invitacionUrl
-                                      )
-                                    ),
-                                    "_blank",
-                                    "noopener"
-                                  );
-                                }}
-                              >
-                                <Send />
-                                {!comite.slug
-                                  ? "Define tu enlace para invitar"
-                                  : !telefonoValidoParaWhatsApp(socio.telefono)
-                                    ? "Sin teléfono: no se puede invitar"
-                                    : "Invitar al portal"}
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuItem
-                              disabled={!socio.conCuenta}
-                              onClick={() => setRestableciendo(socio)}
-                            >
-                              <KeyRound />
-                              {socio.conCuenta
-                                ? "Restablecer clave"
-                                : "Sin cuenta en el portal"}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              variant="destructive"
-                              onClick={() => setPorEliminar(socio)}
-                            >
-                              <Trash2 />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                        {menuAcciones(socio)}
                       </TableCell>
                     </TableRow>
                   ))
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="md:hidden">
+            {visibles.length === 0 ? (
+              <p className="border-t border-border/60 px-4 py-12 text-center text-[0.92rem] text-muted-foreground">
+                {busqueda
+                  ? `Ningún socio coincide con «${busqueda}».`
+                  : "No hay socios en esta pestaña."}
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/60 border-t border-border/60">
+                {visibles.map((socio) => (
+                  <li
+                    key={socio.id}
+                    data-state={seleccion.has(socio.id) ? "selected" : undefined}
+                    className="flex items-start gap-3 px-4 py-4 data-[state=selected]:bg-muted/50"
+                  >
+                    <Checkbox
+                      className="mt-2.5"
+                      checked={seleccion.has(socio.id)}
+                      onCheckedChange={() => alternarSeleccion(socio.id)}
+                      aria-label={`Seleccionar a ${socio.nombre}`}
+                    />
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.72rem] font-semibold text-primary">
+                      {iniciales(socio.nombre)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{socio.nombre}</div>
+                          <div className="truncate text-[0.78rem] tabular-nums text-muted-foreground">
+                            {[
+                              socio.rut ? formatearRut(socio.rut) : null,
+                              socio.tipo === "USUARIO" ? "Usuario" : null,
+                              socio.numeroCliente ? `N.º ${socio.numeroCliente}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ") || "Sin RUT"}
+                          </div>
+                        </div>
+                        {menuAcciones(socio)}
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[0.8rem] text-muted-foreground">
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.76rem] font-medium",
+                            socio.activo
+                              ? "bg-forest/10 text-forest"
+                              : "bg-muted text-muted-foreground"
+                          )}
+                        >
+                          {socio.activo ? (
+                            <UserCheck className="size-3.5" />
+                          ) : (
+                            <UserX className="size-3.5" />
+                          )}
+                          {socio.activo ? "Activo" : "Inactivo"}
+                        </span>
+                        {socio.telefono && (
+                          <span className="tabular-nums">
+                            {formatearTelefono(socio.telefono)}
+                          </span>
+                        )}
+                      </div>
+                      {socio.direccion && (
+                        <div className="mt-1 truncate text-[0.8rem] text-muted-foreground">
+                          {socio.direccion}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">

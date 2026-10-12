@@ -313,6 +313,83 @@ export function BoletasTabla({
     setPagina(1);
   }
 
+  /** Las acciones de una boleta: el mismo menú en la tabla (escritorio) y en las tarjetas (celular). */
+  const menuAcciones = (b: BoletaFila) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Acciones para la boleta de ${b.socioNombre}`}
+              >
+                <MoreHorizontal />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            {cobrable(b) &&
+              telefonoValidoParaWhatsApp(b.socioTelefono) && (
+                <DropdownMenuItem
+                  onClick={() => setParaEnviar([b])}
+                >
+                  <MessageCircle />
+                  {enviadas.has(b.id)
+                    ? "Reenviar por WhatsApp"
+                    : "Enviar por WhatsApp"}
+                </DropdownMenuItem>
+              )}
+            <DropdownMenuItem
+              onClick={() =>
+                window.open(`/recibos/${b.id}`, "_blank", "noopener")
+              }
+            >
+              <FileText />
+              Ver recibo
+            </DropdownMenuItem>
+            {b.estado !== "ANULADA" && (
+              <DropdownMenuItem
+                onClick={() =>
+                  window.open(b.reciboUrl, "_blank", "noopener")
+                }
+              >
+                <FileDown />
+                Descargar PDF
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => setCobrando(b)}>
+              <Coins />
+              Registrar pago
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setEditando(b)}>
+              <Pencil />
+              Editar
+            </DropdownMenuItem>
+            {b.estado !== "ANULADA" && (
+              <DropdownMenuItem
+                onClick={() =>
+                  iniciar(async () => {
+                    await anularBoleta(b.id);
+                    toast.success("Boleta anulada");
+                  })
+                }
+              >
+                <Ban />
+                Anular
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => setPorEliminar(b)}
+            >
+              <Trash2 />
+              Eliminar
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+  );
+
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -472,7 +549,7 @@ export function BoletasTabla({
 
           {/* TableHeader y TableRow apilan sus bordes en la misma fila: un
               solo borde suave declarado aquí gana a ambos. */}
-          <div data-tour="bol-tabla" className="overflow-x-auto">
+          <div data-tour="bol-tabla" className="hidden overflow-x-auto md:block">
             <Table>
               <TableHeader>
                 <TableRow className="border-b-border/50 hover:bg-transparent">
@@ -568,79 +645,7 @@ export function BoletasTabla({
                           {fecha.format(b.fechaVencimiento)}
                         </TableCell>
                         <TableCell className="w-12 py-3.5 pr-5">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={
-                                <Button
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  aria-label={`Acciones para la boleta de ${b.socioNombre}`}
-                                >
-                                  <MoreHorizontal />
-                                </Button>
-                              }
-                            />
-                            <DropdownMenuContent align="end">
-                              {cobrable(b) &&
-                                telefonoValidoParaWhatsApp(b.socioTelefono) && (
-                                  <DropdownMenuItem
-                                    onClick={() => setParaEnviar([b])}
-                                  >
-                                    <MessageCircle />
-                                    {enviadas.has(b.id)
-                                      ? "Reenviar por WhatsApp"
-                                      : "Enviar por WhatsApp"}
-                                  </DropdownMenuItem>
-                                )}
-                              <DropdownMenuItem
-                                onClick={() =>
-                                  window.open(`/recibos/${b.id}`, "_blank", "noopener")
-                                }
-                              >
-                                <FileText />
-                                Ver recibo
-                              </DropdownMenuItem>
-                              {b.estado !== "ANULADA" && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    window.open(b.reciboUrl, "_blank", "noopener")
-                                  }
-                                >
-                                  <FileDown />
-                                  Descargar PDF
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem onClick={() => setCobrando(b)}>
-                                <Coins />
-                                Registrar pago
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => setEditando(b)}>
-                                <Pencil />
-                                Editar
-                              </DropdownMenuItem>
-                              {b.estado !== "ANULADA" && (
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    iniciar(async () => {
-                                      await anularBoleta(b.id);
-                                      toast.success("Boleta anulada");
-                                    })
-                                  }
-                                >
-                                  <Ban />
-                                  Anular
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                variant="destructive"
-                                onClick={() => setPorEliminar(b)}
-                              >
-                                <Trash2 />
-                                Eliminar
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {menuAcciones(b)}
                         </TableCell>
                       </TableRow>
                     );
@@ -648,6 +653,70 @@ export function BoletasTabla({
                 )}
               </TableBody>
             </Table>
+          </div>
+
+          <div className="md:hidden">
+            {visibles.length === 0 ? (
+              <p className="border-t border-border/60 py-12 text-center text-[0.92rem] text-muted-foreground">
+                Ninguna boleta coincide con el filtro.
+              </p>
+            ) : (
+              <ul className="divide-y divide-border/60 border-t border-border/60">
+                {visibles.map((b) => {
+                  const estilo = ESTILO_ESTADO[b.estado];
+                  const Icono = estilo.icono;
+                  const faltan = saldo(b.montoTotal, b.montoPagado);
+                  return (
+                    <li key={b.id} className="flex flex-col gap-2.5 px-4 py-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="truncate font-medium">{b.socioNombre}</div>
+                          <div className="truncate text-[0.78rem] tabular-nums text-muted-foreground">
+                            {[b.socioRut ? formatearRut(b.socioRut) : null, formatearPeriodo(b.periodo)]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </div>
+                        {menuAcciones(b)}
+                      </div>
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[1.05rem] font-semibold tabular-nums">
+                          {clp.format(b.montoTotal)}
+                        </span>
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap",
+                            estilo.clase
+                          )}
+                        >
+                          <Icono className="size-3.5" />
+                          {estilo.texto}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[0.8rem] text-muted-foreground">
+                        <span className="tabular-nums">
+                          Vence {fecha.format(b.fechaVencimiento)}
+                        </span>
+                        {b.consumoM3 !== null && (
+                          <span className="tabular-nums">{b.consumoM3} m³</span>
+                        )}
+                        {b.montoPagado > 0 && b.estado !== "ANULADA" && (
+                          <span className="tabular-nums">
+                            Pagado {clp.format(b.montoPagado)}
+                            {faltan > 0 && (
+                              <span className="text-destructive">
+                                {" "}
+                                · faltan {clp.format(faltan)}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
