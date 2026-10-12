@@ -9,7 +9,7 @@ import {
   type ProgresoPrimerosPasos,
 } from "@/app/panel/primeros-pasos-actions";
 import { lanzarRecorrido } from "@/components/panel/recorrido";
-import { RECORRIDOS } from "@/lib/recorridos";
+import { RECORRIDOS, RECORRIDOS_NUEVOS } from "@/lib/recorridos";
 import { cn } from "@/lib/utils";
 
 const RADIO = 22;
@@ -77,7 +77,7 @@ export function PrimerosPasosFlotante() {
 
   if (!cargado) return null;
 
-  const recorridoDePantalla = RECORRIDOS.find(
+  const recorridoDePantalla = [...RECORRIDOS, ...RECORRIDOS_NUEVOS].find(
     (r) => r.ruta === pathname && r.id !== "resumen"
   );
 
