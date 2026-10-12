@@ -3,6 +3,7 @@
 import { toast } from "sonner";
 import { useActionState, useEffect, useState } from "react";
 import {
+  BarChart3,
   Building2,
   Check,
   ChevronLeft,
@@ -35,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { UsoComite, type DatosUso } from "@/components/panel/uso-comite";
 
 export type DatosConfiguracion = {
   /** El plan incluye la IA dentro del chat (Estándar y Grande). */
@@ -169,6 +171,7 @@ function Campo({
 
 type Seccion =
   | "comite"
+  | "uso"
   | "regional"
   | "facturacion"
   | "medidores"
@@ -188,6 +191,7 @@ const SECCIONES: {
   { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
   { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge },
   { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors },
+  { id: "uso", label: "Uso y consumo", resumen: "Socios, técnicos y tokens de IA", icono: BarChart3 },
   { id: "iaChat", label: "Asistente de chat", resumen: "Respuestas automáticas con IA", icono: Sparkles },
   { id: "datos", label: "Datos y privacidad", resumen: "Respaldo y borrado de datos", icono: ShieldCheck },
 ];
@@ -195,9 +199,11 @@ const SECCIONES: {
 export function ConfiguracionForm({
   datos,
   resumenDatos,
+  uso,
 }: {
   datos: DatosConfiguracion;
   resumenDatos: ResumenDatos;
+  uso: DatosUso;
 }) {
   const [seccion, setSeccion] = useState<Seccion>("comite");
   // Solo celular: primero la lista de temas y, al tocar uno, su contenido. En
@@ -288,6 +294,8 @@ export function ConfiguracionForm({
               </span>
             )}
           </button>
+      {seccion === "uso" && <UsoComite uso={uso} />}
+
       {seccion === "comite" && (
         <Bloque
           titulo="Datos del comité"
