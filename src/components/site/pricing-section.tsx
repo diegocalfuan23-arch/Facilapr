@@ -70,8 +70,9 @@ export function PricingSection() {
         <div className="grid items-stretch gap-5.5 sm:grid-cols-3">
           {planes.map((plan) => {
             const aMedida = plan.mensual === null;
-            const precioAnual = aMedida ? 0 : plan.mensual! * (12 - MESES_GRATIS);
-            const precio = aMedida ? null : anual ? precioAnual : plan.mensual!;
+            const base = plan.mensual ?? plan.desde ?? null;
+            const precioAnual = base === null ? 0 : base * (12 - MESES_GRATIS);
+            const precio = base === null ? null : anual ? precioAnual : base;
 
             return (
               <div
@@ -97,6 +98,9 @@ export function PricingSection() {
                     "A medida"
                   ) : (
                     <>
+                      {aMedida && (
+                        <span className="text-[0.9rem] font-medium text-muted-foreground">Desde</span>
+                      )}
                       {formato.format(precio)} {UNIDAD}
                       <span className="font-sans text-[0.9rem] font-medium text-muted-foreground">
                         {anual ? "/año" : "/mes"}
@@ -108,7 +112,7 @@ export function PricingSection() {
                   <div className="mb-5" />
                 ) : (
                   <p className="mb-5 text-[0.8rem] text-muted-foreground">
-                    + IVA
+                    + IVA{aMedida && " · según tus socios y sedes"}
                     {anual && (
                       <>
                         {" · "}

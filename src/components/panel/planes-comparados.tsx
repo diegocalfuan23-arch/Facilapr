@@ -64,7 +64,8 @@ export function PlanesComparados({ planActual }: { planActual: Plan }) {
       <div className="grid items-stretch gap-5 lg:grid-cols-3">
         {PLANES_COMERCIALES.map((plan) => {
           const esActual = plan.clave === planActual;
-          const precio = precioPlan(plan.mensual, anual);
+          const precio = precioPlan(plan.mensual, anual, plan.desde);
+          const aMedida = plan.mensual === null;
 
           return (
             <div
@@ -88,6 +89,9 @@ export function PlanesComparados({ planActual }: { planActual: Plan }) {
                   "A medida"
                 ) : (
                   <>
+                    {aMedida && (
+                      <span className="text-[0.85rem] font-medium text-muted-foreground">Desde</span>
+                    )}
                     {formatoPrecio.format(precio)} {UNIDAD}
                     <span className="text-[0.85rem] font-medium text-muted-foreground">
                       {anual ? "/año" : "/mes"}
@@ -99,7 +103,7 @@ export function PlanesComparados({ planActual }: { planActual: Plan }) {
                 <div className="mb-4" />
               ) : (
                 <p className="mb-4 text-[0.78rem] text-muted-foreground">
-                  + IVA
+                  + IVA{aMedida && " · según tus socios y sedes"}
                   {anual && (
                     <>
                       {" · "}

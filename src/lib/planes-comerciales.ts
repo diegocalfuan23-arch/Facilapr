@@ -17,6 +17,8 @@ export const PLANES_COMERCIALES: {
   descripcion: string;
   /** Precio mensual en `UNIDAD`; null = a medida. */
   mensual: number | null;
+  /** En los planes a medida, el precio mínimo («desde X»). */
+  desde?: number;
   /** Lo que incluye además del plan anterior. */
   incluye?: string;
   lista: ItemPlan[];
@@ -61,6 +63,7 @@ export const PLANES_COMERCIALES: {
     nombre: "APR Grande",
     descripcion: "Más de 800 socios o varias sedes.",
     mensual: null,
+    desde: 4,
     incluye: "Todo lo del Estándar, más:",
     lista: [
       "Socios y técnicos sin tope",
@@ -78,7 +81,8 @@ export const PLANES_COMERCIALES: {
 export const formatoPrecio = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
 
 /** Precio de un plan en UF: mensual o anual (11 meses). Null si es a medida. */
-export function precioPlan(mensual: number | null, anual: boolean) {
-  if (mensual === null) return null;
-  return anual ? mensual * (12 - MESES_GRATIS) : mensual;
+export function precioPlan(mensual: number | null, anual: boolean, desde?: number) {
+  const base = mensual ?? desde ?? null;
+  if (base === null) return null;
+  return anual ? base * (12 - MESES_GRATIS) : base;
 }
