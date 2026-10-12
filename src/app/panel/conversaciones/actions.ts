@@ -1,7 +1,7 @@
 "use server";
 
 import { z } from "zod";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { socios, mensajesSocio } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
@@ -112,41 +112,4 @@ export async function eliminarMensajeDirectiva(
 
   await db.delete(mensajesSocio).where(eq(mensajesSocio.id, fila.id));
   return { ok: true };
-}
-
-/**
- * Latido del panel de la directiva: avisa que hay alguien conectado y, si
- * corresponde, en qué conversación está escribiendo. La IA del chat lo mira para
- * no responder encima de una persona. Solo guarda algo si el comité usa el modo
- * «cuando no esté disponible».
- *
- * `escribiendoEn`: undefined = solo el latido; null = dejó de escribir;
- * un id = está escribiendo en esa conversación.
- */
-export async function latidoPanel(escribiendoEn?: string | null) {
-  const { user, apr } = await requireAdmin();
-  if (apr.iaChatModo !== "SIN_RESPUESTA") return;
-
-  try {
-    if (escribiendoEn) {
-      const socio = await db.query.socios.findFirst({
-        where: and(eq(socios.id, escribiendoEn), eq(socios.aprId, apr.id)),
-        columns: { id: true },
-      });
-      if (!socio) return;
-    }
-
-    await db.execute(sql`
-      insert into "PresenciaComite" ("userId", "aprId", "visto", "escribiendoSocioId", "escribiendoAt")
-      values (${user.id}, ${apr.id}, now(),
-              ${escribiendoEn ?? null}, ${escribiendoEn ? sql`now()` : null})
-      on conflict ("userId") do update set
-        "aprId" = excluded."aprId",
-        "visto" = now(),
-        "escribiendoSocioId" = ${escribiendoEn === undefined ? sql`"PresenciaComite"."escribiendoSocioId"` : sql`excluded."escribiendoSocioId"`},
-        "escribiendoAt" = ${escribiendoEn === undefined ? sql`"PresenciaComite"."escribiendoAt"` : sql`excluded."escribiendoAt"`}
-    `);
-  } catch {
-    // Sin presencia, la IA simplemente no espera: nunca debe romper el panel.
-  }
 }

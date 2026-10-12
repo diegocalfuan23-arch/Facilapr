@@ -1,8 +1,7 @@
-import { and, desc, eq, gt, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, lecturas, mensajesSocio, pagos, socios } from "@/lib/db/schema";
 import { usoIaChat } from "@/lib/ia-chat-cuota";
-import { decidirRespuesta } from "@/lib/ia-presencia";
 import { responder, type Mensaje } from "@/lib/ia";
 import { enviarMensajeChat } from "@/lib/chat-socio";
 import { formatearRut, formatearTelefono } from "@/lib/formato";
@@ -55,9 +54,7 @@ async function intentar(socioId: string) {
   if (!socio) return;
 
   const apr = socio.apr;
-  if (!puede(apr.plan as Plan, "iaChat")) return;
-  // SIEMPRE: responde enseguida. SIN_RESPUESTA: respeta a la directiva si está disponible.
-  if (apr.iaChatModo !== "SIEMPRE" && apr.iaChatModo !== "SIN_RESPUESTA") return;
+  if (!puede(apr.plan as Plan, "iaChat") || apr.iaChatModo !== "SIEMPRE") return;
   if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return;
 
   const recientes = await db.query.mensajesSocio.findMany({
@@ -81,15 +78,6 @@ async function intentar(socioId: string) {
     columns: { id: true },
   });
   if (humano) return;
-
-  // Modo «cuando no esté disponible»: si hay alguien de la directiva conectado y
-  // libre, se le da tiempo; el cron vuelve a preguntar cada minuto.
-  if (
-    apr.iaChatModo === "SIN_RESPUESTA" &&
-    (await decidirRespuesta(apr.id, socioId, apr.iaChatEsperaMin)) === "esperar"
-  ) {
-    return;
-  }
 
   // Sin tokens (cuota del mes y packs agotados) la IA calla y responde la directiva.
   const uso = await usoIaChat(apr.id, apr.plan as Plan);
@@ -182,31 +170,20 @@ async function intentar(socioId: string) {
       "Le avisé a la directiva para que te responda personalmente.";
   }
 
-  // Se envía bajo un candado por conversación: el mensaje del socio puede disparar
-  // la IA desde dos lados a la vez (al llegar y desde el cron) y sin esto el socio
-  // recibiría dos respuestas. El segundo que llega ve que ya hay respuesta y se va.
-  await db.transaction(async (tx) => {
-    const { rows } = await tx.execute<{ ok: boolean }>(
-      sql`select pg_try_advisory_xact_lock(hashtext(${socioId})) as ok`
-    );
-    if (!rows[0]?.ok) return;
+  // Si mientras la IA pensaba entró otro mensaje, esa nueva entrada tendrá su propia respuesta.
+  const ultimo = await db.query.mensajesSocio.findFirst({
+    where: eq(mensajesSocio.socioId, socioId),
+    orderBy: [desc(mensajesSocio.createdAt)],
+    columns: { id: true },
+  });
+  if (ultimo?.id !== respondidoA) return;
 
-    // Si mientras la IA pensaba entró otro mensaje (del socio o de la directiva),
-    // esta respuesta ya no corresponde.
-    const ultimo = await tx.query.mensajesSocio.findFirst({
-      where: eq(mensajesSocio.socioId, socioId),
-      orderBy: [desc(mensajesSocio.createdAt)],
-      columns: { id: true },
-    });
-    if (ultimo?.id !== respondidoA) return;
-
-    await enviarMensajeChat({
-      socioId,
-      remitente: "IA",
-      autorId: null,
-      contenido: texto,
-      requiereHumano,
-    });
+  await enviarMensajeChat({
+    socioId,
+    remitente: "IA",
+    autorId: null,
+    contenido: texto,
+    requiereHumano,
   });
 }
 

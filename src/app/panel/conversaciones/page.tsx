@@ -107,7 +107,6 @@ export default async function ConversacionesPage() {
       ia={{
         disponible: puede(apr.plan as Plan, "iaChat"),
         modo: apr.iaChatModo,
-        esperaMin: apr.iaChatEsperaMin,
         instrucciones: apr.iaChatInstrucciones,
         uso: puede(apr.plan as Plan, "iaChat")
           ? await usoIaChat(apr.id, apr.plan as Plan)

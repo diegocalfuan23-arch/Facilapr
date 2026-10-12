@@ -3,10 +3,6 @@
     {
       "path": "/api/mantenimiento/borrar-cuentas",
       "schedule": "0 4 * * *"
-    },
-    {
-      "path": "/api/mantenimiento/ia-chat",
-      "schedule": "* * * * *"
     }
   ]
 }

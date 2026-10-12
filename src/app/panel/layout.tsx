@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { Recorrido } from "@/components/panel/recorrido";
-import { LatidoComite } from "@/components/panel/latido-comite";
 import { NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { PrimerosPasosFlotante } from "@/components/panel/primeros-pasos-flotante";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -62,7 +61,6 @@ export default async function PanelLayout({
           usuario={{ nombre: user.name, correo: user.email }}
           chat={puede(apr.plan as Plan, "chat")}
         />
-        {!esOperador && apr.iaChatModo === "SIN_RESPUESTA" && <LatidoComite />}
         {!esOperador && <Recorrido usuarioId={user.id} />}
         {!esOperador && <PrimerosPasosFlotante />}
 

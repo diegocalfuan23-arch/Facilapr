@@ -6,7 +6,6 @@ import {
   editarMensajeDirectiva,
   eliminarMensajeDirectiva,
   enviarMensajeDirectiva,
-  latidoPanel,
   marcarLeidoDirectiva,
 } from "@/app/panel/conversaciones/actions";
 import { escucharChat } from "@/lib/chat/cliente";
@@ -239,15 +238,6 @@ function ChatConSocio({
   const { otroEscribe, alEscribirElOtro, conectar, alTeclear, alDejarDeEscribir } =
     useEscribiendo();
 
-  // Para la IA: «estoy escribiendo en este chat». Se repite cada 8 s mientras se teclea.
-  const ultimoLatido = useRef(0);
-  function avisarEscribiendo(activo: boolean) {
-    const ahora = Date.now();
-    if (activo && ahora - ultimoLatido.current < 8000) return;
-    ultimoLatido.current = activo ? ahora : 0;
-    void latidoPanel(activo ? socioId : null);
-  }
-
   useEffect(() => {
     setCargando(true);
     fetch(`/api/panel/conversaciones/${socioId}/mensajes`)
@@ -303,7 +293,6 @@ function ChatConSocio({
     if (!texto || enviando) return;
     setEntrada("");
     alDejarDeEscribir();
-    avisarEscribiendo(false);
     if (editando) {
       const id = editando.id;
       setEditando(null);
@@ -483,13 +472,8 @@ function ChatConSocio({
           value={entrada}
           onChange={(e) => {
             setEntrada(e.target.value);
-            if (e.target.value.trim()) {
-              alTeclear();
-              avisarEscribiendo(true);
-            } else {
-              alDejarDeEscribir();
-              avisarEscribiendo(false);
-            }
+            if (e.target.value.trim()) alTeclear();
+            else alDejarDeEscribir();
           }}
           placeholder={editando ? "Corrige tu mensaje" : "Escribe una respuesta"}
           maxLength={1000}
