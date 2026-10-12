@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/apr-session";
 import { ConversacionesPanel } from "@/components/panel/conversaciones-panel";
+import { usoIaChat } from "@/lib/ia-chat-cuota";
 import { puede, NOMBRE_PLAN, planMinimoPara, type Plan } from "@/lib/planes";
 import { MessageCircle } from "lucide-react";
 
@@ -107,6 +108,9 @@ export default async function ConversacionesPage() {
         disponible: puede(apr.plan as Plan, "iaChat"),
         modo: apr.iaChatModo,
         instrucciones: apr.iaChatInstrucciones,
+        uso: puede(apr.plan as Plan, "iaChat")
+          ? await usoIaChat(apr.id, apr.plan as Plan, apr.iaChatTokensExtra)
+          : null,
       }}
       conversaciones={filas.map((f) => ({
         socioId: f.socioId,

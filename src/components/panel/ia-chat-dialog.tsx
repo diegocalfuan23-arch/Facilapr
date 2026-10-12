@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2, Plus, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { guardarIaChat } from "@/app/panel/configuracion/actions";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -17,12 +18,15 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { PACK_TOKENS, type UsoIaChat } from "@/lib/ia-chat-limites";
 
 export type IaChatAjustes = {
   /** El plan incluye la IA en el chat (Estándar y Grande). */
   disponible: boolean;
   modo: string;
   instrucciones: string | null;
+  /** Cuánta IA lleva gastada y cuánta le queda; null si el plan no la incluye. */
+  uso: UsoIaChat | null;
 };
 
 /** Botón de la cabecera de Conversaciones: muestra si la IA está activa y abre sus ajustes. */
@@ -43,7 +47,13 @@ export function BotonIaChat({ ajustes }: { ajustes: IaChatAjustes }) {
             activa ? "bg-forest/15 text-forest" : "bg-muted text-muted-foreground"
           )}
         >
-          {actual.disponible ? (activa ? "Activo" : "Apagado") : "Desde Estándar"}
+          {!actual.disponible
+            ? "Desde Estándar"
+            : activa && actual.uso && actual.uso.disponible <= 0
+              ? "Sin tokens"
+              : activa
+                ? "Activo"
+                : "Apagado"}
         </span>
       </Button>
 
@@ -82,7 +92,7 @@ function IaChatDialog({
       const r = await guardarIaChat(null, datos);
       if (r.ok) {
         toast.success(modo === "SIEMPRE" ? "Asistente de IA activado" : "Asistente de IA apagado");
-        onGuardado({ disponible: true, modo, instrucciones: instrucciones.trim() || null });
+        onGuardado({ ...ajustes, disponible: true, modo, instrucciones: instrucciones.trim() || null });
         onCerrar();
       } else {
         setError(r.error);
@@ -137,6 +147,8 @@ function IaChatDialog({
               </p>
             </div>
 
+            {ajustes.uso && <ConsumoIa uso={ajustes.uso} />}
+
             <ul className="flex flex-col gap-1.5 rounded-lg bg-muted/50 px-4 py-3 text-[0.8rem] leading-relaxed text-muted-foreground">
               <li>• Sus mensajes salen marcados como «Asistente del comité · IA».</li>
               <li>• Usa los datos de la cuenta del socio y de tu comité. No promete plazos ni descuentos.</li>
@@ -161,5 +173,77 @@ function IaChatDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+const numero = new Intl.NumberFormat("es-CL", { notation: "compact", maximumFractionDigits: 1 });
+const entero = new Intl.NumberFormat("es-CL");
+const diaMes = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", timeZone: "UTC" });
+
+/** Cuota del mes, lo gastado, los packs adicionales y cómo pedir más. */
+function ConsumoIa({ uso }: { uso: UsoIaChat }) {
+  const pct = uso.cuotaMes > 0 ? Math.min(100, Math.round((uso.usadoMes / uso.cuotaMes) * 100)) : 100;
+  const agotada = uso.disponible <= 0;
+
+  return (
+    <div className="flex flex-col gap-3 rounded-lg border border-border px-4 py-3.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <span className="text-[0.92rem] font-medium">Tokens de IA</span>
+        <span className="text-[0.76rem] text-muted-foreground">
+          Se renueva el {diaMes.format(new Date(uso.reinicia))}
+        </span>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <Progress value={pct} aria-label="Tokens usados este mes" />
+        <div className="flex items-baseline justify-between gap-3 text-[0.8rem] text-muted-foreground">
+          <span>
+            <span className="font-medium text-foreground tabular-nums">{numero.format(uso.usadoMes)}</span> de{" "}
+            <span className="tabular-nums">{numero.format(uso.cuotaMes)}</span> usados este mes
+          </span>
+          <span className="tabular-nums">{pct}%</span>
+        </div>
+      </div>
+
+      <dl className="grid grid-cols-2 gap-3 text-[0.8rem]">
+        <div>
+          <dt className="text-muted-foreground">Disponibles ahora</dt>
+          <dd className={cn("mt-0.5 text-[1rem] font-semibold tabular-nums", agotada && "text-destructive")}>
+            {entero.format(uso.disponible)}
+          </dd>
+          <dd className="text-muted-foreground">≈ {entero.format(uso.respuestasDisponibles)} respuestas</dd>
+        </div>
+        <div>
+          <dt className="text-muted-foreground">Packs adicionales</dt>
+          <dd className="mt-0.5 text-[1rem] font-semibold tabular-nums">{entero.format(uso.extraRestante)}</dd>
+          <dd className="text-muted-foreground">no vencen</dd>
+        </div>
+      </dl>
+
+      {agotada && (
+        <p className="rounded-md bg-destructive/10 px-3 py-2 text-[0.8rem] text-destructive">
+          Se acabaron los tokens: la IA no responde y las conversaciones quedan para la directiva.
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3">
+        <span className="text-[0.78rem] text-muted-foreground">
+          Pack adicional: +{numero.format(PACK_TOKENS)} tokens (≈ {entero.format(Math.round(PACK_TOKENS / 2000))} respuestas)
+        </span>
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={
+            <a
+              href={`mailto:hola@facilapr.cl?subject=${encodeURIComponent("Quiero un pack adicional de IA")}&body=${encodeURIComponent("Hola, quiero agregar un pack de +2.000.000 tokens de IA al chat de mi comité.")}`}
+            />
+          }
+        >
+          <Plus />
+          Pedir pack
+        </Button>
+      </div>
+    </div>
   );
 }

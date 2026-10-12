@@ -1,13 +1,14 @@
-import { and, count, desc, eq, gt, or } from "drizzle-orm";
+import { and, desc, eq, gt, or } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, lecturas, mensajesSocio, pagos, socios, usosIa } from "@/lib/db/schema";
+import { boletas, lecturas, mensajesSocio, pagos, socios } from "@/lib/db/schema";
+import { usoIaChat } from "@/lib/ia-chat-cuota";
 import { responder, type Mensaje } from "@/lib/ia";
 import { enviarMensajeChat } from "@/lib/chat-socio";
 import { formatearRut, formatearTelefono } from "@/lib/formato";
 import { cuentasDelSocio } from "@/lib/socio-session";
 import { textoMedioPago } from "@/lib/pagos";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
-import { puede, TOPE_IA_CHAT_DIARIO, type Plan } from "@/lib/planes";
+import { puede, type Plan } from "@/lib/planes";
 import { inArray } from "drizzle-orm";
 
 /**
@@ -76,17 +77,9 @@ async function intentar(socioId: string) {
   });
   if (humano) return;
 
-  const [{ n: usadas }] = await db
-    .select({ n: count() })
-    .from(usosIa)
-    .where(
-      and(
-        eq(usosIa.aprId, apr.id),
-        eq(usosIa.origen, "chat-ia"),
-        gt(usosIa.createdAt, new Date(Date.now() - 86_400_000))
-      )
-    );
-  if (usadas >= TOPE_IA_CHAT_DIARIO[apr.plan as Plan]) return;
+  // Sin tokens (cuota del mes y packs agotados) la IA calla y responde la directiva.
+  const uso = await usoIaChat(apr.id, apr.plan as Plan, apr.iaChatTokensExtra);
+  if (uso.disponible <= 0) return;
 
   // Las boletas de todos los arranques de la persona.
   const cuentas = await cuentasDelSocio(socio);
