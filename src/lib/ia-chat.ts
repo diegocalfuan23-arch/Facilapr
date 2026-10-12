@@ -5,11 +5,11 @@ import { responder, type Mensaje } from "@/lib/ia";
 import { enviarMensajeChat } from "@/lib/chat-socio";
 import { cuentasDelSocio } from "@/lib/socio-session";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
-import { puede, type Plan } from "@/lib/planes";
+import { puede, TOPE_IA_CHAT_DIARIO, type Plan } from "@/lib/planes";
 import { inArray } from "drizzle-orm";
 
 /**
- * Asistente de IA dentro del chat del socio con su comité (plan Grande).
+ * Asistente de IA dentro del chat del socio con su comité (desde el plan Estándar).
  *
  * Responde en segundos las consultas de dato (cuánto debo, cuándo vence, cómo
  * pago) y le pasa la conversación a una persona cuando no sabe o se trata de
@@ -22,8 +22,6 @@ import { inArray } from "drizzle-orm";
  * nunca quede esperando.
  */
 const PAUSA_MINUTOS = 10;
-/** Respuestas de IA por comité en 24 horas: protege el costo. */
-const TOPE_DIARIO = 300;
 /** Marca con la que el modelo avisa que necesita una persona. */
 const MARCA_HUMANO = "[HUMANO]";
 
@@ -86,7 +84,7 @@ async function intentar(socioId: string) {
         gt(usosIa.createdAt, new Date(Date.now() - 86_400_000))
       )
     );
-  if (usadas >= TOPE_DIARIO) return;
+  if (usadas >= TOPE_IA_CHAT_DIARIO[apr.plan as Plan]) return;
 
   // Las boletas de todos los arranques de la persona.
   const cuentas = await cuentasDelSocio(socio);

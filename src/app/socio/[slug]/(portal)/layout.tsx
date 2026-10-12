@@ -67,9 +67,11 @@ export default async function PortalSocioLayout({
         {children}
       </main>
 
-      <AsistenteSocio nombreApr={socio.apr.nombre} slug={slug} />
-      {puede(socio.apr.plan as Plan, "chat") && (
+      {/* Un solo botón: con chat, la IA responde primero ahí dentro; sin chat, queda el asistente. */}
+      {puede(socio.apr.plan as Plan, "chat") ? (
         <ChatComite socioId={socio.id} slug={slug} nombreApr={socio.apr.nombre} />
+      ) : (
+        <AsistenteSocio nombreApr={socio.apr.nombre} slug={slug} />
       )}
     </div>
   );

@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 export type IaChatAjustes = {
-  /** El plan incluye la IA en el chat (Grande). */
+  /** El plan incluye la IA en el chat (Estándar y Grande). */
   disponible: boolean;
   modo: string;
   instrucciones: string | null;
@@ -55,7 +55,7 @@ export function BotonIaChat({ ajustes }: { ajustes: IaChatAjustes }) {
             activa ? "bg-forest/15 text-forest" : "bg-muted text-muted-foreground"
           )}
         >
-          {actual.disponible ? (activa ? "Activo" : "Apagado") : "Plan Grande"}
+          {actual.disponible ? (activa ? "Activo" : "Apagado") : "Desde Estándar"}
         </span>
       </Button>
 
@@ -114,8 +114,8 @@ function IaChatDialog({
 
         {!ajustes.disponible ? (
           <p className="rounded-lg bg-muted/60 px-3.5 py-3 text-[0.9rem] leading-relaxed text-muted-foreground">
-            La IA en el chat es parte del plan Grande. Con ese plan podrás activarla
-            aquí mismo y escribirle las reglas de tu comité.
+            La IA en el chat está disponible desde el plan Estándar. Con ese plan
+            podrás activarla aquí mismo y escribirle las reglas de tu comité.
           </p>
         ) : (
           <div className="flex flex-col gap-4">

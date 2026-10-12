@@ -37,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 export type DatosConfiguracion = {
-  /** El plan incluye la IA dentro del chat (Grande). */
+  /** El plan incluye la IA dentro del chat (Estándar y Grande). */
   iaChatDisponible: boolean;
   iaChatModo: string;
   iaChatInstrucciones: string | null;
@@ -746,7 +746,7 @@ export function ConfiguracionForm({
             </h2>
             <p className="mx-auto mt-2 max-w-[48ch] text-[0.9rem] leading-relaxed text-muted-foreground">
               Responde a tus socios en segundos y te pasa la conversación cuando
-              hace falta. Está disponible en el plan Grande.
+              hace falta. Está disponible desde el plan Estándar.
             </p>
             <a
               href="mailto:hola@facilapr.cl?subject=Quiero%20la%20IA%20en%20el%20chat"

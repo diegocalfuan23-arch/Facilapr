@@ -47,6 +47,7 @@ const planes: {
     incluye: "Todo lo del Pequeño, más:",
     lista: [
       "Chat en tiempo real con tus socios",
+      { texto: "IA en el chat: responde a tus socios en segundos (hasta 100 respuestas al día)", pronto: true },
       "Hasta 800 socios cargados",
       "Hasta 3 técnicos en terreno",
       "Sitio público con avisos de corte",
@@ -63,7 +64,7 @@ const planes: {
     incluye: "Todo lo del Estándar, más:",
     lista: [
       "Socios y técnicos sin tope",
-      { texto: "Asistente de IA dentro del chat: responde a tus socios en segundos", pronto: true },
+      { texto: "IA del chat con más capacidad (hasta 300 respuestas al día)", pronto: true },
       "Dominio propio y varios administradores con roles",
       { texto: "Conciliación de pagos con la cartola del banco", pronto: true },
       "Múltiples sedes o comités",

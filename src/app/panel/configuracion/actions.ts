@@ -278,7 +278,7 @@ export async function guardarDireccion(
   return { ok: true };
 }
 
-/** La IA dentro del chat con los socios (plan Grande): cuándo responde y con qué instrucciones. */
+/** La IA dentro del chat con los socios (desde el plan Estándar): cuándo responde y con qué instrucciones. */
 export async function guardarIaChat(
   _prev: ResultadoAccion | null,
   formData: FormData
@@ -286,7 +286,7 @@ export async function guardarIaChat(
   const { apr } = await requireAdmin();
 
   if (!puede(apr.plan as Plan, "iaChat")) {
-    return { ok: false, error: "La IA en el chat es del plan Grande." };
+    return { ok: false, error: "La IA en el chat es del plan Estándar o superior." };
   }
 
   const modo = String(formData.get("iaChatModo") ?? "APAGADO");

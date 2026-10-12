@@ -142,7 +142,7 @@ export function ChatComite({
         aria-label={abierto ? "Cerrar chat" : "Abrir chat con tu comité"}
         title="Chat con tu comité"
         variant="outline"
-        className="fixed right-5 bottom-22 z-50 size-13 rounded-full border-border bg-card shadow-lg"
+        className="fixed right-5 bottom-5 z-50 size-13 rounded-full border-border bg-card shadow-lg"
       >
         {abierto ? (
           <X className="size-5" />
@@ -159,7 +159,7 @@ export function ChatComite({
       </Button>
 
       {abierto && (
-        <div className="fixed right-5 bottom-38 z-50 flex h-[480px] w-[min(360px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
+        <div className="fixed right-5 bottom-21 z-50 flex h-[480px] w-[min(360px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
           <div className="flex shrink-0 items-center gap-2.5 bg-[#008069] px-4 py-3 text-white">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white/15">
               <MessageSquareText className="size-4.5" />

@@ -14,8 +14,15 @@ export type Capacidad =
 
 const CAPACIDADES: Record<Plan, Capacidad[]> = {
   BASICO: [],
-  ESTANDAR: ["landing", "avisos", "chat"],
+  ESTANDAR: ["landing", "avisos", "chat", "iaChat"],
   PREMIUM: ["landing", "avisos", "chat", "iaChat", "dominioPropio"],
+};
+
+/** Respuestas de IA en el chat por comité en 24 horas: lo que mantiene acotado el costo de cada plan. */
+export const TOPE_IA_CHAT_DIARIO: Record<Plan, number> = {
+  BASICO: 0,
+  ESTANDAR: 100,
+  PREMIUM: 300,
 };
 
 /** Los nombres con que se venden (landing): Pequeño, Estándar y Grande. */
