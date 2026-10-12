@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Clock, ExternalLink, ListChecks } from "lucide-react";
-import { RECORRIDOS } from "@/lib/recorridos";
+import { RECORRIDOS, RECORRIDOS_NUEVOS } from "@/lib/recorridos";
 import { lanzarRecorrido } from "@/components/panel/recorrido";
 
 /** Lista de recorridos: cada uno lleva a su pantalla y la va explicando parte por parte. */
@@ -17,7 +17,7 @@ export function AyudaRecorridos() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {RECORRIDOS.map((r) => (
+        {[...RECORRIDOS, ...RECORRIDOS_NUEVOS].map((r) => (
           <button
             key={r.id}
             type="button"

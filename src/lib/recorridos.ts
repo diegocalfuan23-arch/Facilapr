@@ -437,6 +437,70 @@ export const RECORRIDOS: Recorrido[] = [
   },
 ];
 
+export const RECORRIDOS_NUEVOS: Recorrido[] = [
+  {
+    id: "pagos",
+    ruta: "/panel/pagos",
+    titulo: "Registra los pagos de tus socios",
+    resumen: "Cómo anotar un pago o abono y mandarle el comprobante.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("pag-registrar"),
+        titulo: "Registrar pago",
+        texto:
+          "Busca al socio, elige la boleta que está pagando, anota cuánto pagó, cómo (efectivo, transferencia, Caja Vecina) y la fecha. Puede ser un abono: la boleta sigue debiendo lo que falta.",
+        lado: "bottom",
+      },
+      {
+        titulo: "El comprobante",
+        texto:
+          "Al guardar, se genera un comprobante en PDF y puedes mandárselo al socio por WhatsApp con el mensaje ya escrito. El socio también lo ve en su cuenta.",
+      },
+      {
+        selector: enMenu("pag-lista"),
+        titulo: "Todo lo que han pagado",
+        texto:
+          "El historial de pagos del comité, con búsqueda y filtro por medio de pago. Si anotaste uno por error, se elimina desde la boleta y la deuda vuelve a su lugar.",
+        lado: "top",
+      },
+    ],
+  },
+  {
+    id: "cortes",
+    ruta: "/panel/cortes",
+    titulo: "Cortes por morosidad y órdenes de terreno",
+    resumen: "Del aviso al corte, la foto de respaldo y la reposición.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("cor-pestanas"),
+        titulo: "El camino de cada orden",
+        texto:
+          "Morosos: quienes pasaron los días de gracia. En trámite: lo que alguien tiene que ir a hacer. Por dar de alta: ya hay foto y falta tu revisión. Solicitudes: lo que piden tus socios o el técnico. Cortados: quiénes tienen el servicio cortado ahora.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Cómo se corta",
+        texto:
+          "Avisas al moroso por WhatsApp, ordenas el corte, el técnico (o el presidente) sube la foto del medidor ya cortado y tú das de alta. Sin foto, el corte no queda registrado.",
+      },
+      {
+        selector: enMenu("cor-nueva"),
+        titulo: "Nueva orden",
+        texto:
+          "Para ordenar a mano un corte, una reposición o una reparación a cualquier arranque del comité.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Lo que piden los socios",
+        texto:
+          "Tus socios pueden pedir desde su cuenta un reclamo, una reposición, una reparación, la baja o la reanudación del servicio. Las ves en Solicitudes, las apruebas o las respondes, y el socio ve tu respuesta.",
+      },
+    ],
+  },
+];
+
 export function recorridoPorId(id: string) {
-  return RECORRIDOS.find((r) => r.id === id);
+  return [...RECORRIDOS, ...RECORRIDOS_NUEVOS].find((r) => r.id === id);
 }

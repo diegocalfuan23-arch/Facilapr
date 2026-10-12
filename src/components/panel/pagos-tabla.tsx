@@ -88,7 +88,7 @@ export function PagosTabla({
             Todo lo que han pagado tus socios, con su comprobante.
           </p>
         </div>
-        <Button onClick={() => setRegistrando(true)}>
+        <Button data-tour="pag-registrar" onClick={() => setRegistrando(true)}>
           <Plus />
           Registrar pago
         </Button>
@@ -118,7 +118,7 @@ export function PagosTabla({
           </p>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+        <div data-tour="pag-lista" className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
           <div className="flex flex-wrap items-center gap-3 p-3 sm:p-5">
             <div className="relative w-full sm:min-w-60 sm:flex-1">
               <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
