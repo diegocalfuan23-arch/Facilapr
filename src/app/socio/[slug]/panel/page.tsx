@@ -65,6 +65,12 @@ export default async function PanelSocioPage({ params }: Props) {
     .filter((b) => b.estado === "PENDIENTE" || b.estado === "VENCIDA")
     .reduce((acc, b) => acc + saldo(b.montoTotal, b.montoPagado), 0);
 
+  // Pagos y abonos: toda boleta de la que ya se pagó algo.
+  const pagos = listaBoletas.filter(
+    (b) => b.estado !== "ANULADA" && b.montoPagado > 0
+  );
+  const totalPagado = pagos.reduce((acc, b) => acc + b.montoPagado, 0);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border">
@@ -131,6 +137,14 @@ export default async function PanelSocioPage({ params }: Props) {
                       Vence el {fecha.format(b.fechaVencimiento)}
                       {b.consumoM3 !== null && ` · ${b.consumoM3} m³`}
                     </div>
+                    {b.estado !== "ANULADA" &&
+                      b.montoPagado > 0 &&
+                      b.montoPagado < b.montoTotal && (
+                        <div className="text-[0.82rem] text-forest">
+                          Abonaste {clp.format(b.montoPagado)} · te quedan{" "}
+                          {clp.format(saldo(b.montoTotal, b.montoPagado))}
+                        </div>
+                      )}
                     {b.estado !== "ANULADA" && (
                       <Link
                         href={`${base}/recibo/${b.id}`}
@@ -152,6 +166,59 @@ export default async function PanelSocioPage({ params }: Props) {
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </section>
+
+        <section className="mt-10">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="text-[1.05rem] font-semibold">Tus pagos</h2>
+            {pagos.length > 0 && (
+              <span className="text-[0.85rem] text-muted-foreground">
+                Total pagado{" "}
+                <span className="font-semibold text-foreground tabular-nums">
+                  {clp.format(totalPagado)}
+                </span>
+              </span>
+            )}
+          </div>
+
+          {pagos.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed border-border px-4 py-8 text-center text-[0.9rem] text-muted-foreground">
+              Todavía no hay pagos registrados.
+            </p>
+          ) : (
+            <div className="mt-4 flex flex-col divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
+              {pagos.map((b) => {
+                const completo = b.montoPagado >= b.montoTotal;
+                return (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between gap-3 p-4"
+                  >
+                    <div>
+                      <div className="font-medium">
+                        {completo ? "Pago" : "Abono"} de{" "}
+                        {formatearPeriodo(b.periodo)}
+                        {cuentas.length > 1 && (
+                          <span className="font-normal text-muted-foreground">
+                            {" "}
+                            · {b.socio.nombre}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[0.82rem] text-muted-foreground">
+                        {completo
+                          ? "Boleta pagada completa"
+                          : `De ${clp.format(b.montoTotal)} · faltan ${clp.format(saldo(b.montoTotal, b.montoPagado))}`}
+                      </div>
+                    </div>
+                    <span className="font-mono text-[0.95rem] font-semibold text-forest tabular-nums">
+                      {clp.format(b.montoPagado)}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
