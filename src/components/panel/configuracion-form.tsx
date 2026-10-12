@@ -42,6 +42,7 @@ export type DatosConfiguracion = {
   /** El plan incluye la IA dentro del chat (Estándar y Grande). */
   iaChatDisponible: boolean;
   iaChatModo: string;
+  iaChatEsperaMin: number;
   iaChatInstrucciones: string | null;
   /** Cómo y dónde pagar: sale en cada recibo. */
   infoPago: string | null;
@@ -714,17 +715,38 @@ export function ConfiguracionForm({
             <Campo
               id="iaChatModo"
               label="Cuándo responde"
-              ayuda="Próximamente: responder solo si la directiva no contesta en unos minutos."
+              ayuda="«Solo si no estoy disponible»: si hay alguien de la directiva conectado, la IA espera; si está atendiendo otro chat o pasan los minutos sin respuesta, contesta."
             >
               <select
                 id="iaChatModo"
                 name="iaChatModo"
-                defaultValue={datos.iaChatModo === "SIEMPRE" ? "SIEMPRE" : "APAGADO"}
+                defaultValue={
+                  datos.iaChatModo === "SIEMPRE" || datos.iaChatModo === "SIN_RESPUESTA"
+                    ? datos.iaChatModo
+                    : "APAGADO"
+                }
                 className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
               >
                 <option value="APAGADO">Apagado: solo responde la directiva</option>
                 <option value="SIEMPRE">Siempre responde primero</option>
+                <option value="SIN_RESPUESTA">Solo si no estoy disponible</option>
               </select>
+            </Campo>
+
+            <Campo
+              id="iaChatEsperaMin"
+              label="Minutos de espera"
+              ayuda="Solo en «Solo si no estoy disponible»: cuánto espera la IA a que respondas tú antes de contestar."
+            >
+              <Input
+                id="iaChatEsperaMin"
+                name="iaChatEsperaMin"
+                type="number"
+                min={1}
+                max={30}
+                defaultValue={datos.iaChatEsperaMin}
+                className="w-28"
+              />
             </Campo>
 
             <Campo

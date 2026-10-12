@@ -329,6 +329,27 @@ export const pagos = pgTable(
 );
 
 /**
+ * Quién de la directiva está conectado al panel y si está escribiendo en algún
+ * chat. La IA del chat lo consulta para no pisar a una persona: si hay alguien
+ * en línea, espera unos minutos antes de responder. Una fila por usuario.
+ */
+export const presenciaComite = pgTable(
+  "PresenciaComite",
+  {
+    userId: text("userId").primaryKey(),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** Último latido del panel abierto. */
+    visto: timestamp("visto", { precision: 3 }).notNull().defaultNow(),
+    /** Conversación en la que está escribiendo ahora, y desde cuándo. */
+    escribiendoSocioId: text("escribiendoSocioId"),
+    escribiendoAt: timestamp("escribiendoAt", { precision: 3 }),
+  },
+  (table) => [index("PresenciaComite_aprId_idx").on(table.aprId)]
+);
+
+/**
  * Órdenes de trabajo en terreno sobre un arranque: cortes por morosidad,
  * reposiciones del servicio y reparaciones. Cada una pasa por EN_TRAMITE
  * (alguien tiene que ir), POR_CONFIRMAR (el técnico subió la foto) y

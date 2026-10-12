@@ -24,6 +24,8 @@ export type IaChatAjustes = {
   /** El plan incluye la IA en el chat (Estándar y Grande). */
   disponible: boolean;
   modo: string;
+  /** Minutos que espera la IA a que responda una persona (modo «si no estoy disponible»). */
+  esperaMin: number;
   instrucciones: string | null;
   /** Cuánta IA lleva gastada y cuánta le queda; null si el plan no la incluye. */
   uso: UsoIaChat | null;
@@ -34,7 +36,7 @@ export function BotonIaChat({ ajustes }: { ajustes: IaChatAjustes }) {
   const [abierto, setAbierto] = useState(false);
   // Lo guardado, para que el botón refleje el cambio sin recargar la página.
   const [actual, setActual] = useState(ajustes);
-  const activa = actual.disponible && actual.modo === "SIEMPRE";
+  const activa = actual.disponible && actual.modo !== "APAGADO";
 
   return (
     <>
@@ -77,8 +79,11 @@ function IaChatDialog({
   onGuardado: (a: IaChatAjustes) => void;
   onCerrar: () => void;
 }) {
-  const [activa, setActiva] = useState(ajustes.modo === "SIEMPRE");
-  const modo = activa ? "SIEMPRE" : "APAGADO";
+  const [activa, setActiva] = useState(ajustes.modo !== "APAGADO");
+  // Cuando está encendida: contesta enseguida, o espera a que la directiva esté disponible.
+  const [inteligente, setInteligente] = useState(ajustes.modo === "SIN_RESPUESTA");
+  const [espera, setEspera] = useState(String(ajustes.esperaMin || 5));
+  const modo = !activa ? "APAGADO" : inteligente ? "SIN_RESPUESTA" : "SIEMPRE";
   const [instrucciones, setInstrucciones] = useState(ajustes.instrucciones ?? "");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
@@ -88,11 +93,18 @@ function IaChatDialog({
     iniciar(async () => {
       const datos = new FormData();
       datos.set("iaChatModo", modo);
+      datos.set("iaChatEsperaMin", espera || "5");
       datos.set("iaChatInstrucciones", instrucciones);
       const r = await guardarIaChat(null, datos);
       if (r.ok) {
         toast.success(modo === "SIEMPRE" ? "Asistente de IA activado" : "Asistente de IA apagado");
-        onGuardado({ ...ajustes, disponible: true, modo, instrucciones: instrucciones.trim() || null });
+        onGuardado({
+          ...ajustes,
+          disponible: true,
+          modo,
+          esperaMin: Number(espera) || 5,
+          instrucciones: instrucciones.trim() || null,
+        });
         onCerrar();
       } else {
         setError(r.error);
@@ -131,6 +143,58 @@ function IaChatDialog({
               </div>
               <Switch id="ia-activa" checked={activa} onCheckedChange={setActiva} />
             </div>
+
+            {activa && (
+              <div className="flex flex-col gap-2">
+                <Label>Cuándo entra la IA</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {[
+                    {
+                      inteligente: true,
+                      titulo: "Solo si no estoy disponible",
+                      detalle: "Si estás conectado, te deja responder. Si estás en otro chat o no contestas a tiempo, entra ella.",
+                    },
+                    {
+                      inteligente: false,
+                      titulo: "Siempre primero",
+                      detalle: "Contesta en segundos a todos, y tú sigues cuando quieras.",
+                    },
+                  ].map((o) => (
+                    <button
+                      key={o.titulo}
+                      type="button"
+                      onClick={() => setInteligente(o.inteligente)}
+                      aria-pressed={inteligente === o.inteligente}
+                      className={cn(
+                        "rounded-lg border px-3.5 py-3 text-left transition-colors",
+                        inteligente === o.inteligente
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      )}
+                    >
+                      <div className="text-[0.9rem] font-medium">{o.titulo}</div>
+                      <div className="mt-0.5 text-[0.78rem] text-muted-foreground">{o.detalle}</div>
+                    </button>
+                  ))}
+                </div>
+
+                {inteligente && (
+                  <div className="flex flex-wrap items-center gap-2 text-[0.84rem] text-muted-foreground">
+                    <span>Esperar</span>
+                    <input
+                      type="number"
+                      min={1}
+                      max={30}
+                      value={espera}
+                      onChange={(e) => setEspera(e.target.value)}
+                      aria-label="Minutos de espera"
+                      className="h-8 w-16 rounded-md border border-input bg-transparent px-2 text-center text-sm text-foreground tabular-nums"
+                    />
+                    <span>minutos a que respondas tú antes de que conteste la IA.</span>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="ia-instrucciones">Instrucciones propias</Label>

@@ -58,6 +58,7 @@ export default async function ConfiguracionPage({
         slug: apr.slug,
         iaChatDisponible: puede(apr.plan as Plan, "iaChat"),
         iaChatModo: apr.iaChatModo,
+        iaChatEsperaMin: apr.iaChatEsperaMin,
         iaChatInstrucciones: apr.iaChatInstrucciones,
         infoPago: apr.infoPago,
         nombre: apr.nombre,

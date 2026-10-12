@@ -290,8 +290,12 @@ export async function guardarIaChat(
   }
 
   const modo = String(formData.get("iaChatModo") ?? "APAGADO");
-  if (modo !== "APAGADO" && modo !== "SIEMPRE") {
+  if (modo !== "APAGADO" && modo !== "SIEMPRE" && modo !== "SIN_RESPUESTA") {
     return { ok: false, error: "Elige cuándo debe responder la IA." };
+  }
+  const espera = Math.round(Number(formData.get("iaChatEsperaMin") ?? 5));
+  if (!Number.isFinite(espera) || espera < 1 || espera > 30) {
+    return { ok: false, error: "Los minutos de espera deben estar entre 1 y 30." };
   }
 
   const instrucciones = aTexto(formData.get("iaChatInstrucciones"));
@@ -301,7 +305,12 @@ export async function guardarIaChat(
 
   await db
     .update(aprs)
-    .set({ iaChatModo: modo, iaChatInstrucciones: instrucciones, updatedAt: new Date() })
+    .set({
+      iaChatModo: modo,
+      iaChatEsperaMin: espera,
+      iaChatInstrucciones: instrucciones,
+      updatedAt: new Date(),
+    })
     .where(eq(aprs.id, apr.id));
 
   revalidatePath("/panel/configuracion");
