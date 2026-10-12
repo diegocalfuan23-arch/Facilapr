@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { ordenes } from "@/lib/db/schema";
+import { ordenes, socios } from "@/lib/db/schema";
 import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
 import { basePortal } from "@/lib/portal-socio";
 import { TIPOS_SOCIO, type TipoOrden } from "@/lib/ordenes";
@@ -35,6 +35,20 @@ export async function crearSolicitudSocio(
   const texto = detalle.trim().slice(0, 500);
   if ((tipo === "RECLAMO" || tipo === "REPARACION") && texto.length < 5) {
     return { ok: false, error: "Cuéntanos qué pasó, aunque sea en una frase corta." };
+  }
+
+  // La reanudación es para quien dio de baja su servicio: solo si el arranque está inactivo.
+  if (tipo === "REANUDACION" || tipo === "BAJA") {
+    const arranque = await db.query.socios.findFirst({
+      where: eq(socios.id, socioId),
+      columns: { activo: true },
+    });
+    if (tipo === "REANUDACION" && arranque?.activo) {
+      return { ok: false, error: "Ese arranque ya está activo." };
+    }
+    if (tipo === "BAJA" && arranque && !arranque.activo) {
+      return { ok: false, error: "Ese arranque ya está dado de baja." };
+    }
   }
 
   // Una reposición solo tiene sentido si el servicio está cortado.

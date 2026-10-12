@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { cortadosActuales, ordenesDelComite } from "@/lib/ordenes-datos";
 import { SociosTabla } from "@/components/panel/socios-tabla";
 import { urlInvitacionSocio } from "@/lib/invitacion-socio";
 
@@ -35,12 +36,18 @@ export default async function SociosPage() {
     listado.filter((s) => s.userId && s.rut).map((s) => s.rut as string)
   );
 
+  // Quiénes están cortados ahora (último corte completado sin reposición posterior).
+  const cortados = new Set(
+    cortadosActuales(await ordenesDelComite(apr.id, ["COMPLETADA"]).catch(() => [])).map((o) => o.socioId)
+  );
+
   const filas = listado.map(({ userId, ...s }) => {
     const conCuenta =
       Boolean(userId) || (s.rut !== null && rutsConCuenta.has(s.rut));
     return {
       ...s,
       conCuenta,
+      cortado: cortados.has(s.id),
       // Enlace personal de invitación: solo a quien aún no tiene cuenta, tiene
       // RUT (la cuenta se arma con él) y el comité ya definió su enlace.
       invitacionUrl:

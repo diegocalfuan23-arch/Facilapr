@@ -8,6 +8,12 @@ import { boletas, socios } from "@/lib/db/schema";
 import { responder } from "@/lib/ia";
 import { cuentasDelSocio } from "@/lib/socio-session";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
+import {
+  contextoServicioSocio,
+  seccionesServicio,
+  seccionFichas,
+  type DatosPrompt,
+} from "@/lib/ia-chat";
 
 /**
  * Asistente del panel de socio. A diferencia de /api/sitio/asistente (el
@@ -42,6 +48,8 @@ const bodySchema = z.object({
 });
 
 function construirPrompt(datos: {
+  fichas: DatosPrompt["fichas"];
+  servicio: DatosPrompt["servicio"];
   nombreSocio: string;
   nombreApr: string;
   conVariosArranques: boolean;
@@ -63,6 +71,15 @@ function construirPrompt(datos: {
 Háblale en español chileno, cercano y directo, en dos o tres frases.`
   );
 
+  const comun = {
+    fichas: datos.fichas,
+    servicio: datos.servicio,
+    boletas: datos.boletas,
+    variosArranques: datos.conVariosArranques,
+  };
+  partes.push(...seccionFichas(comun));
+  partes.push(...seccionesServicio(comun));
+
   if (datos.boletas.length === 0) {
     partes.push("Este socio todavía no tiene boletas emitidas.");
   } else {
@@ -82,7 +99,10 @@ Háblale en español chileno, cercano y directo, en dos o tres frases.`
 - Responde solo con los datos de arriba. Nunca inventes montos ni fechas.
 - Puedes hablar de su deuda, boletas y consumo: es información de este mismo socio, ya autenticado.
 - No hables de otros socios ni de datos que no aparezcan arriba.
-- Si preguntan algo que no puedes resolver (reclamos, cambios de datos personales), sugiere contactar al comité directamente.
+- Sus datos personales de arriba son suyos: si los pide, se los das.
+- Si pregunta por cortes por deuda, respóndelo con los datos de cortes de arriba, sin prometer que no se lo cortarán ni cuándo lo reconectarán.
+- Para reclamos, reposición, reparación o baja del servicio, dile que use la sección «Solicitudes» de su cuenta en línea.
+- Si preguntan algo que no puedes resolver (cambios de datos personales), sugiere contactar al comité directamente.
 - No menciones Facilapr ni que eres una IA de un proveedor externo: hablas como el asistente del comité.`);
 
   return partes.join("\n\n");
@@ -103,7 +123,11 @@ export async function POST(req: NextRequest) {
 
   const socio = await db.query.socios.findFirst({
     where: eq(socios.userId, session.user.id),
-    with: { apr: { columns: { nombre: true } } },
+    with: {
+      apr: {
+        columns: { nombre: true, diasGraciaCorte: true, diasAvisoCorte: true, costoReconexion: true },
+      },
+    },
   });
   if (!socio) {
     return Response.json({ error: "Socio no encontrado." }, { status: 404 });
@@ -126,8 +150,12 @@ export async function POST(req: NextRequest) {
     with: { socio: { columns: { nombre: true } } },
   });
 
+  const ctx = await contextoServicioSocio(socio, socio.apr);
+
   const { stream } = await responder({
     system: construirPrompt({
+      fichas: ctx.fichas,
+      servicio: ctx.servicio,
       nombreSocio: socio.nombre,
       nombreApr: socio.apr.nombre,
       conVariosArranques: cuentas.length > 1,

@@ -116,6 +116,7 @@ export async function solicitarOrden(
  * - Reposición o reparación: aprobar la pasa a terreno (en trámite).
  * - Reclamo: aprobar es responderlo; la respuesta es obligatoria y la ve el socio.
  * - Baja: aprobar da de baja el arranque (queda inactivo).
+ * - Reanudación: aprobar vuelve a activar un arranque dado de baja.
  * Rechazar cierra la solicitud; el motivo, si se escribe, también lo ve el socio.
  */
 export async function resolverSolicitud(
@@ -151,11 +152,11 @@ export async function resolverSolicitud(
     })
     .where(eq(ordenes.id, ordenId));
 
-  // La baja aprobada deja el arranque inactivo: ya no entra en cobros ni en listas activas.
-  if (aprobar && orden.tipo === "BAJA") {
+  // La baja aprobada deja el arranque inactivo; la reanudación aprobada lo vuelve a activar.
+  if (aprobar && (orden.tipo === "BAJA" || orden.tipo === "REANUDACION")) {
     await db
       .update(socios)
-      .set({ activo: false, updatedAt: new Date() })
+      .set({ activo: orden.tipo === "REANUDACION", updatedAt: new Date() })
       .where(and(eq(socios.id, orden.socioId), eq(socios.aprId, apr.id)));
     revalidatePath("/panel/socios");
   }

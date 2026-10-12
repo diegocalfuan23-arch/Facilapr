@@ -80,6 +80,8 @@ import { formatearRut, formatearTelefono, iniciales } from "@/lib/formato";
 export type SocioFila = SocioEditable & {
   activo: boolean;
   conCuenta: boolean;
+  /** El servicio de este arranque está cortado por morosidad. */
+  cortado: boolean;
   /** Enlace personal para invitarlo al portal; null si no se puede. */
   invitacionUrl: string | null;
 };
@@ -803,9 +805,11 @@ export function SociosTabla({
                         <span
                           className={cn(
                             "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] font-medium",
-                            socio.activo
-                              ? "bg-forest/10 text-forest"
-                              : "bg-muted text-muted-foreground"
+                            socio.cortado
+                              ? "bg-destructive/10 text-destructive"
+                              : socio.activo
+                                ? "bg-forest/10 text-forest"
+                                : "bg-muted text-muted-foreground"
                           )}
                         >
                           {socio.activo ? (
@@ -813,7 +817,7 @@ export function SociosTabla({
                           ) : (
                             <UserX className="size-3.5" />
                           )}
-                          {socio.activo ? "Activo" : "Inactivo"}
+                          {socio.cortado ? "Cortado" : socio.activo ? "Activo" : "Inactivo"}
                         </span>
                       </TableCell>
                       <TableCell className="px-4 py-3.5 tabular-nums text-muted-foreground">
@@ -876,9 +880,11 @@ export function SociosTabla({
                         <span
                           className={cn(
                             "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[0.76rem] font-medium",
-                            socio.activo
-                              ? "bg-forest/10 text-forest"
-                              : "bg-muted text-muted-foreground"
+                            socio.cortado
+                              ? "bg-destructive/10 text-destructive"
+                              : socio.activo
+                                ? "bg-forest/10 text-forest"
+                                : "bg-muted text-muted-foreground"
                           )}
                         >
                           {socio.activo ? (
@@ -886,7 +892,7 @@ export function SociosTabla({
                           ) : (
                             <UserX className="size-3.5" />
                           )}
-                          {socio.activo ? "Activo" : "Inactivo"}
+                          {socio.cortado ? "Cortado" : socio.activo ? "Activo" : "Inactivo"}
                         </span>
                         {socio.telefono && (
                           <span className="tabular-nums">

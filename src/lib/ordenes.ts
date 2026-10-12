@@ -3,7 +3,7 @@
 /** Trabajo en terreno: lo hace alguien con foto de respaldo. */
 export type TipoCampo = "CORTE" | "REPOSICION" | "REPARACION";
 /** Todo lo que se puede pedir o registrar: además de terreno, lo que sale del socio y se resuelve en oficina. */
-export type TipoOrden = TipoCampo | "RECLAMO" | "BAJA";
+export type TipoOrden = TipoCampo | "RECLAMO" | "BAJA" | "REANUDACION";
 export type EstadoOrden =
   | "SOLICITADA"
   | "EN_TRAMITE"
@@ -18,10 +18,11 @@ export const TIPOS_ORDEN: Record<TipoOrden, { texto: string; ejecucion: string }
   REPARACION: { texto: "Reparación", ejecucion: "Foto de la reparación hecha" },
   RECLAMO: { texto: "Reclamo", ejecucion: "" },
   BAJA: { texto: "Baja del servicio", ejecucion: "" },
+  REANUDACION: { texto: "Reanudación del servicio", ejecucion: "" },
 };
 
 /** Lo que un socio puede pedir desde su portal. */
-export const TIPOS_SOCIO: TipoOrden[] = ["RECLAMO", "REPOSICION", "REPARACION", "BAJA"];
+export const TIPOS_SOCIO: TipoOrden[] = ["RECLAMO", "REPOSICION", "REPARACION", "BAJA", "REANUDACION"];
 
 export const ESTADOS_ORDEN: Record<EstadoOrden, string> = {
   SOLICITADA: "Solicitada",

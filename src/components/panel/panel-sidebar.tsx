@@ -34,6 +34,7 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
@@ -121,11 +122,14 @@ function GrupoEnlaces({
   icono: IconoGrupo,
   enlaces,
   pathname,
+  insignias = {},
 }: {
   titulo: string;
   icono: typeof LayoutDashboard;
   enlaces: Enlace[];
   pathname: string;
+  /** Cuántas cosas esperan en cada pantalla (por dirección): se ven como un número al lado. */
+  insignias?: Record<string, number>;
 }) {
   const { state, isMobile } = useSidebar();
 
@@ -186,6 +190,11 @@ function GrupoEnlaces({
               <Link href={enlace.href}>
                 <EnlaceMenu {...enlace} activo={pathname === enlace.href} />
               </Link>
+              {(insignias[enlace.href] ?? 0) > 0 && (
+                <SidebarMenuBadge className="bg-primary text-primary-foreground">
+                  {insignias[enlace.href]}
+                </SidebarMenuBadge>
+              )}
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
@@ -286,6 +295,7 @@ export function PanelSidebar({
   rol,
   plan,
   usuario,
+  insignias,
   chat = false,
 }: {
   apr: string;
@@ -294,6 +304,7 @@ export function PanelSidebar({
   /** Nombre comercial del plan (Pequeño, Estándar, Grande). */
   plan: string;
   usuario: { nombre: string; correo: string };
+  insignias?: Record<string, number>;
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat?: boolean;
 }) {
@@ -319,7 +330,7 @@ export function PanelSidebar({
       <SidebarContent>
         {rol === "ADMIN" ? (
           <>
-            <GrupoEnlaces titulo="Gestión" icono={LayoutGrid} enlaces={gestion} pathname={pathname} />
+            <GrupoEnlaces titulo="Gestión" icono={LayoutGrid} enlaces={gestion} pathname={pathname} insignias={insignias} />
             <GrupoEnlaces
               titulo="Atención"
               icono={Headset}
@@ -330,7 +341,7 @@ export function PanelSidebar({
             />
           </>
         ) : (
-          <GrupoEnlaces titulo="Terreno" icono={Droplets} enlaces={soloOperador} pathname={pathname} />
+          <GrupoEnlaces titulo="Terreno" icono={Droplets} enlaces={soloOperador} pathname={pathname} insignias={insignias} />
         )}
       </SidebarContent>
 

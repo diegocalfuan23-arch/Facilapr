@@ -21,7 +21,7 @@ export default async function SolicitudesSocioPage({ params }: Props) {
     ordenesDeSocios(ids),
     db.query.socios.findMany({
       where: inArray(socios.id, ids),
-      columns: { id: true, nombre: true, direccion: true },
+      columns: { id: true, nombre: true, direccion: true, activo: true },
     }),
   ]);
   const cortados = new Set(cortadosActuales(lista).map((o) => o.socioId));
@@ -41,7 +41,7 @@ export default async function SolicitudesSocioPage({ params }: Props) {
           estado: o.estado,
           detalle: o.detalle,
           // Solo reclamos y bajas llevan respuesta escrita; en terreno la nota es del técnico.
-          respuesta: o.tipo === "RECLAMO" || o.tipo === "BAJA" ? o.respuesta : null,
+          respuesta: o.tipo === "RECLAMO" || o.tipo === "BAJA" || o.tipo === "REANUDACION" ? o.respuesta : null,
           creada: o.creada,
           arranque: o.socioNombre,
         }))}

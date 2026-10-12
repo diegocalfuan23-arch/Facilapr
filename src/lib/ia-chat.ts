@@ -95,24 +95,8 @@ async function intentar(socioId: string) {
     with: { socio: { columns: { nombre: true } } },
   });
 
-  // La ficha de la persona: todos sus arranques (mismo RUT) con sus datos propios.
-  const fichas = await db.query.socios.findMany({
-    where: and(
-      eq(socios.aprId, socio.aprId),
-      socio.rut ? or(eq(socios.id, socio.id), eq(socios.rut, socio.rut)) : eq(socios.id, socio.id)
-    ),
-    columns: {
-      id: true,
-      nombre: true,
-      tipo: true,
-      rut: true,
-      numeroCliente: true,
-      direccion: true,
-      telefono: true,
-      activo: true,
-    },
-  });
-  const idsCuentas = fichas.map((f) => f.id);
+  const ctx = await contextoServicioSocio(socio, apr);
+  const idsCuentas = ctx.idsCuentas;
 
   const pagosRecientes = listaBoletas.length
     ? await db
@@ -135,11 +119,7 @@ async function intentar(socioId: string) {
     limit: 4 * idsCuentas.length,
     columns: { socioId: true, valor: true, periodo: true },
   });
-  const nombreDe = new Map(fichas.map((f) => [f.id, f.nombre]));
-
-  // Estado del servicio y solicitudes: cortes, reposiciones, reclamos, bajas.
-  const ordenesSocio = await ordenesDeSocios(idsCuentas);
-  const cortados = cortadosActuales(ordenesSocio);
+  const nombreDe = new Map(ctx.nombres);
 
   const system = construirPrompt({
     comite: {
@@ -151,24 +131,8 @@ async function intentar(socioId: string) {
     },
     nombreSocio: socio.nombre,
     variosArranques: cuentas.length > 1,
-    servicio: {
-      diasGracia: apr.diasGraciaCorte,
-      diasAviso: apr.diasAvisoCorte,
-      costoReconexion: apr.costoReconexion,
-      cortados: cortados.map((o) => ({ arranque: o.socioNombre, desde: new Date(o.creada) })),
-      solicitudes: ordenesSocio.slice(0, 8).map((o) => ({
-        arranque: o.socioNombre,
-        tipo: TIPOS_ORDEN[o.tipo].texto,
-        estado: ESTADOS_ORDEN[o.estado === "POR_CONFIRMAR" ? "EN_TRAMITE" : o.estado],
-        creada: new Date(o.creada),
-        respuesta: o.tipo === "RECLAMO" || o.tipo === "BAJA" ? o.respuesta : null,
-      })),
-    },
-    fichas: fichas.map((f) => ({
-      ...f,
-      rut: f.rut ? formatearRut(f.rut) : null,
-      telefono: f.telefono ? formatearTelefono(f.telefono) : null,
-    })),
+    servicio: ctx.servicio,
+    fichas: ctx.fichas,
     pagos: pagosRecientes.map((p) => ({
       periodo: periodoDe.get(p.boletaId) ?? "",
       monto: p.monto,
@@ -294,6 +258,64 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
   ].filter(Boolean);
   if (datosComite.length > 0) partes.push(`Datos del comité:\n${datosComite.join("\n")}`);
 
+  partes.push(...seccionFichas(d));
+
+  if (d.lecturas.length > 0) {
+    const filas = d.lecturas.map(
+      (l) => `- ${d.variosArranques ? `[${l.arranque}] ` : ""}${formatearPeriodo(l.periodo)}: ${l.valor} m³ en el medidor`
+    );
+    partes.push(`Lecturas de su medidor (las más recientes primero):\n${filas.join("\n")}`);
+  }
+
+  if (d.pagos.length > 0) {
+    const filas = d.pagos.map(
+      (p) => `- ${fecha.format(p.fecha)}: ${clp.format(p.monto)} (${p.medio}) por la boleta de ${formatearPeriodo(p.periodo)}`
+    );
+    partes.push(`Pagos que ya registró el comité (los más recientes primero):\n${filas.join("\n")}`);
+  }
+
+  partes.push(...seccionesServicio(d));
+
+  if (d.boletas.length === 0) {
+    partes.push("Este socio todavía no tiene boletas emitidas.");
+  } else {
+    const lista = d.boletas.map((b) => {
+      const deuda = saldo(b.montoTotal, b.montoPagado);
+      const campos = [
+        `- ${d.variosArranques ? `[${b.arranque}] ` : ""}${formatearPeriodo(b.periodo)}: total ${clp.format(b.montoTotal)}, estado ${b.estado.toLowerCase()}, vence ${fecha.format(b.fechaVencimiento)}`,
+      ];
+      if (deuda > 0) campos.push(`  Saldo pendiente: ${clp.format(deuda)}`);
+      if (b.consumoM3 !== null) campos.push(`  Consumo: ${b.consumoM3} m³`);
+      return campos.join("\n");
+    });
+    partes.push(`Sus boletas (las más recientes primero):\n${lista.join("\n")}`);
+  }
+
+  if (d.comite.instrucciones?.trim()) {
+    partes.push(
+      `Instrucciones del comité (síguelas mientras no contradigan las reglas de abajo):\n${d.comite.instrucciones.trim()}`
+    );
+  }
+
+  partes.push(`Reglas:
+- Responde solo con los datos de arriba. Nunca inventes montos, fechas, plazos ni teléfonos.
+- Eres una IA y, si te lo preguntan, lo dices. No finjas ser una persona.
+- No prometas plazos, descuentos, repactaciones, reconexiones ni condonaciones: eso lo decide la directiva.
+- Sus datos personales de arriba son suyos: si los pide, se los das. No hables de otros socios ni de datos que no aparezcan arriba. Si pide cambiar un dato, eso lo ve la directiva.
+- Si pregunta por cortes por deuda (si se lo van a cortar, cuántos días le quedan, cuánto cuesta reconectar o qué hacer), respóndelo con los datos de cortes de arriba. Nunca prometas que no se lo cortarán ni cuándo lo reconectarán: eso lo decide la directiva.
+- Para pedir una reposición, una reparación, hacer un reclamo, dar de baja el servicio o reanudarlo, dile que lo haga desde la sección «Solicitudes» de su cuenta en línea: tú no puedes crear solicitudes. Si pregunta cómo va una, dile el estado que ves arriba.
+- Si es una fuga o falta de agua ahora mismo, un cambio de datos personales, una queja fuerte o una persona pide hablar con alguien, o no puedes resolverlo con los datos de arriba, empieza tu respuesta con ${MARCA_HUMANO} y a continuación escribe un mensaje breve diciendo que avisarás a la directiva para que lo atienda personalmente.
+- Si la pregunta se resuelve con los datos de arriba, respóndela directamente sin la marca.
+- Escribe en texto plano, como en un mensaje de WhatsApp: sin asteriscos, sin negritas y sin listas con símbolos.`);
+
+  return partes.join("\n\n");
+}
+
+export type DatosPrompt = Parameters<typeof construirPrompt>[0];
+
+/** Los datos personales del socio, para el prompt. Los usan el chat con el comité y el asistente simple. */
+export function seccionFichas(d: Pick<DatosPrompt, "fichas">): string[] {
+  const partes: string[] = [];
   if (d.fichas.length > 0) {
     const fichas = d.fichas.map((f) =>
       [
@@ -311,20 +333,14 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
     partes.push(`Datos personales del socio (los que el comité tiene registrados; puedes compartírselos a él mismo):\n${fichas.join("\n")}`);
   }
 
-  if (d.lecturas.length > 0) {
-    const filas = d.lecturas.map(
-      (l) => `- ${d.variosArranques ? `[${l.arranque}] ` : ""}${formatearPeriodo(l.periodo)}: ${l.valor} m³ en el medidor`
-    );
-    partes.push(`Lecturas de su medidor (las más recientes primero):\n${filas.join("\n")}`);
-  }
+  return partes;
+}
 
-  if (d.pagos.length > 0) {
-    const filas = d.pagos.map(
-      (p) => `- ${fecha.format(p.fecha)}: ${clp.format(p.monto)} (${p.medio}) por la boleta de ${formatearPeriodo(p.periodo)}`
-    );
-    partes.push(`Pagos que ya registró el comité (los más recientes primero):\n${filas.join("\n")}`);
-  }
-
+/** Cortes por morosidad, estado del servicio y solicitudes del socio, para el prompt. */
+export function seccionesServicio(
+  d: Pick<DatosPrompt, "servicio" | "boletas" | "variosArranques">
+): string[] {
+  const partes: string[] = [];
   {
     const ahora = Date.now();
     const vencidas = d.boletas.filter(
@@ -370,38 +386,62 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
       );
     }
   }
+  return partes;
+}
 
-  if (d.boletas.length === 0) {
-    partes.push("Este socio todavía no tiene boletas emitidas.");
-  } else {
-    const lista = d.boletas.map((b) => {
-      const deuda = saldo(b.montoTotal, b.montoPagado);
-      const campos = [
-        `- ${d.variosArranques ? `[${b.arranque}] ` : ""}${formatearPeriodo(b.periodo)}: total ${clp.format(b.montoTotal)}, estado ${b.estado.toLowerCase()}, vence ${fecha.format(b.fechaVencimiento)}`,
-      ];
-      if (deuda > 0) campos.push(`  Saldo pendiente: ${clp.format(deuda)}`);
-      if (b.consumoM3 !== null) campos.push(`  Consumo: ${b.consumoM3} m³`);
-      return campos.join("\n");
-    });
-    partes.push(`Sus boletas (las más recientes primero):\n${lista.join("\n")}`);
-  }
+/**
+ * Todo lo que el asistente necesita saber del socio fuera de sus boletas: sus
+ * datos personales, el estado del servicio (cortes por morosidad) y sus
+ * solicitudes. Lo usan el chat con el comité y el asistente simple del portal.
+ */
+export async function contextoServicioSocio(
+  socio: { id: string; aprId: string; rut: string | null },
+  apr: { diasGraciaCorte: number; diasAvisoCorte: number; costoReconexion: number | null }
+) {
+  // La persona: todos sus arranques (mismo RUT) con sus datos propios.
+  const filas = await db.query.socios.findMany({
+    where: and(
+      eq(socios.aprId, socio.aprId),
+      socio.rut ? or(eq(socios.id, socio.id), eq(socios.rut, socio.rut)) : eq(socios.id, socio.id)
+    ),
+    columns: {
+      id: true,
+      nombre: true,
+      tipo: true,
+      rut: true,
+      numeroCliente: true,
+      direccion: true,
+      telefono: true,
+      activo: true,
+    },
+  });
+  const idsCuentas = filas.map((f) => f.id);
 
-  if (d.comite.instrucciones?.trim()) {
-    partes.push(
-      `Instrucciones del comité (síguelas mientras no contradigan las reglas de abajo):\n${d.comite.instrucciones.trim()}`
-    );
-  }
+  const ordenesSocio = await ordenesDeSocios(idsCuentas);
+  const cortados = cortadosActuales(ordenesSocio);
 
-  partes.push(`Reglas:
-- Responde solo con los datos de arriba. Nunca inventes montos, fechas, plazos ni teléfonos.
-- Eres una IA y, si te lo preguntan, lo dices. No finjas ser una persona.
-- No prometas plazos, descuentos, repactaciones, reconexiones ni condonaciones: eso lo decide la directiva.
-- Sus datos personales de arriba son suyos: si los pide, se los das. No hables de otros socios ni de datos que no aparezcan arriba. Si pide cambiar un dato, eso lo ve la directiva.
-- Si pregunta por cortes por deuda (si se lo van a cortar, cuántos días le quedan, cuánto cuesta reconectar o qué hacer), respóndelo con los datos de cortes de arriba. Nunca prometas que no se lo cortarán ni cuándo lo reconectarán: eso lo decide la directiva.
-- Para pedir una reposición, una reparación, hacer un reclamo o dar de baja el servicio, dile que lo haga desde la sección «Solicitudes» de su cuenta en línea: tú no puedes crear solicitudes. Si pregunta cómo va una, dile el estado que ves arriba.
-- Si es una fuga o falta de agua ahora mismo, un cambio de datos personales, una queja fuerte o una persona pide hablar con alguien, o no puedes resolverlo con los datos de arriba, empieza tu respuesta con ${MARCA_HUMANO} y a continuación escribe un mensaje breve diciendo que avisarás a la directiva para que lo atienda personalmente.
-- Si la pregunta se resuelve con los datos de arriba, respóndela directamente sin la marca.
-- Escribe en texto plano, como en un mensaje de WhatsApp: sin asteriscos, sin negritas y sin listas con símbolos.`);
+  const servicio: DatosPrompt["servicio"] = {
+    diasGracia: apr.diasGraciaCorte,
+    diasAviso: apr.diasAvisoCorte,
+    costoReconexion: apr.costoReconexion,
+    cortados: cortados.map((o) => ({ arranque: o.socioNombre, desde: new Date(o.creada) })),
+    solicitudes: ordenesSocio.slice(0, 8).map((o) => ({
+      arranque: o.socioNombre,
+      tipo: TIPOS_ORDEN[o.tipo].texto,
+      estado: ESTADOS_ORDEN[o.estado === "POR_CONFIRMAR" ? "EN_TRAMITE" : o.estado],
+      creada: new Date(o.creada),
+      respuesta: o.tipo === "RECLAMO" || o.tipo === "BAJA" ? o.respuesta : null,
+    })),
+  };
 
-  return partes.join("\n\n");
+  return {
+    idsCuentas,
+    nombres: filas.map((f) => [f.id, f.nombre] as [string, string]),
+    servicio,
+    fichas: filas.map((f) => ({
+      ...f,
+      rut: f.rut ? formatearRut(f.rut) : null,
+      telefono: f.telefono ? formatearTelefono(f.telefono) : null,
+    })) as DatosPrompt["fichas"],
+  };
 }

@@ -243,7 +243,7 @@ export function CortesPanel({
                 acciones={
                   <>
                     <Button size="sm" disabled={pendiente} onClick={() => setResolviendo({ orden: o, aprobar: true })}>
-                      {o.tipo === "RECLAMO" ? "Responder" : o.tipo === "BAJA" ? "Dar de baja" : "Aprobar"}
+                      {o.tipo === "RECLAMO" ? "Responder" : o.tipo === "BAJA" ? "Dar de baja" : o.tipo === "REANUDACION" ? "Reanudar" : "Aprobar"}
                     </Button>
                     <Button size="sm" variant="outline" disabled={pendiente} onClick={() => setResolviendo({ orden: o, aprobar: false })}>
                       Rechazar
@@ -407,7 +407,8 @@ function ResolverDialog({
 
   const reclamo = orden.tipo === "RECLAMO";
   const baja = orden.tipo === "BAJA";
-  const pideTexto = reclamo || !aprobar || baja;
+  const reanudacion = orden.tipo === "REANUDACION";
+  const pideTexto = reclamo || !aprobar || baja || reanudacion;
 
   const titulo = !aprobar
     ? `Rechazar ${TIPOS_ORDEN[orden.tipo].texto.toLowerCase()}`
@@ -415,7 +416,9 @@ function ResolverDialog({
       ? "Responder el reclamo"
       : baja
         ? "Dar de baja el servicio"
-        : `Aprobar ${TIPOS_ORDEN[orden.tipo].texto.toLowerCase()}`;
+        : reanudacion
+          ? "Reanudar el servicio"
+          : `Aprobar ${TIPOS_ORDEN[orden.tipo].texto.toLowerCase()}`;
 
   const descripcion = !aprobar
     ? "Si escribes un motivo, el socio lo ve en su portal."
@@ -423,7 +426,9 @@ function ResolverDialog({
       ? "Tu respuesta le aparece al socio en su portal."
       : baja
         ? "El arranque queda inactivo y deja de aparecer en los cobros. Lo que debe hasta hoy no se borra."
-        : "Pasa a trámite: el técnico (o el presidente) va a terreno y sube la foto.";
+        : reanudacion
+          ? "El arranque vuelve a estar activo. Si hay que reconectarlo en terreno, ordena una reposición."
+          : "Pasa a trámite: el técnico (o el presidente) va a terreno y sube la foto.";
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -482,7 +487,7 @@ function ResolverDialog({
             }
           >
             {pendiente && <Loader2 className="animate-spin" />}
-            {!aprobar ? "Rechazar" : reclamo ? "Enviar respuesta" : baja ? "Dar de baja" : "Aprobar"}
+            {!aprobar ? "Rechazar" : reclamo ? "Enviar respuesta" : baja ? "Dar de baja" : reanudacion ? "Reanudar" : "Aprobar"}
           </Button>
         </DialogFooter>
       </DialogContent>

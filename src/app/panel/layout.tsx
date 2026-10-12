@@ -1,5 +1,8 @@
 import Link from "next/link";
 import { ClipboardList, Droplets } from "lucide-react";
+import { and, count, eq, inArray } from "drizzle-orm";
+import { db } from "@/lib/db";
+import { ordenes } from "@/lib/db/schema";
 import { requireApr } from "@/lib/apr-session";
 import { PanelSidebar } from "@/components/panel/panel-sidebar";
 import { Logo } from "@/components/marca/logo";
@@ -28,6 +31,24 @@ export default async function PanelLayout({
   // escritorio (md:) queda el panel de siempre.
   const esOperador = rol === "OPERADOR";
 
+  // Lo que espera acción: el técnico, órdenes por hacer; la directiva, solicitudes por
+  // resolver y evidencias por dar de alta. Si la consulta falla, simplemente no hay número.
+  const insignias: Record<string, number> = {};
+  try {
+    const [f] = await db
+      .select({ n: count() })
+      .from(ordenes)
+      .where(
+        and(
+          eq(ordenes.aprId, apr.id),
+          inArray(ordenes.estado, esOperador ? ["EN_TRAMITE"] : ["SOLICITADA", "POR_CONFIRMAR"])
+        )
+      );
+    insignias[esOperador ? "/panel/ordenes" : "/panel/cortes"] = f?.n ?? 0;
+  } catch {
+    // Sin número en el menú.
+  }
+
   return (
     <TooltipProvider>
       <SidebarProvider>
@@ -35,6 +56,7 @@ export default async function PanelLayout({
           apr={apr.nombre}
           comuna={apr.comuna}
           rol={rol}
+          insignias={insignias}
           plan={NOMBRE_PLAN[apr.plan as Plan]}
           usuario={{ nombre: user.name, correo: user.email }}
           chat={puede(apr.plan as Plan, "chat")}

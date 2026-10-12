@@ -29,7 +29,14 @@ export type SolicitudSocio = {
   arranque: string;
 };
 
-export type ArranqueSocio = { id: string; nombre: string; direccion: string | null; cortado: boolean };
+export type ArranqueSocio = {
+  id: string;
+  nombre: string;
+  direccion: string | null;
+  cortado: boolean;
+  /** Falso si el arranque está dado de baja. */
+  activo: boolean;
+};
 
 const fecha = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long" });
 
@@ -37,6 +44,7 @@ const OPCIONES: { tipo: TipoOrden; titulo: string; ayuda: string; placeholder: s
   { tipo: "RECLAMO", titulo: "Reclamo", ayuda: "Algo que no está bien: un cobro, una boleta, el servicio.", placeholder: "Cuéntanos qué pasó." },
   { tipo: "REPARACION", titulo: "Reparación", ayuda: "Fuga, medidor dañado, falta de agua en tu casa.", placeholder: "Ej: Hay una fuga en el empalme, frente a la casa." },
   { tipo: "REPOSICION", titulo: "Reponer el servicio", ayuda: "Si te lo cortaron y ya regularizaste.", placeholder: "Ej: Ya pagué la deuda el lunes." },
+  { tipo: "REANUDACION", titulo: "Reanudar el servicio", ayuda: "Si diste de baja este arranque y quieres volver a tenerlo.", placeholder: "Cuéntanos desde cuándo lo necesitas (opcional)." },
   { tipo: "BAJA", titulo: "Dar de baja el servicio", ayuda: "Dejar de ser usuario o socio de este arranque.", placeholder: "Cuéntanos el motivo (opcional)." },
 ];
 
@@ -133,8 +141,13 @@ function NuevaSolicitud({
 
   const arranque = arranques.find((a) => a.id === arranqueId);
   const opcion = OPCIONES.find((o) => o.tipo === tipo)!;
-  // La reposición solo se ofrece cuando ese arranque está cortado.
-  const opciones = OPCIONES.filter((o) => o.tipo !== "REPOSICION" || arranque?.cortado);
+  // Cada opción aparece solo cuando tiene sentido para ese arranque.
+  const opciones = OPCIONES.filter((o) => {
+    if (o.tipo === "REPOSICION") return arranque?.cortado;
+    if (o.tipo === "REANUDACION") return arranque && !arranque.activo;
+    if (o.tipo === "BAJA") return arranque?.activo;
+    return true;
+  });
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -157,7 +170,7 @@ function NuevaSolicitud({
                     variant={a.id === arranqueId ? "default" : "outline"}
                     onClick={() => {
                       setArranqueId(a.id);
-                      if (tipo === "REPOSICION" && !a.cortado) setTipo("RECLAMO");
+                      setTipo("RECLAMO");
                     }}
                   >
                     {a.nombre}
