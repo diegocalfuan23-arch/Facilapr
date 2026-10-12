@@ -165,3 +165,29 @@ export function mensajeRestablecerClave(
     `El enlace es personal, sirve una sola vez y vence en ${HORAS_VIGENCIA_RESTABLECER / 24} días. Si tú no lo pediste, ignora este mensaje.`,
   ].join("\n");
 }
+
+/** El mensaje con el que la directiva le manda al socio el comprobante de un pago que acaba de registrar. */
+export function mensajeComprobantePago(
+  comite: string,
+  datos: {
+    socioNombre: string;
+    periodo: string;
+    monto: number;
+    montoTotal: number;
+    montoPagado: number;
+    comprobanteUrl: string;
+  }
+) {
+  const nombre = datos.socioNombre.trim().split(/\s+/)[0] ?? "";
+  const porPagar = saldo(datos.montoTotal, datos.montoPagado);
+  return [
+    `Hola ${nombre}, te escribe ${comite}.`,
+    "",
+    `Registramos tu pago de ${clp.format(datos.monto)} de la boleta de ${formatearPeriodo(datos.periodo)}.`,
+    porPagar > 0
+      ? `Te quedan ${clp.format(porPagar)} por pagar.`
+      : "Con esto la boleta queda pagada completa. ¡Gracias!",
+    "",
+    `Descarga tu comprobante: ${datos.comprobanteUrl}`,
+  ].join("\n");
+}

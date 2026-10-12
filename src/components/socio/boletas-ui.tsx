@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
+import { textoMedioPago } from "@/lib/pagos";
+import type { PagoPortal } from "@/lib/portal-socio-datos";
 
 /** Piezas que comparten las pantallas del portal del socio (resumen, boletas, pagos). */
 
@@ -12,6 +14,12 @@ export const clp = new Intl.NumberFormat("es-CL", {
 export const fecha = new Intl.DateTimeFormat("es-CL", {
   day: "numeric",
   month: "long",
+});
+
+const fechaConAnio = new Intl.DateTimeFormat("es-CL", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
 });
 
 const ESTADO_ESTILO = {
@@ -128,40 +136,41 @@ export function ListaBoletas({
 }
 
 export function ListaPagos({
-  boletas,
+  pagos,
   variasCuentas,
 }: {
-  boletas: BoletaPortal[];
+  pagos: PagoPortal[];
   variasCuentas: boolean;
 }) {
   return (
     <div className="flex flex-col divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
-      {boletas.map((b) => {
-        const completo = b.montoPagado >= b.montoTotal;
-        return (
-          <div key={b.id} className="flex items-center justify-between gap-3 p-4">
-            <div>
-              <div className="font-medium">
-                {completo ? "Pago" : "Abono"} de {formatearPeriodo(b.periodo)}
-                {variasCuentas && (
-                  <span className="font-normal text-muted-foreground">
-                    {" "}
-                    · {b.socio.nombre}
-                  </span>
-                )}
-              </div>
-              <div className="text-[0.82rem] text-muted-foreground">
-                {completo
-                  ? "Boleta pagada completa"
-                  : `De ${clp.format(b.montoTotal)} · faltan ${clp.format(saldo(b.montoTotal, b.montoPagado))}`}
-              </div>
+      {pagos.map((p) => (
+        <div key={p.id} className="flex items-center justify-between gap-3 p-4">
+          <div className="min-w-0">
+            <div className="font-medium">
+              Pago de {formatearPeriodo(p.periodo)}
+              {variasCuentas && (
+                <span className="font-normal text-muted-foreground"> · {p.socioNombre}</span>
+              )}
             </div>
-            <span className="font-mono text-[0.95rem] font-semibold text-forest tabular-nums">
-              {clp.format(b.montoPagado)}
-            </span>
+            <div className="text-[0.82rem] text-muted-foreground">
+              {fechaConAnio.format(p.fecha)} · {textoMedioPago(p.medio)}
+              {p.referencia ? ` · ${p.referencia}` : ""}
+            </div>
+            <a
+              href={p.comprobanteUrl}
+              target="_blank"
+              rel="noopener"
+              className="text-[0.82rem] font-medium text-primary hover:underline"
+            >
+              Ver comprobante
+            </a>
           </div>
-        );
-      })}
+          <span className="font-mono text-[0.95rem] font-semibold text-forest tabular-nums">
+            {clp.format(p.monto)}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

@@ -41,7 +41,7 @@ const GRIS = rgb(0.4, 0.4, 0.4);
 const LINEA = rgb(0.78, 0.78, 0.78);
 
 /** Las fuentes estándar no codifican cualquier carácter: lo que no sirve pasa a "?". */
-function seguro(fuente: PDFFont, texto: string) {
+export function seguro(fuente: PDFFont, texto: string) {
   const permitidos = new Set(fuente.getCharacterSet());
   return Array.from(texto.replace(/\s+/g, " "))
     .map((c) => (permitidos.has(c.codePointAt(0)!) ? c : "?"))

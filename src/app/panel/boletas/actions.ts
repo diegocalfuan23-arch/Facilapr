@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { boletas, socios } from "@/lib/db/schema";
+import { boletas, pagos, socios } from "@/lib/db/schema";
+import { urlComprobante } from "@/lib/comprobante-enlace";
 import { requireAdmin } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
 import {
@@ -244,47 +245,185 @@ export async function guardarBoleta(
   return { ok: true };
 }
 
-export async function registrarPago(
-  boletaId: string,
-  monto: number
-): Promise<ResultadoAccion> {
-  const { apr } = await requireAdmin();
+/** Pago dentro del comité del usuario; null si no existe o es de otro comité. */
+async function pagoDelComite(aprId: string, pagoId: string) {
+  const [fila] = await db
+    .select({ id: pagos.id, boletaId: pagos.boletaId })
+    .from(pagos)
+    .innerJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .where(and(eq(pagos.id, pagoId), eq(socios.aprId, aprId)))
+    .limit(1);
+  return fila ?? null;
+}
 
-  if (!Number.isFinite(monto) || monto < 0) {
-    return { ok: false, error: "El monto pagado no es válido." };
-  }
-
-  const fila = await db
+/** Deja Boleta.montoPagado y el estado de acuerdo con la suma de sus pagos. */
+async function recalcularBoleta(boletaId: string) {
+  const [suma] = await db
+    .select({ total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
+    .from(pagos)
+    .where(eq(pagos.boletaId, boletaId));
+  const [boleta] = await db
     .select({
-      id: boletas.id,
       montoTotal: boletas.montoTotal,
       fechaVencimiento: boletas.fechaVencimiento,
       estado: boletas.estado,
     })
     .from(boletas)
-    .innerJoin(socios, eq(boletas.socioId, socios.id))
-    .where(and(eq(boletas.id, boletaId), eq(socios.aprId, apr.id)))
+    .where(eq(boletas.id, boletaId))
     .limit(1);
+  if (!boleta) return null;
 
-  if (fila.length === 0) {
-    return { ok: false, error: "No encontramos esa boleta." };
-  }
-
-  const boleta = fila[0];
-
+  const pagado = suma?.total ?? 0;
   await db
     .update(boletas)
     .set({
-      montoPagado: monto,
+      montoPagado: pagado,
       estado: estadoQueCorresponde(
         boleta.montoTotal,
-        monto,
+        pagado,
         boleta.fechaVencimiento,
         boleta.estado as EstadoBoleta
       ),
       updatedAt: new Date(),
     })
     .where(eq(boletas.id, boletaId));
+  return { pagado, montoTotal: boleta.montoTotal };
+}
+
+const pagoSchema = z.object({
+  monto: z.number().int().min(1, "El monto debe ser mayor a cero."),
+  fecha: z.date(),
+  medio: z.enum(["EFECTIVO", "TRANSFERENCIA", "CAJA_VECINA", "OTRO"]),
+  referencia: z.string().trim().max(80).optional(),
+});
+
+export type ResultadoPago =
+  | {
+      ok: true;
+      pagoId: string;
+      comprobanteUrl: string;
+      montoPagado: number;
+      montoTotal: number;
+    }
+  | { ok: false; error: string };
+
+/** Registra un pago o abono sobre una boleta y deja listo su comprobante. */
+export async function registrarPago(
+  boletaId: string,
+  datos: { monto: number; fecha: string; medio: string; referencia?: string }
+): Promise<ResultadoPago> {
+  const { user, apr } = await requireAdmin();
+
+  const parsed = pagoSchema.safeParse({
+    monto: Math.round(datos.monto),
+    fecha: new Date(`${datos.fecha}T12:00:00`),
+    medio: datos.medio,
+    referencia: datos.referencia || undefined,
+  });
+  if (!parsed.success || Number.isNaN(parsed.data.fecha.getTime())) {
+    return { ok: false, error: parsed.success ? "La fecha no es válida." : parsed.error.issues[0].message };
+  }
+  if (parsed.data.fecha.getTime() > Date.now() + 24 * 3600 * 1000) {
+    return { ok: false, error: "La fecha del pago no puede ser futura." };
+  }
+
+  const [fila] = await db
+    .select({
+      id: boletas.id,
+      montoTotal: boletas.montoTotal,
+      montoPagado: boletas.montoPagado,
+      estado: boletas.estado,
+    })
+    .from(boletas)
+    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .where(and(eq(boletas.id, boletaId), eq(socios.aprId, apr.id)))
+    .limit(1);
+  if (!fila) return { ok: false, error: "No encontramos esa boleta." };
+  if (fila.estado === "ANULADA") {
+    return { ok: false, error: "No se puede registrar un pago en una boleta anulada." };
+  }
+
+  const falta = Math.max(0, fila.montoTotal - fila.montoPagado);
+  if (parsed.data.monto > falta) {
+    return {
+      ok: false,
+      error:
+        falta === 0
+          ? "Esta boleta ya está pagada completa."
+          : `El monto supera lo que falta por pagar (${falta.toLocaleString("es-CL")}).`,
+    };
+  }
+
+  const [pago] = await db
+    .insert(pagos)
+    .values({
+      boletaId,
+      monto: parsed.data.monto,
+      fecha: parsed.data.fecha,
+      medio: parsed.data.medio,
+      referencia: parsed.data.referencia ?? null,
+      registradoPorId: user.id,
+    })
+    .returning({ id: pagos.id });
+
+  const total = await recalcularBoleta(boletaId);
+
+  revalidatePath("/panel/boletas");
+  revalidatePath("/panel");
+  return {
+    ok: true,
+    pagoId: pago.id,
+    comprobanteUrl: urlComprobante(pago.id),
+    montoPagado: total?.pagado ?? fila.montoPagado + parsed.data.monto,
+    montoTotal: fila.montoTotal,
+  };
+}
+
+export type PagoRegistrado = {
+  id: string;
+  monto: number;
+  fecha: string;
+  medio: string;
+  referencia: string | null;
+  comprobanteUrl: string;
+};
+
+/** Los pagos ya registrados de una boleta, del más reciente al más antiguo. */
+export async function pagosDeBoleta(boletaId: string): Promise<PagoRegistrado[]> {
+  const { apr } = await requireAdmin();
+  const filas = await db
+    .select({
+      id: pagos.id,
+      monto: pagos.monto,
+      fecha: pagos.fecha,
+      medio: pagos.medio,
+      referencia: pagos.referencia,
+    })
+    .from(pagos)
+    .innerJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .where(and(eq(pagos.boletaId, boletaId), eq(socios.aprId, apr.id)))
+    .orderBy(desc(pagos.fecha), desc(pagos.createdAt));
+
+  return filas.map((f) => ({
+    id: f.id,
+    monto: f.monto,
+    fecha: f.fecha.toISOString(),
+    medio: f.medio,
+    referencia: f.referencia,
+    comprobanteUrl: urlComprobante(f.id),
+  }));
+}
+
+/** Quita un pago registrado por error; la boleta vuelve a deber ese monto. */
+export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
+  const { apr } = await requireAdmin();
+  const pago = await pagoDelComite(apr.id, pagoId);
+  if (!pago) return { ok: false, error: "No encontramos ese pago." };
+
+  await db.delete(pagos).where(eq(pagos.id, pago.id));
+  await recalcularBoleta(pago.boletaId);
 
   revalidatePath("/panel/boletas");
   revalidatePath("/panel");

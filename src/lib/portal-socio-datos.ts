@@ -1,6 +1,7 @@
 import { desc, inArray } from "drizzle-orm";
+import { urlComprobante } from "@/lib/comprobante-enlace";
 import { db } from "@/lib/db";
-import { boletas } from "@/lib/db/schema";
+import { boletas, pagos } from "@/lib/db/schema";
 import { cuentasDelSocio } from "@/lib/socio-session";
 
 /**
@@ -22,4 +23,45 @@ export async function boletasDelPortal(
     with: { socio: { columns: { nombre: true } } },
   });
   return { cuentas, lista };
+}
+
+export type PagoPortal = {
+  id: string;
+  monto: number;
+  fecha: Date;
+  medio: string;
+  referencia: string | null;
+  periodo: string;
+  socioNombre: string;
+  comprobanteUrl: string;
+};
+
+/** Los pagos registrados sobre esas boletas, del más reciente al más antiguo. */
+export async function pagosDelPortal(
+  lista: { id: string; periodo: string; socio: { nombre: string } }[]
+): Promise<PagoPortal[]> {
+  if (lista.length === 0) return [];
+  const porId = new Map(lista.map((b) => [b.id, b]));
+  const filas = await db
+    .select()
+    .from(pagos)
+    .where(inArray(pagos.boletaId, [...porId.keys()]))
+    .orderBy(desc(pagos.fecha), desc(pagos.createdAt));
+
+  return filas.flatMap((f) => {
+    const b = porId.get(f.boletaId);
+    if (!b) return [];
+    return [
+      {
+        id: f.id,
+        monto: f.monto,
+        fecha: f.fecha,
+        medio: f.medio,
+        referencia: f.referencia,
+        periodo: b.periodo,
+        socioNombre: b.socio.nombre,
+        comprobanteUrl: urlComprobante(f.id),
+      },
+    ];
+  });
 }

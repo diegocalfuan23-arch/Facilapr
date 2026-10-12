@@ -304,6 +304,30 @@ export const boletas = pgTable(
   ]
 );
 
+/**
+ * Cada pago o abono que el comité registra sobre una boleta. Boleta.montoPagado
+ * es la suma de estos pagos: se recalcula cada vez que se agrega o se quita uno.
+ */
+export const pagos = pgTable(
+  "Pago",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    boletaId: text("boletaId")
+      .notNull()
+      .references(() => boletas.id, { onDelete: "cascade" }),
+    monto: integer("monto").notNull(),
+    /** Cuándo se pagó (puede ser anterior a cuando se registró). */
+    fecha: timestamp("fecha", { precision: 3 }).notNull().defaultNow(),
+    /** EFECTIVO | TRANSFERENCIA | CAJA_VECINA | OTRO (y más adelante MERCADO_PAGO, FLOW). */
+    medio: text("medio").notNull().default("OTRO"),
+    /** N.º de operación, de transferencia o de comprobante, si lo hay. */
+    referencia: text("referencia"),
+    registradoPorId: text("registradoPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Pago_boletaId_idx").on(table.boletaId)]
+);
+
 export const boletasRelations = relations(boletas, ({ one }) => ({
   socio: one(socios, {
     fields: [boletas.socioId],

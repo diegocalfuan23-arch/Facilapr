@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { requireSocio } from "@/lib/socio-session";
-import { boletasDelPortal } from "@/lib/portal-socio-datos";
+import { boletasDelPortal, pagosDelPortal } from "@/lib/portal-socio-datos";
 import {
   clp,
   ListaPagos,
@@ -16,10 +16,8 @@ export default async function PagosSocioPage({ params }: Props) {
   const { slug } = await params;
   const { socio } = await requireSocio(slug);
   const { cuentas, lista } = await boletasDelPortal(socio);
-
-  // Pagos y abonos: toda boleta de la que ya se pagó algo.
-  const pagos = lista.filter((b) => b.estado !== "ANULADA" && b.montoPagado > 0);
-  const totalPagado = pagos.reduce((acc, b) => acc + b.montoPagado, 0);
+  const pagos = await pagosDelPortal(lista);
+  const totalPagado = pagos.reduce((acc, p) => acc + p.monto, 0);
 
   return (
     <>
@@ -34,7 +32,7 @@ export default async function PagosSocioPage({ params }: Props) {
       {pagos.length === 0 ? (
         <SinDatos>Todavía no hay pagos registrados.</SinDatos>
       ) : (
-        <ListaPagos boletas={pagos} variasCuentas={cuentas.length > 1} />
+        <ListaPagos pagos={pagos} variasCuentas={cuentas.length > 1} />
       )}
     </>
   );
