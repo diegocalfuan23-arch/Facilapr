@@ -9,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Gauge,
-  Globe,
   Loader2,
   ReceiptText,
   Scissors,
@@ -27,7 +26,6 @@ import {
   guardarFacturacion,
   guardarIaChat,
   guardarMedidores,
-  guardarRegional,
   type ResultadoAccion,
 } from "@/app/panel/configuracion/actions";
 import { Button } from "@/components/ui/button";
@@ -56,9 +54,6 @@ export type DatosConfiguracion = {
   telefono: string | null;
   email: string | null;
   sitioWeb: string | null;
-  pais: string;
-  moneda: string;
-  zonaHoraria: string;
   /** Tarifa única del comité: cargo fijo + valor por m³ (CLP). */
   tarifaCargoFijo: number | null;
   tarifaMetroCubico: number | null;
@@ -172,7 +167,6 @@ function Campo({
 type Seccion =
   | "comite"
   | "uso"
-  | "regional"
   | "facturacion"
   | "medidores"
   | "cortes"
@@ -187,7 +181,6 @@ const SECCIONES: {
   icono: typeof Building2;
 }[] = [
   { id: "comite", label: "Comité", resumen: "Tus datos y tu enlace", icono: Building2 },
-  { id: "regional", label: "País y moneda", resumen: "País, moneda y zona horaria", icono: Globe },
   { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
   { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge },
   { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors },
@@ -419,69 +412,6 @@ export function ConfiguracionForm({
               </span>
             </p>
           )}
-        </Bloque>
-      )}
-
-      {seccion === "regional" && (
-        <Bloque
-          titulo="País y moneda"
-          descripcion="Dónde opera el comité. Prepara el sistema para operar fuera de Chile."
-          accion={guardarRegional}
-        >
-          <div className="grid gap-4 sm:grid-cols-3">
-            <Campo id="pais" label="País">
-              <select
-                id="pais"
-                name="pais"
-                defaultValue={datos.pais}
-                className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="CL">Chile</option>
-                <option value="PE">Perú</option>
-                <option value="BO">Bolivia</option>
-                <option value="AR">Argentina</option>
-                <option value="CO">Colombia</option>
-                <option value="EC">Ecuador</option>
-              </select>
-            </Campo>
-            <Campo
-              id="moneda"
-              label="Moneda"
-              ayuda="Código de 3 letras: CLP, PEN, BOB…"
-            >
-              <Input
-                id="moneda"
-                name="moneda"
-                defaultValue={datos.moneda}
-                maxLength={3}
-                className="uppercase"
-              />
-            </Campo>
-            <Campo id="zonaHoraria" label="Zona horaria">
-              <select
-                id="zonaHoraria"
-                name="zonaHoraria"
-                defaultValue={datos.zonaHoraria}
-                className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                <option value="America/Santiago">Chile continental</option>
-                <option value="Pacific/Easter">Isla de Pascua</option>
-                <option value="America/Lima">Perú</option>
-                <option value="America/La_Paz">Bolivia</option>
-                <option value="America/Argentina/Buenos_Aires">
-                  Argentina
-                </option>
-                <option value="America/Bogota">Colombia</option>
-                <option value="America/Guayaquil">Ecuador</option>
-              </select>
-            </Campo>
-          </div>
-
-          <p className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-[0.83rem] text-muted-foreground">
-            Por ahora los montos y fechas del panel se muestran en formato
-            chileno. Estos datos quedan guardados para cuando Facilapr opere
-            fuera de Chile.
-          </p>
         </Bloque>
       )}
 

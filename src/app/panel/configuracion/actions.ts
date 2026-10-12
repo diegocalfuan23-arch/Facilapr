@@ -74,49 +74,6 @@ export async function guardarComite(
   return { ok: true };
 }
 
-/**
- * Los formatos de monto y fecha del panel siguen usando es-CL y CLP en el
- * código. Esto guarda la configuración del comité para cuando el producto
- * salga de Chile; hasta entonces solo se muestra.
- */
-const PAISES = ["CL", "PE", "BO", "AR", "CO", "EC"] as const;
-
-export async function guardarRegional(
-  _prev: ResultadoAccion | null,
-  formData: FormData
-): Promise<ResultadoAccion> {
-  const { apr } = await requireAdmin();
-
-  const pais = String(formData.get("pais") ?? "");
-  if (!PAISES.includes(pais as (typeof PAISES)[number])) {
-    return { ok: false, error: "El país seleccionado no es válido." };
-  }
-
-  const moneda = String(formData.get("moneda") ?? "").trim().toUpperCase();
-  if (!/^[A-Z]{3}$/.test(moneda)) {
-    return {
-      ok: false,
-      error: "La moneda debe ser un código de 3 letras, por ejemplo CLP o PEN.",
-    };
-  }
-
-  const zona = String(formData.get("zonaHoraria") ?? "").trim();
-  // Que Intl la reconozca evita guardar una zona que después rompa el formato.
-  try {
-    new Intl.DateTimeFormat("es", { timeZone: zona });
-  } catch {
-    return { ok: false, error: "La zona horaria no es válida." };
-  }
-
-  await db
-    .update(aprs)
-    .set({ pais, moneda, zonaHoraria: zona, updatedAt: new Date() })
-    .where(eq(aprs.id, apr.id));
-
-  revalidatePath("/panel/configuracion");
-  return { ok: true };
-}
-
 export async function guardarFacturacion(
   _prev: ResultadoAccion | null,
   formData: FormData
