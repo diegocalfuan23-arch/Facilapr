@@ -7,11 +7,11 @@ import { cn } from "@/lib/utils";
 
 /**
  * Los precios están en una unidad de reajuste (hoy UF). Se cambian aquí: la
- * unidad y los montos, sin tocar el resto. El plan anual cobra 10 meses y da 12
- * («2 meses gratis»).
+ * unidad y los montos, sin tocar el resto. El plan anual cobra 11 meses y da 12
+ * («1 mes gratis»).
  */
 const UNIDAD = "UF";
-const MESES_GRATIS = 2;
+const MESES_GRATIS = 1;
 
 type Item = string | { texto: string; pronto?: boolean };
 
@@ -128,7 +128,7 @@ export function PricingSection() {
                         : "bg-forest/15 text-forest"
                     )}
                   >
-                    {MESES_GRATIS} meses gratis
+                    {MESES_GRATIS === 1 ? "1 mes gratis" : `${MESES_GRATIS} meses gratis`}
                   </span>
                 )}
               </button>
