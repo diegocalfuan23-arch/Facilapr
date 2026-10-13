@@ -1183,6 +1183,12 @@ function NuevaLecturaDialog({
   socios: SocioOpcion[];
   onRegistrada: () => void;
 }) {
+  // La lectura anterior del arranque elegido, para mostrar cuánto consumió.
+  const [anterior, setAnterior] = useState<number | null>(null);
+  const [valor, setValor] = useState("");
+  const lectura = valor === "" ? null : Number(valor);
+  const consumo = lectura !== null && anterior !== null ? lectura - anterior : null;
+
   const [estado, accion, pendiente] = useActionState<
     ResultadoAccion | null,
     FormData
@@ -1200,12 +1206,6 @@ function NuevaLecturaDialog({
   // El reloj se lee una vez al montar, no en cada render.
   const [hoy] = useState(() => new Date());
   const periodoActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
-
-  // La lectura anterior del arranque elegido, para mostrar cuánto consumió.
-  const [anterior, setAnterior] = useState<number | null>(null);
-  const [valor, setValor] = useState("");
-  const lectura = valor === "" ? null : Number(valor);
-  const consumo = lectura !== null && anterior !== null ? lectura - anterior : null;
 
   return (
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
