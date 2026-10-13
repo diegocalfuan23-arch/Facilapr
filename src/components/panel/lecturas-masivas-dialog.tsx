@@ -37,12 +37,6 @@ const clp = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 0,
 });
 
-function periodoDe(desfaseMeses: number) {
-  const hoy = new Date();
-  const d = new Date(hoy.getFullYear(), hoy.getMonth() + desfaseMeses, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
 /**
  * Cargar lecturas desde Excel o CSV, con revisión antes de guardar. Dos usos:
  * las del MES (quedan por revisar; muestra m³ y monto de cada una y permite
@@ -58,9 +52,8 @@ export function LecturasMasivasDialog({
 }) {
   const router = useRouter();
   const [modo, setModo] = useState<ModoLecturas>("mensual");
-  // El reloj se lee una vez al montar, no en cada render.
-  const [periodos] = useState(() => ({ mensual: periodoDe(0), inicial: periodoDe(-1) }));
-  const [periodo, setPeriodo] = useState(periodos.mensual);
+  // Vacío = se toma del archivo (de un encabezado como «agosto»); si ahí no está, se le pide al usuario.
+  const [periodo, setPeriodo] = useState("");
   const [vista, setVista] = useState<Vista | null>(null);
   const [final, setFinal] = useState<Final | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,7 +70,6 @@ export function LecturasMasivasDialog({
 
   function elegirModo(m: ModoLecturas) {
     setModo(m);
-    setPeriodo(periodos[m]);
   }
 
   function leer(e: React.FormEvent<HTMLFormElement>) {
@@ -349,21 +341,22 @@ export function LecturasMasivasDialog({
 
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="periodo-masivo">
-                {modo === "mensual" ? "Período de estas lecturas" : "Período de la lectura de partida"}
+                {modo === "mensual" ? "Período de estas lecturas" : "Período de la lectura de partida"}{" "}
+                <span className="font-normal text-muted-foreground">(opcional)</span>
               </Label>
               <Input
                 id="periodo-masivo"
                 name="periodo"
                 value={periodo}
                 onChange={(e) => setPeriodo(e.target.value)}
-                placeholder="2026-10"
-                required
+                placeholder="Automático"
                 className="max-w-40"
               />
               <span className="text-[0.8rem] text-muted-foreground">
+                Si lo dejas vacío, lo tomo del archivo (por ejemplo, de un encabezado «agosto»). Si no lo encuentro, te lo pido.{" "}
                 {modo === "mensual"
-                  ? "El mes que se va a cobrar."
-                  : "Normalmente el mes anterior al primer mes que vas a cobrar."}
+                  ? "Es el mes que se va a cobrar."
+                  : "En la lectura de partida es el mes anterior al primero que vas a cobrar."}
               </span>
             </div>
 

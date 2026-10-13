@@ -104,8 +104,10 @@ export async function previsualizarLecturas(
     return { ok: false, error: "El archivo es demasiado grande (máximo 4 MB)." };
   }
 
-  const periodo = normalizarPeriodo(String(formData.get("periodo") ?? ""));
-  if (!periodo) {
+  // El período se puede escribir o dejar vacío: en ese caso se toma del archivo.
+  const periodoEscrito = String(formData.get("periodo") ?? "").trim();
+  const periodoManual = periodoEscrito ? normalizarPeriodo(periodoEscrito) : null;
+  if (periodoEscrito && !periodoManual) {
     return { ok: false, error: "El período debe ser un mes válido, por ejemplo 2026-10." };
   }
   const modo = modoDe(formData.get("modo"));
@@ -118,6 +120,15 @@ export async function previsualizarLecturas(
   if (deteccion.filas.length > MAX_FILAS) {
     return { ok: false, error: `El archivo trae ${deteccion.filas.length} filas; el máximo es ${MAX_FILAS}.` };
   }
+
+  const periodo = periodoManual ?? deteccion.periodoDetectado;
+  if (!periodo) {
+    return {
+      ok: false,
+      error: "No encontré el mes en el archivo. Escríbelo en el campo Período, por ejemplo 2026-08.",
+    };
+  }
+  if (!periodoManual) deteccion.notas.unshift(`Período tomado del archivo: ${periodo}.`);
 
   const filas = resolverLecturas(
     deteccion.filas,

@@ -60,7 +60,37 @@ const sinTildes = (t: string) =>
 /** El nombre reducido a letras y números, para reconocer al mismo arranque aunque esté escrito distinto. */
 const claveNombre = (t: string) => sinTildes(t).replace(/[^a-z0-9]/g, "");
 
-const esLectura = (c: string) => /lectura|medidor/.test(sinTildes(c));
+const NOMBRE_MES =
+  "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sept|sep|set|oct|nov|dic";
+const NUMERO_MES: Record<string, number> = {
+  enero: 1, ene: 1, febrero: 2, feb: 2, marzo: 3, mar: 3, abril: 4, abr: 4, mayo: 5, may: 5,
+  junio: 6, jun: 6, julio: 7, jul: 7, agosto: 8, ago: 8, septiembre: 9, setiembre: 9, sept: 9, sep: 9, set: 9,
+  octubre: 10, oct: 10, noviembre: 11, nov: 11, diciembre: 12, dic: 12,
+};
+
+/**
+ * El mes al que se refiere un texto de encabezado: «agosto», «Lectura agosto 2026»,
+ * «2026-08» o «08/2026». Sin año, se toma el último agosto que ya pasó (o el actual).
+ * Devuelve «AAAA-MM», o null si el texto no habla de ningún mes.
+ */
+export function periodoDeTexto(texto: string, ahora = new Date()): string | null {
+  const t = sinTildes(texto);
+  let m = t.match(/(20\d{2})\s*[-\/.]\s*(0?[1-9]|1[0-2])\b/);
+  if (m) return `${m[1]}-${m[2].padStart(2, "0")}`;
+  m = t.match(/\b(0?[1-9]|1[0-2])\s*[-\/.]\s*(20\d{2})\b/);
+  if (m) return `${m[2]}-${m[1].padStart(2, "0")}`;
+
+  const palabra = t.match(new RegExp(`\\b(${NOMBRE_MES})\\b`));
+  if (!palabra) return null;
+  const mes = NUMERO_MES[palabra[1]];
+  const conAnio = t.match(/\b(20\d{2})\b/);
+  let anio = conAnio ? Number(conAnio[1]) : ahora.getFullYear();
+  if (!conAnio && mes > ahora.getMonth() + 1) anio -= 1;
+  return `${anio}-${String(mes).padStart(2, "0")}`;
+}
+
+const esLectura = (c: string) =>
+  /lectura|medidor/.test(sinTildes(c)) || new RegExp(`^(${NOMBRE_MES})\\b`).test(sinTildes(c));
 const esNumero = (c: string) =>
   /^(n|no|nro|num|numero)\.?$|n\.?\s*[°º]|numero|arranque|cliente/.test(sinTildes(c));
 const esNombre = (c: string) => /\bnombres?\b/.test(sinTildes(c));
@@ -68,7 +98,7 @@ const esRut = (c: string) => /\b(rut|run)\b/.test(sinTildes(c));
 const esTipo = (c: string) => /^tipo$/.test(sinTildes(c));
 
 export type DeteccionLecturas =
-  | { ok: true; filas: FilaLectura[]; notas: string[] }
+  | { ok: true; filas: FilaLectura[]; notas: string[]; periodoDetectado: string | null }
   | { ok: false; error: string };
 
 export function detectarLecturas(tabla: string[][]): DeteccionLecturas {
@@ -96,7 +126,14 @@ export function detectarLecturas(tabla: string[][]): DeteccionLecturas {
 
   const enc = tabla[fila];
   const col = (cond: (c: string) => boolean) => enc.findIndex((c) => c && cond(c));
-  const cLectura = col(esLectura);
+  // Si hay varias columnas de lectura (p. ej. «agosto» y «julio»), vale la del mes más reciente.
+  const candidatas = enc.flatMap((c, i) => (c && esLectura(c) ? [i] : []));
+  const cLectura =
+    candidatas.length > 1
+      ? candidatas.reduce((mejor, i) =>
+          (periodoDeTexto(enc[i]) ?? "") > (periodoDeTexto(enc[mejor]) ?? "") ? i : mejor
+        )
+      : col(esLectura);
   const cNumero = col(esNumero);
   const cNombre = col(esNombre);
   const cRut = col(esRut);
@@ -137,9 +174,14 @@ export function detectarLecturas(tabla: string[][]): DeteccionLecturas {
     cNombre >= 0 ? "nombre" : null,
     cRut >= 0 ? "RUT" : null,
   ].filter(Boolean);
+  // El mes: del encabezado de la columna de lectura, de otro encabezado o de las filas de arriba.
+  const donde = [enc[cLectura], ...enc, ...[1, 2, 3].flatMap((k) => (fila - k >= 0 ? tabla[fila - k] : []))];
+  const periodoDetectado = donde.reduce<string | null>((p, texto) => p ?? (texto ? periodoDeTexto(texto) : null), null);
+
   return {
     ok: true,
     filas,
+    periodoDetectado,
     notas: [
       `Encontré los encabezados en la fila ${fila + 1}: lectura, e identifico cada arranque por ${por.join(", ")}.`,
       ...(sinLectura > 0
