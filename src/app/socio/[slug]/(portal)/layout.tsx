@@ -6,13 +6,12 @@ import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
 import { basePortal } from "@/lib/portal-socio";
 import { puede, type Plan } from "@/lib/planes";
 import { SignOutSocioButton } from "@/components/socio/sign-out-button";
-import { AsistenteSocio } from "@/components/socio/asistente-socio";
 import { ChatComite } from "@/components/socio/chat-comite";
 import { PortalNav } from "@/components/socio/portal-nav";
 
 /**
  * Marco del portal del socio: menú a la izquierda en escritorio, encabezado y
- * pestañas arriba en el celular, y los botones de chat y asistente. Cada
+ * pestañas arriba en el celular, y el botón del chat si el plan lo incluye. Cada
  * pantalla (resumen, boletas, pagos) solo pone su contenido.
  */
 export default async function PortalSocioLayout({
@@ -82,11 +81,9 @@ export default async function PortalSocioLayout({
         {children}
       </main>
 
-      {/* Un solo botón: con chat, la IA responde primero ahí dentro; sin chat, queda el asistente. */}
-      {puede(socio.apr.plan as Plan, "chat") ? (
+      {/* El portal existe en todos los planes; el chat (y la IA dentro de él) es desde el Estándar. */}
+      {puede(socio.apr.plan as Plan, "chat") && (
         <ChatComite socioId={socio.id} slug={slug} nombreApr={socio.apr.nombre} />
-      ) : (
-        <AsistenteSocio nombreApr={socio.apr.nombre} slug={slug} />
       )}
     </div>
   );

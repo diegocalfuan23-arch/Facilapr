@@ -32,7 +32,7 @@ export const PLANES_COMERCIALES: {
     mensual: 0.7,
     lista: [
       "Boletas, lecturas y recibo en PDF por WhatsApp",
-      "Portal para cada socio, con asistente de IA",
+      "Portal para cada socio: sus boletas, pagos y solicitudes",
       "Hasta 200 socios cargados",
       "1 técnico en terreno",
       "Soporte por correo",

@@ -8,6 +8,7 @@ import { boletas, socios } from "@/lib/db/schema";
 import { responder } from "@/lib/ia";
 import { cuentasDelSocio } from "@/lib/socio-session";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
+import { puede, type Plan } from "@/lib/planes";
 import {
   contextoServicioSocio,
   seccionesServicio,
@@ -125,12 +126,17 @@ export async function POST(req: NextRequest) {
     where: eq(socios.userId, session.user.id),
     with: {
       apr: {
-        columns: { nombre: true, diasGraciaCorte: true, diasAvisoCorte: true, costoReconexion: true },
+        columns: { nombre: true, plan: true, diasGraciaCorte: true, diasAvisoCorte: true, costoReconexion: true },
       },
     },
   });
   if (!socio) {
     return Response.json({ error: "Socio no encontrado." }, { status: 404 });
+  }
+
+  // La IA del portal es parte del chat, desde el plan Estándar.
+  if (!puede(socio.apr.plan as Plan, "iaChat")) {
+    return Response.json({ error: "Tu comité no tiene la IA activada." }, { status: 403 });
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));

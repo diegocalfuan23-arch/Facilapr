@@ -10,7 +10,7 @@ Quien te escribe es un dirigente de un comité — presidente, tesorero o secret
 
 Qué es Facilapr:
 - Un panel donde la directiva administra socios, boletas, pagos y morosidad del comité.
-- Un panel propio para cada socio, con asistente de inteligencia artificial: ve su deuda, historial de boletas y consumo al instante, a cualquier hora, sin que nadie del comité conteste.
+- Un panel propio para cada socio (en todos los planes): ve su deuda, historial de boletas, pagos y consumo al instante, a cualquier hora, y puede hacer reclamos y solicitudes. En los planes Estándar y Grande, además, tiene un chat con el comité donde una inteligencia artificial responde en segundos.
 - El socio entra con su RUT y una clave que él mismo define, previa aprobación de la directiva. No instala ninguna app.
 
 Planes (valores netos, en UF, más IVA, sin contrato de permanencia):
