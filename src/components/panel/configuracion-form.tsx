@@ -211,7 +211,9 @@ export function ConfiguracionForm({
     window.scrollTo({ top: 0 });
   }
 
-  const actual = SECCIONES.find((x) => x.id === seccion);
+  // El asistente de chat solo existe en los planes que incluyen la IA: en los demás ni se nombra.
+  const secciones = SECCIONES.filter((x) => x.id !== "iaChat" || datos.iaChatDisponible);
+  const actual = secciones.find((x) => x.id === seccion);
 
   return (
     <>
@@ -236,7 +238,7 @@ export function ConfiguracionForm({
             vistaMovil === "lista" ? "flex" : "hidden"
           )}
         >
-          {SECCIONES.map(({ id, label, resumen, icono: Icono }) => (
+          {secciones.map(({ id, label, resumen, icono: Icono }) => (
             <button
               key={id}
               type="button"
@@ -658,8 +660,7 @@ export function ConfiguracionForm({
         </Bloque>
       )}
 
-      {seccion === "iaChat" &&
-        (datos.iaChatDisponible ? (
+      {seccion === "iaChat" && datos.iaChatDisponible && (
           <Bloque
             titulo="Asistente de IA en el chat"
             descripcion="Responde a tus socios en segundos y te pasa la conversación cuando hace falta."
@@ -702,26 +703,7 @@ export function ConfiguracionForm({
               <li>• Si escribes tú en una conversación, la IA se pausa 10 minutos ahí y luego vuelve a responder.</li>
             </ul>
           </Bloque>
-        ) : (
-          <section className="rounded-xl border border-dashed border-border bg-card p-6 text-center">
-            <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <Sparkles className="size-5" />
-            </span>
-            <h2 className="mt-4 text-[1.05rem] font-semibold">
-              Asistente de IA en el chat
-            </h2>
-            <p className="mx-auto mt-2 max-w-[48ch] text-[0.9rem] leading-relaxed text-muted-foreground">
-              Responde a tus socios en segundos y te pasa la conversación cuando
-              hace falta. Está disponible desde el plan Estándar.
-            </p>
-            <a
-              href="mailto:hola@facilapr.cl?subject=Quiero%20la%20IA%20en%20el%20chat"
-              className="mt-4 inline-flex h-9 items-center rounded-lg bg-primary px-4 text-[0.9rem] font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Quiero activarlo
-            </a>
-          </section>
-        ))}
+        )}
 
       {seccion === "datos" && (
         <DatosPrivacidad
