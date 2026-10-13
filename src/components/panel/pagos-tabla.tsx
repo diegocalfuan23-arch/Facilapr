@@ -19,6 +19,8 @@ export type PagoFila = {
   fecha: string;
   medio: string;
   referencia: string | null;
+  /** Quien pagó, si no es el titular. */
+  pagadoPor: string | null;
   periodo: string;
   socioNombre: string;
   socioRut: string | null;
@@ -173,6 +175,7 @@ export function PagosTabla({
                         {fechaLarga.format(new Date(p.fecha))} · {textoMedioPago(p.medio)} ·{" "}
                         {formatearPeriodo(p.periodo)}
                         {p.socioRut ? ` · ${formatearRut(p.socioRut)}` : ""}
+                        {p.pagadoPor ? ` · pagó ${p.pagadoPor}` : ""}
                         {p.referencia ? ` · Op. ${p.referencia}` : ""}
                       </div>
                     </div>

@@ -20,6 +20,8 @@ export type ComprobanteDatos = {
   fecha: Date;
   medio: string;
   referencia: string | null;
+  /** Quien pagó, si no es el titular del arranque. */
+  pagadoPor: string | null;
 };
 
 /** Un pago con todo lo que necesita su comprobante; por id, sin filtrar por comité (enlace firmado). */
@@ -31,6 +33,7 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
       fecha: pagos.fecha,
       medio: pagos.medio,
       referencia: pagos.referencia,
+      pagadoPor: pagos.pagadoPor,
       periodo: boletas.periodo,
       boletaTotal: boletas.montoTotal,
       boletaPagado: boletas.montoPagado,
@@ -70,5 +73,6 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
     fecha: f.fecha,
     medio: f.medio,
     referencia: f.referencia,
+    pagadoPor: f.pagadoPor,
   };
 }

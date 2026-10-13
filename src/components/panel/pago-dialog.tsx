@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { MEDIOS_PAGO, textoMedioPago } from "@/lib/pagos";
+import { normalizarTelefono } from "@/lib/formato";
 import {
   enlaceWhatsApp,
   mensajeComprobantePago,
@@ -62,6 +63,10 @@ export function PagoDialog({
   const [fechaPago, setFechaPago] = useState(hoy);
   const [medio, setMedio] = useState<string>("EFECTIVO");
   const [referencia, setReferencia] = useState("");
+  // Quien pone la plata no siempre es el titular del arranque (un familiar, un arrendatario…).
+  const [otraPersona, setOtraPersona] = useState(false);
+  const [pagador, setPagador] = useState("");
+  const [telPagador, setTelPagador] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const [historial, setHistorial] = useState<PagoRegistrado[] | null>(null);
@@ -70,6 +75,8 @@ export function PagoDialog({
     monto: number;
     comprobanteUrl: string;
     montoPagado: number;
+    pagadoPor: string | null;
+    pagadoPorTelefono: string | null;
   } | null>(null);
 
   useEffect(() => {
@@ -84,13 +91,15 @@ export function PagoDialog({
 
   const pagadoActual = registrado?.montoPagado ?? boleta.montoPagado;
   const pendienteDePago = saldo(boleta.montoTotal, pagadoActual);
-  const puedeWhatsApp = telefonoValidoParaWhatsApp(boleta.socioTelefono);
+  // El comprobante se manda a quien pagó, si dejó su número; si no, al titular.
+  const telefonoDestino = registrado?.pagadoPorTelefono ?? boleta.socioTelefono;
+  const puedeWhatsApp = telefonoValidoParaWhatsApp(telefonoDestino);
 
   function enviarComprobante() {
-    if (!registrado || !boleta.socioTelefono) return;
+    if (!registrado || !telefonoDestino) return;
     window.open(
       enlaceWhatsApp(
-        boleta.socioTelefono,
+        telefonoDestino,
         mensajeComprobantePago(comite.nombre, {
           socioNombre: boleta.socioNombre,
           periodo: boleta.periodo,
@@ -98,6 +107,7 @@ export function PagoDialog({
           montoTotal: boleta.montoTotal,
           montoPagado: registrado.montoPagado,
           comprobanteUrl: registrado.comprobanteUrl,
+          pagadoPor: registrado.pagadoPor,
         })
       ),
       "_blank",
@@ -188,6 +198,41 @@ export function PagoDialog({
               </div>
             </div>
 
+            <div className="flex flex-col gap-2">
+              <label className="flex cursor-pointer items-center gap-2 text-[0.88rem]">
+                <input
+                  type="checkbox"
+                  checked={otraPersona}
+                  onChange={(e) => setOtraPersona(e.target.checked)}
+                />
+                Pagó otra persona (no es el titular)
+              </label>
+              {otraPersona && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="pagador">Quién pagó</Label>
+                    <Input
+                      id="pagador"
+                      value={pagador}
+                      onChange={(e) => setPagador(e.target.value)}
+                      placeholder="Nombre"
+                      maxLength={120}
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <Label htmlFor="tel-pagador">Su teléfono</Label>
+                    <Input
+                      id="tel-pagador"
+                      value={telPagador}
+                      onChange={(e) => setTelPagador(e.target.value)}
+                      placeholder="Opcional"
+                      maxLength={30}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="fecha-pago">Fecha</Label>
@@ -228,6 +273,7 @@ export function PagoDialog({
                     <div className="truncate text-[0.76rem] text-muted-foreground">
                       {new Date(h.fecha).toLocaleDateString("es-CL")} ·{" "}
                       {textoMedioPago(h.medio)}
+                      {h.pagadoPor ? ` · pagó ${h.pagadoPor}` : ""}
                       {h.referencia ? ` · ${h.referencia}` : ""}
                     </div>
                   </div>
@@ -281,6 +327,8 @@ export function PagoDialog({
                     fecha: fechaPago,
                     medio,
                     referencia: referencia.trim() || undefined,
+                    pagadoPor: otraPersona ? pagador.trim() || undefined : undefined,
+                    pagadoPorTelefono: otraPersona ? telPagador.trim() || undefined : undefined,
                   });
                   if (r.ok) {
                     toast.success("Pago registrado");
@@ -288,6 +336,9 @@ export function PagoDialog({
                       monto: Number(monto),
                       comprobanteUrl: r.comprobanteUrl,
                       montoPagado: r.montoPagado,
+                      pagadoPor: otraPersona ? pagador.trim() || null : null,
+                      pagadoPorTelefono:
+                        otraPersona && telPagador.trim() ? normalizarTelefono(telPagador.trim()) : null,
                     });
                   } else {
                     setError(r.error);

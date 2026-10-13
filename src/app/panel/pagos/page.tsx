@@ -24,6 +24,7 @@ export default async function PagosPage() {
       fecha: pagos.fecha,
       medio: pagos.medio,
       referencia: pagos.referencia,
+      pagadoPor: pagos.pagadoPor,
       periodo: boletas.periodo,
       socioNombre: socios.nombre,
       socioRut: socios.rut,

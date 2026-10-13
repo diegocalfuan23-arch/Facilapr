@@ -125,6 +125,7 @@ export async function generarComprobantePdf(c: ComprobanteDatos): Promise<Uint8A
   }
 
   fila("Medio de pago", textoMedioPago(c.medio));
+  if (c.pagadoPor) fila("Pagado por", c.pagadoPor);
   if (c.referencia) fila("Referencia", c.referencia);
   fila("Correspondiente a", formatearPeriodo(c.periodo));
 

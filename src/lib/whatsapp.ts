@@ -176,16 +176,20 @@ export function mensajeComprobantePago(
     montoTotal: number;
     montoPagado: number;
     comprobanteUrl: string;
+    /** Si pagó otra persona, a ella se le habla y se aclara de quién es la cuenta. */
+    pagadoPor?: string | null;
   }
 ) {
-  const nombre = datos.socioNombre.trim().split(/\s+/)[0] ?? "";
+  const nombre = (datos.pagadoPor || datos.socioNombre).trim().split(/\s+/)[0] ?? "";
   const porPagar = saldo(datos.montoTotal, datos.montoPagado);
   return [
     `Hola ${nombre}, te escribe ${comite}.`,
     "",
-    `Registramos tu pago de ${clp.format(datos.monto)} de la boleta de ${formatearPeriodo(datos.periodo)}.`,
+    datos.pagadoPor
+      ? `Registramos tu pago de ${clp.format(datos.monto)} por la cuenta de ${datos.socioNombre}, boleta de ${formatearPeriodo(datos.periodo)}.`
+      : `Registramos tu pago de ${clp.format(datos.monto)} de la boleta de ${formatearPeriodo(datos.periodo)}.`,
     porPagar > 0
-      ? `Te quedan ${clp.format(porPagar)} por pagar.`
+      ? `Quedan ${clp.format(porPagar)} por pagar.`
       : "Con esto la boleta queda pagada completa. ¡Gracias!",
     "",
     `Descarga tu comprobante: ${datos.comprobanteUrl}`,

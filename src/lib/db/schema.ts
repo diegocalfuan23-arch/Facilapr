@@ -329,6 +329,9 @@ export const pagos = pgTable(
     medio: text("medio").notNull().default("OTRO"),
     /** N.º de operación, de transferencia o de comprobante, si lo hay. */
     referencia: text("referencia"),
+    /** Quien puso la plata cuando no es el titular del arranque (un familiar, un arrendatario…). */
+    pagadoPor: text("pagadoPor"),
+    pagadoPorTelefono: text("pagadoPorTelefono"),
     registradoPorId: text("registradoPorId"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },

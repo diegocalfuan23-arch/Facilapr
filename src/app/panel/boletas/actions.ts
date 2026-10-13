@@ -16,7 +16,7 @@ import {
   normalizarPeriodo,
   type EstadoBoleta,
 } from "@/lib/boletas";
-import { normalizarRut } from "@/lib/formato";
+import { normalizarRut, normalizarTelefono } from "@/lib/formato";
 import { usoDeSocio } from "@/lib/tarifas";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
@@ -295,6 +295,9 @@ const pagoSchema = z.object({
   fecha: z.date(),
   medio: z.enum(["EFECTIVO", "TRANSFERENCIA", "CAJA_VECINA", "OTRO"]),
   referencia: z.string().trim().max(80).optional(),
+  // Quien pagó, si no es el titular del arranque.
+  pagadoPor: z.string().trim().max(120).optional(),
+  pagadoPorTelefono: z.string().trim().max(30).optional(),
 });
 
 export type ResultadoPago =
@@ -310,7 +313,14 @@ export type ResultadoPago =
 /** Registra un pago o abono sobre una boleta y deja listo su comprobante. */
 export async function registrarPago(
   boletaId: string,
-  datos: { monto: number; fecha: string; medio: string; referencia?: string }
+  datos: {
+    monto: number;
+    fecha: string;
+    medio: string;
+    referencia?: string;
+    pagadoPor?: string;
+    pagadoPorTelefono?: string;
+  }
 ): Promise<ResultadoPago> {
   const { user, apr } = await requireAdmin();
 
@@ -319,6 +329,8 @@ export async function registrarPago(
     fecha: new Date(`${datos.fecha}T12:00:00`),
     medio: datos.medio,
     referencia: datos.referencia || undefined,
+    pagadoPor: datos.pagadoPor || undefined,
+    pagadoPorTelefono: datos.pagadoPorTelefono || undefined,
   });
   if (!parsed.success || Number.isNaN(parsed.data.fecha.getTime())) {
     return { ok: false, error: parsed.success ? "La fecha no es válida." : parsed.error.issues[0].message };
@@ -362,6 +374,8 @@ export async function registrarPago(
       fecha: parsed.data.fecha,
       medio: parsed.data.medio,
       referencia: parsed.data.referencia ?? null,
+      pagadoPor: parsed.data.pagadoPor ?? null,
+      pagadoPorTelefono: parsed.data.pagadoPorTelefono ? normalizarTelefono(parsed.data.pagadoPorTelefono) : null,
       registradoPorId: user.id,
     })
     .returning({ id: pagos.id });
@@ -386,6 +400,8 @@ export type PagoRegistrado = {
   fecha: string;
   medio: string;
   referencia: string | null;
+  pagadoPor: string | null;
+  pagadoPorTelefono: string | null;
   comprobanteUrl: string;
 };
 
@@ -399,6 +415,8 @@ export async function pagosDeBoleta(boletaId: string): Promise<PagoRegistrado[]>
       fecha: pagos.fecha,
       medio: pagos.medio,
       referencia: pagos.referencia,
+      pagadoPor: pagos.pagadoPor,
+      pagadoPorTelefono: pagos.pagadoPorTelefono,
     })
     .from(pagos)
     .innerJoin(boletas, eq(pagos.boletaId, boletas.id))
@@ -412,6 +430,8 @@ export async function pagosDeBoleta(boletaId: string): Promise<PagoRegistrado[]>
     fecha: f.fecha.toISOString(),
     medio: f.medio,
     referencia: f.referencia,
+    pagadoPor: f.pagadoPor,
+    pagadoPorTelefono: f.pagadoPorTelefono,
     comprobanteUrl: urlComprobante(f.id),
   }));
 }

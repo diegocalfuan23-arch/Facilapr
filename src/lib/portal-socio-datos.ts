@@ -31,6 +31,7 @@ export type PagoPortal = {
   fecha: Date;
   medio: string;
   referencia: string | null;
+  pagadoPor: string | null;
   periodo: string;
   socioNombre: string;
   comprobanteUrl: string;
@@ -58,6 +59,7 @@ export async function pagosDelPortal(
         fecha: f.fecha,
         medio: f.medio,
         referencia: f.referencia,
+        pagadoPor: f.pagadoPor,
         periodo: b.periodo,
         socioNombre: b.socio.nombre,
         comprobanteUrl: urlComprobante(f.id),

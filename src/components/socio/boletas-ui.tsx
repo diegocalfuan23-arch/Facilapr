@@ -155,6 +155,7 @@ export function ListaPagos({
             </div>
             <div className="text-[0.82rem] text-muted-foreground">
               {fechaConAnio.format(p.fecha)} · {textoMedioPago(p.medio)}
+              {p.pagadoPor ? ` · pagó ${p.pagadoPor}` : ""}
               {p.referencia ? ` · ${p.referencia}` : ""}
             </div>
             <a
