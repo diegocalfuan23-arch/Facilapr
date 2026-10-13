@@ -4,6 +4,7 @@ import {
   text,
   integer,
   boolean,
+  doublePrecision,
   timestamp,
   uniqueIndex,
   index,
@@ -398,6 +399,41 @@ export const evidenciasOrden = pgTable(
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [index("EvidenciaOrden_ordenId_idx").on(table.ordenId)]
+);
+
+/**
+ * Cada pago que un comité hace de su plan de Facilapr (por Flow). Cuando Flow
+ * confirma, el plan queda pagado hasta `vigenteHasta`. Es lo que el comité le paga
+ * a Facilapr, no lo que sus socios le pagan al comité (eso es la tabla Pago).
+ */
+export const pagosPlan = pgTable(
+  "PagoPlan",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    plan: text("plan").notNull(),
+    /** MENSUAL | ANUAL */
+    periodo: text("periodo").notNull(),
+    /** Sin IVA y con IVA, en pesos, convertidos con la UF del día del cobro. */
+    montoNeto: integer("montoNeto").notNull(),
+    montoTotal: integer("montoTotal").notNull(),
+    valorUf: doublePrecision("valorUf").notNull(),
+    flowToken: text("flowToken"),
+    flowOrder: text("flowOrder"),
+    /** PENDIENTE | PAGADO | RECHAZADO */
+    estado: text("estado").notNull().default("PENDIENTE"),
+    creadoPorId: text("creadoPorId"),
+    pagadoAt: timestamp("pagadoAt", { precision: 3 }),
+    vigenteDesde: timestamp("vigenteDesde", { precision: 3 }),
+    vigenteHasta: timestamp("vigenteHasta", { precision: 3 }),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("PagoPlan_aprId_idx").on(table.aprId),
+    uniqueIndex("PagoPlan_flowToken_key").on(table.flowToken).where(sql`${table.flowToken} IS NOT NULL`),
+  ]
 );
 
 export const boletasRelations = relations(boletas, ({ one }) => ({

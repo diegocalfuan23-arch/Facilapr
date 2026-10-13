@@ -12,6 +12,7 @@ import {
   UNIDAD,
 } from "@/lib/planes-comerciales";
 import type { Plan } from "@/lib/planes";
+import { PagarPlanDialog } from "@/components/panel/pagar-plan-dialog";
 
 /**
  * Los tres planes lado a lado, igual que en la landing, con el del comité
@@ -19,6 +20,7 @@ import type { Plan } from "@/lib/planes";
  */
 export function PlanesComparados({ planActual }: { planActual: Plan }) {
   const [anual, setAnual] = useState(false);
+  const [pagando, setPagando] = useState<Plan | null>(null);
 
   return (
     <section className="flex flex-col gap-5">
@@ -142,7 +144,18 @@ export function PlanesComparados({ planActual }: { planActual: Plan }) {
                 })}
               </ul>
 
-              {esActual ? (
+              {plan.mensual !== null ? (
+                <button
+                  type="button"
+                  onClick={() => setPagando(plan.clave)}
+                  className={cn(
+                    buttonVariants({ variant: esActual || plan.clave === "ESTANDAR" ? "default" : "outline" }),
+                    "w-full"
+                  )}
+                >
+                  {esActual ? "Pagar o renovar mi plan" : "Pagar este plan"}
+                </button>
+              ) : esActual ? (
                 <span
                   className={cn(buttonVariants({ variant: "outline" }), "pointer-events-none w-full opacity-60")}
                 >
@@ -160,6 +173,10 @@ export function PlanesComparados({ planActual }: { planActual: Plan }) {
           );
         })}
       </div>
+
+      {pagando && (
+        <PagarPlanDialog plan={pagando} periodo={anual ? "ANUAL" : "MENSUAL"} onCerrar={() => setPagando(null)} />
+      )}
 
       {anual && (
         <p className="text-center text-[0.8rem] text-muted-foreground">
