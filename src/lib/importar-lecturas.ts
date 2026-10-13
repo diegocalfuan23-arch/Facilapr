@@ -57,6 +57,9 @@ const sinTildes = (t: string) =>
     .replace(/\s+/g, " ")
     .trim();
 
+/** El nombre reducido a letras y números, para reconocer al mismo arranque aunque esté escrito distinto. */
+const claveNombre = (t: string) => sinTildes(t).replace(/[^a-z0-9]/g, "");
+
 const esLectura = (c: string) => /lectura|medidor/.test(sinTildes(c));
 const esNumero = (c: string) =>
   /^(n|no|nro|num|numero)\.?$|n\.?\s*[°º]|numero|arranque|cliente/.test(sinTildes(c));
@@ -193,8 +196,9 @@ export function resolverLecturas(
       }
     } else if (f.nombre) {
       criterio = `el nombre «${f.nombre}»`;
-      const n = sinTildes(f.nombre);
-      candidatos = cuentas.filter((c) => sinTildes(c.nombre) === n && delTipo(c));
+      // Se comparan sin tildes, mayúsculas, espacios ni signos: «N°1», «Nº 1» y «N.º1» son el mismo nombre.
+      const n = claveNombre(f.nombre);
+      candidatos = cuentas.filter((c) => claveNombre(c.nombre) === n && delTipo(c));
       if (candidatos.length > 1) {
         return mal(`Hay ${candidatos.length} arranques con el nombre «${f.nombre}»: usa el N.º`);
       }

@@ -95,7 +95,8 @@ export function claveCuenta(
 ) {
   const numero = (numeroCliente ?? "").trim();
   if (numero) return `${tipo}|#${numero}`;
-  return `${tipo}|${rut ? normalizarRut(rut) : ""}|${sinTildes(limpiar(nombre))}`;
+  // El nombre se reduce a letras y números: «N°1», «Nº 1» y «N.º1» son el mismo, y así no se duplica un socio por un signo.
+  return `${tipo}|${rut ? normalizarRut(rut) : ""}|${sinTildes(limpiar(nombre)).replace(/[^a-z0-9]/g, "")}`;
 }
 
 /**
