@@ -390,8 +390,9 @@ export async function situacionSocio(ordenId: string): Promise<SituacionSocio | 
 
   switch (orden.tipo) {
     case "REPOSICION":
-      if (servicio !== "CORTADO") noCumple("Su servicio no figura cortado.");
-      else ok("Su servicio figura cortado.");
+      if (servicio !== "CORTADO") {
+        aviso("Su servicio no figura cortado en Facilapr: puede haberse cortado antes de usar el sistema. Verifícalo antes de reponer.");
+      } else ok("Su servicio figura cortado.");
       if (deuda > 0) noCumple(`Aún debe ${clp(deuda)}: tiene que regularizar antes de reponer.`);
       else ok("No tiene deuda en este arranque.");
       if (deudaOtros > 0) aviso(`Otro arranque suyo debe ${clp(deudaOtros)}.`);

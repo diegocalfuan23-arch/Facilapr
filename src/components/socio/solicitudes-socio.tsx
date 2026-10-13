@@ -141,9 +141,9 @@ function NuevaSolicitud({
 
   const arranque = arranques.find((a) => a.id === arranqueId);
   const opcion = OPCIONES.find((o) => o.tipo === tipo)!;
-  // Cada opción aparece solo cuando tiene sentido para ese arranque.
+  // La reposición se ofrece siempre: un corte anterior a Facilapr no figura en el sistema.
+  // Las otras aparecen solo cuando tienen sentido para ese arranque.
   const opciones = OPCIONES.filter((o) => {
-    if (o.tipo === "REPOSICION") return arranque?.cortado;
     if (o.tipo === "REANUDACION") return arranque && !arranque.activo;
     if (o.tipo === "BAJA") return arranque?.activo;
     return true;

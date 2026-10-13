@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { ordenes, socios } from "@/lib/db/schema";
 import { cuentasDelSocio, requireSocio } from "@/lib/socio-session";
@@ -48,22 +48,6 @@ export async function crearSolicitudSocio(
     }
     if (tipo === "BAJA" && arranque && !arranque.activo) {
       return { ok: false, error: "Ese arranque ya está dado de baja." };
-    }
-  }
-
-  // Una reposición solo tiene sentido si el servicio está cortado.
-  if (tipo === "REPOSICION") {
-    const ultima = await db.query.ordenes.findFirst({
-      where: and(
-        eq(ordenes.socioId, socioId),
-        eq(ordenes.estado, "COMPLETADA"),
-        inArray(ordenes.tipo, ["CORTE", "REPOSICION"])
-      ),
-      orderBy: [desc(ordenes.confirmadaAt)],
-      columns: { tipo: true },
-    });
-    if (ultima?.tipo !== "CORTE") {
-      return { ok: false, error: "Tu servicio no figura cortado. Si algo falla, pide una reparación." };
     }
   }
 
