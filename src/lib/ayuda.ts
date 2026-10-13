@@ -219,7 +219,7 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Ingresa el valor del m³",
         texto:
           "Es lo que se cobra por cada metro cúbico consumido. La boleta suma el cargo fijo más el consumo por este valor.",
-        nota: "La tarifa es única para todo el comité: se aplica a socios y usuarios por igual.",
+        nota: "La tarifa general se aplica a todos. Si cobras distinto a los arranques comerciales, define su tarifa en el recuadro «Tarifa comercial» y marca a esos socios como comerciales.",
       },
       {
         titulo: "Guarda los cambios",
@@ -516,6 +516,214 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Guarda",
         texto: "Con el pago completo la boleta pasa a pagada y deja de aparecer como deuda.",
+      },
+    ],
+  },
+  {
+    slug: "como-calcular-tarifa-agua-apr",
+    titulo: "Cómo calcular la tarifa del agua en un APR (cargo fijo y valor del m³)",
+    resumen:
+      "Una forma simple de partir de los gastos del comité para definir el cargo fijo y el valor por metro cúbico, con un ejemplo.",
+    categoria: "Boletas y cobros",
+    para: "Administrador",
+    minutos: 8,
+    pasos: [
+      {
+        titulo: "Suma lo que cuesta mantener el servicio cada mes",
+        texto:
+          "Anota los gastos fijos mensuales del comité: electricidad de la bomba, cloración y análisis, sueldos o gratificaciones, reparaciones y mantención, seguros, gastos de oficina. Suma también un monto mensual para reservar plata para renovar equipos y cubrir imprevistos.",
+        nota: "Es una guía práctica, no una norma. La tarifa la define tu directiva con la asamblea y, según tu caso, puede requerir revisión de la autoridad. Consulta con tu unidad municipal de APR o con la Dirección de Obras Hidráulicas.",
+      },
+      {
+        titulo: "Divide el costo en una parte fija y una parte variable",
+        texto:
+          "La parte fija cubre lo que cuesta tener el sistema funcionando aunque nadie consuma (personal, mantención, reserva). La variable cubre lo que sube con el consumo (electricidad, cloro). Una forma común es repartir la parte fija entre todos los arranques, y la variable entre los metros cúbicos que se consumen.",
+      },
+      {
+        titulo: "Calcula el cargo fijo",
+        texto:
+          "Cargo fijo = costos fijos mensuales ÷ número de arranques. Por ejemplo: $600.000 de costos fijos entre 120 arranques da un cargo fijo de $5.000.",
+      },
+      {
+        titulo: "Calcula el valor del metro cúbico",
+        texto:
+          "Valor del m³ = costos variables mensuales ÷ metros cúbicos consumidos en un mes típico. Por ejemplo: $300.000 de costos variables entre 1.500 m³ da $200 por m³. Para saber el consumo típico, usa las lecturas de los últimos meses.",
+      },
+      {
+        titulo: "Arma el monto de una boleta de prueba",
+        texto:
+          "Boleta = cargo fijo + (consumo en m³ × valor del m³). Con los números de arriba, un socio que consume 15 m³ paga $5.000 + (15 × $200) = $8.000. Revisa que ese monto se sienta justo para los socios que consumen poco, medio y mucho.",
+      },
+      {
+        titulo: "Decide si habrá una tarifa distinta para comercios",
+        texto:
+          "Si algunos arranques usan el agua para un negocio, muchos comités les cobran más. En Facilapr marcas cada arranque como residencial o comercial, y defines una tarifa comercial opcional.",
+      },
+      {
+        titulo: "Ingresa las tarifas en Facilapr",
+        texto:
+          "Entra a Configuración → Facturación, escribe el cargo fijo y el valor del m³ (y la tarifa comercial si corresponde) y guarda. Desde ese momento, las lecturas aprobadas generan la boleta solas con esos valores.",
+      },
+    ],
+  },
+  {
+    slug: "cortes-por-morosidad-apr",
+    titulo: "Cómo gestionar los cortes por morosidad en un APR",
+    resumen:
+      "Del aviso al socio moroso al corte con foto de respaldo y la reposición del servicio, todo registrado.",
+    categoria: "Boletas y cobros",
+    para: "Administrador",
+    minutos: 6,
+    pasos: [
+      {
+        titulo: "Define los días de gracia y de aviso",
+        texto:
+          "En Configuración → Cortes indica cuántos días de deuda vencida das antes de poder cortar, cuántos días de aviso se le dan al socio, y cuánto cuesta la reconexión si la cobras.",
+      },
+      {
+        titulo: "Mira quiénes están morosos",
+        texto:
+          "En el menú Cortes, la pestaña Morosos lista los arranques con deuda vencida hace más que los días de gracia, con cuánto deben y hace cuántos días.",
+      },
+      {
+        titulo: "Avisa antes de cortar",
+        texto:
+          "Con el botón «Avisar antes de cortar» se abre WhatsApp con el mensaje ya escrito: lo que debe, hace cuánto venció y el plazo que tiene para regularizar.",
+      },
+      {
+        titulo: "Ordena el corte",
+        texto:
+          "Si no regulariza, pulsa «Ordenar corte». La orden queda en trámite y la ve quien sale a terreno.",
+      },
+      {
+        titulo: "Sube la foto del medidor cortado",
+        texto:
+          "El técnico (o el presidente, si lo hace él) abre la orden en su celular, saca la foto del medidor con el servicio cortado y la envía. Sin foto no queda respaldo.",
+      },
+      {
+        titulo: "Da de alta el corte",
+        texto:
+          "La directiva revisa la foto y la da de alta. El socio pasa a Cortados y en su cuenta en línea ve que su servicio está cortado.",
+        nota: "Si la foto no sirve, usa «Pedir otra foto» y la orden vuelve a trámite.",
+      },
+      {
+        titulo: "Repón el servicio cuando regularice",
+        texto:
+          "El socio puede pedir la reposición desde su cuenta, o tú la ordenas desde Cortados. La ficha «Ver situación» te muestra si ya pagó su deuda. La reposición también se respalda con foto.",
+      },
+    ],
+  },
+  {
+    slug: "planilla-cobro-agua-rural",
+    titulo: "Planilla para el cobro del agua rural: qué columnas necesitas para cargarla a Facilapr",
+    resumen:
+      "Cómo ordenar tu planilla de socios y lecturas en Excel para subirla y emitir las primeras boletas.",
+    categoria: "Primeros pasos",
+    para: "Administrador",
+    minutos: 6,
+    pasos: [
+      {
+        titulo: "Arma una fila por cada arranque",
+        texto:
+          "Cada medidor es una fila, aunque una persona tenga varios. Si alguien tiene dos arranques, aparece dos veces con el mismo RUT.",
+      },
+      {
+        titulo: "Agrega las columnas del padrón",
+        texto:
+          "Nombre, RUT, número de arranque, dirección y teléfono. El número de arranque es lo que permite distinguir a quien tiene varios medidores. Si algunos arranques son comerciales, agrega una columna «uso» con la palabra comercial o residencial.",
+        nota: "Si todavía no tienes los RUT o los teléfonos, súbela igual: puedes completarlos después.",
+      },
+      {
+        titulo: "Sube el padrón",
+        texto:
+          "En Socios pulsa Importar y elige tu archivo (Excel, CSV o PDF con texto). Antes de guardar, Facilapr te muestra qué entendió de cada fila para que corrijas lo que haga falta.",
+      },
+      {
+        titulo: "Carga la última lectura de cada medidor",
+        texto:
+          "En Lecturas usa la carga masiva en modo «lectura inicial» con el número que marcaba cada medidor al último mes cobrado. Así la primera boleta cobra solo el consumo del mes, no todo lo acumulado.",
+      },
+      {
+        titulo: "Carga las lecturas del mes",
+        texto:
+          "Cuando tomes las lecturas actuales, súbelas en modo mensual. Quedan por revisar y, al aprobarlas, Facilapr calcula cada boleta con tus tarifas.",
+      },
+      {
+        titulo: "Revisa las boletas y envía los recibos",
+        texto:
+          "En Boletas puedes ver el recibo en PDF de cada socio, imprimirlo o enviarlo por WhatsApp con el mensaje ya escrito.",
+      },
+    ],
+  },
+  {
+    slug: "registrar-pagos-comprobantes",
+    titulo: "Cómo registrar el pago de un socio y enviarle el comprobante",
+    resumen:
+      "Anota pagos en efectivo, transferencia o Caja Vecina, admite abonos y manda el comprobante en PDF por WhatsApp.",
+    categoria: "Boletas y cobros",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Pagos y pulsa Registrar pago",
+        texto:
+          "En el menú Pagos está el botón Registrar pago. No hace falta ir a Boletas: aquí mismo buscas al socio.",
+      },
+      {
+        titulo: "Elige al socio y la boleta",
+        texto:
+          "Busca por nombre, RUT o número de arranque. Verás sus boletas con saldo; elige la que está pagando.",
+      },
+      {
+        titulo: "Anota el monto, el medio y la fecha",
+        texto:
+          "Puede pagar todo o abonar una parte. Elige si fue efectivo, transferencia, Caja Vecina u otro, y la fecha real del pago. Si pagó otra persona (un familiar, un arrendatario), márcalo y anota su nombre.",
+      },
+      {
+        titulo: "Envía el comprobante",
+        texto:
+          "Al guardar se genera un comprobante en PDF. Pulsa «Enviar comprobante por WhatsApp» y se abre el mensaje ya escrito. El socio también lo ve en su cuenta en línea.",
+      },
+      {
+        titulo: "Corrige si te equivocaste",
+        texto:
+          "Desde el diálogo de la boleta puedes eliminar un pago anotado por error: la boleta vuelve a deber ese monto.",
+      },
+    ],
+  },
+  {
+    slug: "dar-acceso-socios-cuenta-en-linea",
+    titulo: "Cómo dar a tus socios acceso a su cuenta en línea",
+    resumen:
+      "Invitaciones por WhatsApp, código QR en el recibo y aprobación de solicitudes, para que cada socio vea sus boletas y haga solicitudes.",
+    categoria: "Portal de socios",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Define la dirección de tu comité",
+        texto:
+          "Cada comité tiene su dirección propia, algo como facilapr.cl/tu-comite/cuenta. Se define al configurar el comité y es la que ven tus socios.",
+      },
+      {
+        titulo: "Invita por WhatsApp a quien tiene teléfono",
+        texto:
+          "En Socios, el menú de cada socio tiene «Invitar al portal». Se abre WhatsApp con un enlace personal que le deja crear su clave.",
+      },
+      {
+        titulo: "Para quien no tiene teléfono: el código QR del recibo",
+        texto:
+          "En los planes con chat, el recibo impreso trae un código QR. El socio lo escanea, pide su acceso con su RUT y tú lo apruebas desde Solicitudes.",
+      },
+      {
+        titulo: "Aprueba los accesos",
+        texto:
+          "En Solicitudes ves quién pidió entrar. Aprueba solo si reconoces el RUT como parte del comité.",
+      },
+      {
+        titulo: "Qué puede hacer el socio",
+        texto:
+          "Ver su deuda, sus boletas y pagos con comprobante, y hacer solicitudes: reclamos, reparación, reposición del servicio, baja o reanudación. Tú las resuelves desde Cortes → Solicitudes.",
       },
     ],
   },

@@ -33,10 +33,29 @@ export default async function ArticuloAyudaPage({ params }: Props) {
   if (!articulo) notFound();
 
   const indice = ARTICULOS.findIndex((a) => a.slug === slug);
+
+  // Datos estructurados: Google puede mostrar los pasos directamente en los resultados.
+  const datosEstructurados = {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    name: articulo.titulo,
+    description: articulo.resumen,
+    totalTime: `PT${articulo.minutos}M`,
+    step: articulo.pasos.map((p, i) => ({
+      "@type": "HowToStep",
+      position: i + 1,
+      name: p.titulo,
+      text: p.texto,
+    })),
+  };
   const siguiente = ARTICULOS[indice + 1];
 
   return (
     <AyudaLayout>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(datosEstructurados) }}
+      />
       <main className="mx-auto max-w-[760px] px-7 py-12">
         <Link
           href="/ayuda"
@@ -117,6 +136,21 @@ export default async function ArticuloAyudaPage({ params }: Props) {
             className="mt-4 inline-block text-[0.9rem] font-medium text-primary hover:underline"
           >
             Escribirnos
+          </Link>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-primary/25 bg-primary/5 p-6">
+          <h2 className="text-[1.05rem] font-semibold">
+            Facilapr: software para comités de agua potable rural
+          </h2>
+          <p className="mt-1.5 text-[0.92rem] text-muted-foreground">
+            Lecturas, boletas, pagos, cortes y la cuenta en línea de cada socio, en un solo lugar y desde 0,7 UF al mes, sin permanencia.
+          </p>
+          <Link
+            href="/registro"
+            className="mt-4 inline-block rounded-lg bg-primary px-4 py-2 text-[0.9rem] font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Crear la cuenta de mi comité
           </Link>
         </div>
 
