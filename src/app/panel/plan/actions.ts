@@ -11,6 +11,17 @@ import type { Plan } from "@/lib/planes";
 
 const IVA = 0.19;
 
+/**
+ * Lo que cobra Flow por cada pago, como fracción del monto cobrado (sin IVA; la
+ * comisión lleva IVA aparte, que se recupera como crédito fiscal). Cambia con
+ * FLOW_COMISION en Vercel, por ejemplo 0.0319 para 3,19 %. Confírmalo con tu
+ * contrato de Flow: es el dato que más mueve tu ganancia líquida.
+ */
+function comisionFlow() {
+  const v = Number(process.env.FLOW_COMISION ?? "0.0319");
+  return Number.isFinite(v) && v >= 0 && v < 0.2 ? v : 0.0319;
+}
+
 export type Cotizacion = {
   plan: Plan;
   nombrePlan: string;
@@ -19,6 +30,8 @@ export type Cotizacion = {
   valorUf: number;
   neto: number;
   iva: number;
+  /** Lo que se suma para que, tras la comisión de Flow, el comité reciba el neto completo. */
+  comision: number;
   total: number;
 };
 
@@ -41,9 +54,12 @@ export async function cotizarPlan(plan: Plan, periodo: "MENSUAL" | "ANUAL"): Pro
   const uf = def.mensual * (periodo === "ANUAL" ? 12 - MESES_GRATIS : 1);
   const neto = Math.round(uf * valorUf);
   const iva = Math.round(neto * IVA);
+  // El total se arma para que, descontada la comisión de Flow, quede intacto el neto:
+  //   neto = total/(1+IVA) − comisión×total   →   total = neto / (1/(1+IVA) − comisión)
+  const total = Math.round(neto / (1 / (1 + IVA) - comisionFlow()));
   return {
     ok: true,
-    cotizacion: { plan, nombrePlan: def.nombre, periodo, uf, valorUf, neto, iva, total: neto + iva },
+    cotizacion: { plan, nombrePlan: def.nombre, periodo, uf, valorUf, neto, iva, comision: total - neto - iva, total },
   };
 }
 

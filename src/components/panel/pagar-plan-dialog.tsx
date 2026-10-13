@@ -86,6 +86,12 @@ export function PagarPlanDialog({
                 <dt className="text-muted-foreground">IVA 19 %</dt>
                 <dd className="tabular-nums">{clp.format(cot.iva)}</dd>
               </div>
+              {cot.comision > 0 && (
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Costo del pago en línea</dt>
+                  <dd className="tabular-nums">{clp.format(cot.comision)}</dd>
+                </div>
+              )}
               <div className="flex justify-between border-t border-border/60 pt-2 text-[1rem] font-semibold">
                 <dt>Total a pagar</dt>
                 <dd className="tabular-nums">{clp.format(cot.total)}</dd>
