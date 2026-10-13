@@ -60,6 +60,8 @@ export default async function LecturasPage() {
         rut: s.rut,
         numeroCliente: s.numeroCliente,
         tipo: s.tipo,
+        // La última lectura aprobada: el dato con el que se compara la nueva.
+        ultimaLectura: anteriorPorSocio.get(s.id)?.valor ?? null,
       }))}
       lecturas={todas.map((l) => ({
         id: l.id,

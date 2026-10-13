@@ -1189,6 +1189,8 @@ function NuevaLecturaDialog({
   >(async (prev, formData) => {
     const r = await registrarLectura(prev, formData);
     if (r.ok) {
+      setValor("");
+      setAnterior(null);
       onAbiertoChange(false);
       onRegistrada();
     }
@@ -1198,6 +1200,12 @@ function NuevaLecturaDialog({
   // El reloj se lee una vez al montar, no en cada render.
   const [hoy] = useState(() => new Date());
   const periodoActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+
+  // La lectura anterior del arranque elegido, para mostrar cuánto consumió.
+  const [anterior, setAnterior] = useState<number | null>(null);
+  const [valor, setValor] = useState("");
+  const lectura = valor === "" ? null : Number(valor);
+  const consumo = lectura !== null && anterior !== null ? lectura - anterior : null;
 
   return (
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
@@ -1211,7 +1219,7 @@ function NuevaLecturaDialog({
         </DialogHeader>
 
         <form action={accion} className="flex min-w-0 flex-col gap-4">
-          <SocioBuscador socios={socios} />
+          <SocioBuscador socios={socios} onElegir={(s) => setAnterior(s?.ultimaLectura ?? null)} />
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1.5">
@@ -1225,16 +1233,46 @@ function NuevaLecturaDialog({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nl-valor">Lectura del medidor</Label>
+              <Label htmlFor="nl-valor">Lectura actual del medidor (m³)</Label>
               <Input
                 id="nl-valor"
                 name="valor"
                 inputMode="numeric"
                 placeholder="1250"
+                value={valor}
+                onChange={(e) => setValor(e.target.value.replace(/[^\d]/g, ""))}
                 required
               />
             </div>
           </div>
+
+          {/* Lo que marca el medidor hoy es el total acumulado, no el consumo: el consumo es la diferencia con la lectura anterior. */}
+          <p
+            className={
+              consumo !== null && consumo < 0
+                ? "rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-[0.84rem] text-destructive"
+                : "rounded-lg bg-muted/60 px-3.5 py-2.5 text-[0.84rem] text-muted-foreground"
+            }
+          >
+            {anterior === null ? (
+              "Escribe lo que marca el medidor ahora (el número acumulado, no el consumo). Si es la primera lectura de este arranque, no hay una anterior con la que comparar."
+            ) : consumo === null ? (
+              <>
+                Lectura anterior: <strong className="tabular-nums">{anterior} m³</strong>. Escribe lo que marca el
+                medidor ahora (el número acumulado): el consumo es la diferencia.
+              </>
+            ) : consumo < 0 ? (
+              <>
+                La lectura actual es menor que la anterior ({anterior} m³). Revisa el número o registra el
+                cambio de medidor.
+              </>
+            ) : (
+              <>
+                Lectura anterior <strong className="tabular-nums">{anterior} m³</strong> · consumo del período{" "}
+                <strong className="tabular-nums">{consumo} m³</strong>
+              </>
+            )}
+          </p>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="nl-observacion">Observación (opcional)</Label>
