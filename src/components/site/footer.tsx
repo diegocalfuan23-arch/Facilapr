@@ -14,6 +14,24 @@ export function Footer() {
           <Link href="/ayuda" className="transition-colors hover:text-foreground">
             Centro de ayuda
           </Link>
+          <Link
+            href="/ayuda/como-calcular-tarifa-agua-apr"
+            className="transition-colors hover:text-foreground"
+          >
+            Cómo calcular la tarifa
+          </Link>
+          <Link
+            href="/ayuda/cortes-por-morosidad-apr"
+            className="transition-colors hover:text-foreground"
+          >
+            Cortes por morosidad
+          </Link>
+          <Link
+            href="/ayuda/planilla-cobro-agua-rural"
+            className="transition-colors hover:text-foreground"
+          >
+            Planilla de cobro
+          </Link>
           <Link href="/terminos" className="transition-colors hover:text-foreground">
             Términos de uso
           </Link>

@@ -1,3 +1,4 @@
+import { PREGUNTAS } from "@/lib/faq";
 const SITE_URL = "https://facilapr.cl";
 
 const softwareSchema = {
@@ -34,48 +35,11 @@ const softwareSchema = {
 const faqSchema = {
   "@context": "https://schema.org",
   "@type": "FAQPage",
-  mainEntity: [
-    {
-      "@type": "Question",
-      name: "¿Dónde quedan guardados los datos de nuestros socios?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "En una base de datos propia de tu APR, separada de cualquier otro comité. Nunca compartimos ni vendemos información de socios a terceros.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "¿Cómo cargamos las boletas que ya tenemos en Excel?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Se importan directamente desde una planilla CSV con el formato que ya suelen usar los APR (socio, RUT, periodo, monto). Te acompañamos en la primera carga.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "¿El socio necesita instalar algo?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "No. Entra desde el navegador de su celular o computador, con el RUT y la clave que crea al pedir acceso — sin apps nuevas.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "¿Se pueden registrar lecturas de medidor y ver la morosidad?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "Sí. Puedes cargar la lectura anterior y actual de cada socio para calcular el consumo, y el panel muestra de un vistazo qué socios están al día y cuáles tienen boletas vencidas.",
-      },
-    },
-    {
-      "@type": "Question",
-      name: "¿Hay contrato de permanencia mínima?",
-      acceptedAnswer: {
-        "@type": "Answer",
-        text: "No. Puedes darte de baja cuando lo estime la directiva, sin multas ni plazos forzosos.",
-      },
-    },
-  ],
+  mainEntity: PREGUNTAS.map((p) => ({
+    "@type": "Question",
+    name: p.pregunta,
+    acceptedAnswer: { "@type": "Answer", text: p.respuesta },
+  })),
 };
 
 export function StructuredData() {

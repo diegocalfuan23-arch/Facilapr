@@ -23,6 +23,8 @@ export type Categoria =
 export type Articulo = {
   slug: string;
   titulo: string;
+  /** Título corto para Google (hasta unos 55 caracteres). Si falta, se usa el título normal. */
+  tituloSeo?: string;
   resumen: string;
   categoria: Categoria;
   /** Quién necesita este artículo. */
@@ -522,6 +524,7 @@ export const ARTICULOS: Articulo[] = [
   {
     slug: "como-calcular-tarifa-agua-apr",
     titulo: "Cómo calcular la tarifa del agua en un APR (cargo fijo y valor del m³)",
+    tituloSeo: "Cómo calcular la tarifa del agua en un APR",
     resumen:
       "Una forma simple de partir de los gastos del comité para definir el cargo fijo y el valor por metro cúbico, con un ejemplo.",
     categoria: "Boletas y cobros",
@@ -569,6 +572,7 @@ export const ARTICULOS: Articulo[] = [
   {
     slug: "cortes-por-morosidad-apr",
     titulo: "Cómo gestionar los cortes por morosidad en un APR",
+    tituloSeo: "Cortes por morosidad en un APR: paso a paso",
     resumen:
       "Del aviso al socio moroso al corte con foto de respaldo y la reposición del servicio, todo registrado.",
     categoria: "Boletas y cobros",
@@ -616,6 +620,7 @@ export const ARTICULOS: Articulo[] = [
   {
     slug: "planilla-cobro-agua-rural",
     titulo: "Planilla para el cobro del agua rural: qué columnas necesitas para cargarla a Facilapr",
+    tituloSeo: "Planilla en Excel para cobrar el agua rural (APR)",
     resumen:
       "Cómo ordenar tu planilla de socios y lecturas en Excel para subirla y emitir las primeras boletas.",
     categoria: "Primeros pasos",
@@ -658,6 +663,7 @@ export const ARTICULOS: Articulo[] = [
   {
     slug: "registrar-pagos-comprobantes",
     titulo: "Cómo registrar el pago de un socio y enviarle el comprobante",
+    tituloSeo: "Registrar el pago de un socio y su comprobante",
     resumen:
       "Anota pagos en efectivo, transferencia o Caja Vecina, admite abonos y manda el comprobante en PDF por WhatsApp.",
     categoria: "Boletas y cobros",
@@ -694,6 +700,7 @@ export const ARTICULOS: Articulo[] = [
   {
     slug: "dar-acceso-socios-cuenta-en-linea",
     titulo: "Cómo dar a tus socios acceso a su cuenta en línea",
+    tituloSeo: "Cuenta en línea para los socios de un APR",
     resumen:
       "Invitaciones por WhatsApp, código QR en el recibo y aprobación de solicitudes, para que cada socio vea sus boletas y haga solicitudes.",
     categoria: "Portal de socios",

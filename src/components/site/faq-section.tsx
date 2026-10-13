@@ -1,42 +1,5 @@
 import { ChevronDown } from "lucide-react";
-
-const preguntas = [
-  {
-    pregunta: "¿Dónde quedan guardados los datos de nuestros socios?",
-    respuesta:
-      "En una base de datos propia de tu APR, separada de cualquier otro comité. Nunca compartimos ni vendemos información de socios a terceros.",
-  },
-  {
-    pregunta: "¿Cómo cargamos las boletas que ya tenemos en Excel?",
-    respuesta:
-      "Se importan directamente desde una planilla CSV con el formato que ya suelen usar los APR (socio, RUT, periodo, monto). Te acompañamos en la primera carga.",
-  },
-  {
-    pregunta: "¿Qué pasa si un socio pregunta algo que el asistente no sabe responder?",
-    respuesta:
-      "El asistente está limitado a consultas de su propia deuda y boletas. Cualquier otra solicitud se responde derivando amablemente al socio a la oficina o al canal de contacto del comité.",
-  },
-  {
-    pregunta: "¿El socio necesita instalar algo?",
-    respuesta:
-      "No es obligatorio. Entra desde el navegador de su celular o computador, con el RUT y la clave que crea al pedir acceso. Si quiere, puede instalar su panel en la pantalla de inicio del teléfono y abrirlo como una app, sin pasar por la tienda de aplicaciones.",
-  },
-  {
-    pregunta: "¿Se pueden registrar lecturas de medidor y ver la morosidad?",
-    respuesta:
-      "Sí. Puedes cargar la lectura anterior y actual de cada socio para calcular el consumo, y el panel muestra de un vistazo qué socios están al día y cuáles tienen boletas vencidas.",
-  },
-  {
-    pregunta: "¿El precio incluye IVA?",
-    respuesta:
-      "Los valores publicados son netos, en UF, más IVA — igual que la mayoría de los servicios contratados por un APR o SSR.",
-  },
-  {
-    pregunta: "¿Hay contrato de permanencia mínima?",
-    respuesta:
-      "No. Puedes darte de baja cuando lo estime la directiva, sin multas ni plazos forzosos.",
-  },
-];
+import { PREGUNTAS } from "@/lib/faq";
 
 export function FaqSection() {
   return (
@@ -52,7 +15,7 @@ export function FaqSection() {
         </div>
 
         <div className="mx-auto flex max-w-[760px] flex-col gap-2.5">
-          {preguntas.map(({ pregunta, respuesta }, i) => (
+          {PREGUNTAS.map(({ pregunta, respuesta }, i) => (
             <details
               key={pregunta}
               open={i === 0}

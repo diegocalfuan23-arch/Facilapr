@@ -18,7 +18,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const a = articuloPorSlug(slug);
   if (!a) return {};
-  return { title: `${a.titulo} · Ayuda`, description: a.resumen };
+  // Corto y con la palabra clave primero: Google corta los títulos largos.
+  return { title: a.tituloSeo ?? a.titulo, description: a.resumen };
 }
 
 /** Captura del paso, si el archivo existe en public/ayuda/<slug>/<n>.png. */
