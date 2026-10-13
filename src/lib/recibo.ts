@@ -1,6 +1,8 @@
 import { and, asc, eq, inArray, ne, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aprs, boletas, socios } from "@/lib/db/schema";
+import { puede, type Plan } from "@/lib/planes";
+import { qrComoImagen } from "@/lib/qr";
 
 /**
  * Todo lo que necesita imprimir un recibo, ya resuelto. El recibo es el
@@ -35,6 +37,11 @@ export type ReciboDatos = {
   montoTotal: number;
   montoPagado: number;
   estado: "PENDIENTE" | "PAGADA" | "VENCIDA" | "ANULADA";
+  /**
+   * El QR que lleva al socio a su cuenta en línea, con la dirección corta para quien no
+   * tenga cámara. Solo en comités con chat (Estándar y Grande) y con dirección propia.
+   */
+  portal: { url: string; corta: string; qr: string } | null;
 };
 
 async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
@@ -63,12 +70,26 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
       comiteComuna: aprs.comuna,
       comiteTelefono: aprs.telefono,
       comiteInfoPago: aprs.infoPago,
+      comiteSlug: aprs.slug,
+      comitePlan: aprs.plan,
     })
     .from(boletas)
     .innerJoin(socios, eq(boletas.socioId, socios.id))
     .innerJoin(aprs, eq(socios.aprId, aprs.id))
     .where(condicion)
     .orderBy(asc(socios.nombre));
+
+  const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
+  const portales = new Map<string, ReciboDatos["portal"]>();
+  for (const f of filas) {
+    if (!f.comiteSlug || !puede(f.comitePlan as Plan, "chat") || portales.has(f.comiteSlug)) continue;
+    const url = `https://${dominio}/${f.comiteSlug}/cuenta/entrar`;
+    portales.set(f.comiteSlug, {
+      url,
+      corta: `${dominio}/${f.comiteSlug}/cuenta`,
+      qr: await qrComoImagen(url),
+    });
+  }
 
   return filas.map((f) => ({
     id: f.id,
@@ -98,6 +119,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
     montoTotal: f.montoTotal,
     montoPagado: f.montoPagado,
     estado: f.estado,
+    portal: f.comiteSlug ? (portales.get(f.comiteSlug) ?? null) : null,
   }));
 }
 

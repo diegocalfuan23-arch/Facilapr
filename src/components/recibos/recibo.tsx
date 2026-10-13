@@ -158,6 +158,18 @@ export function Recibo({ r }: { r: ReciboDatos }) {
           {ESTADO_TEXTO[r.estado]}
         </div>
       </footer>
+
+      {r.portal && (
+        <div className="mt-3 flex items-center gap-3 border-t border-neutral-300 pt-3">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={r.portal.qr} alt="Código QR a tu cuenta en línea" className="size-16 shrink-0" />
+          <div className="text-neutral-700">
+            <div className="font-semibold">Tu cuenta en línea</div>
+            <div>Escanea el código para ver tus boletas y escribirle al comité.</div>
+            <div className="text-[0.72rem] text-neutral-500">{r.portal.corta}</div>
+          </div>
+        </div>
+      )}
     </article>
   );
 }

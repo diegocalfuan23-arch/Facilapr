@@ -219,11 +219,11 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
   texto(estado, margen + 10, 10, { fuente: negrita });
   y -= 36;
 
-  // ---- Cómo pagar.
+  // ---- Cómo pagar. Con QR, el texto deja libre el rincón de abajo a la derecha.
   if (r.comite.infoPago?.trim()) {
     texto("CÓMO PAGAR", margen, 8, { fuente: negrita, color: GRIS });
     y -= 14;
-    for (const l of envolver(normal, 10, r.comite.infoPago.trim(), util)) {
+    for (const l of envolver(normal, 10, r.comite.infoPago.trim(), r.portal ? util - 72 : util)) {
       texto(l, margen, 10);
       y -= 13;
     }
@@ -231,6 +231,28 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
 
   // ---- Pie.
   y = margen + 22;
+  if (r.portal) {
+    // El QR ocupa la esquina de abajo a la derecha: la línea y el pie se quedan a su izquierda.
+    page.drawLine({
+      start: { x: margen, y },
+      end: { x: derechaX - 64, y },
+      thickness: 0.6,
+      color: LINEA,
+    });
+    y -= 14;
+    texto("Comprobante de cobro del comité.", margen, 8, { color: GRIS });
+    y -= 10;
+    texto("No es un documento tributario del SII.", margen, 8, { color: GRIS });
+    y -= 10;
+    texto("Generado con Facilapr · facilapr.cl", margen, 8, { color: GRIS });
+
+    const png = await pdf.embedPng(Buffer.from(r.portal.qr.split(",")[1], "base64"));
+    const lado = 54;
+    page.drawImage(png, { x: derechaX - lado, y: margen - 8, width: lado, height: lado });
+    y = margen - 8 + lado + 8;
+    texto("Tu cuenta en línea", derechaX, 6.5, { fuente: negrita, color: GRIS, derecha: true });
+    return pdf.save();
+  }
   linea();
   y -= 14;
   texto(
