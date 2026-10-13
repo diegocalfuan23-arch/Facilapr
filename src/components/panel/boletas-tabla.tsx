@@ -1200,7 +1200,7 @@ function EnviarWhatsAppDialog({
           )}
         </div>
 
-        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-xl border-t border-border/60 px-5 py-3">
+        <DialogFooter className="mx-0 mb-0 shrink-0 rounded-b-2xl border-t border-border/60 px-5 py-3 sm:mx-0 sm:mb-0 sm:px-5">
           <Button variant="outline" onClick={() => onAbiertoChange(false)}>
             Cerrar
           </Button>
