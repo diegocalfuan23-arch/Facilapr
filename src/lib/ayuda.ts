@@ -362,12 +362,12 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Pulsa Invitar técnico",
-        texto: "Escribe el nombre y el correo de la persona.",
+        texto: "Se genera al tiro un enlace de invitación personal, que sirve una sola vez y vence en 7 días.",
       },
       {
-        titulo: "Comparte el enlace",
+        titulo: "Envíalo por WhatsApp",
         texto:
-          "Copia el enlace de invitación y envíaselo (por WhatsApp, por ejemplo). Con ese enlace la persona crea su propia contraseña.",
+          "Si quieres, escribe el teléfono del técnico y pulsa «Enviar por WhatsApp»: se abre su chat con el mensaje y el enlace ya escritos. Si dejas el teléfono vacío, WhatsApp te deja elegir el contacto. También puedes copiar el enlace y mandarlo por otro medio. Con ese enlace la persona crea su propia contraseña.",
         nota: "El técnico solo ve la sección de lecturas: no accede a socios, boletas ni configuración.",
       },
       {

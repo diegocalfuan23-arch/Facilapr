@@ -585,7 +585,7 @@ export async function rechazarLectura(
 }
 
 export type ResultadoInvitacion =
-  | { ok: true; url: string }
+  | { ok: true; url: string; comite: string }
   | { ok: false; error: string };
 
 export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> {
@@ -619,5 +619,5 @@ export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> 
   const invitacion = await crearInvitacion(apr.id);
 
   const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
-  return { ok: true, url: `https://${dominio}/invitacion/${invitacion.codigo}` };
+  return { ok: true, url: `https://${dominio}/invitacion/${invitacion.codigo}`, comite: apr.nombre };
 }

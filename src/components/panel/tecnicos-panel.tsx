@@ -3,14 +3,16 @@
 import { toast } from "sonner";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Copy, Loader2, UserPlus, Clock } from "lucide-react";
+import { Check, Copy, Loader2, MessageCircle, UserPlus, Clock } from "lucide-react";
 import { generarInvitacionOperador } from "@/app/panel/lecturas/actions";
 import {
   cancelarInvitacion,
   desactivarOperador,
   reactivarOperador,
 } from "@/app/panel/tecnicos/actions";
-import { iniciales } from "@/lib/formato";
+import { iniciales, normalizarTelefono } from "@/lib/formato";
+import { enlaceWhatsApp, mensajeInvitacionTecnico, telefonoValidoParaWhatsApp } from "@/lib/whatsapp";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import {
@@ -387,6 +389,8 @@ function InvitarTecnico() {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
+  const [comite, setComite] = useState("");
+  const [telefono, setTelefono] = useState("");
   const [copiado, setCopiado] = useState(false);
   const [generando, iniciar] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -394,15 +398,32 @@ function InvitarTecnico() {
   function abrir() {
     setAbierto(true);
     setUrl(null);
+    setTelefono("");
     setError(null);
     iniciar(async () => {
       const r = await generarInvitacionOperador();
-      if (r.ok) setUrl(r.url);
+      if (r.ok) {
+        setUrl(r.url);
+        setComite(r.comite);
+      }
       else {
         setError(r.error);
         toast.error(r.error);
       }
     });
+  }
+
+  // Con teléfono se abre el chat de esa persona; sin él, WhatsApp deja elegir a quién.
+  const telefonoNormalizado = telefono.trim() ? normalizarTelefono(telefono) : "";
+  const telefonoMalo = telefonoNormalizado !== "" && !telefonoValidoParaWhatsApp(telefonoNormalizado);
+
+  function enviarPorWhatsApp() {
+    if (!url || telefonoMalo) return;
+    window.open(
+      enlaceWhatsApp(telefonoNormalizado, mensajeInvitacionTecnico(comite, url)),
+      "_blank",
+      "noopener"
+    );
   }
 
   async function copiar() {
@@ -431,8 +452,8 @@ function InvitarTecnico() {
           <DialogHeader>
             <DialogTitle>Invitar técnico</DialogTitle>
             <DialogDescription>
-              Comparte este enlace por WhatsApp o correo. Sirve una sola vez
-              y vence en 7 días.
+              Mándalo por WhatsApp o copia el enlace. Sirve una sola vez y
+              vence en 7 días.
             </DialogDescription>
           </DialogHeader>
 
@@ -465,6 +486,33 @@ function InvitarTecnico() {
               >
                 {copiado ? <Check className="text-forest" /> : <Copy />}
                 {copiado ? "Copiado" : "Copiar"}
+              </Button>
+            </div>
+          )}
+
+          {url && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="tecnico-telefono" className="text-[0.85rem] font-medium">
+                Teléfono del técnico <span className="font-normal text-muted-foreground">(opcional)</span>
+              </label>
+              <Input
+                id="tecnico-telefono"
+                inputMode="tel"
+                placeholder="9 1234 5678"
+                value={telefono}
+                onChange={(e) => setTelefono(e.target.value)}
+                aria-invalid={telefonoMalo}
+              />
+              {telefonoMalo ? (
+                <p className="text-[0.8rem] text-destructive">Revisa el número: no parece un teléfono válido.</p>
+              ) : (
+                <p className="text-[0.8rem] text-muted-foreground">
+                  Si lo dejas vacío, WhatsApp te deja elegir el contacto.
+                </p>
+              )}
+              <Button type="button" onClick={enviarPorWhatsApp} disabled={telefonoMalo}>
+                <MessageCircle />
+                Enviar por WhatsApp
               </Button>
             </div>
           )}

@@ -63,6 +63,7 @@ export function telefonoValidoParaWhatsApp(telefono: string | null | undefined) 
   return Boolean(telefono && /^\+\d{8,15}$/.test(telefono));
 }
 
+/** Con el teléfono vacío, WhatsApp deja elegir a quién mandarlo. */
 export function enlaceWhatsApp(telefono: string, texto: string) {
   return `https://wa.me/${telefono.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`;
 }
@@ -143,6 +144,21 @@ export function mensajeInvitacionPortal(
     url,
     "",
     `El enlace es personal y vence en ${DIAS_VIGENCIA_INVITACION} días.`,
+  ].join("\n");
+}
+
+/** Días que dura el enlace de invitación a un técnico (ver generarInvitacionOperador). */
+export const DIAS_VIGENCIA_INVITACION_TECNICO = 7;
+
+/** El mensaje con el que la directiva invita a un técnico a cargar lecturas en terreno. */
+export function mensajeInvitacionTecnico(comite: string, url: string) {
+  return [
+    `Hola, te escribe ${comite}.`,
+    "",
+    "Te invitamos a Facilapr para cargar las lecturas de los medidores desde tu celular. Crea tu cuenta aquí:",
+    url,
+    "",
+    `El enlace sirve una sola vez y vence en ${DIAS_VIGENCIA_INVITACION_TECNICO} días.`,
   ].join("\n");
 }
 
