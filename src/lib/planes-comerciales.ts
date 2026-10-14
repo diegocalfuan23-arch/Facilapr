@@ -48,7 +48,7 @@ export const PLANES_COMERCIALES: {
     incluye: "Todo lo del Pequeño, más:",
     lista: [
       "Chat en tiempo real con tus socios",
-      { texto: "IA en el chat: responde a tus socios en segundos (unas 1.500 respuestas al mes)", pronto: true },
+      "IA en el chat: responde a tus socios en segundos. Incluye 3 millones de tokens al mes (unas 1.500 respuestas) y puedes sumar packs de +2 millones",
       "Hasta 800 socios cargados",
       "Hasta 3 técnicos en terreno",
       "Sitio público con avisos de corte",
@@ -67,7 +67,7 @@ export const PLANES_COMERCIALES: {
     incluye: "Todo lo del Estándar, más:",
     lista: [
       "Socios y técnicos sin tope",
-      { texto: "IA del chat con más capacidad (unas 5.000 respuestas al mes) y packs adicionales", pronto: true },
+      "IA del chat con más capacidad: 10 millones de tokens al mes (unas 5.000 respuestas) y packs adicionales",
       "Dominio propio y varios administradores con roles",
       { texto: "Conciliación de pagos con la cartola del banco", pronto: true },
       "Múltiples sedes o comités",

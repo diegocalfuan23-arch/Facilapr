@@ -863,7 +863,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Estándar: hasta 800 socios",
         texto:
-          "Para comités medianos. Suma hasta 3 técnicos, el chat en tiempo real con los socios y el asistente de IA. Cuesta 1,5 UF al mes más IVA.",
+          "Para comités medianos. Suma hasta 3 técnicos, el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
       },
       {
         titulo: "Grande: sin tope de socios",
