@@ -18,7 +18,8 @@ export type Categoria =
   | "Lecturas"
   | "Boletas y cobros"
   | "Portal de socios"
-  | "Equipo";
+  | "Equipo"
+  | "Tu plan";
 
 export type Articulo = {
   slug: string;
@@ -59,6 +60,10 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   {
     nombre: "Equipo",
     descripcion: "Invita a quienes toman las lecturas en terreno.",
+  },
+  {
+    nombre: "Tu plan",
+    descripcion: "Qué incluye cada plan y cuál le conviene a tu comité.",
   },
 ];
 
@@ -736,6 +741,145 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Qué puede hacer el socio",
         texto:
           "Ver su deuda, sus boletas y pagos con comprobante, y hacer solicitudes: reclamos, reparación, reposición del servicio, baja o reanudación. Tú las resuelves desde Cortes → Solicitudes.",
+      },
+    ],
+  },
+  {
+    slug: "sistema-para-administrar-un-apr",
+    titulo: "Sistema para administrar un APR: qué debe tener y cómo elegirlo",
+    tituloSeo: "Sistema para administrar un APR: qué debe tener",
+    resumen:
+      "Los ocho puntos que conviene revisar antes de elegir un sistema para tu comité de agua potable rural, desde las lecturas hasta el precio.",
+    categoria: "Primeros pasos",
+    para: "Administrador",
+    minutos: 5,
+    pasos: [
+      {
+        titulo: "Anota cómo cobras hoy",
+        texto:
+          "Antes de comparar sistemas, escribe lo que haces cada mes: quién toma las lecturas, dónde las anotas, cómo calculas cada boleta, cómo te enteras de quién pagó y a quién hay que cortar. Esa lista es tu vara para medir cualquier sistema.",
+      },
+      {
+        titulo: "Que calcule la boleta con la tarifa de tu comité",
+        texto:
+          "El sistema tiene que usar tu cargo fijo y tu valor del metro cúbico, y calcular solo el consumo a partir de la lectura anterior y la actual. Si además cobras distinto a los comercios, que lo permita sin hacer cuentas aparte.",
+      },
+      {
+        titulo: "Que sirva en terreno, aunque no haya internet",
+        texto:
+          "Muchas lecturas se toman donde no hay señal. Revisa que el técnico pueda anotarlas desde el celular y que se envíen solas cuando vuelva la conexión.",
+      },
+      {
+        titulo: "Que registre pagos, abonos y morosidad",
+        texto:
+          "Debe aceptar pagos completos y parciales, anotar el medio (efectivo, transferencia, Caja Vecina) y mostrarte de un vistazo quién está al día y quién tiene boletas vencidas. Y entregar un comprobante al socio.",
+      },
+      {
+        titulo: "Que ordene los cortes y las reposiciones",
+        texto:
+          "Un corte por morosidad conviene que quede con respaldo: a quién, cuándo y con una foto. Lo mismo la reposición cuando el socio regulariza.",
+        nota: "Las reglas para cortar el servicio las fija tu normativa y tu unidad de APR: el sistema ordena el trabajo, no reemplaza esa revisión.",
+      },
+      {
+        titulo: "Que cada socio pueda ver su cuenta",
+        texto:
+          "Un portal donde el socio vea su deuda, sus boletas y sus pagos le ahorra llamadas a tu oficina. Si además puede pedir una reparación o escribir al comité, mejor.",
+      },
+      {
+        titulo: "Que puedas cargar lo que ya tienes",
+        texto:
+          "No deberías partir de cero. Pregunta si se puede importar el padrón desde Excel y revisar lo cargado antes de guardarlo.",
+      },
+      {
+        titulo: "Mira el precio y la permanencia",
+        texto:
+          "Pide el precio completo, con IVA, y si hay contrato de permanencia. En Facilapr el plan Pequeño parte en 0,7 UF al mes más IVA y se puede dejar cuando el comité quiera, sin multas.",
+      },
+    ],
+  },
+  {
+    slug: "chat-con-socios-asistente-ia",
+    titulo: "Cómo funciona el chat con tus socios y el asistente de IA",
+    tituloSeo: "Chat con socios y asistente de IA para un APR",
+    resumen:
+      "Responde a tus socios en tiempo real, activa el asistente de IA para lo repetitivo y controla cuándo habla él y cuándo hablas tú.",
+    categoria: "Portal de socios",
+    para: "Administrador",
+    minutos: 5,
+    pasos: [
+      {
+        titulo: "Entra a Conversaciones",
+        texto:
+          "En el menú de tu panel está Conversaciones. Cada socio que te escribe desde su cuenta aparece ahí, y los mensajes llegan en tiempo real. Elige un socio y respóndele como en cualquier chat.",
+        nota: "El chat está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Activa el asistente de IA",
+        texto:
+          "Ve a Configuración → Asistente de chat. En «Cuándo responde» elige «Siempre responde primero» y guarda. Con «Apagado» solo responde la directiva.",
+      },
+      {
+        titulo: "Escribe tus instrucciones",
+        texto:
+          "En «Instrucciones propias» puedes indicar el tono y las reglas del comité. Por ejemplo: «Háblales de usted. Si preguntan por cortes, que llamen a la oficina de 9 a 13 h». Admite hasta 1.500 caracteres.",
+      },
+      {
+        titulo: "Qué hace y qué no hace",
+        texto:
+          "Sus mensajes salen marcados como «Asistente del comité · IA». Responde con los datos de la cuenta del socio y los de tu comité, y no promete plazos ni descuentos. Si es un reclamo, un corte o no sabe la respuesta, marca la conversación como «Necesita respuesta humana» para que entres tú.",
+      },
+      {
+        titulo: "Toma el control cuando quieras",
+        texto:
+          "Si escribes tú en una conversación, la IA se pausa 10 minutos ahí y después vuelve a responder. También puedes pausarla a mano en una conversación puntual desde la misma pantalla.",
+      },
+      {
+        titulo: "Mira cuánto has usado",
+        texto:
+          "En Configuración → Uso y consumo ves los tokens de IA del mes. Cuando se acaban, la IA deja de responder y las conversaciones quedan para la directiva. Si necesitas más, puedes pedir un pack adicional de 2.000.000 de tokens, unas 1.000 respuestas, desde el mismo diálogo del asistente.",
+      },
+    ],
+  },
+  {
+    slug: "que-plan-elegir-apr",
+    titulo: "Qué plan elegir para tu APR: Pequeño, Estándar o Grande",
+    tituloSeo: "Qué plan elegir para tu APR: Pequeño, Estándar o Grande",
+    resumen:
+      "Qué incluye cada plan de Facilapr, cuántos socios y técnicos admite, cuánto cuesta y cuál le conviene a tu comité.",
+    categoria: "Tu plan",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Cuenta cuántos socios y técnicos tienes",
+        texto:
+          "El tamaño del comité define el plan. Cuenta los arranques con servicio, no a las personas, porque quien tiene dos medidores ocupa dos cuentas. Y piensa cuántas personas toman lecturas en terreno.",
+      },
+      {
+        titulo: "Pequeño: hasta 200 socios",
+        texto:
+          "Para comités que parten o son chicos. Incluye 1 técnico, boletas, lecturas, pagos con comprobante, cortes y la cuenta en línea de cada socio. No incluye chat ni asistente de IA. Cuesta 0,7 UF al mes más IVA.",
+      },
+      {
+        titulo: "Estándar: hasta 800 socios",
+        texto:
+          "Para comités medianos. Suma hasta 3 técnicos, el chat en tiempo real con los socios y el asistente de IA. Cuesta 1,5 UF al mes más IVA.",
+      },
+      {
+        titulo: "Grande: sin tope de socios",
+        texto:
+          "Para comités muy grandes o con varias sedes. El precio es a medida y parte desde 4 UF al mes más IVA, según tus socios y sedes.",
+      },
+      {
+        titulo: "Cómo se calcula el precio",
+        texto:
+          "Los precios están en UF y se cobran en pesos con el valor de la UF del día, más IVA. Si pagas el año completo, pagas 11 meses.",
+      },
+      {
+        titulo: "Ver tu plan o cambiarlo",
+        texto:
+          "Tu plan actual aparece en el menú de tu comité, en «Mi plan». Para cambiarlo, escríbenos a hola@facilapr.cl y lo dejamos listo.",
+        nota: "Puedes cambiar de plan cuando el comité crezca o cambie. No hay permanencia mínima.",
       },
     ],
   },
