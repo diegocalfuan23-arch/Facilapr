@@ -56,7 +56,6 @@ const gestion = [
   { href: "/panel/boletas", label: "Boletas", icon: ReceiptText },
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
-  { href: "/panel/cortes", label: "Cortes", icon: Scissors },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
   { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
 ];
@@ -64,6 +63,7 @@ const gestion = [
 const atencion = [
   { href: "/panel/conversaciones", label: "Conversaciones", icon: MessageCircle },
   { href: "/panel/socios/solicitudes", label: "Solicitudes", icon: UserCheck },
+  { href: "/panel/cortes", label: "Cortes", icon: Scissors },
   // "Sitio público" está oculto por ahora: todavía no se ofrece a los comités.
   // La página sigue existiendo en /panel/sitio; para volver a mostrarla, basta
   // descomentar esta línea (y volver a importar el ícono Globe de lucide-react). Las tarifas ya no dependen de ella: están en
