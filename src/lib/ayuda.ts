@@ -32,6 +32,11 @@ export type Articulo = {
   /** Minutos aproximados que toma hacerlo. */
   minutos: number;
   pasos: Paso[];
+  /**
+   * Video tutorial de YouTube. `id` es lo que va después de «v=» en el enlace
+   * (youtube.com/watch?v=ESTE_ID). `segundos` es la duración, para Google.
+   */
+  video?: { id: string; segundos: number };
 };
 
 export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [

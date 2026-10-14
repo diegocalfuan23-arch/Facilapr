@@ -6,6 +6,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { ArrowLeft, ArrowRight, Clock, Lightbulb } from "lucide-react";
 import { AyudaLayout } from "@/components/ayuda/ayuda-layout";
+import { VideoYoutube } from "@/components/ayuda/video-youtube";
 import { ARTICULOS, articuloPorSlug } from "@/lib/ayuda";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -51,12 +52,31 @@ export default async function ArticuloAyudaPage({ params }: Props) {
   };
   const siguiente = ARTICULOS[indice + 1];
 
+  // Con video, Google puede mostrarlo en los resultados de búsqueda.
+  const video = articulo.video;
+  const datosVideo = video && {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: articulo.titulo,
+    description: articulo.resumen,
+    thumbnailUrl: `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+    embedUrl: `https://www.youtube.com/embed/${video.id}`,
+    contentUrl: `https://www.youtube.com/watch?v=${video.id}`,
+    duration: `PT${Math.floor(video.segundos / 60)}M${video.segundos % 60}S`,
+  };
+
   return (
     <AyudaLayout>
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(datosEstructurados) }}
       />
+      {datosVideo && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(datosVideo) }}
+        />
+      )}
       <main className="mx-auto max-w-[760px] px-7 py-12">
         <Link
           href="/ayuda"
@@ -82,6 +102,16 @@ export default async function ArticuloAyudaPage({ params }: Props) {
             {articulo.minutos} min
           </span>
         </div>
+
+        {video && (
+          <div className="mt-8">
+            <VideoYoutube id={video.id} titulo={articulo.titulo} />
+            <p className="mt-2 text-[0.82rem] text-muted-foreground">
+              Video de {Math.max(1, Math.round(video.segundos / 60))} min. Abajo
+              tienes los mismos pasos por escrito.
+            </p>
+          </div>
+        )}
 
         <ol className="mt-12 flex flex-col gap-12">
           {articulo.pasos.map((paso, i) => {
