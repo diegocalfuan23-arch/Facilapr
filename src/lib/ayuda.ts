@@ -386,8 +386,9 @@ export const ARTICULOS: Articulo[] = [
   {
     slug: "tomar-lecturas-en-terreno",
     titulo: "Tomar lecturas en terreno (también sin señal)",
+    tituloSeo: "Tomar lecturas de medidores de un APR sin internet",
     resumen:
-      "Usa Modo terreno desde el celular. Si no hay internet, las lecturas quedan guardadas y se envían solas después.",
+      "Toma las lecturas de los medidores desde el celular, aunque no haya internet: quedan guardadas y se envían solas cuando vuelve la señal.",
     categoria: "Lecturas",
     para: "Técnico",
     minutos: 3,
@@ -925,6 +926,102 @@ export const ARTICULOS: Articulo[] = [
         texto:
           "Tu plan actual aparece en el menú de tu comité, en «Mi plan». Para cambiarlo, escríbenos a hola@facilapr.cl y lo dejamos listo.",
         nota: "Puedes cambiar de plan cuando el comité crezca o cambie. No hay permanencia mínima.",
+      },
+    ],
+  },
+  {
+    slug: "reclamos-solicitudes-socios-apr",
+    titulo: "Reclamos y solicitudes de los socios en un APR: cómo recibirlos y resolverlos",
+    tituloSeo: "Reclamos y solicitudes de socios en un APR",
+    resumen:
+      "Los socios piden reparaciones, reposiciones, bajas o presentan reclamos desde su cuenta. Así se reciben, se responden y quedan registrados.",
+    categoria: "Portal de socios",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "El socio lo pide desde su cuenta",
+        texto:
+          "Desde su portal, el socio puede presentar un reclamo o pedir una reparación, la reposición del servicio, la baja o la reanudación del servicio. No necesita llamar ni ir a la oficina.",
+        nota: "Para que lo haga, necesita tener acceso a su cuenta. Mira la guía «Cómo dar a tus socios acceso a su cuenta en línea».",
+      },
+      {
+        titulo: "Mira lo que llegó en Cortes → Solicitudes",
+        texto:
+          "En el menú Cortes entra a la pestaña Solicitudes. Cada pedido muestra quién lo hizo, de qué tipo es y cuándo. El menú muestra un número rojo cuando hay algo esperando respuesta.",
+      },
+      {
+        titulo: "Responde un reclamo",
+        texto:
+          "Pulsa Responder y escribe la respuesta: en un reclamo es obligatoria. El socio la ve en su portal, y puedes avisarle por WhatsApp con el botón Avisar respuesta.",
+      },
+      {
+        titulo: "Aprueba o rechaza una reparación o una reposición",
+        texto:
+          "Pulsa Aprobar y el pedido pasa a En trámite: alguien tiene que ir a terreno. El técnico sube la foto del trabajo y queda Por dar de alta, donde tú la confirmas. Si no corresponde, pulsa Rechazar y puedes explicarle el motivo.",
+      },
+      {
+        titulo: "Da de baja o reanuda el servicio",
+        texto:
+          "Una baja se resuelve con Dar de baja, y una reanudación con Reanudar. Si el socio tiene deuda, el sistema te pide confirmarlo antes de dar de baja.",
+      },
+      {
+        titulo: "Todo queda registrado",
+        texto:
+          "En la pestaña Historial queda cada solicitud con su estado y su respuesta, para revisarla cuando haga falta.",
+      },
+    ],
+  },
+  {
+    slug: "cobrar-agua-apr-sin-excel",
+    titulo: "Cobrar el agua en un APR sin planillas de Excel: el proceso completo",
+    tituloSeo: "Cobrar el agua en un APR sin planillas de Excel",
+    resumen:
+      "Del padrón a la boleta y al pago: los pasos para cobrar el agua de tu comité cada mes sin llevar todo en planillas.",
+    categoria: "Primeros pasos",
+    para: "Administrador",
+    minutos: 6,
+    pasos: [
+      {
+        titulo: "Carga tus socios una sola vez",
+        texto:
+          "En Socios, usa Importar para subir tu planilla actual con el nombre, RUT, número de arranque, dirección y teléfono. Antes de guardar, el sistema te muestra cómo entendió cada fila para que corrijas lo que haga falta.",
+        nota: "El RUT y el teléfono se pueden completar después. Más detalle en «Planilla en Excel para cobrar el agua rural».",
+      },
+      {
+        titulo: "Define tus tarifas",
+        texto:
+          "En Configuración → Facturación pones el cargo fijo y el valor del metro cúbico. Con eso el sistema calcula cada boleta; ya no haces la cuenta a mano.",
+      },
+      {
+        titulo: "Carga la lectura de partida",
+        texto:
+          "Cada medidor necesita una primera lectura, sin boleta, para poder calcular el consumo del mes siguiente. Se carga como lectura inicial.",
+      },
+      {
+        titulo: "Toma las lecturas cada mes",
+        texto:
+          "El técnico las anota desde el celular con Modo terreno, incluso sin señal, o las subes desde una planilla. El consumo sale de restar la lectura anterior.",
+      },
+      {
+        titulo: "Revisa, aprueba y genera las boletas",
+        texto:
+          "En Lecturas revisas los consumos que se ven raros y apruebas. Con Aprobar y generar boletas, las que están listas se convierten en boletas con su monto ya calculado.",
+      },
+      {
+        titulo: "Envía los recibos",
+        texto:
+          "En Boletas, Enviar por WhatsApp te lista a los socios con teléfono y abre cada chat con el mensaje y el recibo en PDF ya escritos. Solo tocas enviar. A quien no tiene teléfono le entregas el recibo impreso.",
+      },
+      {
+        titulo: "Anota los pagos",
+        texto:
+          "Cuando un socio paga, entra a Pagos → Registrar pago: puede pagar todo o abonar una parte, en efectivo, transferencia o Caja Vecina. Se genera un comprobante que le puedes mandar.",
+      },
+      {
+        titulo: "Mira quién está al día",
+        texto:
+          "En Pagos ves cuánto recaudaste y cuántos socios están al día o morosos. En Cortes ves quiénes llevan más tiempo sin pagar y puedes avisarles antes de cortar.",
       },
     ],
   },
