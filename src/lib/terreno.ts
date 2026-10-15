@@ -34,7 +34,7 @@ export async function datosTerreno(userId: string, aprId: string) {
   const propias = await db.query.lecturas.findMany({
     where: eq(lecturas.registradaPorId, userId),
     orderBy: [desc(lecturas.createdAt)],
-    limit: 20,
+    limit: 200,
     with: { socio: { columns: { nombre: true } } },
   });
 

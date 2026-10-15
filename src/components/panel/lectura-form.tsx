@@ -16,6 +16,7 @@ import {
   Clock,
   Droplets,
   Loader2,
+  Search,
   Users,
   WifiOff,
   XCircle,
@@ -72,6 +73,8 @@ const ESTADO_META = {
 // text-base (16px) iOS tampoco hace zoom al tocar un campo.
 // En escritorio vuelven al tamaño normal del panel (md:).
 const CAMPO = "h-12 text-base md:h-8 md:text-sm";
+
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 const numero = new Intl.NumberFormat("es-CL");
 
@@ -137,6 +140,16 @@ export function LecturaForm({
   // Consumo en vivo: lo que el técnico escribe menos la última aprobada.
   // Solo orienta; el administrador sigue revisando antes de generar la boleta.
   const anterior = socio?.anterior ?? null;
+
+  // Buscador de "Tus lecturas": por socio, mes, estado o número de lectura.
+  const [busquedaLecturas, setBusquedaLecturas] = useState("");
+  const recientesFiltradas = useMemo(() => {
+    const q = sinTildes(busquedaLecturas.trim());
+    if (!q) return recientes;
+    return recientes.filter((l) =>
+      sinTildes(`${l.socio} ${l.periodo} ${ESTADO_META[l.estado].texto} ${l.valor}`).includes(q)
+    );
+  }, [recientes, busquedaLecturas]);
   const actual = valorTxt === "" ? null : Number(valorTxt);
   // Sin lectura anterior no hay consumo que mostrar: sería el medidor completo.
   const consumo = actual !== null && anterior ? actual - anterior.valor : null;
@@ -448,13 +461,29 @@ export function LecturaForm({
           <h1 className="text-[1.5rem] font-semibold tracking-tight md:text-[0.95rem]">
             Tus lecturas
           </h1>
+          {recientes.length > 0 && (
+            <div className="relative">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={busquedaLecturas}
+                onChange={(e) => setBusquedaLecturas(e.target.value)}
+                placeholder="Buscar por socio, mes o estado…"
+                aria-label="Buscar entre tus lecturas"
+                className={cn("pl-9", CAMPO)}
+              />
+            </div>
+          )}
           {recientes.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
               Todavía no has cargado lecturas.
             </p>
+          ) : recientesFiltradas.length === 0 ? (
+            <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
+              Ninguna lectura coincide con la búsqueda.
+            </p>
           ) : (
             <div className="flex flex-col divide-y divide-border/60 rounded-2xl border border-border/60 bg-card">
-              {recientes.map((l) => {
+              {recientesFiltradas.map((l) => {
                 const meta = ESTADO_META[l.estado];
                 const Icono = meta.icono;
                 return (
