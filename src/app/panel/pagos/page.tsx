@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { and, asc, desc, eq, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, pagos, socios } from "@/lib/db/schema";
+import { user as usuarios } from "@/lib/db/auth-schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { urlComprobante } from "@/lib/comprobante-enlace";
 import { PagosTabla } from "@/components/panel/pagos-tabla";
@@ -31,11 +32,15 @@ export default async function PagosPage() {
       periodo: boletas.periodo,
       socioNombre: socios.nombre,
       socioRut: socios.rut,
+      socioTipo: socios.tipo,
+      registradoPor: usuarios.name,
     })
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
     // El socio del pago: el que trae él mismo o, en los antiguos, el de su boleta.
     .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    // Quién del comité lo anotó (los pagos más antiguos pueden no traerlo).
+    .leftJoin(usuarios, eq(usuarios.id, pagos.registradoPorId))
     .where(eq(socios.aprId, apr.id))
     .orderBy(desc(pagos.fecha), desc(pagos.createdAt))
     .limit(MAXIMO);

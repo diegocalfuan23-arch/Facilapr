@@ -30,6 +30,10 @@ export type PagoFila = {
   repactacionId: string | null;
   socioNombre: string;
   socioRut: string | null;
+  /** SOCIO o USUARIO: de quién es la cuenta que se pagó. */
+  socioTipo: string;
+  /** El usuario del panel que registró el pago; null en los antiguos. */
+  registradoPor: string | null;
   comprobanteUrl: string;
 };
 
@@ -90,7 +94,7 @@ export function PagosTabla({
       if (medio !== "todos" && p.medio !== medio) return false;
       if (!q) return true;
       return sinTildes(
-        `${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${queSePago(p)}`
+        `${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${queSePago(p)} ${p.pagadoPor ?? ""} ${p.registradoPor ?? ""}`
       ).includes(q);
     });
   }, [pagos, busqueda, medio]);
@@ -146,7 +150,7 @@ export function PagosTabla({
                   setBusqueda(e.target.value);
                   setVisibles(POR_PAGINA);
                 }}
-                placeholder="Buscar por socio, RUT, período o N.º de operación…"
+                placeholder="Buscar por socio, quién pagó, RUT, período o N.º de operación…"
                 aria-label="Buscar pagos"
                 className="h-10 border-transparent bg-muted/60 pl-10"
               />
@@ -186,13 +190,24 @@ export function PagosTabla({
                     className="flex items-center justify-between gap-3 px-3 py-3.5 sm:px-5"
                   >
                     <div className="min-w-0">
-                      <div className="truncate font-medium">{p.socioNombre}</div>
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate font-medium">{p.socioNombre}</span>
+                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.68rem] font-medium text-muted-foreground">
+                          {p.socioTipo === "USUARIO" ? "Usuario" : "Socio"}
+                        </span>
+                        {p.repactacionId && (
+                          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[0.68rem] font-medium text-primary">
+                            Repactación
+                          </span>
+                        )}
+                      </div>
                       <div className="truncate text-[0.8rem] text-muted-foreground">
                         {fechaLarga.format(new Date(p.fecha))} · {textoMedioPago(p.medio)} ·{" "}
                         {queSePago(p)}
                         {p.socioRut ? ` · ${formatearRut(p.socioRut)}` : ""}
-                        {p.pagadoPor ? ` · pagó ${p.pagadoPor}` : ""}
+                        {p.pagadoPor ? ` · pagó ${p.pagadoPor}` : " · pagó el titular"}
                         {p.referencia ? ` · Op. ${p.referencia}` : ""}
+                        {p.registradoPor ? ` · registró ${p.registradoPor}` : ""}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center gap-3">
