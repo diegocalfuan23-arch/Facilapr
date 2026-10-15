@@ -205,26 +205,74 @@ export default async function PanelPage({
     .where(and(eq(socios.aprId, apr.id), noAnulada))
     .groupBy(boletas.periodo);
 
-  // Cuánto consumen los arranques residenciales y los comerciales en esos mismos períodos.
-  const [usoConsumo] = await db
+  // Consumo de los arranques residenciales y comerciales, por período, según las boletas.
+  const usoPorPeriodoBoletas = await db
     .select({
+      periodo: boletas.periodo,
       residencial: sql<number>`coalesce(sum(${boletas.consumoM3}) filter (where ${socios.uso} <> 'COMERCIAL'), 0)::int`,
       comercial: sql<number>`coalesce(sum(${boletas.consumoM3}) filter (where ${socios.uso} = 'COMERCIAL'), 0)::int`,
     })
     .from(boletas)
     .innerJoin(socios, eq(boletas.socioId, socios.id))
-    .where(and(eq(socios.aprId, apr.id), noAnulada, inArray(boletas.periodo, periodos)));
+    .where(and(eq(socios.aprId, apr.id), noAnulada, inArray(boletas.periodo, periodos)))
+    .groupBy(boletas.periodo);
+
+  // Consumo real: lo que subió cada medidor entre dos lecturas aprobadas, en el
+  // período de la lectura nueva (igual que al emitir una boleta). La primera
+  // lectura de un arranque, la de partida, no aporta: no hay con qué restarla.
+  // Así el gráfico se llena apenas se aprueban las lecturas, sin esperar a las boletas.
+  const consumoLecturas = await db.execute(sql`
+    select periodo,
+           coalesce(sum(m3), 0)::int as total,
+           coalesce(sum(m3) filter (where comercial), 0)::int as comercial
+    from (
+      select l."periodo" as periodo,
+             l."valor" - lag(l."valor") over (partition by l."socioId" order by l."createdAt") as m3,
+             (s."uso" = 'COMERCIAL') as comercial
+      from "Lectura" l
+      join "Socio" s on s."id" = l."socioId"
+      where s."aprId" = ${apr.id} and l."estado" = 'APROBADA'
+    ) t
+    where m3 > 0
+    group by periodo
+  `);
+  const deLecturas = new Map(
+    (consumoLecturas.rows as { periodo: string; total: number; comercial: number }[]).map((r) => [r.periodo, r])
+  );
 
   const deP = new Map(porPeriodo.map((p) => [p.periodo, p]));
+  const usoDeBoletas = new Map(usoPorPeriodoBoletas.map((u) => [u.periodo, u]));
+
+  // Por período manda la lectura; si ese mes solo hay boletas (cargadas a mano), se usan ellas.
+  const usoConsumo = { residencial: 0, comercial: 0 };
+  for (const p of periodos) {
+    const l = deLecturas.get(p);
+    if (l && l.total > 0) {
+      usoConsumo.comercial += l.comercial;
+      usoConsumo.residencial += l.total - l.comercial;
+    } else {
+      const b = usoDeBoletas.get(p);
+      usoConsumo.residencial += b?.residencial ?? 0;
+      usoConsumo.comercial += b?.comercial ?? 0;
+    }
+  }
 
   /** Etiqueta corta del período: "Jul" a partir de "2026-07". */
   const etiqueta = (p: string) => formatearPeriodo(p).slice(0, 3);
 
-  const serie = (campo: "pagadas" | "pendientes" | "vencidas" | "consumo") =>
+  const serie = (campo: "pagadas" | "pendientes" | "vencidas") =>
     periodos.map((p) => ({
       periodo: etiqueta(p),
       valor: deP.get(p)?.[campo] ?? 0,
     }));
+
+  const serieConsumo = periodos.map((p) => {
+    const delaLectura = deLecturas.get(p)?.total ?? 0;
+    return {
+      periodo: etiqueta(p),
+      valor: delaLectura > 0 ? delaLectura : (deP.get(p)?.consumo ?? 0),
+    };
+  });
 
   // Recharts espera una fila por columna con todas las series como campos.
   const datosCobranza = periodos.map((p) => ({
@@ -338,7 +386,7 @@ export default async function PanelPage({
           recienteAnterior.emitidas
         ),
         cobranza: datosCobranza,
-        consumo: serie("consumo"),
+        consumo: serieConsumo,
         consumoPorUso: usoConsumo,
         recaudado: serieRecaudado,
         vencidas: serie("vencidas"),
@@ -624,7 +672,7 @@ export default async function PanelPage({
                 Evolución del consumo
               </h3>
               <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
-                Metros cúbicos facturados por período
+                Metros cúbicos consumidos por período
               </p>
             </div>
             <Droplets className="size-4 shrink-0 text-primary" />
