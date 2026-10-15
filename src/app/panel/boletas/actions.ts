@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { boletas, pagos, socios } from "@/lib/db/schema";
+import { boletas, pagos, repactaciones, socios } from "@/lib/db/schema";
 import { urlComprobante } from "@/lib/comprobante-enlace";
 import { requireAdmin } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
@@ -247,7 +247,7 @@ export async function guardarBoleta(
 /** Pago dentro del comité del usuario; null si no existe o es de otro comité. */
 async function pagoDelComite(aprId: string, pagoId: string) {
   const [fila] = await db
-    .select({ id: pagos.id, boletaId: pagos.boletaId })
+    .select({ id: pagos.id, boletaId: pagos.boletaId, repactacionId: pagos.repactacionId })
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
     // El socio del pago: el que trae él mismo o, en los antiguos, el de su boleta.
@@ -525,6 +525,18 @@ export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
   await db.delete(pagos).where(eq(pagos.id, pago.id));
   // Un cobro que no es una boleta no tiene nada que recalcular.
   if (pago.boletaId) await recalcularBoleta(pago.boletaId);
+
+  // Si era parte de un acuerdo que estaba cumplido, deja de estarlo: vuelve a deber ese monto.
+  if (pago.repactacionId) {
+    try {
+      await db
+        .update(repactaciones)
+        .set({ estado: "ACTIVA", updatedAt: new Date() })
+        .where(and(eq(repactaciones.id, pago.repactacionId), eq(repactaciones.estado, "CUMPLIDA")));
+    } catch {
+      // Ya hay otro acuerdo activo de ese socio: el viejo se queda como estaba.
+    }
+  }
 
   revalidatePath("/panel/boletas");
   revalidatePath("/panel/pagos");

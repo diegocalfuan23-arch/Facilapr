@@ -709,6 +709,44 @@ export const ARTICULOS: Articulo[] = [
     ],
   },
   {
+    slug: "repactar-deuda-socio",
+    titulo: "Cómo repactar la deuda de un socio moroso en cuotas",
+    tituloSeo: "Repactar la deuda de un socio moroso en un APR",
+    resumen:
+      "Crea un acuerdo para que un socio pague su deuda vencida en cuotas mensuales, registra cada pago y mira si va al día.",
+    categoria: "Boletas y cobros",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Pagos y pulsa Nueva repactación",
+        texto:
+          "En el menú Pagos está la sección Repactaciones. Ahí aparecen los acuerdos activos y el botón para crear uno.",
+      },
+      {
+        titulo: "Elige al socio",
+        texto:
+          "Solo aparecen socios con deuda vencida y sin otro acuerdo activo. Verás cuánto debe hoy: esa es la deuda que se reparte.",
+      },
+      {
+        titulo: "Define las cuotas y la primera fecha",
+        texto:
+          "Elige en cuántas cuotas mensuales (de 2 a 60) y cuándo vence la primera. Las siguientes vencen el mismo día de cada mes. Antes de guardar ves cuánto vale cada cuota; la última se ajusta para que el total cuadre.",
+        nota: "Las boletas nuevas que se sigan emitiendo no entran al acuerdo: se pagan aparte, como siempre.",
+      },
+      {
+        titulo: "Registra cada pago",
+        texto:
+          "Cuando el socio pague, pulsa Registrar pago de cuota en su tarjeta. El dinero se aplica a sus boletas más antiguas primero, así su deuda baja de verdad. Se genera un comprobante que puedes enviarle por WhatsApp.",
+      },
+      {
+        titulo: "Sigue cómo va",
+        texto:
+          "Cada tarjeta muestra cuántas cuotas lleva, cuánto falta y si el socio va al día o atrasado. Cuando paga todo, el acuerdo pasa solo a cumplido. Si no va a seguir, pulsa Cancelar acuerdo: los pagos que ya hizo se mantienen.",
+      },
+    ],
+  },
+  {
     slug: "dar-acceso-socios-cuenta-en-linea",
     titulo: "Cómo dar a tus socios acceso a su cuenta en línea",
     tituloSeo: "Cuenta en línea para los socios de un APR",

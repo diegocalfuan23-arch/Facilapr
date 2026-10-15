@@ -20,6 +20,8 @@ export type ComprobanteDatos = {
   /** BOLETA, RECONEXION, REPARACION u OTRO. */
   concepto: string;
   descripcion: string | null;
+  /** El pago es parte de un acuerdo de pago (repactación). */
+  repactacion: boolean;
   monto: number;
   fecha: Date;
   medio: string;
@@ -40,6 +42,7 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
       pagadoPor: pagos.pagadoPor,
       concepto: pagos.concepto,
       descripcion: pagos.descripcion,
+      repactacionId: pagos.repactacionId,
       periodo: boletas.periodo,
       boletaTotal: boletas.montoTotal,
       boletaPagado: boletas.montoPagado,
@@ -78,6 +81,7 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
     boletaPagado: f.boletaPagado,
     concepto: f.concepto,
     descripcion: f.descripcion,
+    repactacion: f.repactacionId !== null,
     monto: f.monto,
     fecha: f.fecha,
     medio: f.medio,

@@ -240,6 +240,33 @@ export function mensajeComprobanteCobro(
   ].join("\n");
 }
 
+/** El comprobante de lo que el socio pagó de su acuerdo de repactación. */
+export function mensajeComprobanteCuota(
+  comite: string,
+  datos: {
+    socioNombre: string;
+    monto: number;
+    /** Lo que falta del acuerdo; 0 si ya quedó cumplido. */
+    restante: number;
+    comprobanteUrl: string;
+    pagadoPor?: string | null;
+  }
+) {
+  const nombre = (datos.pagadoPor || datos.socioNombre).trim().split(/\s+/)[0] ?? "";
+  return [
+    `Hola ${nombre}, te escribe ${comite}.`,
+    "",
+    datos.pagadoPor
+      ? `Registramos tu pago de ${clp.format(datos.monto)} del acuerdo de pago de ${datos.socioNombre}.`
+      : `Registramos tu pago de ${clp.format(datos.monto)} de tu acuerdo de pago.`,
+    datos.restante > 0
+      ? `Te quedan ${clp.format(datos.restante)} por pagar del acuerdo.`
+      : "Con esto tu acuerdo queda cumplido. ¡Gracias por regularizar tu cuenta!",
+    "",
+    `Descarga tu comprobante: ${datos.comprobanteUrl}`,
+  ].join("\n");
+}
+
 /** Primer nombre del socio, para saludar. */
 const primerNombre = (nombre: string) => nombre.trim().split(/\s+/)[0] ?? "";
 

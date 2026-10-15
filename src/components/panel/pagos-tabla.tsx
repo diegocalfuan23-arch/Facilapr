@@ -10,6 +10,11 @@ import { formatearRut } from "@/lib/formato";
 import { MEDIOS_PAGO, textoConcepto, textoMedioPago } from "@/lib/pagos";
 import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
+import {
+  RepactacionesPanel,
+  type RepactacionFila,
+  type SocioConDeuda,
+} from "@/components/panel/repactaciones-panel";
 import type { DatosComiteWhatsApp } from "@/lib/whatsapp";
 
 export type PagoFila = {
@@ -26,6 +31,8 @@ export type PagoFila = {
   /** BOLETA, RECONEXION, REPARACION u OTRO. */
   concepto: string;
   descripcion: string | null;
+  /** El pago es parte de un acuerdo de pago (repactación). */
+  repactacionId: string | null;
   socioNombre: string;
   socioRut: string | null;
   comprobanteUrl: string;
@@ -47,7 +54,7 @@ const POR_PAGINA = 25;
 
 /** Qué se pagó: el mes de la boleta, o el concepto (con su detalle) si no fue una boleta. */
 function queSePago(p: PagoFila) {
-  if (p.periodo) return formatearPeriodo(p.periodo);
+  if (p.periodo) return `${formatearPeriodo(p.periodo)}${p.repactacionId ? " · repactación" : ""}`;
   return p.descripcion ? `${textoConcepto(p.concepto)} (${p.descripcion})` : textoConcepto(p.concepto);
 }
 
@@ -60,10 +67,14 @@ export function PagosTabla({
   socios,
   todosLosSocios,
   costoReconexion,
+  repactaciones,
+  sociosConDeuda,
   boletasPendientes,
   comite,
 }: {
   pagos: PagoFila[];
+  repactaciones: RepactacionFila[];
+  sociosConDeuda: SocioConDeuda[];
   socios: OpcionSocio[];
   todosLosSocios: OpcionSocio[];
   costoReconexion: number | null;
@@ -121,6 +132,8 @@ export function PagosTabla({
           </div>
         ))}
       </div>
+
+      <RepactacionesPanel repactaciones={repactaciones} sociosConDeuda={sociosConDeuda} comite={comite} />
 
       {pagos.length === 0 ? (
         <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">

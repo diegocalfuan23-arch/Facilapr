@@ -332,6 +332,8 @@ export const pagos = pgTable(
     descripcion: text("descripcion"),
     /** La orden de trabajo a la que corresponde el cobro (la reposición, la reparación). */
     ordenId: text("ordenId").references(() => ordenes.id, { onDelete: "set null" }),
+    /** El acuerdo de pago (repactación) del que es parte este pago, si lo es. */
+    repactacionId: text("repactacionId").references(() => repactaciones.id, { onDelete: "set null" }),
     monto: integer("monto").notNull(),
     /** Cuándo se pagó (puede ser anterior a cuando se registró). */
     fecha: timestamp("fecha", { precision: 3 }).notNull().defaultNow(),
@@ -348,6 +350,44 @@ export const pagos = pgTable(
   (table) => [
     index("Pago_boletaId_idx").on(table.boletaId),
     index("Pago_socioId_idx").on(table.socioId),
+  ]
+);
+
+/**
+ * Acuerdo con un socio moroso para pagar su deuda en cuotas mensuales
+ * (repactación). `deudaTotal` es la deuda vencida del día del acuerdo. Cada
+ * cuota que el socio paga se aplica a sus boletas más antiguas, y esos pagos
+ * quedan ligados al acuerdo por Pago.repactacionId. Un socio tiene un solo
+ * acuerdo ACTIVA a la vez (índice único parcial en la base).
+ */
+export const repactaciones = pgTable(
+  "Repactacion",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    socioId: text("socioId")
+      .notNull()
+      .references(() => socios.id, { onDelete: "cascade" }),
+    deudaTotal: integer("deudaTotal").notNull(),
+    cuotas: integer("cuotas").notNull(),
+    /** Lo que vale cada cuota; la última absorbe los pesos que sobran. */
+    montoCuota: integer("montoCuota").notNull(),
+    primerVencimiento: timestamp("primerVencimiento", { precision: 3 }).notNull(),
+    /** ACTIVA | CUMPLIDA | CANCELADA. Si va atrasado o no, se calcula con las fechas. */
+    estado: text("estado").notNull().default("ACTIVA"),
+    nota: text("nota"),
+    creadaPorId: text("creadaPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("Repactacion_aprId_idx").on(table.aprId),
+    index("Repactacion_socioId_idx").on(table.socioId),
+    uniqueIndex("Repactacion_socio_activa_key")
+      .on(table.socioId)
+      .where(sql`${table.estado} = 'ACTIVA'`),
   ]
 );
 
