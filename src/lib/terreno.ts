@@ -1,6 +1,7 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { lecturas, socios } from "@/lib/db/schema";
+import { anterioresDelComite } from "@/lib/lectura-anterior";
 
 /**
  * Lo que necesita la vista de terreno (cargar lecturas en el celular) y la tabla
@@ -14,21 +15,11 @@ export async function sociosConAnterior(aprId: string) {
     columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true },
   });
 
-  // La más reciente por fecha de carga, igual que al aprobar.
-  const anteriores = await db
-    .selectDistinctOn([lecturas.socioId], {
-      socioId: lecturas.socioId,
-      valor: lecturas.valor,
-      periodo: lecturas.periodo,
-    })
-    .from(lecturas)
-    .innerJoin(socios, eq(lecturas.socioId, socios.id))
-    .where(and(eq(socios.aprId, aprId), eq(lecturas.estado, "APROBADA")))
-    .orderBy(lecturas.socioId, desc(lecturas.createdAt));
-
+  // La misma base que usa el servidor al aprobar: la última lectura aprobada o, si
+  // el arranque no tiene ninguna, la lectura actual de su última boleta.
   return {
     listaSocios,
-    anteriorPorSocio: new Map(anteriores.map((a) => [a.socioId, a])),
+    anteriorPorSocio: await anterioresDelComite(aprId),
   };
 }
 
@@ -56,7 +47,7 @@ export async function datosTerreno(userId: string, aprId: string) {
         rut: s.rut,
         numeroCliente: s.numeroCliente,
         tipo: s.tipo,
-        anterior: a ? { valor: a.valor, periodo: a.periodo } : null,
+        anterior: a ? { valor: a.valor, periodo: a.periodo, origen: a.origen } : null,
       };
     }),
     recientes: propias.map((l) => ({

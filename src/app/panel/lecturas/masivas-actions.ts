@@ -1,8 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { anterioresDelComite } from "@/lib/lectura-anterior";
 import { lecturas, socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { normalizarPeriodo } from "@/lib/boletas";
@@ -53,17 +54,8 @@ async function cuentasDelComite(aprId: string, periodo: string): Promise<CuentaR
     columns: { id: true, nombre: true, rut: true, tipo: true, numeroCliente: true },
   });
 
-  // La última aprobada de cada arranque es la base del consumo (igual que al aprobar).
-  const aprobadas = await db
-    .selectDistinctOn([lecturas.socioId], {
-      socioId: lecturas.socioId,
-      valor: lecturas.valor,
-    })
-    .from(lecturas)
-    .innerJoin(socios, eq(lecturas.socioId, socios.id))
-    .where(and(eq(socios.aprId, aprId), eq(lecturas.estado, "APROBADA")))
-    .orderBy(lecturas.socioId, desc(lecturas.createdAt));
-  const anteriorDe = new Map(aprobadas.map((l) => [l.socioId, l.valor]));
+  // La lectura anterior de cada arranque es la base del consumo (igual que al aprobar).
+  const anteriorDe = new Map([...(await anterioresDelComite(aprId))].map(([id, a]) => [id, a.valor]));
 
   const pendientes = await db
     .select({ socioId: lecturas.socioId })

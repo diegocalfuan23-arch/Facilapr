@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, lecturas, socios } from "@/lib/db/schema";
+import { boletas, socios } from "@/lib/db/schema";
+import { anterioresDelComite } from "@/lib/lectura-anterior";
 import { requireAdmin } from "@/lib/apr-session";
 import { BoletasTabla } from "@/components/panel/boletas-tabla";
 import { urlRecibo } from "@/lib/recibo-enlace";
@@ -42,17 +43,8 @@ export default async function BoletasPage() {
     columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true, uso: true },
   });
 
-  // Ultima lectura aprobada de cada arranque: sugiere la anterior al crear una boleta.
-  const anteriores = await db
-    .selectDistinctOn([lecturas.socioId], {
-      socioId: lecturas.socioId,
-      valor: lecturas.valor,
-    })
-    .from(lecturas)
-    .innerJoin(socios, eq(lecturas.socioId, socios.id))
-    .where(and(eq(socios.aprId, apr.id), eq(lecturas.estado, "APROBADA")))
-    .orderBy(lecturas.socioId, desc(lecturas.createdAt));
-  const anteriorDe = new Map(anteriores.map((a) => [a.socioId, a.valor]));
+  // La lectura anterior de cada arranque: sugiere la anterior al crear una boleta.
+  const anteriorDe = new Map([...(await anterioresDelComite(apr.id))].map(([id, a]) => [id, a.valor]));
 
   return (
     <BoletasTabla

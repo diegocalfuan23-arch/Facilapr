@@ -41,9 +41,9 @@ import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
 
-/** `anterior`: la última lectura aprobada del socio, la base del consumo. */
+/** `anterior`: la última lectura aprobada del socio (o, si no tiene, la de su última boleta): la base del consumo. */
 type Socio = OpcionSocio & {
-  anterior: { valor: number; periodo: string } | null;
+  anterior: { valor: number; periodo: string; origen: "LECTURA" | "BOLETA" } | null;
 };
 
 type LecturaReciente = {
@@ -298,6 +298,7 @@ export function LecturaForm({
                     </span>
                     <span className="block text-[0.75rem] text-muted-foreground">
                       {formatearPeriodo(anterior.periodo)}
+                      {anterior.origen === "BOLETA" ? " · según su boleta" : ""}
                     </span>
                   </span>
                 ) : (

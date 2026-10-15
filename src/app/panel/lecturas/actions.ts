@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, count, desc, eq, gt, isNull, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { anteriorDelSocio } from "@/lib/lectura-anterior";
 import { lecturas, socios, boletas, invitaciones } from "@/lib/db/schema";
 import { user as userTable } from "@/lib/db/auth-schema";
 import { LIMITE_TECNICOS, NOMBRE_PLAN, type Plan } from "@/lib/planes";
@@ -148,21 +149,11 @@ async function aprobarNucleo(
 
   const actual = lectura[0];
 
-  // La lectura anterior aprobada más reciente de este socio, para calcular
-  // el consumo. Si no hay ninguna, se asume que parte de 0.
-  const anterior = await db
-    .select({ valor: lecturas.valor })
-    .from(lecturas)
-    .where(
-      and(
-        eq(lecturas.socioId, actual.socioId),
-        eq(lecturas.estado, "APROBADA")
-      )
-    )
-    .orderBy(desc(lecturas.createdAt))
-    .limit(1);
+  // La lectura anterior de este socio, para calcular el consumo: la última aprobada
+  // o, si no tiene ninguna, la de su última boleta. Si no hay ni una ni otra, es la primera.
+  const anterior = await anteriorDelSocio(actual.socioId);
 
-  if (anterior.length === 0 && !opciones.cobrarDesdeCero) {
+  if (!anterior && !opciones.cobrarDesdeCero) {
     return {
       ok: false,
       codigo: "PRIMERA_LECTURA",
@@ -171,7 +162,7 @@ async function aprobarNucleo(
     };
   }
 
-  const lecturaAnterior = anterior[0]?.valor ?? 0;
+  const lecturaAnterior = anterior?.valor ?? 0;
 
   const calculo = calcularDesdeLecturas(
     lecturaAnterior,
@@ -437,7 +428,9 @@ export async function editarLectura(
     )
     .orderBy(desc(lecturas.createdAt))
     .limit(1);
-  const anterior = previa[0]?.valor ?? null;
+  const boleta = await boletaDeLectura(l);
+  // Sin una lectura aprobada antes, la base es la que tenía su boleta (la que venía de antes).
+  const anterior = previa[0]?.valor ?? boleta?.lecturaAnterior ?? null;
 
   if (anterior !== null && valor < anterior) {
     return {
@@ -446,7 +439,6 @@ export async function editarLectura(
     };
   }
 
-  const boleta = await boletaDeLectura(l);
   let calculo: ReturnType<typeof calcularDesdeLecturas> = null;
   if (boleta) {
     calculo = calcularDesdeLecturas(anterior ?? 0, valor, tarifasPara(apr, await usoDeSocio(l.socioId)));
