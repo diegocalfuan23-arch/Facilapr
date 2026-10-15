@@ -599,7 +599,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Define los días de gracia y de aviso",
         texto:
-          "En Configuración → Cortes indica cuántos días de deuda vencida das antes de poder cortar, cuántos días de aviso se le dan al socio, y cuánto cuesta la reconexión si la cobras.",
+          "En Configuración → Cortes indica cuántos días de deuda vencida das antes de poder cortar, cuántos días se le dan al socio, desde que se le avisa, para regularizar, y cuánto cuesta la reconexión si la cobras.",
       },
       {
         titulo: "Mira quiénes están morosos",

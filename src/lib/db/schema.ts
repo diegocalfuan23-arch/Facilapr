@@ -138,7 +138,7 @@ export const aprs = pgTable(
     // --- Cortes por morosidad ---
     /** Días después del vencimiento antes de poder cortar. */
     diasGraciaCorte: integer("diasGraciaCorte").notNull().default(5),
-    /** Con cuántos días de anticipación se avisa al socio. */
+    /** Días que se le dan al socio, desde que se le avisa, para regularizar antes de cortar (va en el mensaje de aviso). */
     diasAvisoCorte: integer("diasAvisoCorte").notNull().default(3),
     costoReconexion: integer("costoReconexion").notNull().default(0),
 

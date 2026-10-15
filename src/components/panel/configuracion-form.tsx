@@ -616,14 +616,14 @@ export function ConfiguracionForm({
       {seccion === "cortes" && (
         <Bloque
           titulo="Cortes por morosidad"
-          descripcion="Cuánto se espera antes de cortar y con cuánto aviso."
+          descripcion="Cuánto se espera después del vencimiento y cuántos días se le dan al socio, desde que se le avisa, antes de cortar."
           accion={guardarCortes}
         >
           <div className="grid gap-4 sm:grid-cols-3">
             <Campo
               id="diasGraciaCorte"
               label="Días de gracia"
-              ayuda="Después del vencimiento, antes de poder cortar."
+              ayuda="Días después del vencimiento antes de que el socio aparezca en la lista de morosos para cortar."
             >
               <Input
                 id="diasGraciaCorte"
@@ -634,8 +634,8 @@ export function ConfiguracionForm({
             </Campo>
             <Campo
               id="diasAvisoCorte"
-              label="Días de aviso previo"
-              ayuda="Con cuánta anticipación se avisa al socio."
+              label="Plazo tras el aviso"
+              ayuda="Días que se le dan al socio, desde el aviso, para regularizar antes de cortar. Va escrito en el mensaje de aviso."
             >
               <Input
                 id="diasAvisoCorte"
