@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
-import { acuerdosActivosPorSocio, cortadosActuales, morososParaCorte, ordenesDelComite } from "@/lib/ordenes-datos";
+import { acuerdosActivosPorSocio, cortadosActuales, morososParaCorte, ordenesDelComite, ultimosAvisos } from "@/lib/ordenes-datos";
 import { acuerdosDelComite, sociosParaRepactar } from "@/lib/repactaciones-datos";
 import { CortesPanel } from "@/components/panel/cortes-panel";
 
@@ -30,7 +30,8 @@ export default async function CortesPage() {
   const acuerdos = await acuerdosActivosPorSocio(apr.id);
   const alDia = [...acuerdos].filter(([, atraso]) => atraso === 0).map(([socioId]) => socioId);
   const atrasados = new Map([...acuerdos].filter(([, atraso]) => atraso > 0));
-  const morosos = await morososParaCorte(apr.id, apr.diasGraciaCorte, new Set([...excluir, ...alDia]), atrasados);
+  const avisos = await ultimosAvisos(apr.id);
+  const morosos = await morososParaCorte(apr.id, apr.diasGraciaCorte, new Set([...excluir, ...alDia]), atrasados, avisos);
 
   const repactaciones = await acuerdosDelComite(apr.id);
   const sociosConDeuda = await sociosParaRepactar(apr.id);

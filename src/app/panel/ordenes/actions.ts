@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, evidenciasOrden, ordenes, pagos, socios } from "@/lib/db/schema";
+import { avisosCorte, boletas, evidenciasOrden, ordenes, pagos, socios } from "@/lib/db/schema";
 import { requireAdmin, requireApr } from "@/lib/apr-session";
 import { MAX_FOTO_BASE64 } from "@/lib/ordenes";
 
@@ -40,6 +40,24 @@ async function deudaDe(socioId: string) {
       )
     );
   return f?.deuda ?? 0;
+}
+
+/** Anota que la directiva avisó a un socio moroso que se le va a cortar el servicio. */
+export async function registrarAvisoCorte(socioId: string): Promise<ResultadoOrden> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede avisar." };
+  if (!(await socioDelComite(apr.id, socioId))) {
+    return { ok: false, error: "Ese socio no pertenece a tu comité." };
+  }
+
+  await db.insert(avisosCorte).values({
+    aprId: apr.id,
+    socioId,
+    enviadoPorId: user.id,
+    deudaAlAvisar: await deudaDe(socioId),
+  });
+  refrescar();
+  return { ok: true };
 }
 
 /** Solo la directiva decide a quién se le corta el servicio. */

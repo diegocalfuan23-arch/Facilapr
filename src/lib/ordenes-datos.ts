@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, ordenes, repactaciones, socios } from "@/lib/db/schema";
+import { avisosCorte, boletas, ordenes, repactaciones, socios } from "@/lib/db/schema";
 import { seguimientoRepactacion } from "@/lib/repactaciones";
 import type { EstadoOrden, TipoOrden } from "@/lib/ordenes";
 
@@ -34,7 +34,19 @@ export type MorosoFila = {
   diasVencida: number;
   /** Si tiene un acuerdo de pago activo y va atrasado: cuánto debería llevar pagado y no lleva. */
   acuerdoAtrasado: number | null;
+  /** Hace cuántos días se le avisó por esta deuda; null si todavía no se le ha avisado. */
+  diasDesdeAviso: number | null;
 };
+
+/** El último aviso de corte de cada socio del comité. */
+export async function ultimosAvisos(aprId: string): Promise<Map<string, Date>> {
+  const filas = await db
+    .selectDistinctOn([avisosCorte.socioId], { socioId: avisosCorte.socioId, creado: avisosCorte.createdAt })
+    .from(avisosCorte)
+    .where(eq(avisosCorte.aprId, aprId))
+    .orderBy(avisosCorte.socioId, desc(avisosCorte.createdAt));
+  return new Map(filas.map((f) => [f.socioId, f.creado]));
+}
 
 /**
  * Los socios con un acuerdo de pago (repactación) activo, y cuánto llevan
@@ -117,7 +129,9 @@ export async function morososParaCorte(
   diasGracia: number,
   excluirSocioIds: Set<string>,
   /** Socios con acuerdo de pago activo que va atrasado: se listan, avisando que tienen un acuerdo. */
-  acuerdosAtrasados: Map<string, number> = new Map()
+  acuerdosAtrasados: Map<string, number> = new Map(),
+  /** El último aviso de cada socio: solo cuenta si es posterior al vencimiento de su boleta más antigua. */
+  avisos: Map<string, Date> = new Map()
 ): Promise<MorosoFila[]> {
   const limite = new Date(Date.now() - diasGracia * 86_400_000);
   const ahora = Date.now();
@@ -156,6 +170,12 @@ export async function morososParaCorte(
       deuda: f.deuda,
       diasVencida: Math.max(0, Math.floor((ahora - new Date(f.masAntigua).getTime()) / 86_400_000)),
       acuerdoAtrasado: acuerdosAtrasados.get(f.socioId) ?? null,
+      diasDesdeAviso: (() => {
+        const aviso = avisos.get(f.socioId);
+        // Un aviso de una deuda anterior ya pagada no vale para esta.
+        if (!aviso || aviso.getTime() < new Date(f.masAntigua).getTime()) return null;
+        return Math.max(0, Math.floor((ahora - aviso.getTime()) / 86_400_000));
+      })(),
     }))
     .sort((a, b) => b.diasVencida - a.diasVencida);
 }

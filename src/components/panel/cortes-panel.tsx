@@ -9,6 +9,7 @@ import {
   deudaDeArranque,
   ordenarCorte,
   pedirOtraEvidencia,
+  registrarAvisoCorte,
   resolverSolicitud,
   solicitarOrden,
   type ResultadoOrden,
@@ -52,6 +53,23 @@ const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP",
 const fecha = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
 type Pestana = "morosos" | "repactaciones" | "tramite" | "alta" | "solicitudes" | "cortados" | "historial";
+
+/** Cómo va el aviso de un moroso: sin avisar, con plazo corriendo o con el plazo cumplido. */
+function estadoAviso(diasDesdeAviso: number | null, plazo: number) {
+  if (diasDesdeAviso === null) return "sin avisar";
+  const quedan = plazo - diasDesdeAviso;
+  const hace = diasDesdeAviso === 0 ? "hoy" : `hace ${diasDesdeAviso} ${diasDesdeAviso === 1 ? "día" : "días"}`;
+  if (quedan > 0) return `avisado ${hace} · le ${quedan === 1 ? "queda 1 día" : `quedan ${quedan} días`} de plazo`;
+  return `avisado ${hace} · plazo cumplido, listo para cortar`;
+}
+
+/** Si cortar ahora saltaría el aviso o el plazo, el mensaje a confirmar; null si está todo en regla. */
+function avisoPendiente(diasDesdeAviso: number | null, plazo: number) {
+  if (diasDesdeAviso === null) return "Todavía no le has avisado a este socio.";
+  const quedan = plazo - diasDesdeAviso;
+  if (quedan > 0) return `Aún le ${quedan === 1 ? "queda 1 día" : `quedan ${quedan} días`} de plazo después del aviso.`;
+  return null;
+}
 
 /**
  * Cortes y órdenes de terreno del comité. La directiva ordena el corte de un
@@ -110,7 +128,18 @@ export function CortesPanel({
     window.open(enlaceWhatsApp(telefono, texto), "_blank", "noopener");
   }
 
-  function BotonAvisar({ telefono, texto, etiqueta = "Avisar" }: { telefono: string | null; texto: string; etiqueta?: string }) {
+  function BotonAvisar({
+    telefono,
+    texto,
+    etiqueta = "Avisar",
+    alAvisar,
+  }: {
+    telefono: string | null;
+    texto: string;
+    etiqueta?: string;
+    /** Se llama al abrir WhatsApp: sirve para dejar anotado el aviso. */
+    alAvisar?: () => void;
+  }) {
     const valido = telefonoValidoParaWhatsApp(telefono);
     return (
       <Button
@@ -118,7 +147,10 @@ export function CortesPanel({
         variant="outline"
         disabled={!valido}
         title={valido ? undefined : "Este socio no tiene un teléfono válido para WhatsApp"}
-        onClick={() => avisar(telefono, texto)}
+        onClick={() => {
+          avisar(telefono, texto);
+          alAvisar?.();
+        }}
       >
         <MessageCircle />
         {etiqueta}
@@ -191,20 +223,29 @@ export function CortesPanel({
                   m.direccion,
                   `vencida hace ${m.diasVencida} días`,
                   m.acuerdoAtrasado ? `acuerdo de pago atrasado ${clp.format(m.acuerdoAtrasado)}` : null,
+                  estadoAviso(m.diasDesdeAviso, comite.diasAviso),
                 ]}
                 derecha={<span className="font-mono text-[0.95rem] font-semibold text-destructive tabular-nums">{clp.format(m.deuda)}</span>}
                 acciones={
                   <>
                   <BotonAvisar
                     telefono={m.telefono}
-                    etiqueta="Avisar antes de cortar"
+                    etiqueta={m.diasDesdeAviso === null ? "Avisar antes de cortar" : "Volver a avisar"}
+                    alAvisar={() =>
+                      ejecutar(() => registrarAvisoCorte(m.socioId), "Aviso anotado")
+                    }
                     texto={mensajeAvisoCorte(comite, { socioNombre: m.nombre, deuda: m.deuda, diasVencida: m.diasVencida, diasAviso: comite.diasAviso })}
                   />
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={pendiente}
-                    onClick={() => ejecutar(() => ordenarCorte(m.socioId, `Deuda de ${clp.format(m.deuda)}, vencida hace ${m.diasVencida} días.`), "Corte ordenado")}
+                    onClick={() => {
+                      // No se prohíbe cortar sin plazo cumplido (decide la directiva), pero se pide confirmar.
+                      const advertencia = avisoPendiente(m.diasDesdeAviso, comite.diasAviso);
+                      if (advertencia && !window.confirm(`${advertencia} ¿Ordenar el corte igual?`)) return;
+                      ejecutar(() => ordenarCorte(m.socioId, `Deuda de ${clp.format(m.deuda)}, vencida hace ${m.diasVencida} días.`), "Corte ordenado");
+                    }}
                   >
                     <Scissors />
                     Ordenar corte

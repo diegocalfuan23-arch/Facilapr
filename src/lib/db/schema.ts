@@ -697,6 +697,33 @@ export const solicitudesAccesoRelations = relations(
 );
 
 /**
+ * Cada vez que la directiva avisa a un socio moroso que se le va a cortar el
+ * servicio («Avisar antes de cortar»). Deja constancia de a quién se avisó, cuándo
+ * y cuánto debía: con eso se sabe si ya se cumplió el plazo antes de cortar.
+ * Se guarda cada aviso (no solo el último) como historial.
+ */
+export const avisosCorte = pgTable(
+  "AvisoCorte",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    socioId: text("socioId")
+      .notNull()
+      .references(() => socios.id, { onDelete: "cascade" }),
+    enviadoPorId: text("enviadoPorId"),
+    /** Lo que debía el socio al avisarle. */
+    deudaAlAvisar: integer("deudaAlAvisar"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("AvisoCorte_socioId_idx").on(table.socioId, table.createdAt),
+    index("AvisoCorte_aprId_idx").on(table.aprId),
+  ]
+);
+
+/**
  * Un socio que no puede entrar avisa a su comité (pantalla «No puedo entrar»,
  * sin sesión: solo escribe su RUT). La directiva la ve en Solicitudes y le manda
  * por WhatsApp el enlace para elegir una clave nueva. No guarda ninguna clave
