@@ -85,7 +85,7 @@ export function PerfilForm({
   }
 
   return (
-    <div className="flex max-w-[640px] flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Seccion
         titulo="Tus datos"
         descripcion="Es tu perfil personal, el de quien entra a este panel. Los datos del comité están en Configuración."
@@ -107,7 +107,7 @@ export function PerfilForm({
           {esAdmin && (
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="cargo">Tu cargo en el comité</Label>
-              <Select value={cargoElegido} onValueChange={(v) => setCargoElegido(v ?? "")}>
+              <Select items={CARGOS} value={cargoElegido} onValueChange={(v) => setCargoElegido(v ?? "")}>
                 <SelectTrigger id="cargo" className="w-full">
                   <SelectValue placeholder="Selecciona un cargo" />
                 </SelectTrigger>

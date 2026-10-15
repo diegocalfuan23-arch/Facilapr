@@ -11,7 +11,7 @@ export default async function PerfilPage() {
   const { user } = await requireApr();
 
   return (
-    <>
+    <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6">
       <div>
         <h1 className="text-[1.35rem] font-semibold tracking-tight">Mi perfil</h1>
         <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
@@ -24,6 +24,6 @@ export default async function PerfilPage() {
         cargo={user.cargo}
         esAdmin={user.rol === "ADMIN"}
       />
-    </>
+    </div>
   );
 }

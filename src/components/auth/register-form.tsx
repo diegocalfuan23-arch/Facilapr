@@ -100,6 +100,7 @@ export function RegisterForm() {
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="cargo">Cargo en el comité</Label>
         <Select
+          items={cargos}
           value={cargo}
           onValueChange={(value) => setCargo(value ?? "")}
         >
