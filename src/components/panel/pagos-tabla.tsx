@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { FileDown, Plus, Search, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
@@ -183,7 +184,7 @@ export function PagosTabla({
             </p>
           ) : (
             <>
-              <div className="flex flex-col divide-y divide-border/60 border-t border-border/60">
+              <div className="flex flex-col divide-y divide-border/60 border-t border-border/60 md:hidden">
                 {filtrados.slice(0, visibles).map((p) => (
                   <div
                     key={p.id}
@@ -227,6 +228,79 @@ export function PagosTabla({
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="hidden overflow-x-auto border-t border-border/60 md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="h-11 px-4">Fecha</TableHead>
+                      <TableHead className="h-11 px-4">Socio o usuario</TableHead>
+                      <TableHead className="h-11 px-4">Concepto</TableHead>
+                      <TableHead className="h-11 px-4">Medio</TableHead>
+                      <TableHead className="h-11 px-4">Pagó</TableHead>
+                      <TableHead className="h-11 px-4">Registró</TableHead>
+                      <TableHead className="h-11 px-4">N.º op.</TableHead>
+                      <TableHead className="h-11 px-4 text-right">Monto</TableHead>
+                      <TableHead className="h-11 w-12 px-4">
+                        <span className="sr-only">Comprobante</span>
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filtrados.slice(0, visibles).map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="px-4 whitespace-nowrap">{fechaLarga.format(new Date(p.fecha))}</TableCell>
+                        <TableCell className="px-4">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{p.socioNombre}</span>
+                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.68rem] font-medium text-muted-foreground">
+                              {p.socioTipo === "USUARIO" ? "Usuario" : "Socio"}
+                            </span>
+                          </div>
+                          {p.socioRut && (
+                            <div className="text-[0.76rem] text-muted-foreground">{formatearRut(p.socioRut)}</div>
+                          )}
+                        </TableCell>
+                        <TableCell className="px-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span>{p.periodo ? formatearPeriodo(p.periodo) : queSePago(p)}</span>
+                            {p.repactacionId && (
+                              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[0.68rem] font-medium text-primary">
+                                Repactación
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-4">{textoMedioPago(p.medio)}</TableCell>
+                        <TableCell className="px-4">
+                          {p.pagadoPor ?? <span className="text-muted-foreground">El titular</span>}
+                        </TableCell>
+                        <TableCell className="px-4">
+                          {p.registradoPor ?? <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="px-4 font-mono text-[0.82rem]">
+                          {p.referencia ?? <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                        <TableCell className="px-4 text-right font-mono font-semibold text-forest tabular-nums">
+                          {clp.format(p.monto)}
+                        </TableCell>
+                        <TableCell className="px-4">
+                          <a
+                            href={p.comprobanteUrl}
+                            target="_blank"
+                            rel="noopener"
+                            aria-label={`Comprobante de ${p.socioNombre}`}
+                            title="Ver comprobante"
+                            className="inline-flex rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                          >
+                            <FileDown className="size-4" />
+                          </a>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </div>
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-3 py-3 text-[0.82rem] text-muted-foreground sm:px-5">
