@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aprs, boletas, pagos, socios } from "@/lib/db/schema";
 
@@ -13,9 +13,13 @@ export type ComprobanteDatos = {
     telefono: string | null;
   };
   socio: { nombre: string; rut: string | null; numeroCliente: string | null };
-  periodo: string;
-  boletaTotal: number;
-  boletaPagado: number;
+  /** Null en un cobro que no es una boleta. */
+  periodo: string | null;
+  boletaTotal: number | null;
+  boletaPagado: number | null;
+  /** BOLETA, RECONEXION, REPARACION u OTRO. */
+  concepto: string;
+  descripcion: string | null;
   monto: number;
   fecha: Date;
   medio: string;
@@ -34,6 +38,8 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
       medio: pagos.medio,
       referencia: pagos.referencia,
       pagadoPor: pagos.pagadoPor,
+      concepto: pagos.concepto,
+      descripcion: pagos.descripcion,
       periodo: boletas.periodo,
       boletaTotal: boletas.montoTotal,
       boletaPagado: boletas.montoPagado,
@@ -48,8 +54,9 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
       comiteTelefono: aprs.telefono,
     })
     .from(pagos)
-    .innerJoin(boletas, eq(pagos.boletaId, boletas.id))
-    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    // El socio del pago: el que trae él mismo o, en los antiguos, el de su boleta.
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
     .innerJoin(aprs, eq(socios.aprId, aprs.id))
     .where(eq(pagos.id, pagoId))
     .limit(1);
@@ -69,6 +76,8 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
     periodo: f.periodo,
     boletaTotal: f.boletaTotal,
     boletaPagado: f.boletaPagado,
+    concepto: f.concepto,
+    descripcion: f.descripcion,
     monto: f.monto,
     fecha: f.fecha,
     medio: f.medio,

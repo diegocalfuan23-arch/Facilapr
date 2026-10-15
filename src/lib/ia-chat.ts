@@ -137,7 +137,7 @@ async function intentar(socioId: string) {
     servicio: ctx.servicio,
     fichas: ctx.fichas,
     pagos: pagosRecientes.map((p) => ({
-      periodo: periodoDe.get(p.boletaId) ?? "",
+      periodo: (p.boletaId && periodoDe.get(p.boletaId)) || "",
       monto: p.monto,
       fecha: p.fecha,
       medio: textoMedioPago(p.medio),

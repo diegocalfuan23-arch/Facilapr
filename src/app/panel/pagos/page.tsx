@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { and, asc, desc, eq, lt, ne } from "drizzle-orm";
+import { and, asc, desc, eq, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, pagos, socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
@@ -25,13 +25,16 @@ export default async function PagosPage() {
       medio: pagos.medio,
       referencia: pagos.referencia,
       pagadoPor: pagos.pagadoPor,
+      concepto: pagos.concepto,
+      descripcion: pagos.descripcion,
       periodo: boletas.periodo,
       socioNombre: socios.nombre,
       socioRut: socios.rut,
     })
     .from(pagos)
-    .innerJoin(boletas, eq(pagos.boletaId, boletas.id))
-    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    // El socio del pago: el que trae él mismo o, en los antiguos, el de su boleta.
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
     .where(eq(socios.aprId, apr.id))
     .orderBy(desc(pagos.fecha), desc(pagos.createdAt))
     .limit(MAXIMO);
@@ -61,6 +64,20 @@ export default async function PagosPage() {
     )
     .orderBy(asc(socios.nombre), asc(boletas.periodo));
 
+  // Cualquier socio puede pagar una reposición, una reparación u otro cobro.
+  const todos = await db
+    .select({
+      id: socios.id,
+      nombre: socios.nombre,
+      rut: socios.rut,
+      telefono: socios.telefono,
+      numeroCliente: socios.numeroCliente,
+      tipo: socios.tipo,
+    })
+    .from(socios)
+    .where(and(eq(socios.aprId, apr.id), eq(socios.activo, true)))
+    .orderBy(asc(socios.nombre));
+
   const sociosConSaldo = new Map<string, OpcionSocio>();
   for (const b of pendientes) {
     sociosConSaldo.set(b.socioId, {
@@ -75,6 +92,8 @@ export default async function PagosPage() {
   return (
     <PagosTabla
       socios={[...sociosConSaldo.values()]}
+      todosLosSocios={todos}
+      costoReconexion={apr.costoReconexion || null}
       boletasPendientes={pendientes.map((b) => ({
         id: b.id,
         socioId: b.socioId,

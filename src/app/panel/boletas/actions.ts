@@ -249,8 +249,9 @@ async function pagoDelComite(aprId: string, pagoId: string) {
   const [fila] = await db
     .select({ id: pagos.id, boletaId: pagos.boletaId })
     .from(pagos)
-    .innerJoin(boletas, eq(pagos.boletaId, boletas.id))
-    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    // El socio del pago: el que trae él mismo o, en los antiguos, el de su boleta.
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
     .where(and(eq(pagos.id, pagoId), eq(socios.aprId, aprId)))
     .limit(1);
   return fila ?? null;
@@ -342,6 +343,7 @@ export async function registrarPago(
   const [fila] = await db
     .select({
       id: boletas.id,
+      socioId: boletas.socioId,
       montoTotal: boletas.montoTotal,
       montoPagado: boletas.montoPagado,
       estado: boletas.estado,
@@ -370,6 +372,8 @@ export async function registrarPago(
     .insert(pagos)
     .values({
       boletaId,
+      socioId: fila.socioId,
+      concepto: "BOLETA",
       monto: parsed.data.monto,
       fecha: parsed.data.fecha,
       medio: parsed.data.medio,
@@ -392,6 +396,82 @@ export async function registrarPago(
     montoPagado: total?.pagado ?? fila.montoPagado + parsed.data.monto,
     montoTotal: fila.montoTotal,
   };
+}
+
+const cobroSchema = pagoSchema.extend({
+  concepto: z.enum(["RECONEXION", "REPARACION", "OTRO"]),
+  descripcion: z.string().trim().max(200).optional(),
+});
+
+export type ResultadoCobro =
+  | { ok: true; pagoId: string; comprobanteUrl: string }
+  | { ok: false; error: string };
+
+/**
+ * Registra un cobro que no es una boleta: la reposición o reconexión de un
+ * socio, una reparación u otro cobro. Queda con su comprobante, igual que un pago.
+ */
+export async function registrarCobro(
+  socioId: string,
+  datos: {
+    concepto: string;
+    monto: number;
+    fecha: string;
+    medio: string;
+    referencia?: string;
+    descripcion?: string;
+    pagadoPor?: string;
+    pagadoPorTelefono?: string;
+  }
+): Promise<ResultadoCobro> {
+  const { user, apr } = await requireAdmin();
+
+  const parsed = cobroSchema.safeParse({
+    concepto: datos.concepto,
+    monto: Math.round(datos.monto),
+    fecha: new Date(`${datos.fecha}T12:00:00`),
+    medio: datos.medio,
+    referencia: datos.referencia || undefined,
+    descripcion: datos.descripcion || undefined,
+    pagadoPor: datos.pagadoPor || undefined,
+    pagadoPorTelefono: datos.pagadoPorTelefono || undefined,
+  });
+  if (!parsed.success || Number.isNaN(parsed.data.fecha.getTime())) {
+    return { ok: false, error: parsed.success ? "La fecha no es válida." : parsed.error.issues[0].message };
+  }
+  if (parsed.data.fecha.getTime() > Date.now() + 24 * 3600 * 1000) {
+    return { ok: false, error: "La fecha del pago no puede ser futura." };
+  }
+  if (parsed.data.concepto === "OTRO" && !parsed.data.descripcion) {
+    return { ok: false, error: "Escribe qué se está cobrando." };
+  }
+
+  const [socio] = await db
+    .select({ id: socios.id })
+    .from(socios)
+    .where(and(eq(socios.id, socioId), eq(socios.aprId, apr.id)))
+    .limit(1);
+  if (!socio) return { ok: false, error: "No encontramos a ese socio." };
+
+  const [pago] = await db
+    .insert(pagos)
+    .values({
+      boletaId: null,
+      socioId: socio.id,
+      concepto: parsed.data.concepto,
+      descripcion: parsed.data.descripcion ?? null,
+      monto: parsed.data.monto,
+      fecha: parsed.data.fecha,
+      medio: parsed.data.medio,
+      referencia: parsed.data.referencia ?? null,
+      pagadoPor: parsed.data.pagadoPor ?? null,
+      pagadoPorTelefono: parsed.data.pagadoPorTelefono ? normalizarTelefono(parsed.data.pagadoPorTelefono) : null,
+      registradoPorId: user.id,
+    })
+    .returning({ id: pagos.id });
+
+  revalidatePath("/panel/pagos");
+  return { ok: true, pagoId: pago.id, comprobanteUrl: urlComprobante(pago.id) };
 }
 
 export type PagoRegistrado = {
@@ -443,7 +523,8 @@ export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
   if (!pago) return { ok: false, error: "No encontramos ese pago." };
 
   await db.delete(pagos).where(eq(pagos.id, pago.id));
-  await recalcularBoleta(pago.boletaId);
+  // Un cobro que no es una boleta no tiene nada que recalcular.
+  if (pago.boletaId) await recalcularBoleta(pago.boletaId);
 
   revalidatePath("/panel/boletas");
   revalidatePath("/panel/pagos");

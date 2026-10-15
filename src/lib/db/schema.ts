@@ -313,16 +313,25 @@ export const boletas = pgTable(
 );
 
 /**
- * Cada pago o abono que el comité registra sobre una boleta. Boleta.montoPagado
- * es la suma de estos pagos: se recalcula cada vez que se agrega o se quita uno.
+ * Cada pago o abono que el comité registra. Lo normal es sobre una boleta
+ * (Boleta.montoPagado es la suma de esos pagos: se recalcula cada vez que se
+ * agrega o se quita uno). Los demás cobros (reposición o reconexión, reparación,
+ * otros) no cuelgan de ninguna boleta: llevan el socio y un concepto.
  */
 export const pagos = pgTable(
   "Pago",
   {
     id: text("id").primaryKey().$defaultFn(() => createId()),
-    boletaId: text("boletaId")
-      .notNull()
-      .references(() => boletas.id, { onDelete: "cascade" }),
+    /** Null en los cobros que no son una boleta (concepto distinto de BOLETA). */
+    boletaId: text("boletaId").references(() => boletas.id, { onDelete: "cascade" }),
+    /** El socio al que corresponde el pago; en los de boleta, el de la boleta. */
+    socioId: text("socioId").references(() => socios.id, { onDelete: "cascade" }),
+    /** BOLETA | RECONEXION | REPARACION | OTRO. */
+    concepto: text("concepto").notNull().default("BOLETA"),
+    /** Qué se está cobrando, en palabras, cuando no es una boleta. */
+    descripcion: text("descripcion"),
+    /** La orden de trabajo a la que corresponde el cobro (la reposición, la reparación). */
+    ordenId: text("ordenId").references(() => ordenes.id, { onDelete: "set null" }),
     monto: integer("monto").notNull(),
     /** Cuándo se pagó (puede ser anterior a cuando se registró). */
     fecha: timestamp("fecha", { precision: 3 }).notNull().defaultNow(),
@@ -336,7 +345,10 @@ export const pagos = pgTable(
     registradoPorId: text("registradoPorId"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
-  (table) => [index("Pago_boletaId_idx").on(table.boletaId)]
+  (table) => [
+    index("Pago_boletaId_idx").on(table.boletaId),
+    index("Pago_socioId_idx").on(table.socioId),
+  ]
 );
 
 /**

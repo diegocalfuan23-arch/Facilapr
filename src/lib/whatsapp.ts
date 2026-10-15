@@ -212,6 +212,34 @@ export function mensajeComprobantePago(
   ].join("\n");
 }
 
+/** El comprobante de un cobro que no es una boleta (reposición, reparación, otro). */
+export function mensajeComprobanteCobro(
+  comite: string,
+  datos: {
+    socioNombre: string;
+    concepto: string;
+    descripcion: string | null;
+    monto: number;
+    comprobanteUrl: string;
+    /** Si pagó otra persona, a ella se le habla y se aclara de quién es la cuenta. */
+    pagadoPor?: string | null;
+  }
+) {
+  const nombre = (datos.pagadoPor || datos.socioNombre).trim().split(/\s+/)[0] ?? "";
+  const detalle = datos.descripcion ? ` (${datos.descripcion})` : "";
+  return [
+    `Hola ${nombre}, te escribe ${comite}.`,
+    "",
+    datos.pagadoPor
+      ? `Registramos tu pago de ${clp.format(datos.monto)} por ${datos.concepto.toLowerCase()}${detalle}, de la cuenta de ${datos.socioNombre}.`
+      : `Registramos tu pago de ${clp.format(datos.monto)} por ${datos.concepto.toLowerCase()}${detalle}.`,
+    "",
+    `Descarga tu comprobante: ${datos.comprobanteUrl}`,
+    "",
+    "¡Gracias!",
+  ].join("\n");
+}
+
 /** Primer nombre del socio, para saludar. */
 const primerNombre = (nombre: string) => nombre.trim().split(/\s+/)[0] ?? "";
 

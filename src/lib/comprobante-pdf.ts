@@ -1,7 +1,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
-import { textoMedioPago } from "@/lib/pagos";
+import { textoConcepto, textoMedioPago } from "@/lib/pagos";
 import { seguro } from "@/lib/recibo-pdf";
 import type { ComprobanteDatos } from "@/lib/comprobante";
 
@@ -31,7 +31,9 @@ const VERDE = rgb(0.1, 0.45, 0.25);
 
 export async function generarComprobantePdf(c: ComprobanteDatos): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
-  pdf.setTitle(`Comprobante de pago ${formatearPeriodo(c.periodo)} - ${c.socio.nombre}`);
+  // Una boleta se identifica por su período; los demás cobros, por su concepto.
+  const aque = c.periodo ? formatearPeriodo(c.periodo) : textoConcepto(c.concepto);
+  pdf.setTitle(`Comprobante de pago ${aque} - ${c.socio.nombre}`);
   pdf.setProducer("Facilapr");
 
   const ancho = 419.53;
@@ -127,16 +129,22 @@ export async function generarComprobantePdf(c: ComprobanteDatos): Promise<Uint8A
   fila("Medio de pago", textoMedioPago(c.medio));
   if (c.pagadoPor) fila("Pagado por", c.pagadoPor);
   if (c.referencia) fila("Referencia", c.referencia);
-  fila("Correspondiente a", formatearPeriodo(c.periodo));
+  if (c.periodo && c.boletaTotal !== null && c.boletaPagado !== null) {
+    fila("Correspondiente a", formatearPeriodo(c.periodo));
 
-  y -= 4;
-  linea();
-  y -= 20;
-  fila("Total de la boleta", dinero(c.boletaTotal));
-  fila("Total pagado", dinero(c.boletaPagado));
-  const porPagar = saldo(c.boletaTotal, c.boletaPagado);
-  if (porPagar > 0) fila("Por pagar", dinero(porPagar), true);
-  else fila("Boleta pagada completa", "", true);
+    y -= 4;
+    linea();
+    y -= 20;
+    fila("Total de la boleta", dinero(c.boletaTotal));
+    fila("Total pagado", dinero(c.boletaPagado));
+    const porPagar = saldo(c.boletaTotal, c.boletaPagado);
+    if (porPagar > 0) fila("Por pagar", dinero(porPagar), true);
+    else fila("Boleta pagada completa", "", true);
+  } else {
+    // Un cobro que no es una boleta: qué se pagó, sin saldos.
+    fila("Concepto", textoConcepto(c.concepto));
+    if (c.descripcion) fila("Detalle", c.descripcion);
+  }
 
   // ---- Pie.
   y = margen + 22;

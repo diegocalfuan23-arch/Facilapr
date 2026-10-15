@@ -11,6 +11,8 @@ export type OpcionSocio = {
   id: string;
   nombre: string;
   rut: string | null;
+  /** Para mandarle el comprobante por WhatsApp, si la pantalla lo necesita. */
+  telefono?: string | null;
   numeroCliente?: string | null;
   tipo?: "SOCIO" | "USUARIO";
   /** Para qué se usa el agua: de ahí sale la tarifa que se le aplica. */

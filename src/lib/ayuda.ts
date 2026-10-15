@@ -686,9 +686,10 @@ export const ARTICULOS: Articulo[] = [
           "En el menú Pagos está el botón Registrar pago. No hace falta ir a Boletas: aquí mismo buscas al socio.",
       },
       {
-        titulo: "Elige al socio y la boleta",
+        titulo: "Elige qué paga, al socio y la boleta",
         texto:
-          "Busca por nombre, RUT o número de arranque. Verás sus boletas con saldo; elige la que está pagando.",
+          "Primero marca qué está pagando: una boleta, una reposición o reconexión, una reparación u otro cobro. Luego busca al socio por nombre, RUT o número de arranque. Si es una boleta, verás sus boletas con saldo y eliges la que está pagando.",
+        nota: "La reposición, la reparación y los otros cobros no tienen boleta: se anotan con un monto y un detalle, y también dejan su comprobante. En la reposición el monto parte con el costo de reconexión que definiste en Configuración, y lo puedes cambiar.",
       },
       {
         titulo: "Anota el monto, el medio y la fecha",

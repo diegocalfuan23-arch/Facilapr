@@ -433,7 +433,7 @@ export async function situacionSocio(ordenId: string): Promise<SituacionSocio | 
       diasVencida: conSaldo(b) ? Math.max(0, Math.floor((ahora - b.fechaVencimiento.getTime()) / 86_400_000)) : 0,
     })),
     pagos: pagosRecientes.map((p) => ({
-      monto: p.monto, fecha: p.fecha.toISOString(), medio: p.medio, periodo: periodoDe.get(p.boletaId) ?? "",
+      monto: p.monto, fecha: p.fecha.toISOString(), medio: p.medio, periodo: (p.boletaId && periodoDe.get(p.boletaId)) || "",
     })),
     solicitudes: previas.map((o) => ({ tipo: o.tipo, estado: o.estado, creada: o.createdAt.toISOString() })),
     veredicto: { resultado, motivos, tipo: orden.tipo },

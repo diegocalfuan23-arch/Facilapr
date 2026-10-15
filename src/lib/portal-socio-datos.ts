@@ -50,7 +50,7 @@ export async function pagosDelPortal(
     .orderBy(desc(pagos.fecha), desc(pagos.createdAt));
 
   return filas.flatMap((f) => {
-    const b = porId.get(f.boletaId);
+    const b = f.boletaId ? porId.get(f.boletaId) : undefined;
     if (!b) return [];
     return [
       {

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
-import { MEDIOS_PAGO, textoMedioPago } from "@/lib/pagos";
+import { MEDIOS_PAGO, textoConcepto, textoMedioPago } from "@/lib/pagos";
 import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 import type { DatosComiteWhatsApp } from "@/lib/whatsapp";
@@ -21,7 +21,11 @@ export type PagoFila = {
   referencia: string | null;
   /** Quien pagó, si no es el titular. */
   pagadoPor: string | null;
-  periodo: string;
+  /** Null en un cobro que no es una boleta. */
+  periodo: string | null;
+  /** BOLETA, RECONEXION, REPARACION u OTRO. */
+  concepto: string;
+  descripcion: string | null;
   socioNombre: string;
   socioRut: string | null;
   comprobanteUrl: string;
@@ -41,6 +45,12 @@ const fechaLarga = new Intl.DateTimeFormat("es-CL", {
 
 const POR_PAGINA = 25;
 
+/** Qué se pagó: el mes de la boleta, o el concepto (con su detalle) si no fue una boleta. */
+function queSePago(p: PagoFila) {
+  if (p.periodo) return formatearPeriodo(p.periodo);
+  return p.descripcion ? `${textoConcepto(p.concepto)} (${p.descripcion})` : textoConcepto(p.concepto);
+}
+
 const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -48,11 +58,15 @@ const sinTildes = (t: string) =>
 export function PagosTabla({
   pagos,
   socios,
+  todosLosSocios,
+  costoReconexion,
   boletasPendientes,
   comite,
 }: {
   pagos: PagoFila[];
   socios: OpcionSocio[];
+  todosLosSocios: OpcionSocio[];
+  costoReconexion: number | null;
   boletasPendientes: BoletaPendiente[];
   comite: DatosComiteWhatsApp;
 }) {
@@ -74,7 +88,7 @@ export function PagosTabla({
       if (medio !== "todos" && p.medio !== medio) return false;
       if (!q) return true;
       return sinTildes(
-        `${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${formatearPeriodo(p.periodo)}`
+        `${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${queSePago(p)}`
       ).includes(q);
     });
   }, [pagos, busqueda, medio]);
@@ -116,7 +130,7 @@ export function PagosTabla({
           <h2 className="mt-4 text-[1rem] font-semibold">Aún no hay pagos registrados</h2>
           <p className="mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed text-muted-foreground">
             Cuando un socio pague, toca “Registrar pago”, busca al socio y elige su
-            boleta. Aquí quedará el historial y el comprobante para enviarle.
+            boleta, o una reposición, reparación u otro cobro. Aquí quedará el historial y el comprobante para enviarle.
           </p>
         </div>
       ) : (
@@ -173,7 +187,7 @@ export function PagosTabla({
                       <div className="truncate font-medium">{p.socioNombre}</div>
                       <div className="truncate text-[0.8rem] text-muted-foreground">
                         {fechaLarga.format(new Date(p.fecha))} · {textoMedioPago(p.medio)} ·{" "}
-                        {formatearPeriodo(p.periodo)}
+                        {queSePago(p)}
                         {p.socioRut ? ` · ${formatearRut(p.socioRut)}` : ""}
                         {p.pagadoPor ? ` · pagó ${p.pagadoPor}` : ""}
                         {p.referencia ? ` · Op. ${p.referencia}` : ""}
@@ -223,6 +237,8 @@ export function PagosTabla({
       {registrando && (
         <NuevoPagoDialog
           socios={socios}
+          todosLosSocios={todosLosSocios}
+          costoReconexion={costoReconexion}
           boletas={boletasPendientes}
           comite={comite}
           onCerrar={() => setRegistrando(false)}

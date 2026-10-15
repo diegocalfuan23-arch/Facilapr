@@ -6,6 +6,22 @@ export const MEDIOS_PAGO = [
   { valor: "OTRO", texto: "Otro" },
 ] as const;
 
+/** Lo que se cobra cuando no es una boleta. */
+export const CONCEPTOS_COBRO = [
+  { valor: "RECONEXION", texto: "Reposición o reconexión" },
+  { valor: "REPARACION", texto: "Reparación" },
+  { valor: "OTRO", texto: "Otro cobro" },
+] as const;
+
+export type ConceptoCobro = (typeof CONCEPTOS_COBRO)[number]["valor"];
+
+const CONCEPTOS: Record<string, string> = {
+  BOLETA: "Boleta",
+  ...Object.fromEntries(CONCEPTOS_COBRO.map((c) => [c.valor, c.texto])),
+};
+
+export const textoConcepto = (concepto: string) => CONCEPTOS[concepto] ?? "Otro cobro";
+
 export type MedioPago = (typeof MEDIOS_PAGO)[number]["valor"];
 
 const TEXTOS: Record<string, string> = {
