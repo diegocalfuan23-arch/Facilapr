@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { acuerdosActivosPorSocio, cortadosActuales, morososParaCorte, ordenesDelComite } from "@/lib/ordenes-datos";
+import { acuerdosDelComite, sociosParaRepactar } from "@/lib/repactaciones-datos";
 import { CortesPanel } from "@/components/panel/cortes-panel";
 
 export const metadata: Metadata = {
@@ -31,6 +32,9 @@ export default async function CortesPage() {
   const atrasados = new Map([...acuerdos].filter(([, atraso]) => atraso > 0));
   const morosos = await morososParaCorte(apr.id, apr.diasGraciaCorte, new Set([...excluir, ...alDia]), atrasados);
 
+  const repactaciones = await acuerdosDelComite(apr.id);
+  const sociosConDeuda = await sociosParaRepactar(apr.id);
+
   const padron = await db.query.socios.findMany({
     where: eq(socios.aprId, apr.id),
     orderBy: [asc(socios.nombre)],
@@ -43,6 +47,8 @@ export default async function CortesPage() {
       cortados={cortados}
       morosos={morosos}
       acuerdosAlDia={alDia.length}
+      repactaciones={repactaciones}
+      sociosConDeuda={sociosConDeuda}
       socios={padron}
       diasGracia={apr.diasGraciaCorte}
       comite={{

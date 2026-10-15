@@ -89,6 +89,7 @@ export async function crearRepactacion(
   }
 
   revalidatePath("/panel/pagos");
+  revalidatePath("/panel/cortes");
   return { ok: true };
 }
 
@@ -254,5 +255,6 @@ export async function cancelarRepactacion(repactacionId: string): Promise<Result
   if (r.length === 0) return { ok: false, error: "No encontramos un acuerdo activo con ese código." };
 
   revalidatePath("/panel/pagos");
+  revalidatePath("/panel/cortes");
   return { ok: true };
 }

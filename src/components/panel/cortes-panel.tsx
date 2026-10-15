@@ -42,11 +42,16 @@ import { SituacionSocioDialog } from "@/components/panel/situacion-socio-dialog"
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
+import {
+  RepactacionesPanel,
+  type RepactacionFila,
+  type SocioConDeuda,
+} from "@/components/panel/repactaciones-panel";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fecha = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
-type Pestana = "morosos" | "tramite" | "alta" | "solicitudes" | "cortados" | "historial";
+type Pestana = "morosos" | "repactaciones" | "tramite" | "alta" | "solicitudes" | "cortados" | "historial";
 
 /**
  * Cortes y órdenes de terreno del comité. La directiva ordena el corte de un
@@ -59,10 +64,15 @@ export function CortesPanel({
   cortados,
   morosos,
   acuerdosAlDia,
+  repactaciones,
+  sociosConDeuda,
   socios,
   diasGracia,
   comite,
 }: {
+  /** Los acuerdos de pago con socios morosos, y con quién se puede hacer uno nuevo. */
+  repactaciones: RepactacionFila[];
+  sociosConDeuda: SocioConDeuda[];
   ordenes: OrdenFila[];
   cortados: OrdenFila[];
   morosos: MorosoFila[];
@@ -86,6 +96,7 @@ export function CortesPanel({
 
   const pestanas: { id: Pestana; texto: string; n: number }[] = [
     { id: "morosos", texto: "Morosos", n: morosos.length },
+    { id: "repactaciones", texto: "Repactaciones", n: repactaciones.filter((r) => r.estado === "ACTIVA").length },
     { id: "tramite", texto: "En trámite", n: tramite.length },
     { id: "alta", texto: "Por dar de alta", n: porAlta.length },
     { id: "solicitudes", texto: "Solicitudes", n: solicitudes.length },
@@ -165,7 +176,7 @@ export function CortesPanel({
         {pestana === "morosos" && acuerdosAlDia > 0 && (
           <p className="border-b border-border/60 bg-muted/40 px-3 py-2.5 text-[0.82rem] text-muted-foreground sm:px-5">
             {acuerdosAlDia === 1 ? "1 socio con acuerdo de pago al día no aparece" : `${acuerdosAlDia} socios con acuerdo de pago al día no aparecen`}{" "}
-            aquí: mientras cumplan sus cuotas, no se les corta. Los acuerdos están en Pagos → Repactaciones.
+            aquí: mientras cumplan sus cuotas, no se les corta. Los acuerdos están en la pestaña Repactaciones.
           </p>
         )}
 
@@ -203,6 +214,12 @@ export function CortesPanel({
               />
             ))}
           </Lista>
+        )}
+
+        {pestana === "repactaciones" && (
+          <div className="p-3 sm:p-5">
+            <RepactacionesPanel repactaciones={repactaciones} sociosConDeuda={sociosConDeuda} comite={comite} />
+          </div>
         )}
 
         {pestana === "tramite" && (

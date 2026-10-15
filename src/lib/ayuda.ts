@@ -719,9 +719,9 @@ export const ARTICULOS: Articulo[] = [
     minutos: 4,
     pasos: [
       {
-        titulo: "Abre Pagos y pulsa Nueva repactación",
+        titulo: "Abre Cortes y entra a Repactaciones",
         texto:
-          "En el menú Pagos está la sección Repactaciones. Ahí aparecen los acuerdos activos y el botón para crear uno.",
+          "En el menú Cortes está la pestaña Repactaciones. Ahí aparecen los acuerdos activos y el botón Nueva repactación para crear uno.",
       },
       {
         titulo: "Elige al socio",
