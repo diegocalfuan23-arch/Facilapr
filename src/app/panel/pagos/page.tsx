@@ -84,6 +84,17 @@ export default async function PagosPage() {
     .where(and(eq(socios.aprId, apr.id), eq(socios.activo, true)))
     .orderBy(asc(socios.nombre));
 
+  // Cuántos socios están al día y cuántos son morosos (con deuda ya vencida), igual que en el Resumen.
+  const [estadoSocios] = await db
+    .select({
+      morosos: sql<number>`count(distinct ${boletas.socioId}) filter (where ${boletas.montoPagado} < ${boletas.montoTotal} and ${boletas.fechaVencimiento} < now())::int`,
+      deuda: sql<number>`coalesce(sum(${boletas.montoTotal} - ${boletas.montoPagado}) filter (where ${boletas.montoPagado} < ${boletas.montoTotal} and ${boletas.fechaVencimiento} < now()), 0)::int`,
+      conBoletas: sql<number>`count(distinct ${boletas.socioId})::int`,
+    })
+    .from(boletas)
+    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .where(and(eq(socios.aprId, apr.id), eq(socios.activo, true), ne(boletas.estado, "ANULADA")));
+
   const sociosConSaldo = new Map<string, OpcionSocio>();
   for (const b of pendientes) {
     sociosConSaldo.set(b.socioId, {
@@ -98,6 +109,12 @@ export default async function PagosPage() {
   return (
     <PagosTabla
       socios={[...sociosConSaldo.values()]}
+      resumen={{
+        morosos: estadoSocios.morosos,
+        deudaVencida: estadoSocios.deuda,
+        // Al día: tienen boletas y ninguna vencida sin pagar. Quien aún no tiene boletas no cuenta.
+        alDia: estadoSocios.conBoletas - estadoSocios.morosos,
+      }}
       todosLosSocios={todos}
       costoReconexion={apr.costoReconexion || null}
       boletasPendientes={pendientes.map((b) => ({

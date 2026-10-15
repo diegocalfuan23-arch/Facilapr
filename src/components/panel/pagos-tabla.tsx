@@ -67,10 +67,13 @@ export function PagosTabla({
   socios,
   todosLosSocios,
   costoReconexion,
+  resumen,
   boletasPendientes,
   comite,
 }: {
   pagos: PagoFila[];
+  /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
+  resumen: { morosos: number; deudaVencida: number; alDia: number };
   socios: OpcionSocio[];
   todosLosSocios: OpcionSocio[];
   costoReconexion: number | null;
@@ -117,14 +120,27 @@ export function PagosTabla({
         </Button>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         {[
-          { etiqueta: "Recaudado este mes", valor: clp.format(totalMes) },
-          { etiqueta: "Pagos este mes", valor: String(delMes.length) },
+          { etiqueta: "Recaudado este mes", valor: clp.format(totalMes), nota: null, tono: "" },
+          { etiqueta: "Pagos este mes", valor: String(delMes.length), nota: null, tono: "" },
+          {
+            etiqueta: "Socios al día",
+            valor: String(resumen.alDia),
+            nota: "sin deuda vencida",
+            tono: "text-forest",
+          },
+          {
+            etiqueta: "Socios morosos",
+            valor: String(resumen.morosos),
+            nota: resumen.morosos > 0 ? `${clp.format(resumen.deudaVencida)} vencidos` : "nadie debe",
+            tono: resumen.morosos > 0 ? "text-destructive" : "",
+          },
         ].map((k) => (
           <div key={k.etiqueta} className="rounded-xl border border-border bg-card p-4">
             <div className="text-[0.8rem] text-muted-foreground">{k.etiqueta}</div>
-            <div className="mt-1 text-[1.4rem] font-semibold tabular-nums">{k.valor}</div>
+            <div className={cn("mt-1 text-[1.4rem] font-semibold tabular-nums", k.tono)}>{k.valor}</div>
+            {k.nota && <div className="mt-0.5 text-[0.76rem] text-muted-foreground tabular-nums">{k.nota}</div>}
           </div>
         ))}
       </div>
