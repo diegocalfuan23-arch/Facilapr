@@ -154,7 +154,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Confirma que se envió",
         texto:
-          "Verás un aviso verde que confirma que te enviamos el enlace. Si el correo no está registrado, en cambio aparece un aviso rojo: «No hay ninguna cuenta con ese correo». Revisa cómo lo escribiste.",
+          "Verás un aviso verde que confirma que te enviamos el enlace y te dice a qué correo. Si no llegó o te equivocaste de correo, escribe otro en el mismo campo que queda debajo y pulsa «Enviar a otro correo». Puedes repetirlo las veces que haga falta. Si el correo no está registrado, en cambio aparece un aviso rojo: «No hay ninguna cuenta con ese correo». Revisa cómo lo escribiste.",
         nota: "El correo debería llegar en unos minutos. Si no lo ves, revisa la carpeta de spam.",
       },
       {
