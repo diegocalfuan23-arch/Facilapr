@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, ordenes, socios } from "@/lib/db/schema";
+import { boletas, ordenes, repactaciones, socios } from "@/lib/db/schema";
+import { seguimientoRepactacion } from "@/lib/repactaciones";
 import type { EstadoOrden, TipoOrden } from "@/lib/ordenes";
 
 export type OrdenFila = {
@@ -31,7 +32,28 @@ export type MorosoFila = {
   deuda: number;
   /** Días que lleva vencida su boleta más antigua. */
   diasVencida: number;
+  /** Si tiene un acuerdo de pago activo y va atrasado: cuánto debería llevar pagado y no lleva. */
+  acuerdoAtrasado: number | null;
 };
+
+/**
+ * Los socios con un acuerdo de pago (repactación) activo, y cuánto llevan
+ * atrasado en él; 0 si van al día. Quien cumple su acuerdo no se corta.
+ */
+export async function acuerdosActivosPorSocio(aprId: string): Promise<Map<string, number>> {
+  const filas = await db
+    .select({
+      socioId: repactaciones.socioId,
+      deudaTotal: repactaciones.deudaTotal,
+      cuotas: repactaciones.cuotas,
+      primerVencimiento: repactaciones.primerVencimiento,
+      pagado: sql<number>`(select coalesce(sum(p."monto"), 0)::int from "Pago" p where p."repactacionId" = ${repactaciones.id})`,
+    })
+    .from(repactaciones)
+    .where(and(eq(repactaciones.aprId, aprId), eq(repactaciones.estado, "ACTIVA")));
+
+  return new Map(filas.map((f) => [f.socioId, seguimientoRepactacion(f, f.pagado).atraso]));
+}
 
 /** Las órdenes del comité, de la más nueva a la más antigua. */
 export async function ordenesDelComite(aprId: string, estados?: EstadoOrden[]): Promise<OrdenFila[]> {
@@ -93,7 +115,9 @@ export function cortadosActuales(todas: OrdenFila[]): OrdenFila[] {
 export async function morososParaCorte(
   aprId: string,
   diasGracia: number,
-  excluirSocioIds: Set<string>
+  excluirSocioIds: Set<string>,
+  /** Socios con acuerdo de pago activo que va atrasado: se listan, avisando que tienen un acuerdo. */
+  acuerdosAtrasados: Map<string, number> = new Map()
 ): Promise<MorosoFila[]> {
   const limite = new Date(Date.now() - diasGracia * 86_400_000);
   const ahora = Date.now();
@@ -131,6 +155,7 @@ export async function morososParaCorte(
       telefono: f.telefono,
       deuda: f.deuda,
       diasVencida: Math.max(0, Math.floor((ahora - new Date(f.masAntigua).getTime()) / 86_400_000)),
+      acuerdoAtrasado: acuerdosAtrasados.get(f.socioId) ?? null,
     }))
     .sort((a, b) => b.diasVencida - a.diasVencida);
 }

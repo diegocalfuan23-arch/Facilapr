@@ -58,6 +58,7 @@ export function CortesPanel({
   ordenes,
   cortados,
   morosos,
+  acuerdosAlDia,
   socios,
   diasGracia,
   comite,
@@ -65,6 +66,8 @@ export function CortesPanel({
   ordenes: OrdenFila[];
   cortados: OrdenFila[];
   morosos: MorosoFila[];
+  /** Cuántos socios tienen un acuerdo de pago al día: no se listan como morosos. */
+  acuerdosAlDia: number;
   socios: OpcionSocio[];
   diasGracia: number;
   comite: DatosComiteWhatsApp & { diasAviso: number; costoReconexion: number | null };
@@ -159,13 +162,25 @@ export function CortesPanel({
           ))}
         </div>
 
+        {pestana === "morosos" && acuerdosAlDia > 0 && (
+          <p className="border-b border-border/60 bg-muted/40 px-3 py-2.5 text-[0.82rem] text-muted-foreground sm:px-5">
+            {acuerdosAlDia === 1 ? "1 socio con acuerdo de pago al día no aparece" : `${acuerdosAlDia} socios con acuerdo de pago al día no aparecen`}{" "}
+            aquí: mientras cumplan sus cuotas, no se les corta. Los acuerdos están en Pagos → Repactaciones.
+          </p>
+        )}
+
         {pestana === "morosos" && (
           <Lista vacio={`Nadie tiene deuda vencida hace más de ${diasGracia} días (los días de gracia de Configuración → Cortes).`}>
             {morosos.map((m) => (
               <Fila
                 key={m.socioId}
                 titulo={m.nombre}
-                detalle={[m.rut ? formatearRut(m.rut) : null, m.direccion, `vencida hace ${m.diasVencida} días`]}
+                detalle={[
+                  m.rut ? formatearRut(m.rut) : null,
+                  m.direccion,
+                  `vencida hace ${m.diasVencida} días`,
+                  m.acuerdoAtrasado ? `acuerdo de pago atrasado ${clp.format(m.acuerdoAtrasado)}` : null,
+                ]}
                 derecha={<span className="font-mono text-[0.95rem] font-semibold text-destructive tabular-nums">{clp.format(m.deuda)}</span>}
                 acciones={
                   <>

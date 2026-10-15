@@ -3,7 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
-import { cortadosActuales, morososParaCorte, ordenesDelComite } from "@/lib/ordenes-datos";
+import { acuerdosActivosPorSocio, cortadosActuales, morososParaCorte, ordenesDelComite } from "@/lib/ordenes-datos";
 import { CortesPanel } from "@/components/panel/cortes-panel";
 
 export const metadata: Metadata = {
@@ -23,7 +23,13 @@ export default async function CortesPage() {
       .filter((o) => o.tipo === "CORTE" && ["SOLICITADA", "EN_TRAMITE", "POR_CONFIRMAR"].includes(o.estado))
       .map((o) => o.socioId),
   ]);
-  const morosos = await morososParaCorte(apr.id, apr.diasGraciaCorte, excluir);
+
+  // Quien cumple su acuerdo de pago (repactación) no se corta: sale de la lista.
+  // Quien se atrasó en el acuerdo sí se lista, avisando que tiene uno.
+  const acuerdos = await acuerdosActivosPorSocio(apr.id);
+  const alDia = [...acuerdos].filter(([, atraso]) => atraso === 0).map(([socioId]) => socioId);
+  const atrasados = new Map([...acuerdos].filter(([, atraso]) => atraso > 0));
+  const morosos = await morososParaCorte(apr.id, apr.diasGraciaCorte, new Set([...excluir, ...alDia]), atrasados);
 
   const padron = await db.query.socios.findMany({
     where: eq(socios.aprId, apr.id),
@@ -36,6 +42,7 @@ export default async function CortesPage() {
       ordenes={ordenes}
       cortados={cortados}
       morosos={morosos}
+      acuerdosAlDia={alDia.length}
       socios={padron}
       diasGracia={apr.diasGraciaCorte}
       comite={{
