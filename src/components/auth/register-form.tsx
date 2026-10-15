@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampoClave } from "@/components/auth/campo-clave";
 import { Label } from "@/components/ui/label";
+import { CARGOS } from "@/lib/cargos";
 import {
   Select,
   SelectContent,
@@ -17,13 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const cargos = [
-  { value: "presidente", label: "Presidente/a" },
-  { value: "tesorero", label: "Tesorero/a" },
-  { value: "secretario", label: "Secretario/a" },
-  { value: "administrador", label: "Administrador/a" },
-  { value: "otro", label: "Otro" },
-];
+const cargos = CARGOS;
 
 export function RegisterForm() {
   const router = useRouter();

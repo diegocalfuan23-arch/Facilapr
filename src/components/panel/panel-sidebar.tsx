@@ -21,6 +21,7 @@ import {
   Scissors,
   CreditCard,
   LogOut,
+  UserRound,
 } from "lucide-react";
 import { Logo } from "@/components/marca/logo";
 import { cerrarSesionPanel } from "@/components/auth/sign-out-button";
@@ -265,15 +266,19 @@ function TarjetaComite({
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
 
-            {rol === "ADMIN" && (
-              <DropdownMenuGroup>
+            <DropdownMenuGroup>
+              <DropdownMenuItem render={<Link href="/panel/perfil" />}>
+                <UserRound />
+                Mi perfil
+              </DropdownMenuItem>
+              {rol === "ADMIN" && (
                 <DropdownMenuItem render={<Link href="/panel/plan" />}>
                   <CreditCard />
                   Mi plan
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-              </DropdownMenuGroup>
-            )}
+              )}
+              <DropdownMenuSeparator />
+            </DropdownMenuGroup>
 
             <DropdownMenuItem
               variant="destructive"
