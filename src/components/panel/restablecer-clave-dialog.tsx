@@ -32,10 +32,13 @@ export function RestablecerClaveDialog({
   socio,
   comite,
   onCerrar,
+  onEnviado,
 }: {
   socio: Socio;
   comite: { nombre: string };
   onCerrar: () => void;
+  /** Se llama cuando la directiva mandó el enlace por WhatsApp o lo copió. */
+  onEnviado?: () => void;
 }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +67,7 @@ export function RestablecerClaveDialog({
       "_blank",
       "noopener"
     );
+    onEnviado?.();
   }
 
   async function copiar() {
@@ -73,6 +77,7 @@ export function RestablecerClaveDialog({
       setCopiado(true);
       toast.success("Enlace copiado");
       setTimeout(() => setCopiado(false), 2000);
+      onEnviado?.();
     } catch {
       // Sin permiso para el portapapeles: el enlace queda visible para copiarlo a mano.
     }

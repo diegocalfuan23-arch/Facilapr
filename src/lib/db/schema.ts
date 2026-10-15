@@ -696,6 +696,37 @@ export const solicitudesAccesoRelations = relations(
   })
 );
 
+/**
+ * Un socio que no puede entrar avisa a su comité (pantalla «No puedo entrar»,
+ * sin sesión: solo escribe su RUT). La directiva la ve en Solicitudes y le manda
+ * por WhatsApp el enlace para elegir una clave nueva. No guarda ninguna clave
+ * ni dato sensible: solo quién pidió y cuándo. Un socio tiene una sola
+ * pendiente a la vez (índice único parcial en la base).
+ */
+export const solicitudesClave = pgTable(
+  "SolicitudClave",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    socioId: text("socioId")
+      .notNull()
+      .references(() => socios.id, { onDelete: "cascade" }),
+    /** PENDIENTE | ATENDIDA | DESCARTADA. */
+    estado: text("estado").notNull().default("PENDIENTE"),
+    atendidaPorId: text("atendidaPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("SolicitudClave_aprId_estado_idx").on(table.aprId, table.estado),
+    uniqueIndex("SolicitudClave_socio_pendiente_key")
+      .on(table.socioId)
+      .where(sql`${table.estado} = 'PENDIENTE'`),
+  ]
+);
+
 export const remitenteMensajeEnum = pgEnum("RemitenteMensaje", [
   "SOCIO",
   "DIRECTIVA",

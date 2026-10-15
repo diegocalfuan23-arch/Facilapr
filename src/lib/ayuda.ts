@@ -319,13 +319,19 @@ export const ARTICULOS: Articulo[] = [
     slug: "restablecer-clave-socio",
     titulo: "Restablecer la clave de un socio",
     resumen:
-      "Si un socio olvidó su clave, le mandas un enlace y él elige la nueva. Tú nunca la ves.",
+      "Si un socio olvidó su clave, pide ayuda desde su pantalla de ingreso, le mandas un enlace y él elige la nueva. Tú nunca la ves.",
     categoria: "Portal de socios",
     para: "Administrador",
     minutos: 2,
     pasos: [
       {
-        titulo: "Busca al socio",
+        titulo: "El socio avisa desde su pantalla de ingreso",
+        texto:
+          "En la pantalla donde entra con su RUT, el socio pulsa «Avisa a tu comité», escribe su RUT y listo. Ves la solicitud en Solicitudes, en la sección «Piden una clave nueva», con un número rojo en el menú. Desde ahí pulsa «Enviar enlace» y sigue con «Mándale el enlace».",
+        nota: "El socio siempre ve el mismo mensaje, sea o no socio, para que nadie pueda averiguar quién pertenece al comité. Si no hay solicitud, también puedes hacerlo tú desde Socios.",
+      },
+      {
+        titulo: "O búscalo tú en Socios",
         texto:
           "En Socios encuentra su fila y abre el menú de los tres puntos.",
       },

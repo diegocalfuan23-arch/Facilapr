@@ -49,7 +49,13 @@ export default async function EntrarSocioPage({ params }: Props) {
       <EntrarSocioForm slug={slug} base={base} />
 
       <p className="mt-6 text-center text-[0.85rem] text-muted-foreground">
-        ¿Olvidaste tu clave? Pídele a tu comité que te la restablezca.
+        ¿Olvidaste tu clave o no puedes entrar?{" "}
+        <Link
+          href={`${base}/no-puedo-entrar`}
+          className="font-medium text-primary hover:underline"
+        >
+          Avisa a tu comité
+        </Link>
       </p>
 
       <p className="mt-3 text-center text-[0.85rem] text-muted-foreground">

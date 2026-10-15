@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ClipboardList, Droplets } from "lucide-react";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { ordenes } from "@/lib/db/schema";
+import { ordenes, socios, solicitudesAcceso, solicitudesClave } from "@/lib/db/schema";
 import { requireApr } from "@/lib/apr-session";
 import { PanelSidebar } from "@/components/panel/panel-sidebar";
 import { Logo } from "@/components/marca/logo";
@@ -47,6 +47,24 @@ export default async function PanelLayout({
     insignias[esOperador ? "/panel/ordenes" : "/panel/cortes"] = f?.n ?? 0;
   } catch {
     // Sin número en el menú.
+  }
+
+  // Solicitudes que esperan a la directiva: pedidos de acceso y de clave nueva.
+  if (!esOperador) {
+    try {
+      const [acceso] = await db
+        .select({ n: count() })
+        .from(solicitudesAcceso)
+        .innerJoin(socios, eq(solicitudesAcceso.socioId, socios.id))
+        .where(and(eq(socios.aprId, apr.id), eq(solicitudesAcceso.estado, "PENDIENTE")));
+      const [clave] = await db
+        .select({ n: count() })
+        .from(solicitudesClave)
+        .where(and(eq(solicitudesClave.aprId, apr.id), eq(solicitudesClave.estado, "PENDIENTE")));
+      insignias["/panel/socios/solicitudes"] = (acceso?.n ?? 0) + (clave?.n ?? 0);
+    } catch {
+      // Sin número en el menú.
+    }
   }
 
   return (

@@ -9,6 +9,7 @@ import {
   rechazarSolicitud,
 } from "@/app/panel/socios/solicitudes/actions";
 import { formatearRut, iniciales, tiempoRelativo } from "@/lib/formato";
+import { SolicitudesClave, type SolicitudClaveFila } from "@/components/panel/solicitudes-clave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -317,8 +318,13 @@ function TarjetaSolicitud({ solicitud, onCambio, onEliminada }: PropsFila) {
 
 export function SolicitudesTabla({
   solicitudes,
+  clavesPedidas,
+  comite,
 }: {
   solicitudes: Solicitud[];
+  /** Socios que no pueden entrar y piden una clave nueva. */
+  clavesPedidas: SolicitudClaveFila[];
+  comite: { nombre: string };
 }) {
   const [lista, setLista] = useState(solicitudes);
 
@@ -336,6 +342,8 @@ export function SolicitudesTabla({
       <p className="mt-1 text-[0.9rem] text-muted-foreground">
         Aprueba solo si reconoces el RUT como parte del comité.
       </p>
+
+      <SolicitudesClave solicitudes={clavesPedidas} comite={comite} />
 
       {lista.length === 0 ? (
         <div className="mt-6 flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">

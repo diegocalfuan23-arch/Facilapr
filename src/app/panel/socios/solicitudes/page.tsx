@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { socios, solicitudesAcceso } from "@/lib/db/schema";
+import { socios, solicitudesAcceso, solicitudesClave } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { SolicitudesTabla } from "@/components/panel/solicitudes-tabla";
 
@@ -31,5 +31,20 @@ export default async function SolicitudesPage() {
       desc(solicitudesAcceso.createdAt)
     );
 
-  return <SolicitudesTabla solicitudes={solicitudes} />;
+  // Socios que no pueden entrar y piden una clave nueva.
+  const clavesPedidas = await db
+    .select({
+      id: solicitudesClave.id,
+      socioId: socios.id,
+      nombre: socios.nombre,
+      rut: socios.rut,
+      telefono: socios.telefono,
+      createdAt: solicitudesClave.createdAt,
+    })
+    .from(solicitudesClave)
+    .innerJoin(socios, eq(solicitudesClave.socioId, socios.id))
+    .where(and(eq(solicitudesClave.aprId, apr.id), eq(solicitudesClave.estado, "PENDIENTE")))
+    .orderBy(desc(solicitudesClave.createdAt));
+
+  return <SolicitudesTabla solicitudes={solicitudes} clavesPedidas={clavesPedidas} comite={{ nombre: apr.nombre }} />;
 }

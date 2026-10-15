@@ -12,6 +12,7 @@ import {
   leerRestablecerClave,
 } from "@/lib/invitacion-socio";
 import { cuentaDeSocio } from "@/lib/socios-acceso";
+import { pedirRestablecerClave } from "@/lib/solicitud-clave";
 import {
   account as accountTable,
   session as sessionTable,
@@ -172,4 +173,23 @@ export async function restablecerClaveConEnlace(
   await db.delete(sessionTable).where(eq(sessionTable.userId, cuenta.userId));
 
   return { ok: true, email: correoSocioDesdeRut(cuenta.socio.rut, cuenta.socio.aprId) };
+}
+
+/**
+ * «No puedo entrar»: el socio escribe su RUT y su comité recibe el aviso. La
+ * respuesta es siempre la misma, sea o no socio, para no confirmar RUT ajenos.
+ * El slug viene de la URL, nunca del formulario.
+ */
+export async function avisarNoPuedoEntrar(slug: string, rut: string): Promise<{ ok: boolean }> {
+  const texto = String(rut ?? "").trim();
+  if (texto.length < 7 || texto.length > 14) return { ok: false };
+
+  const apr = await db.query.aprs.findFirst({
+    where: eq(aprs.slug, slug),
+    columns: { id: true },
+  });
+  if (!apr) return { ok: false };
+
+  await pedirRestablecerClave({ aprId: apr.id, rut: texto });
+  return { ok: true };
 }
