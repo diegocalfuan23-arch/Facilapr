@@ -235,9 +235,10 @@ export function LecturaForm({
 
   return (
     <>
-      {/* Celular: una pestaña a la vez, como app. Escritorio (md:): todo junto,
-          el formulario y debajo las últimas lecturas, como siempre. */}
-      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-5 pb-20 md:pb-0">
+      {/* Celular: una pestaña a la vez, como app. Escritorio (md:): dos columnas, el
+          formulario a la izquierda y las últimas lecturas a la derecha, para que la
+          página no se alargue. */}
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-5 pb-20 md:grid md:max-w-[1080px] md:grid-cols-[minmax(0,540px)_minmax(0,1fr)] md:items-start md:gap-8 md:pb-0">
         <div
           className={cn(
             "flex-col gap-4",
@@ -440,7 +441,7 @@ export function LecturaForm({
 
         <section
           className={cn(
-            "flex-col gap-4",
+            "flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto",
             pestana === "historial" ? "flex" : "hidden md:flex"
           )}
         >
