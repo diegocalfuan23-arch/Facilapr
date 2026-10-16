@@ -70,7 +70,13 @@ export const RECORRIDOS: Recorrido[] = [
       {
         selector: enMenu("/panel/boletas"),
         titulo: "Boletas",
-        texto: "Emitir boletas, enviar el recibo en PDF y registrar los pagos.",
+        texto: "Emitir boletas y enviar el recibo en PDF por WhatsApp.",
+      },
+      {
+        selector: enMenu("/panel/pagos"),
+        titulo: "Pagos",
+        texto:
+          "Registra lo que paga cada socio, con su comprobante: boletas, reposiciones y otros cobros. Ves quién está al día y quién es moroso.",
       },
       {
         selector: enMenu("/panel/lecturas"),
@@ -95,7 +101,13 @@ export const RECORRIDOS: Recorrido[] = [
       {
         selector: enMenu("/panel/socios/solicitudes"),
         titulo: "Solicitudes",
-        texto: "Los socios que piden entrar a su cuenta en línea.",
+        texto: "Los socios que piden entrar a su cuenta en línea, o una clave nueva porque no pueden entrar.",
+      },
+      {
+        selector: enMenu("/panel/cortes"),
+        titulo: "Cortes",
+        texto:
+          "Los socios morosos, el aviso antes de cortar, los cortes y reposiciones con foto, los reclamos y pedidos de los socios, y los acuerdos de pago en cuotas.",
       },
       {
         selector: enMenu("/panel/ayuda"),
