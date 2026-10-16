@@ -13,7 +13,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Mi cuenta — ${slug}` };
+  return { robots: { index: false, follow: false }, title: `Mi cuenta — ${slug}` };
 }
 
 export default async function EntrarSocioPage({ params }: Props) {

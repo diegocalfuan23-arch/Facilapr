@@ -27,11 +27,11 @@ const SITE_URL =
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Software para APR y SSR (agua potable rural) | Facilapr",
+    default: "Sistema para APR y SSR (agua potable rural) | Facilapr",
     template: "%s | Facilapr",
   },
   description:
-    "Software para comités de agua potable rural (APR/SSR) en Chile: lecturas, boletas, pagos y cortes, y la cuenta en línea de cada socio. Desde 0,7 UF al mes.",
+    "Sistema y software para comités de agua potable rural (APR/SSR) en Chile: lecturas, boletas, pagos y cortes, y la cuenta en línea de cada socio. Desde 0,7 UF al mes.",
   keywords: [
     "software APR",
     "sistema de gestión APR",
@@ -54,21 +54,18 @@ export const metadata: Metadata = {
   applicationName: "Facilapr",
   appleWebApp: { capable: true, title: "Mi APR", statusBarStyle: "default" },
   authors: [{ name: "Facilapr" }],
-  alternates: {
-    canonical: "/",
-  },
   openGraph: {
     type: "website",
     locale: "es_CL",
     url: SITE_URL,
     siteName: "Facilapr",
-    title: "Software para APR y SSR (agua potable rural) | Facilapr",
+    title: "Sistema para APR y SSR (agua potable rural) | Facilapr",
     description:
       "Lecturas, boletas, pagos y cortes de tu comité de agua potable rural, y la cuenta en línea de cada socio. Desde 0,7 UF al mes, sin permanencia.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Software para APR y SSR (agua potable rural) | Facilapr",
+    title: "Sistema para APR y SSR (agua potable rural) | Facilapr",
     description:
       "Lecturas, boletas, pagos y cortes de tu APR, y la cuenta en línea de cada socio. Desde 0,7 UF al mes.",
   },

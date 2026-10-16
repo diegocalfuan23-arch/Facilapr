@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/marca/logo";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacidad" },
   title: "Política de privacidad",
   description:
     "Cómo Facilapr trata los datos personales de socios de comités de Agua Potable Rural, conforme a la Ley 21.719.",

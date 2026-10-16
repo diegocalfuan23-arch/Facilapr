@@ -3,6 +3,7 @@ import Link from "next/link";
 import { RegisterForm } from "@/components/auth/register-form";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/registro" },
   title: "Registrar mi APR — Facilapr",
   description:
     "Crea la cuenta de tu APR o SSR en Facilapr y dale a cada socio su propio panel para consultar su deuda.",

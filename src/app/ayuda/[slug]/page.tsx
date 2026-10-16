@@ -7,7 +7,8 @@ import path from "node:path";
 import { ArrowLeft, ArrowRight, Clock, Lightbulb } from "lucide-react";
 import { AyudaLayout } from "@/components/ayuda/ayuda-layout";
 import { VideoYoutube } from "@/components/ayuda/video-youtube";
-import { ARTICULOS, articuloPorSlug } from "@/lib/ayuda";
+import { ARTICULOS, articuloPorSlug, type Articulo } from "@/lib/ayuda";
+import { SITE_URL } from "@/lib/site-url";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -20,7 +21,28 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const a = articuloPorSlug(slug);
   if (!a) return {};
   // Corto y con la palabra clave primero: Google corta los títulos largos.
-  return { title: a.tituloSeo ?? a.titulo, description: a.resumen };
+  const titulo = a.tituloSeo ?? a.titulo;
+  return {
+    title: titulo,
+    description: a.resumen,
+    alternates: { canonical: `/ayuda/${a.slug}` },
+    openGraph: {
+      type: "article",
+      siteName: "Facilapr",
+      locale: "es_CL",
+      url: `/ayuda/${a.slug}`,
+      title: titulo,
+      description: a.resumen,
+    },
+  };
+}
+
+/** Hasta tres guías para seguir leyendo: primero las de la misma categoría, y se completa con las demás. */
+function guiasRelacionadas(actual: Articulo, cuantas = 3) {
+  const otras = ARTICULOS.filter((a) => a.slug !== actual.slug);
+  const mismas = otras.filter((a) => a.categoria === actual.categoria);
+  const resto = otras.filter((a) => a.categoria !== actual.categoria);
+  return [...mismas, ...resto].slice(0, cuantas);
 }
 
 /** Captura del paso, si el archivo existe en public/ayuda/<slug>/<n>.png. */
@@ -51,6 +73,18 @@ export default async function ArticuloAyudaPage({ params }: Props) {
     })),
   };
   const siguiente = ARTICULOS[indice + 1];
+  const relacionadas = guiasRelacionadas(articulo);
+
+  // Migas de pan: Google puede mostrar "Facilapr › Ayuda › Guía" en el resultado.
+  const migas = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Facilapr", item: SITE_URL },
+      { "@type": "ListItem", position: 2, name: "Centro de ayuda", item: `${SITE_URL}/ayuda` },
+      { "@type": "ListItem", position: 3, name: articulo.tituloSeo ?? articulo.titulo, item: `${SITE_URL}/ayuda/${articulo.slug}` },
+    ],
+  };
 
   // Con video, Google puede mostrarlo en los resultados de búsqueda.
   const video = articulo.video;
@@ -71,6 +105,7 @@ export default async function ArticuloAyudaPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(datosEstructurados) }}
       />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(migas) }} />
       {datosVideo && (
         <script
           type="application/ld+json"
@@ -156,7 +191,28 @@ export default async function ArticuloAyudaPage({ params }: Props) {
           })}
         </ol>
 
-        <div className="mt-16 rounded-2xl border border-border bg-muted/40 p-6">
+        {relacionadas.length > 0 && (
+          <section className="mt-16">
+            <h2 className="text-[1.05rem] font-semibold">Guías relacionadas</h2>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-3">
+              {relacionadas.map((g) => (
+                <li key={g.slug}>
+                  <Link
+                    href={`/ayuda/${g.slug}`}
+                    className="flex h-full flex-col rounded-xl border border-border p-4 transition-colors hover:border-primary/40"
+                  >
+                    <span className="font-mono text-[0.66rem] tracking-[0.06em] text-muted-foreground uppercase">
+                      {g.categoria}
+                    </span>
+                    <span className="mt-1 text-[0.92rem] leading-snug font-medium">{g.tituloSeo ?? g.titulo}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <div className="mt-8 rounded-2xl border border-border bg-muted/40 p-6">
           <h2 className="text-[1.05rem] font-semibold">¿Pudiste hacerlo?</h2>
           <p className="mt-1.5 text-[0.92rem] text-muted-foreground">
             Si algún paso no coincide con lo que ves en tu pantalla, cuéntanos y

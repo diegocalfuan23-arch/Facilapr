@@ -11,7 +11,7 @@ type Props = { params: Promise<{ slug: string }> };
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return { title: `Crear acceso — ${slug}` };
+  return { robots: { index: false, follow: false }, title: `Crear acceso — ${slug}` };
 }
 
 export default async function SolicitarAccesoPage({ params }: Props) {

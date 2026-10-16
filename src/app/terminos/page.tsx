@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Logo } from "@/components/marca/logo";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terminos" },
   title: "Términos de uso",
   description:
     "Condiciones del servicio Facilapr para comités de Agua Potable Rural de Chile.",

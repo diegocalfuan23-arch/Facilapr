@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Header } from "@/components/site/header";
 import { Hero } from "@/components/site/hero";
 import { PanelSection } from "@/components/site/panel-section";
@@ -13,6 +14,11 @@ import { ContactSection } from "@/components/site/contact-section";
 import { Footer } from "@/components/site/footer";
 import { StructuredData } from "@/components/seo/structured-data";
 import { AssistantWidget } from "@/components/site/assistant-widget";
+
+/** El canonical es de cada página: antes lo heredaban todas desde el layout y apuntaban a la portada. */
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default function Home() {
   return (

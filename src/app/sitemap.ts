@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { ARTICULOS } from "@/lib/ayuda";
+import { SITE_URL as SITE_URL_BASE } from "@/lib/site-url";
 
 /**
  * URL canónica del sitio. Sale del entorno porque facilapr.cl se sirve sin
@@ -7,46 +8,37 @@ import { ARTICULOS } from "@/lib/ayuda";
  * variante equivocada, Google indexaría una URL que redirige y se diluiría
  * el posicionamiento entre las dos variantes.
  */
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL ??
-  process.env.BETTER_AUTH_URL ??
-  "https://facilapr.cl";
+const SITE_URL = SITE_URL_BASE;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: `${SITE_URL}/ayuda`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.6,
     },
     ...ARTICULOS.map((a) => ({
       url: `${SITE_URL}/ayuda/${a.slug}`,
-      lastModified: new Date(),
       changeFrequency: "monthly" as const,
       priority: 0.5,
     })),
     {
       url: SITE_URL,
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },
     {
       url: `${SITE_URL}/registro`,
-      lastModified: new Date(),
       changeFrequency: "monthly",
       priority: 0.8,
     },
     {
       url: `${SITE_URL}/terminos`,
-      lastModified: new Date(),
       changeFrequency: "yearly",
       priority: 0.3,
     },
     {
       url: `${SITE_URL}/privacidad`,
-      lastModified: new Date(),
       changeFrequency: "yearly",
       priority: 0.3,
     },

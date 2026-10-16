@@ -3,6 +3,7 @@ import { AyudaLayout } from "@/components/ayuda/ayuda-layout";
 import { AyudaBuscador } from "@/components/ayuda/ayuda-buscador";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/ayuda" },
   title: "Centro de ayuda",
   description:
     "Guías paso a paso para administrar tu comité de agua potable rural con Facilapr: socios, lecturas, boletas y pagos.",
