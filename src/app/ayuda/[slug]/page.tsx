@@ -65,12 +65,17 @@ export default async function ArticuloAyudaPage({ params }: Props) {
     name: articulo.titulo,
     description: articulo.resumen,
     totalTime: `PT${articulo.minutos}M`,
-    step: articulo.pasos.map((p, i) => ({
-      "@type": "HowToStep",
-      position: i + 1,
-      name: p.titulo,
-      text: p.texto,
-    })),
+    step: articulo.pasos.map((p, i) => {
+      // Si el paso tiene captura, Google puede mostrarla junto al paso en el resultado.
+      const captura = capturaDelPaso(articulo.slug, i + 1);
+      return {
+        "@type": "HowToStep",
+        position: i + 1,
+        name: p.titulo,
+        text: p.texto,
+        ...(captura ? { image: `${SITE_URL}${captura}` } : {}),
+      };
+    }),
   };
   const siguiente = ARTICULOS[indice + 1];
   const relacionadas = guiasRelacionadas(articulo);
