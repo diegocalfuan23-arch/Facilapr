@@ -454,7 +454,7 @@ export function LecturaForm({
 
         <section
           className={cn(
-            "flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto",
+            "flex-col gap-4 md:sticky md:top-4 md:-m-1.5 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto md:p-1.5",
             pestana === "historial" ? "flex" : "hidden md:flex"
           )}
         >
