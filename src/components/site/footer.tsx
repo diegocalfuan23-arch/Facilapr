@@ -47,6 +47,16 @@ export function Footer() {
           &copy; 2026 Facilapr. Hecho para los comités de agua potable rural
           de Chile.
         </span>
+
+        {/* Quién está detrás del sitio: razón social y RUT, como figuran en el Registro de Empresas y Sociedades. */}
+        <p className="w-full border-t border-border/60 pt-5 text-[0.78rem] leading-relaxed">
+          Facilapr es un producto de <strong className="font-medium text-foreground">DESARROLLO DE SOFTWARES A MEDIDAS SpA</strong>,
+          RUT 78.324.975-8. Domicilio: Padre Las Casas, Región de La Araucanía, Chile. Contacto:{" "}
+          <a href="mailto:hola@facilapr.cl" className="underline-offset-2 hover:text-foreground hover:underline">
+            hola@facilapr.cl
+          </a>
+          .
+        </p>
       </div>
     </footer>
   );

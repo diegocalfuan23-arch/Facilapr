@@ -58,8 +58,10 @@ export default function PrivacidadPage() {
             </h2>
             <p className="mt-3">
               Facilapr es una herramienta que usan los comités de Agua Potable
-              Rural (APR/SSR) para administrar su servicio. Esa distinción
-              importa:
+              Rural (APR/SSR) para administrar su servicio. Es operada por
+              DESARROLLO DE SOFTWARES A MEDIDAS SpA (RUT 78.324.975-8), con
+              domicilio en Padre Las Casas, Región de La Araucanía, Chile;
+              contacto: hola@facilapr.cl. Esa distinción importa:
             </p>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5">
               <li>
