@@ -73,6 +73,7 @@ export function PagosTabla({
   comite,
   mpConectado = false,
   mpHabilitado = false,
+  estadoMp,
 }: {
   pagos: PagoFila[];
   /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
@@ -86,6 +87,8 @@ export function PagosTabla({
   mpConectado?: boolean;
   /** El comité tiene prendida la conexión con Mercado Pago (aunque aún no la haya hecho). */
   mpHabilitado?: boolean;
+  /** Franja de estado de Mercado Pago (aviso tras conectar, cuenta conectada), bajo el encabezado. */
+  estadoMp?: React.ReactNode;
 }) {
   const [registrando, setRegistrando] = useState(false);
   const [conLink, setConLink] = useState(false);
@@ -142,6 +145,8 @@ export function PagosTabla({
           </Button>
         </div>
       </div>
+
+      {estadoMp}
 
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
         {[

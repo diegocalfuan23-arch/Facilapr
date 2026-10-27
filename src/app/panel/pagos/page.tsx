@@ -112,9 +112,6 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
 
   return (
     <>
-      {apr.mercadoPagoHabilitado && (
-        <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} detalle={detalle} />
-      )}
       <PagosTabla
       socios={[...sociosConSaldo.values()]}
       resumen={{
@@ -137,6 +134,11 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
       comite={{ nombre: apr.nombre, slug: apr.slug, infoPago: apr.infoPago }}
       mpConectado={Boolean(conexionMp)}
       mpHabilitado={apr.mercadoPagoHabilitado}
+      estadoMp={
+        apr.mercadoPagoHabilitado ? (
+          <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} detalle={detalle} />
+        ) : null
+      }
       pagos={filas.map((f) => ({
         ...f,
         fecha: f.fecha.toISOString(),
