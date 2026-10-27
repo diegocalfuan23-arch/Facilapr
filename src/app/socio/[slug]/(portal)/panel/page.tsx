@@ -4,6 +4,7 @@ import { requireSocio } from "@/lib/socio-session";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
 import { basePortal } from "@/lib/portal-socio";
 import { boletasDelPortal } from "@/lib/portal-socio-datos";
+import { pagoEnLineaActivo } from "@/lib/mercadopago-pagos";
 import { cortadosActuales, ordenesDeSocios } from "@/lib/ordenes-datos";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import {
@@ -122,6 +123,7 @@ export default async function ResumenSocioPage({ params }: Props) {
             boletas={lista.slice(0, 3)}
             base={base}
             variasCuentas={cuentas.length > 1}
+            pagoEnLinea={(await pagoEnLineaActivo(socio.apr)) ? { slug } : undefined}
           />
         )}
       </section>

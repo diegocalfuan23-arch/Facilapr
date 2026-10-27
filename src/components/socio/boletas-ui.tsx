@@ -2,6 +2,7 @@ import Link from "next/link";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
 import { textoMedioPago } from "@/lib/pagos";
 import type { PagoPortal } from "@/lib/portal-socio-datos";
+import { BotonPagarMp } from "@/components/socio/boton-pagar-mp";
 
 /** Piezas que comparten las pantallas del portal del socio (resumen, boletas, pagos). */
 
@@ -79,10 +80,13 @@ export function ListaBoletas({
   boletas,
   base,
   variasCuentas,
+  pagoEnLinea,
 }: {
   boletas: BoletaPortal[];
   base: string;
   variasCuentas: boolean;
+  /** Si el comité cobra con Mercado Pago: cada boleta por pagar trae su botón. */
+  pagoEnLinea?: { slug: string };
 }) {
   return (
     <div className="flex flex-col divide-y divide-border/60 rounded-xl border border-border/60 bg-card">
@@ -117,6 +121,9 @@ export function ListaBoletas({
               >
                 Ver recibo
               </Link>
+            )}
+            {pagoEnLinea && estaPorPagar(b) && saldo(b.montoTotal, b.montoPagado) > 0 && (
+              <BotonPagarMp slug={pagoEnLinea.slug} boletaId={b.id} />
             )}
           </div>
           <div className="flex items-center gap-3">

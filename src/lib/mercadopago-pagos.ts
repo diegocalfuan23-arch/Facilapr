@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { aprs, boletas, pagos, socios } from "@/lib/db/schema";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
-import { BASE_SITIO, modoMp, tokenDelComite } from "@/lib/mercadopago";
+import { BASE_SITIO, estadoConexion, modoMp, mpConfigurado, tokenDelComite } from "@/lib/mercadopago";
 
 /**
  * Cobro de boletas con Mercado Pago (Checkout Pro, API de Preferencias). El link
@@ -11,9 +11,23 @@ import { BASE_SITIO, modoMp, tokenDelComite } from "@/lib/mercadopago";
  * (Campos y direcciones tomados de memoria: confirmar contra la documentación.)
  */
 
+/** ¿Los socios de este comité pueden pagar en línea? Interruptor prendido, servidor configurado y cuenta conectada. */
+export async function pagoEnLineaActivo(apr: { id: string; mercadoPagoHabilitado: boolean }) {
+  return apr.mercadoPagoHabilitado && mpConfigurado() && Boolean(await estadoConexion(apr.id));
+}
+
 export type ResultadoLink = { ok: true; url: string; monto: number } | { ok: false; error: string };
 
-export async function crearLinkPago(aprId: string, boletaId: string): Promise<ResultadoLink> {
+/**
+ * Crea el link de pago de una boleta. `socioIds` limita a qué socios puede pertenecer
+ * la boleta (el portal lo usa para que nadie pague la de otro) y `volverA` es la
+ * dirección a la que Mercado Pago devuelve al socio después de pagar.
+ */
+export async function crearLinkPago(
+  aprId: string,
+  boletaId: string,
+  opciones: { socioIds?: string[]; volverA?: string } = {}
+): Promise<ResultadoLink> {
   const [fila] = await db
     .select({
       id: boletas.id,
@@ -21,6 +35,7 @@ export async function crearLinkPago(aprId: string, boletaId: string): Promise<Re
       montoTotal: boletas.montoTotal,
       montoPagado: boletas.montoPagado,
       estado: boletas.estado,
+      socioId: boletas.socioId,
       comite: aprs.nombre,
     })
     .from(boletas)
@@ -28,7 +43,9 @@ export async function crearLinkPago(aprId: string, boletaId: string): Promise<Re
     .innerJoin(aprs, eq(socios.aprId, aprs.id))
     .where(and(eq(boletas.id, boletaId), eq(socios.aprId, aprId)))
     .limit(1);
-  if (!fila) return { ok: false, error: "No encontramos esa boleta." };
+  if (!fila || (opciones.socioIds && !opciones.socioIds.includes(fila.socioId))) {
+    return { ok: false, error: "No encontramos esa boleta." };
+  }
   if (fila.estado === "ANULADA") return { ok: false, error: "Esa boleta está anulada." };
 
   const monto = saldo(fila.montoTotal, fila.montoPagado);
@@ -53,6 +70,17 @@ export async function crearLinkPago(aprId: string, boletaId: string): Promise<Re
       // La boleta a la que corresponde el pago: de aquí la lee el aviso de Mercado Pago.
       external_reference: fila.id,
       notification_url: `${BASE_SITIO()}/api/mercadopago/webhook?apr=${encodeURIComponent(aprId)}`,
+      // Si pagó desde su portal, Mercado Pago lo devuelve ahí.
+      ...(opciones.volverA
+        ? {
+            back_urls: {
+              success: `${opciones.volverA}?pago=ok`,
+              pending: `${opciones.volverA}?pago=pendiente`,
+              failure: `${opciones.volverA}?pago=fallo`,
+            },
+            auto_return: "approved",
+          }
+        : {}),
     }),
     signal: AbortSignal.timeout(15000),
   });
