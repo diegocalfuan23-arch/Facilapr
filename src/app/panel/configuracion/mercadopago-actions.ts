@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
 import { desconectarCuenta } from "@/lib/mercadopago";
 
@@ -8,5 +8,5 @@ import { desconectarCuenta } from "@/lib/mercadopago";
 export async function desconectarMercadoPago() {
   const { apr } = await requireAdmin();
   await desconectarCuenta(apr.id);
-  revalidatePath("/panel/pagos");
+  redirect("/panel/pagos");
 }

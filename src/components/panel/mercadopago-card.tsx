@@ -27,7 +27,8 @@ export function MercadoPagoCard({
   aviso?: string;
   detalle?: string;
 }) {
-  const mensaje = aviso ? AVISOS[aviso] : undefined;
+  // «Conectada» solo se muestra si de verdad hay una cuenta conectada (la dirección puede traer un aviso viejo).
+  const mensaje = aviso && !(aviso === "ok" && !conexion) ? AVISOS[aviso] : undefined;
 
   return (
     <section className="mb-6 rounded-2xl border border-border p-6">
@@ -76,7 +77,9 @@ export function MercadoPagoCard({
             </form>
           </div>
         ) : (
-          <Button render={<a href="/api/mercadopago/conectar" />}>Conectar Mercado Pago</Button>
+          <p className="text-[0.88rem] text-muted-foreground">
+            Todavía no hay una cuenta conectada. Usa el botón «Conectar Mercado Pago», arriba a la derecha.
+          </p>
         )}
       </div>
     </section>

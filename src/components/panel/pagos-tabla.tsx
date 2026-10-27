@@ -72,6 +72,7 @@ export function PagosTabla({
   boletasPendientes,
   comite,
   mpConectado = false,
+  mpHabilitado = false,
 }: {
   pagos: PagoFila[];
   /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
@@ -83,6 +84,8 @@ export function PagosTabla({
   comite: DatosComiteWhatsApp;
   /** El comité conectó su cuenta de Mercado Pago: se puede cobrar con link de pago. */
   mpConectado?: boolean;
+  /** El comité tiene prendida la conexión con Mercado Pago (aunque aún no la haya hecho). */
+  mpHabilitado?: boolean;
 }) {
   const [registrando, setRegistrando] = useState(false);
   const [conLink, setConLink] = useState(false);
@@ -120,11 +123,18 @@ export function PagosTabla({
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {mpConectado && (
+          {mpConectado ? (
             <Button variant="outline" onClick={() => setConLink(true)}>
               <Link2 />
               Link de pago
             </Button>
+          ) : (
+            mpHabilitado && (
+              <Button variant="outline" render={<a href="/api/mercadopago/conectar" />}>
+                <Link2 />
+                Conectar Mercado Pago
+              </Button>
+            )
           )}
           <Button data-tour="pag-registrar" onClick={() => setRegistrando(true)}>
             <Plus />
