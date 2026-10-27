@@ -636,6 +636,7 @@ export const ARTICULOS: Articulo[] = [
   },
   {
     slug: "planilla-cobro-agua-rural",
+    // La planilla descargable vive en /planilla-cobro-agua-potable-rural.
     titulo: "Planilla para el cobro del agua rural: qué columnas necesitas para cargarla a Facilapr",
     tituloSeo: "Planilla en Excel para cobrar el agua rural (APR)",
     resumen:

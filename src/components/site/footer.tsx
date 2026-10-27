@@ -27,10 +27,10 @@ export function Footer() {
             Cortes por morosidad
           </Link>
           <Link
-            href="/ayuda/planilla-cobro-agua-rural"
+            href="/planilla-cobro-agua-potable-rural"
             className="transition-colors hover:text-foreground"
           >
-            Planilla de cobro
+            Planilla gratis en Excel
           </Link>
           <Link href="/terminos" className="transition-colors hover:text-foreground">
             Términos de uso
