@@ -42,6 +42,13 @@ export function Header() {
 
           <div className="ml-auto flex items-center gap-3.5">
             <Link
+              href="/socios"
+              title="Socios: encuentra tu comité de agua potable rural y paga tu boleta"
+              className="hidden text-sm font-medium whitespace-nowrap text-primary transition-colors hover:underline sm:inline"
+            >
+              Soy socio · Paga tu boleta
+            </Link>
+            <Link
               href="/login"
               title="Acceso para directivas de comités APR y SSR"
               className="hidden text-sm whitespace-nowrap text-muted-foreground transition-colors hover:text-foreground sm:inline"

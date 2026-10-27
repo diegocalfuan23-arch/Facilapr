@@ -1,4 +1,5 @@
-import { Check, CreditCard } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Check, CreditCard } from "lucide-react";
 
 const puntos = [
   {
@@ -53,6 +54,22 @@ export function PagosSection() {
             </li>
           ))}
         </ul>
+
+        <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-primary/25 bg-primary/5 p-6">
+          <div className="flex-1">
+            <strong className="block">¿Eres socio de un comité?</strong>
+            <span className="text-[0.9rem] text-muted-foreground">
+              Busca tu comité, entra a tu cuenta y paga tu boleta en línea.
+            </span>
+          </div>
+          <Link
+            href="/socios"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2.5 text-[0.9rem] font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Encontrar mi comité
+            <ArrowRight className="size-4" />
+          </Link>
+        </div>
       </div>
     </section>
   );

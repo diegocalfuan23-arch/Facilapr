@@ -8,6 +8,7 @@ import { usoIaChat } from "@/lib/ia-chat-cuota";
 import { LIMITE_SOCIOS, LIMITE_TECNICOS, NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { resumenDatos } from "@/app/panel/configuracion/datos-actions";
 import { ConfiguracionForm } from "@/components/panel/configuracion-form";
+import { BuscadorSociosSwitch } from "@/components/panel/buscador-socios-switch";
 
 export const metadata: Metadata = {
   title: "Configuración",
@@ -26,7 +27,9 @@ export default async function ConfiguracionPage() {
   const finito = (n: number) => (Number.isFinite(n) ? n : null);
 
   return (
-    <ConfiguracionForm
+    <>
+      <BuscadorSociosSwitch inicial={apr.apareceEnBuscador} tieneSlug={Boolean(apr.slug)} />
+      <ConfiguracionForm
       resumenDatos={resumen}
       uso={{
         nombrePlan: NOMBRE_PLAN[plan],
@@ -67,6 +70,7 @@ export default async function ConfiguracionPage() {
         diasAvisoCorte: apr.diasAvisoCorte,
         costoReconexion: apr.costoReconexion,
       }}
-    />
+      />
+    </>
   );
 }

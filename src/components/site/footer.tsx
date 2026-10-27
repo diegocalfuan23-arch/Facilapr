@@ -26,6 +26,9 @@ export function Footer() {
           >
             Cortes por morosidad
           </Link>
+          <Link href="/socios" className="transition-colors hover:text-foreground">
+            Soy socio: paga tu boleta
+          </Link>
           <Link
             href="/planilla-cobro-agua-potable-rural"
             className="transition-colors hover:text-foreground"

@@ -87,6 +87,8 @@ export const aprs = pgTable(
      * Se prende comité por comité; hasta entonces no se ve nada de esto.
      */
     mercadoPagoHabilitado: boolean("mercadoPagoHabilitado").notNull().default(false),
+    /** Sale en el buscador público de socios (facilapr.cl/socios). Lo decide el comité; necesita slug. */
+    apareceEnBuscador: boolean("apareceEnBuscador").notNull().default(false),
     /** IA dentro del chat (plan Grande): APAGADO · SIEMPRE (· SIN_RESPUESTA, próximamente). */
     iaChatModo: text("iaChatModo").notNull().default("APAGADO"),
     /** Tono y reglas propias del comité para la IA del chat. */
