@@ -76,13 +76,24 @@ export function leerState(state: string | null) {
   return aprId;
 }
 
+// ---------------------------------------------------------------- PKCE
+
+/** Par de PKCE: el verifier se guarda (cookie cifrada) y el challenge viaja a Mercado Pago. */
+export function generarPkce() {
+  const verifier = randomBytes(48).toString("base64url");
+  const challenge = createHash("sha256").update(verifier).digest("base64url");
+  return { verifier, challenge };
+}
+
+export const COOKIE_PKCE = "mp_pkce";
+
 // ---------------------------------------------------------------- OAuth
 
 /**
  * Dirección de Mercado Pago a la que se manda al comité para que autorice.
  * (Formato tomado de memoria: confirmar contra la documentación de OAuth.)
  */
-export function urlAutorizacion(aprId: string) {
+export function urlAutorizacion(aprId: string, challenge: string) {
   const id = process.env.MP_CLIENT_ID;
   if (!id) throw new Error("Falta MP_CLIENT_ID.");
   const p = new URLSearchParams({
@@ -91,6 +102,8 @@ export function urlAutorizacion(aprId: string) {
     platform_id: "mp",
     state: crearState(aprId),
     redirect_uri: urlCallbackMp(),
+    code_challenge: challenge,
+    code_challenge_method: "S256",
   });
   return `https://auth.mercadopago.cl/authorization?${p}`;
 }
@@ -128,10 +141,11 @@ async function pedirToken(cuerpo: Record<string, string>) {
 }
 
 /** Cambia el código que dejó el comité por sus tokens y los guarda cifrados. */
-export async function conectarCuenta(aprId: string, codigo: string) {
+export async function conectarCuenta(aprId: string, codigo: string, verifier: string) {
   const t = await pedirToken({
     grant_type: "authorization_code",
     code: codigo,
+    code_verifier: verifier,
     redirect_uri: urlCallbackMp(),
   });
   const valores = {

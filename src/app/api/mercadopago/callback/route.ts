@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/lib/apr-session";
-import { conectarCuenta, leerState, mpConfigurado } from "@/lib/mercadopago";
+import { COOKIE_PKCE, conectarCuenta, descifrar, leerState, mpConfigurado } from "@/lib/mercadopago";
 
 /**
  * A donde Mercado Pago devuelve al comité después de autorizar. El `state` va
@@ -8,8 +8,15 @@ import { conectarCuenta, leerState, mpConfigurado } from "@/lib/mercadopago";
  */
 export async function GET(req: Request) {
   const base = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? new URL(req.url).origin).replace(/\/$/, "");
+  // Al volver se borra la cookie del verifier: ya cumplió su función.
   const volver = (resultado: string, detalle?: string) =>
-    Response.redirect(`${base}/panel/pagos?mp=${resultado}${detalle ? `&detalle=${encodeURIComponent(detalle.slice(0, 160))}` : ""}`, 303);
+    new Response(null, {
+      status: 303,
+      headers: {
+        Location: `${base}/panel/pagos?mp=${resultado}${detalle ? `&detalle=${encodeURIComponent(detalle.slice(0, 160))}` : ""}`,
+        "Set-Cookie": `${COOKIE_PKCE}=; Path=/api/mercadopago; Max-Age=0; HttpOnly; Secure; SameSite=Lax`,
+      },
+    });
 
   const { apr } = await requireAdmin();
   if (!apr.mercadoPagoHabilitado || !mpConfigurado()) return volver("no-disponible");
@@ -21,8 +28,18 @@ export async function GET(req: Request) {
   const aprDelState = leerState(url.searchParams.get("state"));
   if (!codigo || !aprDelState || aprDelState !== apr.id) return volver("invalido");
 
+  // El verifier de PKCE que dejó la cookie al salir hacia Mercado Pago.
+  const cookie = (req.headers.get("cookie") ?? "").split(/;\s*/).find((c) => c.startsWith(`${COOKIE_PKCE}=`));
+  let verifier = "";
   try {
-    await conectarCuenta(apr.id, codigo);
+    verifier = cookie ? descifrar(decodeURIComponent(cookie.slice(COOKIE_PKCE.length + 1))) : "";
+  } catch {
+    verifier = "";
+  }
+  if (!verifier) return volver("invalido");
+
+  try {
+    await conectarCuenta(apr.id, codigo, verifier);
   } catch (e) {
     // El motivo es el mensaje de Mercado Pago (nunca un token): sirve para saber qué corregir.
     const motivo = e instanceof Error ? e.message : "error";
