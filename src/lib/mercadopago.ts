@@ -22,7 +22,7 @@ export const modoMp = (): ModoMp => (process.env.MP_MODO === "produccion" ? "pro
 export const mpConfigurado = () =>
   Boolean(process.env.MP_CLIENT_ID && process.env.MP_CLIENT_SECRET && process.env.CLAVE_CIFRADO_MP);
 
-const BASE_SITIO = () =>
+export const BASE_SITIO = () =>
   (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? "https://facilapr.cl").replace(/\/$/, "");
 
 export const urlCallbackMp = () => `${BASE_SITIO()}/api/mercadopago/callback`;

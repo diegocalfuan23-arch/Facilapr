@@ -135,6 +135,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
         montoPagado: b.montoPagado,
       }))}
       comite={{ nombre: apr.nombre, slug: apr.slug, infoPago: apr.infoPago }}
+      mpConectado={Boolean(conexionMp)}
       pagos={filas.map((f) => ({
         ...f,
         fecha: f.fecha.toISOString(),

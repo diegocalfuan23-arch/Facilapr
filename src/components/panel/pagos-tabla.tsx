@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileDown, Plus, Search, Wallet } from "lucide-react";
+import { FileDown, Link2, Plus, Search, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { formatearPeriodo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 import { MEDIOS_PAGO, textoConcepto, textoMedioPago } from "@/lib/pagos";
 import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
+import { LinkPagoDialog } from "@/components/panel/link-pago-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 import type { DatosComiteWhatsApp } from "@/lib/whatsapp";
 
@@ -70,6 +71,7 @@ export function PagosTabla({
   resumen,
   boletasPendientes,
   comite,
+  mpConectado = false,
 }: {
   pagos: PagoFila[];
   /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
@@ -79,8 +81,11 @@ export function PagosTabla({
   costoReconexion: number | null;
   boletasPendientes: BoletaPendiente[];
   comite: DatosComiteWhatsApp;
+  /** El comité conectó su cuenta de Mercado Pago: se puede cobrar con link de pago. */
+  mpConectado?: boolean;
 }) {
   const [registrando, setRegistrando] = useState(false);
+  const [conLink, setConLink] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [medio, setMedio] = useState<string>("todos");
   const [visibles, setVisibles] = useState(POR_PAGINA);
@@ -114,10 +119,18 @@ export function PagosTabla({
             Todo lo que han pagado tus socios, con su comprobante.
           </p>
         </div>
-        <Button data-tour="pag-registrar" onClick={() => setRegistrando(true)}>
-          <Plus />
-          Registrar pago
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {mpConectado && (
+            <Button variant="outline" onClick={() => setConLink(true)}>
+              <Link2 />
+              Link de pago
+            </Button>
+          )}
+          <Button data-tour="pag-registrar" onClick={() => setRegistrando(true)}>
+            <Plus />
+            Registrar pago
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
@@ -339,6 +352,10 @@ export function PagosTabla({
             </>
           )}
         </div>
+      )}
+
+      {conLink && (
+        <LinkPagoDialog socios={socios} boletas={boletasPendientes} comite={comite} onCerrar={() => setConLink(false)} />
       )}
 
       {registrando && (

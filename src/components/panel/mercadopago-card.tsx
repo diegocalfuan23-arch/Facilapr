@@ -66,6 +66,9 @@ export function MercadoPagoCard({
             <span className="text-[0.92rem]">
               Conectada · cuenta <span className="font-mono">{conexion.mpUserId}</span>
             </span>
+            <span className="basis-full text-[0.88rem] text-muted-foreground">
+              Ahora puedes enviar links de pago a tus socios: en esta pantalla, botón «Link de pago».
+            </span>
             <form action={desconectarMercadoPago}>
               <Button type="submit" variant="outline" size="sm">
                 Desconectar
