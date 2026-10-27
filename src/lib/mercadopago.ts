@@ -11,7 +11,7 @@ import { mercadoPagoConexiones } from "@/lib/db/schema";
  * Variables de entorno (en Vercel; nunca en el código):
  *  - MP_CLIENT_ID: el N.º de la aplicación de Facilapr en Mercado Pago.
  *  - MP_CLIENT_SECRET: la clave secreta de esa aplicación.
- *  - MP_TOKEN_CLAVE: texto largo al azar con el que se cifran los tokens de los comités.
+ *  - CLAVE_CIFRADO_MP: texto largo al azar con el que se cifran los tokens de los comités.
  *  - MP_MODO: "prueba" o "produccion" (por defecto "prueba", para no cobrar de verdad sin querer).
  */
 
@@ -20,7 +20,7 @@ export type ModoMp = "prueba" | "produccion";
 export const modoMp = (): ModoMp => (process.env.MP_MODO === "produccion" ? "produccion" : "prueba");
 
 export const mpConfigurado = () =>
-  Boolean(process.env.MP_CLIENT_ID && process.env.MP_CLIENT_SECRET && process.env.MP_TOKEN_CLAVE);
+  Boolean(process.env.MP_CLIENT_ID && process.env.MP_CLIENT_SECRET && process.env.CLAVE_CIFRADO_MP);
 
 const BASE_SITIO = () =>
   (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? "https://facilapr.cl").replace(/\/$/, "");
@@ -30,8 +30,8 @@ export const urlCallbackMp = () => `${BASE_SITIO()}/api/mercadopago/callback`;
 // ---------------------------------------------------------------- cifrado
 
 function clave() {
-  const t = process.env.MP_TOKEN_CLAVE;
-  if (!t) throw new Error("Falta MP_TOKEN_CLAVE.");
+  const t = process.env.CLAVE_CIFRADO_MP;
+  if (!t) throw new Error("Falta CLAVE_CIFRADO_MP.");
   return createHash("sha256").update(t).digest();
 }
 
