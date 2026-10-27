@@ -5,7 +5,7 @@ import { mpConfigurado, urlAutorizacion } from "@/lib/mercadopago";
 export async function GET() {
   const { apr } = await requireAdmin();
   if (!apr.mercadoPagoHabilitado || !mpConfigurado()) {
-    return Response.redirect(new URL("/panel/configuracion?mp=no-disponible", process.env.NEXT_PUBLIC_SITE_URL ?? "https://facilapr.cl"), 303);
+    return Response.redirect(new URL("/panel/pagos?mp=no-disponible", process.env.NEXT_PUBLIC_SITE_URL ?? "https://facilapr.cl"), 303);
   }
   return Response.redirect(urlAutorizacion(apr.id), 302);
 }

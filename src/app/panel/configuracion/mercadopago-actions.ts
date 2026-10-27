@@ -8,5 +8,5 @@ import { desconectarCuenta } from "@/lib/mercadopago";
 export async function desconectarMercadoPago() {
   const { apr } = await requireAdmin();
   await desconectarCuenta(apr.id);
-  revalidatePath("/panel/configuracion");
+  revalidatePath("/panel/pagos");
 }

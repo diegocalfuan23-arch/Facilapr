@@ -8,7 +8,7 @@ import { conectarCuenta, leerState, mpConfigurado } from "@/lib/mercadopago";
  */
 export async function GET(req: Request) {
   const base = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? new URL(req.url).origin).replace(/\/$/, "");
-  const volver = (resultado: string) => Response.redirect(`${base}/panel/configuracion?mp=${resultado}`, 303);
+  const volver = (resultado: string) => Response.redirect(`${base}/panel/pagos?mp=${resultado}`, 303);
 
   const { apr } = await requireAdmin();
   if (!apr.mercadoPagoHabilitado || !mpConfigurado()) return volver("no-disponible");

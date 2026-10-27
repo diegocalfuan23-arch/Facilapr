@@ -6,6 +6,8 @@ import { user as usuarios } from "@/lib/db/auth-schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { urlComprobante } from "@/lib/comprobante-enlace";
 import { PagosTabla } from "@/components/panel/pagos-tabla";
+import { MercadoPagoCard } from "@/components/panel/mercadopago-card";
+import { estadoConexion, modoMp, mpConfigurado } from "@/lib/mercadopago";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 
 export const metadata: Metadata = {
@@ -15,8 +17,10 @@ export const metadata: Metadata = {
 /** Cuántos pagos se cargan: los más recientes. */
 const MAXIMO = 1000;
 
-export default async function PagosPage() {
+export default async function PagosPage({ searchParams }: { searchParams: Promise<{ mp?: string }> }) {
   const { apr } = await requireAdmin();
+  const { mp } = await searchParams;
+  const conexionMp = apr.mercadoPagoHabilitado ? await estadoConexion(apr.id) : null;
 
   const filas = await db
     .select({
@@ -107,7 +111,11 @@ export default async function PagosPage() {
   }
 
   return (
-    <PagosTabla
+    <>
+      {apr.mercadoPagoHabilitado && (
+        <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} />
+      )}
+      <PagosTabla
       socios={[...sociosConSaldo.values()]}
       resumen={{
         morosos: estadoSocios.morosos,
@@ -132,6 +140,7 @@ export default async function PagosPage() {
         fecha: f.fecha.toISOString(),
         comprobanteUrl: urlComprobante(f.id),
       }))}
-    />
+      />
+    </>
   );
 }
