@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, CreditCard } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 
 const puntos = [
   {
@@ -26,16 +26,14 @@ const puntos = [
 
 export function PagosSection() {
   return (
-    <section id="pagos-en-linea" className="py-23">
+    <section id="pagos-en-linea" className="py-24">
       <div className="mx-auto max-w-[1180px] px-7">
         <div className="max-w-[700px]">
-          <span className="inline-flex items-center gap-2 font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            <CreditCard className="size-4" />
-            Pagos en línea
-            <span className="rounded-full bg-tertiary/20 px-2 py-0.5 text-[0.64rem] text-tertiary-foreground">Beta</span>
-          </span>
-          <h2 className="mt-3 text-[clamp(1.7rem,2.8vw,2.2rem)] font-semibold text-balance">
+          <h2 className="text-[clamp(1.7rem,2.8vw,2.2rem)] font-semibold text-balance">
             Tus socios pagan con Mercado Pago y la boleta se marca sola.
+            <span className="ml-3 align-middle rounded-full bg-muted px-2 py-1 text-[0.7rem] font-medium text-muted-foreground">
+              Beta
+            </span>
           </h2>
           <p className="mt-4 text-[0.97rem] text-muted-foreground">
             Menos efectivo y menos comprobantes por WhatsApp. Se aplican las comisiones normales de Mercado Pago por cada
@@ -43,10 +41,10 @@ export function PagosSection() {
           </p>
         </div>
 
-        <ul className="mt-9 grid gap-x-10 gap-y-6 sm:grid-cols-2">
+        <ul className="mt-8 grid gap-x-10 gap-y-6 sm:grid-cols-2">
           {puntos.map(({ titulo, detalle }) => (
             <li key={titulo} className="flex gap-3">
-              <Check className="mt-0.5 size-5 shrink-0 text-primary" />
+              <Check className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
               <div>
                 <strong className="mb-0.5 block">{titulo}</strong>
                 <span className="text-[0.9rem] text-muted-foreground">{detalle}</span>
@@ -55,7 +53,7 @@ export function PagosSection() {
           ))}
         </ul>
 
-        <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-primary/25 bg-primary/5 p-6">
+        <div className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-2xl border border-primary/25 bg-primary/5 p-6">
           <div className="flex-1">
             <strong className="block">¿Eres socio de un comité?</strong>
             <span className="text-[0.9rem] text-muted-foreground">

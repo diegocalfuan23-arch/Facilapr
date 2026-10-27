@@ -84,8 +84,8 @@ export function InvoiceSection() {
   const total = cargoFijo + totalConsumo;
 
   return (
-    <section id="boleta" className="border-y border-border bg-muted/40 py-23">
-      <div className="mx-auto grid max-w-[1180px] gap-15 px-7 sm:grid-cols-[0.9fr_1.1fr] sm:items-center">
+    <section id="boleta" className="border-y border-border bg-muted/40 py-24">
+      <div className="mx-auto grid max-w-[1180px] gap-16 px-7 sm:grid-cols-[0.9fr_1.1fr] sm:items-center">
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
           <div className="bg-foreground px-5.5 py-4.5 text-background">
             <div className="flex items-center gap-2">
@@ -168,16 +168,13 @@ export function InvoiceSection() {
         </div>
 
         <div>
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            Calculadora de boleta APR
-          </span>
           <h2 className="mt-3 text-[clamp(1.7rem,2.8vw,2.2rem)] font-semibold text-balance">
             Lo que hoy vive en una planilla, ahora cabe en un mensaje.
           </h2>
           <ul className="mt-6.5 flex flex-col gap-4">
             {puntos.map(({ titulo, detalle }) => (
               <li key={titulo} className="flex gap-3">
-                <Check className="mt-0.5 size-5 shrink-0 text-primary" />
+                <Check className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                 <div>
                   <strong className="mb-0.5 block">{titulo}</strong>
                   <span className="text-[0.9rem] text-muted-foreground">

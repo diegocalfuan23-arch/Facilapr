@@ -47,12 +47,9 @@ const mensajes: { de: "socio" | "ia" | "directiva"; texto: string }[] = [
 
 export function ChatSection() {
   return (
-    <section id="chat" className="py-23">
-      <div className="mx-auto grid max-w-[1180px] gap-15 px-7 sm:grid-cols-[1.1fr_0.9fr] sm:items-center">
+    <section id="chat" className="py-24">
+      <div className="mx-auto grid max-w-[1180px] gap-16 px-7 sm:grid-cols-[1.1fr_0.9fr] sm:items-center">
         <div>
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            Chat con tus socios
-          </span>
           <h2 className="mt-3 text-[clamp(1.7rem,2.8vw,2.2rem)] font-semibold text-balance">
             Un chat donde la IA contesta por el comité, y tú entras cuando hace falta.
           </h2>
@@ -64,7 +61,7 @@ export function ChatSection() {
           <ul className="mt-7 flex flex-col gap-4">
             {puntos.map(({ titulo, detalle }) => (
               <li key={titulo} className="flex gap-3">
-                <Check className="mt-0.5 size-5 shrink-0 text-primary" />
+                <Check className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
                 <div>
                   <strong className="mb-0.5 block">{titulo}</strong>
                   <span className="text-[0.9rem] text-muted-foreground">
@@ -80,7 +77,7 @@ export function ChatSection() {
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg">
-          <div className="flex items-center gap-2.5 bg-foreground px-5 py-3.5 text-background">
+          <div className="flex items-center gap-2.5 bg-foreground px-5 py-4 text-background">
             <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground">
               <UserRound className="size-4" />
             </span>

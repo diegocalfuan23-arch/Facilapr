@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 
 export function CtaSection() {
   return (
-    <section id="cta" className="py-23 text-center">
+    <section id="cta" className="py-24 text-center">
       <div className="mx-auto max-w-[1180px] px-7">
         <div className="relative overflow-hidden rounded-[22px] bg-primary px-10 py-16 text-primary-foreground">
           <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_-20%,rgba(255,255,255,0.14),transparent_55%)]" />

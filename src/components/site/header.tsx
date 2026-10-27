@@ -16,7 +16,7 @@ export function Header() {
       <div className="mx-auto max-w-[1180px] px-7">
         <nav
           aria-label="Navegación principal — software de gestión APR, boletas y pagos online"
-          className="flex items-center gap-2 py-3.5"
+          className="flex items-center gap-2 py-4"
         >
           <Link
             href="#"
@@ -27,7 +27,7 @@ export function Header() {
             Facilapr
           </Link>
 
-          <div className="hidden flex-1 gap-5.5 text-sm text-muted-foreground sm:flex">
+          <div className="hidden flex-1 gap-6 text-sm text-muted-foreground sm:flex">
             {enlaces.map((enlace) => (
               <a
                 key={enlace.href}
@@ -40,7 +40,7 @@ export function Header() {
             ))}
           </div>
 
-          <div className="ml-auto flex items-center gap-3.5">
+          <div className="ml-auto flex items-center gap-4">
             <Link
               href="/socios"
               title="Socios: encuentra tu comité de agua potable rural y paga tu boleta"
@@ -58,10 +58,7 @@ export function Header() {
             <a
               href="#contacto"
               title="Solicitar una demo del software de gestión APR"
-              className={cn(
-                buttonVariants(),
-                "rounded-full bg-forest text-forest-foreground hover:bg-forest/90"
-              )}
+              className={cn(buttonVariants({ variant: "outline" }), "rounded-full")}
             >
               Solicitar una demo
             </a>

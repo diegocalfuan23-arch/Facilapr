@@ -35,12 +35,9 @@ const funciones = [
 
 export function PanelSection() {
   return (
-    <section id="panel" className="py-23">
+    <section id="panel" className="py-24">
       <div className="mx-auto max-w-[1180px] px-7">
-        <div className="mx-auto mb-13 max-w-[640px] text-center">
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            El otro pilar de Facilapr
-          </span>
+        <div className="mx-auto mb-12 max-w-[640px] text-center">
           <h2 className="mt-3 text-[clamp(1.8rem,3vw,2.4rem)] font-semibold text-balance">
             Un panel para que tu directiva administre todo
           </h2>
@@ -51,17 +48,17 @@ export function PanelSection() {
           </p>
         </div>
 
-        <div className="grid gap-5.5 sm:grid-cols-2">
+        <div className="grid gap-6 sm:grid-cols-2">
           {funciones.map(({ icon: Icon, titulo, detalle }, i) => (
             <div
               key={titulo}
               className={
                 i === funciones.length - 1 && funciones.length % 2 === 1
-                  ? "rounded-2xl border border-border bg-card p-6.5 sm:col-span-2"
-                  : "rounded-2xl border border-border bg-card p-6.5"
+                  ? "rounded-2xl border border-border bg-card p-6 sm:col-span-2"
+                  : "rounded-2xl border border-border bg-card p-6"
               }
             >
-              <div className="mb-4.5 flex size-10 items-center justify-center rounded-[10px] bg-primary/12 text-primary">
+              <div className="mb-4 flex size-10 items-center justify-center rounded-[10px] bg-muted text-foreground">
                 <Icon className="size-5" />
               </div>
               <h3 className="mb-2 text-[1.05rem] font-semibold">{titulo}</h3>

@@ -88,7 +88,7 @@ export function AssistantWidget() {
 
       {abierto && (
         <div className="fixed right-5 bottom-22 z-50 flex h-[520px] w-[min(380px,calc(100vw-2.5rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-xl">
-          <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-3.5">
+          <div className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 py-4">
             <span className="flex size-8 items-center justify-center rounded-lg bg-linear-to-br from-primary to-secondary">
               <Droplet className="size-4 fill-white text-white" />
             </span>

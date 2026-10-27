@@ -7,53 +7,50 @@ const caracteristicas = [
     titulo: "Panel para cada socio",
     detalle:
       "Cada socio entra con su RUT y clave a ver su propia deuda, boletas y consumo. Sin llamar, sin esperar respuesta.",
-    tono: "bg-primary/12 text-primary",
+    tono: "bg-muted text-foreground",
   },
   {
     icon: Building2,
     titulo: "Menos filas en oficina",
     detalle:
       'Las preguntas de "cuánto debo" que hoy ocupan a tu personal, se resuelven solas antes de que el socio llegue a la puerta.',
-    tono: "bg-secondary/12 text-secondary",
+    tono: "bg-muted text-foreground",
   },
   {
     icon: Gauge,
     titulo: "Lectura de medidor sin planilla",
     detalle:
       "Registra la lectura anterior y actual de cada socio; Facilapr calcula el consumo y arma la boleta con esos mismos datos.",
-    tono: "bg-tertiary/20 text-tertiary-foreground",
+    tono: "bg-muted text-foreground",
   },
   {
     icon: Globe,
     titulo: "Sitio web y avisos de corte",
     detalle:
       "Tu APR tiene su propio sitio público (subdominio, o dominio propio en el plan grande) donde publicas avisos de corte, tarifas y datos de contacto.",
-    tono: "bg-forest/12 text-forest",
+    tono: "bg-muted text-foreground",
   },
 ];
 
 export function FeaturesSection() {
   return (
-    <section id="caracteristicas" className="py-23">
+    <section id="caracteristicas" className="py-24">
       <div className="mx-auto max-w-[1180px] px-7">
-        <div className="mb-13 max-w-[640px]">
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            Por qué un APR elegiría esto
-          </span>
+        <div className="mb-12 max-w-[640px]">
           <h2 className="mt-3 text-[clamp(1.8rem,3vw,2.4rem)] font-semibold text-balance">
             Pensado para la realidad de un comité rural
           </h2>
         </div>
 
-        <div className="grid gap-5.5 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {caracteristicas.map(({ icon: Icon, titulo, detalle, tono }) => (
             <div
               key={titulo}
-              className="rounded-2xl border border-border bg-card p-6.5"
+              className="rounded-2xl border border-border bg-card p-6"
             >
               <div
                 className={cn(
-                  "mb-4.5 flex size-10 items-center justify-center rounded-[10px]",
+                  "mb-4 flex size-10 items-center justify-center rounded-[10px]",
                   tono
                 )}
               >

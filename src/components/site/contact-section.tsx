@@ -35,12 +35,9 @@ export function ContactSection() {
   }, []);
 
   return (
-    <section id="contacto" className="border-y border-border bg-muted/40 py-23">
-      <div className="mx-auto grid max-w-[1180px] gap-15 px-7 sm:grid-cols-[0.85fr_1.15fr]">
+    <section id="contacto" className="border-y border-border bg-muted/40 py-24">
+      <div className="mx-auto grid max-w-[1180px] gap-16 px-7 sm:grid-cols-[0.85fr_1.15fr]">
         <div>
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            Contacto
-          </span>
           <h2 className="mt-3 text-[clamp(1.7rem,2.8vw,2.2rem)] font-semibold text-balance">
             Cuéntanos de tu APR y te contactamos.
           </h2>

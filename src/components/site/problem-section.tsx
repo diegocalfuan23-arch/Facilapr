@@ -25,13 +25,10 @@ const problemas = [
 
 export function ProblemSection() {
   return (
-    <section id="problema" className="py-23">
+    <section id="problema" className="py-24">
       <div className="mx-auto max-w-[1180px] px-7">
         <div className="mb-11 flex flex-wrap items-end justify-between gap-6">
           <div className="max-w-[640px]">
-            <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-              Por qué escribimos Facilapr
-            </span>
             <h2 className="mt-3 text-[clamp(1.8rem,3vw,2.4rem)] font-semibold text-balance">
               Lo mismo de siempre, en toda oficina de APR
             </h2>
@@ -58,7 +55,7 @@ export function ProblemSection() {
             <div
               key={titulo}
               className={cn(
-                "rounded-2xl border p-6.5",
+                "rounded-2xl border p-6",
                 destacada
                   ? "border-transparent bg-linear-to-br from-primary to-primary/80 text-primary-foreground shadow-lg -translate-y-2"
                   : "border-border bg-card"

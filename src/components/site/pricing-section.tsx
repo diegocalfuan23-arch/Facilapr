@@ -12,12 +12,9 @@ export function PricingSection() {
   const [anual, setAnual] = useState(false);
 
   return (
-    <section id="planes" className="py-23">
+    <section id="planes" className="py-24">
       <div className="mx-auto max-w-[1180px] px-7">
         <div className="mx-auto mb-10 max-w-[640px] text-center">
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            Planes
-          </span>
           <h2 className="mt-3 text-[clamp(1.8rem,3vw,2.4rem)] font-semibold text-balance">
             Un precio que crece con tu comité
           </h2>
@@ -67,7 +64,7 @@ export function PricingSection() {
           </div>
         </div>
 
-        <div className="grid items-stretch gap-5.5 sm:grid-cols-3">
+        <div className="grid items-stretch gap-6 sm:grid-cols-3">
           {planes.map((plan) => {
             const aMedida = plan.mensual === null;
             const base = plan.mensual ?? plan.desde ?? null;

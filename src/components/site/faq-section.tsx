@@ -3,12 +3,9 @@ import { PREGUNTAS } from "@/lib/faq";
 
 export function FaqSection() {
   return (
-    <section id="preguntas" className="py-23">
+    <section id="preguntas" className="py-24">
       <div className="mx-auto max-w-[1180px] px-7">
-        <div className="mx-auto mb-13 max-w-[640px] text-center">
-          <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
-            Preguntas frecuentes
-          </span>
+        <div className="mx-auto mb-12 max-w-[640px] text-center">
           <h2 className="mt-3 text-[clamp(1.8rem,3vw,2.4rem)] font-semibold text-balance">
             Lo que suele preguntar una directiva antes de partir
           </h2>
@@ -25,7 +22,7 @@ export function FaqSection() {
                 <span>{pregunta}</span>
                 <ChevronDown className="size-4.5 shrink-0 text-muted-foreground transition-transform group-open:rotate-180 group-open:text-primary" />
               </summary>
-              <p className="mt-[-4px] mb-4.5 max-w-[62ch] text-[0.93rem] leading-relaxed text-muted-foreground">
+              <p className="mt-[-4px] mb-4 max-w-[62ch] text-[0.93rem] leading-relaxed text-muted-foreground">
                 {respuesta}
               </p>
             </details>
