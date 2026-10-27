@@ -8,12 +8,15 @@ import { usoIaChat } from "@/lib/ia-chat-cuota";
 import { LIMITE_SOCIOS, LIMITE_TECNICOS, NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { resumenDatos } from "@/app/panel/configuracion/datos-actions";
 import { ConfiguracionForm } from "@/components/panel/configuracion-form";
+import { MercadoPagoCard } from "@/components/panel/mercadopago-card";
+import { estadoConexion, modoMp, mpConfigurado } from "@/lib/mercadopago";
 
 export const metadata: Metadata = {
   title: "Configuración",
 };
 
-export default async function ConfiguracionPage() {
+export default async function ConfiguracionPage({ searchParams }: { searchParams: Promise<{ mp?: string }> }) {
+  const { mp } = await searchParams;
   const { apr } = await requireAdmin();
   const resumen = await resumenDatos();
   const plan = apr.plan as Plan;
@@ -25,8 +28,14 @@ export default async function ConfiguracionPage() {
     .where(and(eq(userTable.aprId, apr.id), eq(userTable.rol, "OPERADOR")));
   const finito = (n: number) => (Number.isFinite(n) ? n : null);
 
+  const conexionMp = apr.mercadoPagoHabilitado ? await estadoConexion(apr.id) : null;
+
   return (
-    <ConfiguracionForm
+    <>
+      {apr.mercadoPagoHabilitado && (
+        <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} />
+      )}
+      <ConfiguracionForm
       resumenDatos={resumen}
       uso={{
         nombrePlan: NOMBRE_PLAN[plan],
@@ -67,6 +76,7 @@ export default async function ConfiguracionPage() {
         diasAvisoCorte: apr.diasAvisoCorte,
         costoReconexion: apr.costoReconexion,
       }}
-    />
+      />
+    </>
   );
 }
