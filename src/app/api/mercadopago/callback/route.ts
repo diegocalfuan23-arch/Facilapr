@@ -8,7 +8,8 @@ import { conectarCuenta, leerState, mpConfigurado } from "@/lib/mercadopago";
  */
 export async function GET(req: Request) {
   const base = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? new URL(req.url).origin).replace(/\/$/, "");
-  const volver = (resultado: string) => Response.redirect(`${base}/panel/pagos?mp=${resultado}`, 303);
+  const volver = (resultado: string, detalle?: string) =>
+    Response.redirect(`${base}/panel/pagos?mp=${resultado}${detalle ? `&detalle=${encodeURIComponent(detalle.slice(0, 160))}` : ""}`, 303);
 
   const { apr } = await requireAdmin();
   if (!apr.mercadoPagoHabilitado || !mpConfigurado()) return volver("no-disponible");
@@ -23,8 +24,10 @@ export async function GET(req: Request) {
   try {
     await conectarCuenta(apr.id, codigo);
   } catch (e) {
-    console.error("Conexión con Mercado Pago:", e instanceof Error ? e.message : "error");
-    return volver("error");
+    // El motivo es el mensaje de Mercado Pago (nunca un token): sirve para saber qué corregir.
+    const motivo = e instanceof Error ? e.message : "error";
+    console.error("Conexión con Mercado Pago:", motivo);
+    return volver("error", motivo);
   }
   return volver("ok");
 }

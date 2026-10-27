@@ -17,9 +17,9 @@ export const metadata: Metadata = {
 /** Cuántos pagos se cargan: los más recientes. */
 const MAXIMO = 1000;
 
-export default async function PagosPage({ searchParams }: { searchParams: Promise<{ mp?: string }> }) {
+export default async function PagosPage({ searchParams }: { searchParams: Promise<{ mp?: string; detalle?: string }> }) {
   const { apr } = await requireAdmin();
-  const { mp } = await searchParams;
+  const { mp, detalle } = await searchParams;
   const conexionMp = apr.mercadoPagoHabilitado ? await estadoConexion(apr.id) : null;
 
   const filas = await db
@@ -113,7 +113,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
   return (
     <>
       {apr.mercadoPagoHabilitado && (
-        <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} />
+        <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} detalle={detalle} />
       )}
       <PagosTabla
       socios={[...sociosConSaldo.values()]}

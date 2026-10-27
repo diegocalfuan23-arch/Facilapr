@@ -19,11 +19,13 @@ export function MercadoPagoCard({
   configurado,
   conexion,
   aviso,
+  detalle,
 }: {
   modo: ModoMp;
   configurado: boolean;
   conexion: { mpUserId: string } | null;
   aviso?: string;
+  detalle?: string;
 }) {
   const mensaje = aviso ? AVISOS[aviso] : undefined;
 
@@ -52,6 +54,7 @@ export function MercadoPagoCard({
           className={`mt-4 rounded-lg px-3.5 py-2.5 text-[0.88rem] ${mensaje.error ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}
         >
           {mensaje.texto}
+          {mensaje.error && detalle && <span className="mt-1 block font-mono text-[0.78rem] break-words">Detalle: {detalle}</span>}
         </p>
       )}
 
