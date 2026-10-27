@@ -7,6 +7,7 @@ import { HowItWorksSection } from "@/components/site/how-it-works-section";
 import { FeaturesSection } from "@/components/site/features-section";
 import { InvoiceSection } from "@/components/site/invoice-section";
 import { ChatSection } from "@/components/site/chat-section";
+import { PagosSection } from "@/components/site/pagos-section";
 import { PricingSection } from "@/components/site/pricing-section";
 import { FaqSection } from "@/components/site/faq-section";
 import { CtaSection } from "@/components/site/cta-section";
@@ -33,6 +34,7 @@ export default function Home() {
         <FeaturesSection />
         <InvoiceSection />
         <ChatSection />
+        <PagosSection />
         <PricingSection />
         <FaqSection />
         <CtaSection />
