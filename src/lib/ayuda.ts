@@ -1025,6 +1025,49 @@ export const ARTICULOS: Articulo[] = [
       },
     ],
   },
+  {
+    slug: "como-pagar-cuenta-agua-potable-rural-apr",
+    titulo: "Cómo pagar la cuenta del agua potable rural (APR): formas de pago",
+    tituloSeo: "Cómo pagar tu cuenta del agua potable rural (APR)",
+    resumen:
+      "Si eres socio de un APR y quieres pagar tu boleta: qué revisar, cómo averiguar cómo paga tu comité y cómo asegurarte de que tu pago quede registrado.",
+    categoria: "Portal de socios",
+    para: "Todos",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Revisa tu boleta o recibo",
+        texto:
+          "Mira el monto a pagar, la fecha de vencimiento y tu número de cliente o de arranque. Muchos comités anotan en la misma boleta cómo y dónde pagar.",
+      },
+      {
+        titulo: "Averigua cómo paga tu comité",
+        texto:
+          "Cada APR define sus propias formas de pago: en efectivo con el tesorero o en la sede, por transferencia, en Caja Vecina u otro medio. Si tu boleta no lo dice, pregúntaselo a la directiva de tu comité por teléfono o por WhatsApp.",
+        nota: "Tu pago va siempre al comité de tu sector. Facilapr es un sistema que usan algunos comités para administrar sus boletas, pero no recibe los pagos de los socios.",
+      },
+      {
+        titulo: "Paga y guarda el comprobante",
+        texto:
+          "Sea cual sea el medio, guarda la prueba de tu pago: el voucher, la captura de la transferencia o el comprobante de la caja. Es tu respaldo si hay alguna duda.",
+      },
+      {
+        titulo: "Avisa a tu comité si hace falta",
+        texto:
+          "Si pagaste por transferencia o en una caja, muchos comités piden que les envíes el comprobante, con tu nombre y tu número de arranque, para anotar el pago. Pregunta a quién y por dónde mandarlo.",
+      },
+      {
+        titulo: "Comprueba que quedó registrado",
+        texto:
+          "En tu próxima boleta debería verse tu pago. Si el comité usa un sistema con cuenta en línea para los socios, como Facilapr, también puedes ver tus boletas, tus pagos y tus comprobantes ahí, con tu RUT y tu clave.",
+      },
+      {
+        titulo: "Si tu comité aún no tiene cuenta en línea",
+        texto:
+          "Puedes proponerle a tu directiva que revise un sistema para administrar las boletas y los pagos. Con una cuenta en línea, cada socio ve cuánto debe y su comprobante sin llamar ni ir a la sede.",
+      },
+    ],
+  },
 ];
 
 export function articuloPorSlug(slug: string) {

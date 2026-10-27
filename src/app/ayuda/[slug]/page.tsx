@@ -153,6 +153,19 @@ export default async function ArticuloAyudaPage({ params }: Props) {
           </div>
         )}
 
+        {articulo.para === "Administrador" && (
+          <p className="mt-6 rounded-xl border border-border bg-muted/40 px-4 py-3 text-[0.88rem] text-muted-foreground">
+            Esta guía es para dirigentes de comités de agua potable rural. ¿Eres socio y quieres pagar tu cuenta?{" "}
+            <Link
+              href="/ayuda/como-pagar-cuenta-agua-potable-rural-apr"
+              className="font-medium text-primary hover:underline"
+            >
+              Mira cómo pagar tu boleta del APR
+            </Link>
+            .
+          </p>
+        )}
+
         <ol className="mt-12 flex flex-col gap-12">
           {articulo.pasos.map((paso, i) => {
             const n = i + 1;
