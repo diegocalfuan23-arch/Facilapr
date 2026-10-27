@@ -1069,6 +1069,54 @@ export const ARTICULOS: Articulo[] = [
       },
     ],
   },
+  {
+    slug: "software-para-apr",
+    titulo: "Software para APR: qué es, qué hace y cuánto cuesta",
+    tituloSeo: "Software para APR: qué hace, qué debe incluir y precios",
+    resumen:
+      "Qué es un software para comités de agua potable rural (APR/SSR), qué resuelve frente a la planilla de Excel, qué debe incluir y cuánto suele costar.",
+    categoria: "Primeros pasos",
+    para: "Administrador",
+    minutos: 5,
+    pasos: [
+      {
+        titulo: "Qué es un software para APR",
+        texto:
+          "Es un programa en línea que reemplaza el cuaderno y las planillas con las que un comité de agua potable rural lleva sus cuentas: el padrón de socios, las lecturas de los medidores, las boletas, los pagos y los cortes. Se usa desde el computador y el celular, sin instalar nada.",
+      },
+      {
+        titulo: "Qué problemas resuelve",
+        texto:
+          "Evita calcular cada boleta a mano, perder el rastro de quién pagó, pelear por una lectura mal anotada y depender de una sola persona que sabe cómo funciona la planilla. Todo queda ordenado y a la vista de la directiva.",
+      },
+      {
+        titulo: "Cuándo basta una planilla y cuándo no",
+        texto:
+          "Con pocos socios y una sola persona a cargo, una planilla bien hecha puede alcanzar. Cuando el comité pasa de unas decenas de arranques, hay más de una persona tomando lecturas, o los socios piden saber cuánto deben, la planilla empieza a fallar.",
+        nota: "Si quieres partir con una, en Facilapr tienes una planilla gratis en Excel: facilapr.cl/planilla-cobro-agua-potable-rural.",
+      },
+      {
+        titulo: "Qué debe incluir",
+        texto:
+          "Como mínimo: padrón de socios con importación desde Excel, lecturas desde el celular (también en terreno sin señal), boletas calculadas con tu tarifa, pagos y abonos con comprobante, control de morosidad y cortes, y una cuenta en línea para que cada socio vea su deuda.",
+      },
+      {
+        titulo: "Qué más conviene mirar",
+        texto:
+          "Que ordene las solicitudes de los socios (reclamos, reparaciones, reposiciones), que permita roles distintos para la directiva y los técnicos, y que se pueda dejar sin contrato de permanencia. Tus datos son del comité: pregunta si puedes exportarlos.",
+      },
+      {
+        titulo: "Cuánto cuesta",
+        texto:
+          "Los softwares para APR se cobran como una suscripción mensual, que suele depender del número de socios. En Facilapr el plan Pequeño, hasta 200 socios, cuesta 0,7 UF al mes más IVA, y el Estándar, hasta 800 socios, 1,5 UF al mes más IVA. No hay permanencia mínima.",
+      },
+      {
+        titulo: "Cómo probarlo antes de decidir",
+        texto:
+          "Crea la cuenta, carga unos cuantos socios y registra una lectura y un pago de ejemplo. Si te sirve para tu mes de cobro real, lo mantienes. Si no, lo dejas sin multa. Crear la cuenta de tu comité en Facilapr toma un par de minutos en facilapr.cl/registro.",
+      },
+    ],
+  },
 ];
 
 export function articuloPorSlug(slug: string) {
