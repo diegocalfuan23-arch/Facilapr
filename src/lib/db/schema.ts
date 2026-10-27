@@ -82,6 +82,11 @@ export const aprs = pgTable(
     tarifaMetroCubicoComercial: integer("tarifaMetroCubicoComercial"),
     /** Dónde y cómo pagar, en texto libre: varía mucho entre comités. */
     infoPago: text("infoPago"),
+    /**
+     * Interruptor de la conexión con Mercado Pago (cobro en línea a los socios).
+     * Se prende comité por comité; hasta entonces no se ve nada de esto.
+     */
+    mercadoPagoHabilitado: boolean("mercadoPagoHabilitado").notNull().default(false),
     /** IA dentro del chat (plan Grande): APAGADO · SIEMPRE (· SIN_RESPUESTA, próximamente). */
     iaChatModo: text("iaChatModo").notNull().default("APAGADO"),
     /** Tono y reglas propias del comité para la IA del chat. */
@@ -452,6 +457,25 @@ export const evidenciasOrden = pgTable(
   },
   (table) => [index("EvidenciaOrden_ordenId_idx").on(table.ordenId)]
 );
+
+/**
+ * La cuenta de Mercado Pago que un comité conectó (OAuth). Con estos tokens
+ * Facilapr cobra a nombre del comité: el dinero va a la cuenta del comité, no a
+ * la de Facilapr. Los tokens se guardan cifrados (ver lib/mercadopago-token).
+ */
+export const mercadoPagoConexiones = pgTable("MercadoPagoConexion", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  aprId: text("aprId")
+    .notNull()
+    .unique()
+    .references(() => aprs.id, { onDelete: "cascade" }),
+  mpUserId: text("mpUserId").notNull(),
+  accessToken: text("accessToken").notNull(),
+  refreshToken: text("refreshToken").notNull(),
+  expiraEn: timestamp("expiraEn", { precision: 3 }).notNull(),
+  createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+});
 
 /**
  * Cada pago que un comité hace de su plan de Facilapr (por Flow). Cuando Flow
