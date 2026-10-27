@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Check, Copy, MessageCircle } from "lucide-react";
+import { desconectarMercadoPago } from "@/app/panel/configuracion/mercadopago-actions";
 import { generarLinkPago } from "@/app/panel/pagos/link-pago-actions";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { cn } from "@/lib/utils";
@@ -29,11 +30,13 @@ export function LinkPagoDialog({
   socios,
   boletas,
   comite,
+  modo,
   onCerrar,
 }: {
   socios: OpcionSocio[];
   boletas: BoletaPendiente[];
   comite: DatosComiteWhatsApp;
+  modo: "prueba" | "produccion";
   onCerrar: () => void;
 }) {
   const [socio, setSocio] = useState<OpcionSocio | null>(null);
@@ -77,7 +80,18 @@ export function LinkPagoDialog({
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[460px]">
         <DialogHeader>
-          <DialogTitle>Link de pago</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Link de pago
+            <span
+              className={
+                modo === "produccion"
+                  ? "rounded-full bg-emerald-100 px-2 py-0.5 font-mono text-[0.62rem] font-semibold tracking-wide text-emerald-800 uppercase"
+                  : "rounded-full bg-amber-100 px-2 py-0.5 font-mono text-[0.62rem] font-semibold tracking-wide text-amber-800 uppercase"
+              }
+            >
+              {modo === "produccion" ? "Producción" : "Modo prueba"}
+            </span>
+          </DialogTitle>
           <DialogDescription>
             {link
               ? "Mándaselo al socio. Cuando pague, el pago queda registrado solo."
@@ -150,7 +164,12 @@ export function LinkPagoDialog({
           </p>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="sm:items-center sm:justify-between">
+          <form action={desconectarMercadoPago}>
+            <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground">
+              Desconectar Mercado Pago
+            </Button>
+          </form>
           <Button variant="outline" onClick={onCerrar}>
             {link ? "Cerrar" : "Cancelar"}
           </Button>

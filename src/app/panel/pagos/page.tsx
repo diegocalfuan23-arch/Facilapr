@@ -134,9 +134,10 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
       comite={{ nombre: apr.nombre, slug: apr.slug, infoPago: apr.infoPago }}
       mpConectado={Boolean(conexionMp)}
       mpHabilitado={apr.mercadoPagoHabilitado}
+      mpModo={modoMp()}
       estadoMp={
         apr.mercadoPagoHabilitado ? (
-          <MercadoPagoCard modo={modoMp()} configurado={mpConfigurado()} conexion={conexionMp} aviso={mp} detalle={detalle} />
+          <MercadoPagoCard configurado={mpConfigurado()} aviso={mp} detalle={detalle} />
         ) : null
       }
       pagos={filas.map((f) => ({

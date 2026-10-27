@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { FileDown, Link2, Plus, Search, Wallet } from "lucide-react";
+import { CheckCircle2, FileDown, Link2, Plus, Search, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,7 @@ export function PagosTabla({
   mpConectado = false,
   mpHabilitado = false,
   estadoMp,
+  mpModo = "prueba",
 }: {
   pagos: PagoFila[];
   /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
@@ -89,6 +90,7 @@ export function PagosTabla({
   mpHabilitado?: boolean;
   /** Franja de estado de Mercado Pago (aviso tras conectar, cuenta conectada), bajo el encabezado. */
   estadoMp?: React.ReactNode;
+  mpModo?: "prueba" | "produccion";
 }) {
   const [registrando, setRegistrando] = useState(false);
   const [conLink, setConLink] = useState(false);
@@ -127,8 +129,8 @@ export function PagosTabla({
         </div>
         <div className="flex flex-wrap gap-2">
           {mpConectado ? (
-            <Button variant="outline" onClick={() => setConLink(true)}>
-              <Link2 />
+            <Button variant="outline" onClick={() => setConLink(true)} title="Mercado Pago conectado">
+              <CheckCircle2 className="text-emerald-600" />
               Link de pago
             </Button>
           ) : (
@@ -370,7 +372,7 @@ export function PagosTabla({
       )}
 
       {conLink && (
-        <LinkPagoDialog socios={socios} boletas={boletasPendientes} comite={comite} onCerrar={() => setConLink(false)} />
+        <LinkPagoDialog socios={socios} boletas={boletasPendientes} comite={comite} modo={mpModo} onCerrar={() => setConLink(false)} />
       )}
 
       {registrando && (
