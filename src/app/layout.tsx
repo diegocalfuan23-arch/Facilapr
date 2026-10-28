@@ -73,6 +73,8 @@ export const metadata: Metadata = {
     index: true,
     follow: true,
   },
+  // Verificación del dominio en Meta (necesaria para verificar el negocio).
+  other: { "facebook-domain-verification": "qcxmcz8v7bhk6xu8oss0eqop7pzbs1" },
 };
 
 export default function RootLayout({
