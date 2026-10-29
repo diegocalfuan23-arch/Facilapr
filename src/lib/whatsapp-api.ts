@@ -16,8 +16,11 @@
  *    si falta, se usa "boleta_disponible".
  */
 
+/** Las variables se leen sin espacios: un espacio al pegar el valor en Vercel hace que Meta responda que el objeto no existe. */
+const variable = (nombre: string) => process.env[nombre]?.trim() ?? "";
+
 export const whatsappConfigurado = () =>
-  Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+  Boolean(variable("WHATSAPP_TOKEN") && variable("WHATSAPP_PHONE_NUMBER_ID"));
 
 /** ¿El panel debe enviar por la API? Credenciales listas y el interruptor prendido. */
 export const envioAutomaticoActivo = () =>
@@ -50,10 +53,10 @@ export async function enviarPlantilla(
   const para = telefonoParaWhatsapp(telefono);
   if (!para) return { ok: false, error: "El teléfono no es un celular chileno válido." };
 
-  const version = process.env.WHATSAPP_API_VERSION ?? "v21.0";
-  const respuesta = await fetch(`https://graph.facebook.com/${version}/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+  const version = variable("WHATSAPP_API_VERSION") || "v21.0";
+  const respuesta = await fetch(`https://graph.facebook.com/${version}/${variable("WHATSAPP_PHONE_NUMBER_ID")}/messages`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${variable("WHATSAPP_TOKEN")}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       messaging_product: "whatsapp",
       to: para,
