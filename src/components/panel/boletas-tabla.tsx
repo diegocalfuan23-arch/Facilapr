@@ -472,7 +472,8 @@ export function BoletasTabla({
             variant="outline"
             data-tour="bol-whatsapp"
             onClick={() => setParaEnviar(filtradas.filter(cobrable))}
-            disabled={boletas.length === 0}
+            disabled={!filtradas.some(cobrable)}
+            title={filtradas.some(cobrable) ? undefined : "No hay boletas por cobrar en este filtro"}
           >
             <MessageCircle />
             Enviar por WhatsApp
@@ -1117,6 +1118,7 @@ function EnviarWhatsAppDialog({
   onEnviarTodas: (lista: BoletaFila[]) => void;
 }) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
+  const [editarMensaje, setEditarMensaje] = useState(false);
 
   const conTelefono = boletas.filter((b) =>
     telefonoValidoParaWhatsApp(b.socioTelefono)
@@ -1155,80 +1157,13 @@ function EnviarWhatsAppDialog({
                 : "Cada socio recibe su mensaje de WhatsApp, con su recibo en PDF y un botón para pagar."
               : unica
                 ? `Recibo de ${unica.socioNombre}. Se envía con un enlace al PDF.`
-                : "Edita el mensaje una vez y se usa para todos. Cada socio recibe el suyo con su recibo en PDF."}
+                : "Cada socio recibe su mensaje con su recibo en PDF. Si quieres, puedes editar el texto antes de enviar."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {automatico && ejemplo && (
-            <div className="flex min-w-0 flex-col gap-2">
-              <p className="text-[0.85rem] font-medium">
-                Así lo recibirá {ejemplo.socioNombre.split(" ")[0]}
-              </p>
-              <div className="rounded-xl bg-[#efeae2] p-3">
-                <div className="ml-auto max-w-full rounded-lg rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[0.84rem] leading-relaxed break-words whitespace-pre-wrap text-neutral-900 shadow-sm">
-                  {`Hola ${ejemplo.socioNombre.split(" ")[0]}, te escribe ${comite.nombre}. Tu boleta de agua de ${formatearPeriodo(ejemplo.periodo)} ya está disponible por un total de ${clp.format(saldo(ejemplo.montoTotal, ejemplo.montoPagado))}, con vencimiento el ${diaMes.format(ejemplo.fechaVencimiento)}. Descarga tu recibo en PDF aquí: ${ejemplo.reciboUrl}\n\nGracias por tu pago.`}
-                </div>
-                <div className="mt-1 ml-auto max-w-full rounded-lg bg-white px-3 py-2 text-center text-[0.84rem] font-medium text-sky-700 shadow-sm">
-                  Ver y pagar mi cuenta
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className={cn("grid min-w-0 gap-5 md:grid-cols-2", automatico && "hidden")}>
-            <div className="flex min-w-0 flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <Label htmlFor="mensaje-wa">Mensaje</Label>
-                {plantilla !== PLANTILLA_POR_DEFECTO && (
-                  <button
-                    type="button"
-                    onClick={() => onPlantilla(PLANTILLA_POR_DEFECTO)}
-                    className="text-[0.8rem] text-primary hover:underline"
-                  >
-                    Restablecer mensaje
-                  </button>
-                )}
-              </div>
-              <Textarea
-                id="mensaje-wa"
-                ref={areaRef}
-                rows={12}
-                value={plantilla}
-                onChange={(e) => onPlantilla(e.target.value)}
-                className="text-[0.85rem] leading-relaxed"
-              />
-              <div className="flex flex-wrap gap-1.5">
-                {VARIABLES_PLANTILLA.map((v) => (
-                  <button
-                    key={v.nombre}
-                    type="button"
-                    title={v.ayuda}
-                    onClick={() => insertar(v.nombre)}
-                    className="rounded-full border border-border bg-muted/50 px-2 py-0.5 font-mono text-[0.72rem] text-muted-foreground hover:bg-muted"
-                  >
-                    {`{${v.nombre}}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {ejemplo && (
-              <div className="flex min-w-0 flex-col gap-2">
-                <p className="text-[0.85rem] font-medium">
-                  Así lo recibirá {ejemplo.socioNombre.split(" ")[0]}
-                </p>
-                <div className="rounded-xl bg-[#efeae2] p-3">
-                  <div className="ml-auto max-w-full rounded-lg rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[0.84rem] leading-relaxed break-words whitespace-pre-wrap text-neutral-900 shadow-sm">
-                    {mensajeBoleta(comite, ejemplo, plantilla)}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-
           {!unica && conTelefono.length > 0 && (
-            <div className="mt-5 flex flex-col gap-2">
+            <div className="flex flex-col gap-2">
               <p className="text-[0.85rem] text-muted-foreground">
                 <span className="font-medium tabular-nums text-foreground">
                   {porEnviar}
@@ -1274,7 +1209,7 @@ function EnviarWhatsAppDialog({
           )}
 
           {boletas.length > 0 && conTelefono.length === 0 && (
-            <p className="mt-5 rounded-lg border border-dashed border-border px-4 py-6 text-center text-[0.9rem] text-muted-foreground">
+            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-[0.9rem] text-muted-foreground">
               {unica
                 ? "Este socio no tiene un teléfono válido. Agrégalo en Socios para poder enviarle el recibo."
                 : "No hay boletas por cobrar con teléfono en este filtro."}
@@ -1288,6 +1223,75 @@ function EnviarWhatsAppDialog({
               teléfono válido y no aparece{sinTelefono === 1 ? "" : "n"} en la
               lista.
             </p>
+          )}
+
+          {ejemplo && conTelefono.length > 0 && (
+            <div className="mt-5 flex min-w-0 flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[0.85rem] font-medium">
+                  Así lo recibirá {ejemplo.socioNombre.split(" ")[0]}
+                </p>
+                {!automatico && (
+                  <button
+                    type="button"
+                    onClick={() => setEditarMensaje((v) => !v)}
+                    className="text-[0.8rem] text-primary hover:underline"
+                  >
+                    {editarMensaje ? "Ocultar editor" : "Editar mensaje"}
+                  </button>
+                )}
+              </div>
+              <div className="rounded-xl bg-[#efeae2] p-3">
+                <div className="ml-auto max-w-full rounded-lg rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[0.84rem] leading-relaxed break-words whitespace-pre-wrap text-neutral-900 shadow-sm">
+                  {automatico
+                    ? `Hola ${ejemplo.socioNombre.split(" ")[0]}, te escribe ${comite.nombre}. Tu boleta de agua de ${formatearPeriodo(ejemplo.periodo)} ya está disponible por un total de ${clp.format(saldo(ejemplo.montoTotal, ejemplo.montoPagado))}, con vencimiento el ${diaMes.format(ejemplo.fechaVencimiento)}. Descarga tu recibo en PDF aquí: ${ejemplo.reciboUrl}\n\nGracias por tu pago.`
+                    : mensajeBoleta(comite, ejemplo, plantilla)}
+                </div>
+                {automatico && (
+                  <div className="mt-1 ml-auto max-w-full rounded-lg bg-white px-3 py-2 text-center text-[0.84rem] font-medium text-sky-700 shadow-sm">
+                    Ver y pagar mi cuenta
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!automatico && editarMensaje && conTelefono.length > 0 && (
+            <div className="mt-4 flex min-w-0 flex-col gap-2">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="mensaje-wa">Mensaje</Label>
+                {plantilla !== PLANTILLA_POR_DEFECTO && (
+                  <button
+                    type="button"
+                    onClick={() => onPlantilla(PLANTILLA_POR_DEFECTO)}
+                    className="text-[0.8rem] text-primary hover:underline"
+                  >
+                    Restablecer mensaje
+                  </button>
+                )}
+              </div>
+              <Textarea
+                id="mensaje-wa"
+                ref={areaRef}
+                rows={12}
+                value={plantilla}
+                onChange={(e) => onPlantilla(e.target.value)}
+                className="text-[0.85rem] leading-relaxed"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {VARIABLES_PLANTILLA.map((v) => (
+                  <button
+                    key={v.nombre}
+                    type="button"
+                    title={v.ayuda}
+                    onClick={() => insertar(v.nombre)}
+                    className="rounded-full border border-border bg-muted/50 px-2 py-0.5 font-mono text-[0.72rem] text-muted-foreground hover:bg-muted"
+                  >
+                    {`{${v.nombre}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </div>
 
