@@ -33,10 +33,34 @@ function firmaValida(cuerpo: string, firma: string | null) {
   return recibida.length === esperada.length && timingSafeEqual(recibida, esperada);
 }
 
+/**
+ * Deja en el registro del servidor cómo va cada mensaje enviado (sent, delivered,
+ * read, failed) y el motivo si falló, sin guardar el teléfono. Es solo para
+ * diagnosticar; el registro en la base viene después.
+ */
+function registrarEstados(cuerpo: string) {
+  try {
+    const datos = JSON.parse(cuerpo) as {
+      entry?: { changes?: { value?: { statuses?: { id?: string; status?: string; errors?: { code?: number; title?: string }[] }[] } }[] }[];
+    };
+    for (const entrada of datos.entry ?? []) {
+      for (const cambio of entrada.changes ?? []) {
+        for (const e of cambio.value?.statuses ?? []) {
+          const motivo = e.errors?.map((x) => `${x.code} ${x.title}`).join("; ");
+          console.info(`WhatsApp estado ${e.status}: ${e.id}${motivo ? ` (${motivo})` : ""}`);
+        }
+      }
+    }
+  } catch {
+    // Un aviso que no se puede leer no debe hacer fallar la respuesta a Meta.
+  }
+}
+
 export async function POST(req: Request) {
   const cuerpo = await req.text();
   if (!firmaValida(cuerpo, req.headers.get("x-hub-signature-256"))) {
     return new Response("firma inválida", { status: 401 });
   }
+  registrarEstados(cuerpo);
   return new Response("ok");
 }

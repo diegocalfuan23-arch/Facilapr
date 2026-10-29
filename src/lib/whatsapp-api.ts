@@ -81,11 +81,16 @@ export async function enviarPlantilla(
   });
 
   const datos = (await respuesta.json().catch(() => null)) as {
-    messages?: { id: string }[];
+    messages?: { id: string; message_status?: string }[];
+    contacts?: { wa_id?: string }[];
     error?: { message?: string };
   } | null;
   if (!respuesta.ok || !datos?.messages?.[0]) {
     return { ok: false, error: datos?.error?.message ?? `WhatsApp respondió ${respuesta.status}.` };
   }
+  // Para rastrear una entrega que no llegó: a qué número salió (solo las últimas 4 cifras) y con qué estado.
+  console.info(
+    `WhatsApp aceptó ${plantilla}: ${datos.messages[0].id} → …${datos.contacts?.[0]?.wa_id?.slice(-4) ?? "?"} (${datos.messages[0].message_status ?? "sin estado"})`,
+  );
   return { ok: true, id: datos.messages[0].id };
 }
