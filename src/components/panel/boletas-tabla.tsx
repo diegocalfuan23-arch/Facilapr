@@ -80,6 +80,7 @@ import {
   textoBoletaApi,
   VARIABLES_PLANTILLA,
   type DatosComiteWhatsApp,
+  type PlantillaBoleta,
 } from "@/lib/whatsapp";
 
 type Estado = "PENDIENTE" | "PAGADA" | "VENCIDA" | "ANULADA";
@@ -221,6 +222,7 @@ export function BoletasTabla({
   tarifasComercial,
   comite,
   envioAutomatico,
+  plantillaBoleta,
 }: {
   boletas: BoletaFila[];
   socios: SocioOpcion[];
@@ -230,6 +232,8 @@ export function BoletasTabla({
   comite: DatosComiteWhatsApp;
   /** Si es true, "Enviar por WhatsApp" manda el mensaje por la API en vez de abrir wa.me. */
   envioAutomatico: boolean;
+  /** Plantilla de Meta que usa el envío automático: de ella depende el texto de la vista previa. */
+  plantillaBoleta: PlantillaBoleta;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<"todas" | Estado>("todas");
@@ -847,6 +851,7 @@ export function BoletasTabla({
         plantilla={plantilla}
         onPlantilla={cambiarPlantilla}
         automatico={envioAutomatico}
+        plantillaBoleta={plantillaBoleta}
         enviando={enviando}
         onEnviarTodas={enviarTodas}
       />
@@ -1096,6 +1101,7 @@ function EnviarWhatsAppDialog({
   plantilla,
   onPlantilla,
   automatico,
+  plantillaBoleta,
   enviando,
   onEnviarTodas,
 }: {
@@ -1109,6 +1115,7 @@ function EnviarWhatsAppDialog({
   onPlantilla: (texto: string) => void;
   /** Envío por la API: el mensaje es fijo (plantilla aprobada por Meta), no se edita. */
   automatico: boolean;
+  plantillaBoleta: PlantillaBoleta;
   enviando: Set<string>;
   onEnviarTodas: (lista: BoletaFila[]) => void;
 }) {
@@ -1239,7 +1246,7 @@ function EnviarWhatsAppDialog({
               <div className="rounded-xl bg-[#efeae2] p-3">
                 <div className="ml-auto max-w-full rounded-lg rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[0.84rem] leading-relaxed break-words whitespace-pre-wrap text-neutral-900 shadow-sm">
                   {automatico
-                    ? textoBoletaApi(comite, ejemplo)
+                    ? textoBoletaApi(comite, ejemplo, plantillaBoleta)
                     : mensajeBoleta(comite, ejemplo, plantilla)}
                 </div>
                 {automatico && (

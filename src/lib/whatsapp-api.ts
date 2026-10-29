@@ -10,6 +10,10 @@
  *  - WHATSAPP_API_VERSION: versión de la API de Graph (por defecto "v21.0").
  *  - WHATSAPP_ENVIO_AUTOMATICO: "1" para que el panel envíe por la API en vez de abrir wa.me.
  *    Se prende solo cuando las plantillas ya están aprobadas.
+ *  - WHATSAPP_IDIOMA: código de idioma de las plantillas (por defecto "es_CL", el "Spanish (CHL)" de Meta).
+ *    Tiene que coincidir exacto con el de la plantilla o Meta responde "plantilla no encontrada".
+ *  - WHATSAPP_PLANTILLA_BOLETA: "boleta_disponible_v2" para usar la versión con consumo y cómo pagar;
+ *    si falta, se usa "boleta_disponible".
  */
 
 export const whatsappConfigurado = () =>
@@ -37,7 +41,7 @@ export async function enviarPlantilla(
   telefono: string,
   plantilla: string,
   {
-    idioma = "es",
+    idioma = process.env.WHATSAPP_IDIOMA ?? "es_CL",
     parametros = [],
     sufijoBoton,
   }: { idioma?: string; parametros?: string[]; sufijoBoton?: string } = {},

@@ -138,26 +138,39 @@ export function mensajeBoleta(
 }
 
 /**
- * Plantilla aprobada por Meta del envío automático de la boleta. Su cuerpo,
- * con {{1}}…{{8}}, es el de `textoBoletaApi`; lleva además un botón de pago
- * cuya dirección es https://facilapr.cl/pagar/{{1}}.
+ * Plantillas aprobadas por Meta del envío automático de la boleta. Las dos
+ * llevan además un botón de pago cuya dirección es https://facilapr.cl/pagar/{{1}}.
+ *  - `boleta_disponible`: {{1}}…{{6}}, sin consumo ni cómo pagar.
+ *  - `boleta_disponible_v2`: {{1}}…{{8}}, con consumo y cómo pagar.
  */
-export const PLANTILLA_BOLETA_API = "boleta_disponible_v2";
+export type PlantillaBoleta = "boleta_disponible" | "boleta_disponible_v2";
+
+/** Cuál se usa lo decide WHATSAPP_PLANTILLA_BOLETA (solo en el servidor). */
+export const plantillaBoletaApi = (): PlantillaBoleta =>
+  process.env.WHATSAPP_PLANTILLA_BOLETA === "boleta_disponible_v2" ? "boleta_disponible_v2" : "boleta_disponible";
 
 /** Meta no acepta variables vacías ni con saltos de línea o espacios repetidos. */
 function paraVariable(texto: string, respaldo: string) {
   return texto.replace(/\s+/g, " ").trim().slice(0, 300) || respaldo;
 }
 
-/** Los valores de {{1}}…{{8}} de la plantilla de la boleta, en ese orden. */
-export function parametrosBoletaApi(comite: DatosComiteWhatsApp, boleta: DatosBoletaWhatsApp) {
+/** Los valores de {{1}}, {{2}}… de la plantilla de la boleta, en ese orden. */
+export function parametrosBoletaApi(
+  comite: DatosComiteWhatsApp,
+  boleta: DatosBoletaWhatsApp,
+  plantilla: PlantillaBoleta
+) {
   const v = valoresDe(comite, boleta);
+  const total = clp.format(saldo(boleta.montoTotal, boleta.montoPagado));
+  if (plantilla === "boleta_disponible") {
+    return [v.nombre, v.comite, v.periodo, total, v.vence, v.recibo];
+  }
   return [
     v.nombre,
     v.comite,
     v.periodo,
     paraVariable(v.consumo, "Sin lectura"),
-    clp.format(saldo(boleta.montoTotal, boleta.montoPagado)),
+    total,
     v.vence,
     v.recibo,
     paraVariable(v.como_pagar, "Consulta en la oficina del comité"),
@@ -165,19 +178,25 @@ export function parametrosBoletaApi(comite: DatosComiteWhatsApp, boleta: DatosBo
 }
 
 /** El texto de la plantilla ya relleno: lo que recibe el socio y lo que muestra la vista previa. */
-export function textoBoletaApi(comite: DatosComiteWhatsApp, boleta: DatosBoletaWhatsApp) {
-  const [nombre, nombreComite, periodo, consumo, total, vence, recibo, comoPagar] =
-    parametrosBoletaApi(comite, boleta);
+export function textoBoletaApi(
+  comite: DatosComiteWhatsApp,
+  boleta: DatosBoletaWhatsApp,
+  plantilla: PlantillaBoleta
+) {
+  const p = parametrosBoletaApi(comite, boleta, plantilla);
+  if (plantilla === "boleta_disponible") {
+    return `Hola ${p[0]}, te escribe ${p[1]}. Tu boleta de agua de ${p[2]} ya está disponible por un total de ${p[3]}, con vencimiento el ${p[4]}. Descarga tu recibo en PDF aquí: ${p[5]}\n\nGracias por tu pago.`;
+  }
   return [
-    `Hola ${nombre}, te escribe ${nombreComite}. Tu boleta de agua de ${periodo} ya está disponible:`,
+    `Hola ${p[0]}, te escribe ${p[1]}. Tu boleta de agua de ${p[2]} ya está disponible:`,
     "",
-    `Consumo: ${consumo}`,
-    `Total a pagar: ${total}`,
-    `Vence el ${vence}`,
+    `Consumo: ${p[3]}`,
+    `Total a pagar: ${p[4]}`,
+    `Vence el ${p[5]}`,
     "",
-    `Descarga tu recibo en PDF: ${recibo}`,
+    `Descarga tu recibo en PDF: ${p[6]}`,
     "",
-    `Cómo pagar: ${comoPagar}`,
+    `Cómo pagar: ${p[7]}`,
     "",
     "Gracias por tu pago.",
   ].join("\n");

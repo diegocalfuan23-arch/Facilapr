@@ -7,6 +7,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { BoletasTabla } from "@/components/panel/boletas-tabla";
 import { urlRecibo } from "@/lib/recibo-enlace";
 import { envioAutomaticoActivo } from "@/lib/whatsapp-api";
+import { plantillaBoletaApi } from "@/lib/whatsapp";
 
 export const metadata: Metadata = {
   title: "Boletas",
@@ -67,6 +68,7 @@ export default async function BoletasPage() {
         infoPago: apr.infoPago,
       }}
       envioAutomatico={envioAutomaticoActivo()}
+      plantillaBoleta={plantillaBoletaApi()}
     />
   );
 }
