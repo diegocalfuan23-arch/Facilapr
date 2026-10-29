@@ -108,7 +108,10 @@ export function SocioBuscador({
             setTexto(e.target.value);
             setAbierto(true);
           }}
-          onFocus={() => setAbierto(true)}
+          // No con onFocus: al abrir un diálogo el navegador enfoca este campo solo
+          // y la lista saldría desplegada antes de que la persona haga nada.
+          onClick={() => setAbierto(true)}
+          onKeyDown={(e) => e.key === "ArrowDown" && setAbierto(true)}
           // Con retraso, para que el toque en un resultado llegue antes de cerrar.
           onBlur={() => setTimeout(() => setAbierto(false), 150)}
           placeholder="Busca por nombre, RUT o N.º…"
