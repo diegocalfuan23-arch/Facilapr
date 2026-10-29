@@ -6,6 +6,8 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { boletas, pagos, repactaciones, socios } from "@/lib/db/schema";
 import { urlComprobante } from "@/lib/comprobante-enlace";
+import { codigoRecibo, urlRecibo } from "@/lib/recibo-enlace";
+import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { requireAdmin } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
@@ -14,7 +16,9 @@ import {
   calcularDesdeLecturas,
   tarifasPara,
   estadoQueCorresponde,
+  formatearPeriodo,
   normalizarPeriodo,
+  saldo,
   type EstadoBoleta,
 } from "@/lib/boletas";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
@@ -555,6 +559,57 @@ export async function eliminarBoleta(
 
   revalidatePath("/panel/boletas");
   revalidatePath("/panel");
+  return { ok: true };
+}
+
+const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const diaMes = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", timeZone: "UTC" });
+
+/**
+ * Manda la boleta al socio como mensaje de WhatsApp por la API (plantilla
+ * `boleta_disponible`, con el recibo en PDF y el botón para pagar). El comité y
+ * el teléfono salen de la base, nunca del cliente: solo se recibe el id.
+ */
+export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<ResultadoAccion> {
+  const { apr } = await requireAdmin();
+  if (!envioAutomaticoActivo()) return { ok: false, error: "El envío automático no está activado." };
+
+  const [b] = await db
+    .select({
+      id: boletas.id,
+      socioNombre: socios.nombre,
+      telefono: socios.telefono,
+      periodo: boletas.periodo,
+      montoTotal: boletas.montoTotal,
+      montoPagado: boletas.montoPagado,
+      estado: boletas.estado,
+      fechaVencimiento: boletas.fechaVencimiento,
+    })
+    .from(boletas)
+    .innerJoin(socios, eq(boletas.socioId, socios.id))
+    .where(and(eq(boletas.id, boletaId), eq(socios.aprId, apr.id)))
+    .limit(1);
+
+  if (!b) return { ok: false, error: "No encontramos esa boleta." };
+  if (b.estado === "ANULADA") return { ok: false, error: "Esa boleta está anulada." };
+  if (!b.telefono) return { ok: false, error: "El socio no tiene teléfono." };
+
+  const r = await enviarPlantilla(b.telefono, "boleta_disponible", {
+    parametros: [
+      b.socioNombre.trim().split(/\s+/)[0] ?? "",
+      apr.nombre,
+      formatearPeriodo(b.periodo),
+      clp.format(saldo(b.montoTotal, b.montoPagado)),
+      diaMes.format(b.fechaVencimiento),
+      urlRecibo(b.id),
+    ],
+    sufijoBoton: codigoRecibo(b.id),
+  });
+  if (!r.ok) {
+    // El detalle va al registro del servidor; a la directiva, un aviso que pueda entender.
+    console.error("WhatsApp boleta:", r.error);
+    return { ok: false, error: "WhatsApp no pudo enviar el mensaje. Prueba de nuevo o usa el envío manual." };
+  }
   return { ok: true };
 }
 

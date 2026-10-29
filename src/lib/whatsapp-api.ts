@@ -8,10 +8,16 @@
  *  - WHATSAPP_PHONE_NUMBER_ID: ID del número que envía.
  *  - WHATSAPP_WABA_ID: ID de la cuenta de WhatsApp Business.
  *  - WHATSAPP_API_VERSION: versión de la API de Graph (por defecto "v21.0").
+ *  - WHATSAPP_ENVIO_AUTOMATICO: "1" para que el panel envíe por la API en vez de abrir wa.me.
+ *    Se prende solo cuando las plantillas ya están aprobadas.
  */
 
 export const whatsappConfigurado = () =>
   Boolean(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID);
+
+/** ¿El panel debe enviar por la API? Credenciales listas y el interruptor prendido. */
+export const envioAutomaticoActivo = () =>
+  whatsappConfigurado() && process.env.WHATSAPP_ENVIO_AUTOMATICO === "1";
 
 /** Deja un celular chileno como Meta lo pide: solo dígitos y con el 56 delante. */
 export function telefonoParaWhatsapp(telefono: string) {
@@ -23,11 +29,18 @@ export function telefonoParaWhatsapp(telefono: string) {
 
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 
-/** Envía una plantilla aprobada. `parametros` son los valores de {{1}}, {{2}}… del cuerpo. */
+/**
+ * Envía una plantilla aprobada. `parametros` son los valores de {{1}}, {{2}}… del cuerpo;
+ * `sufijoBoton` es lo que va al final de la dirección del botón dinámico (si la plantilla lo tiene).
+ */
 export async function enviarPlantilla(
   telefono: string,
   plantilla: string,
-  { idioma = "es", parametros = [] }: { idioma?: string; parametros?: string[] } = {},
+  {
+    idioma = "es",
+    parametros = [],
+    sufijoBoton,
+  }: { idioma?: string; parametros?: string[]; sufijoBoton?: string } = {},
 ): Promise<Resultado> {
   if (!whatsappConfigurado()) return { ok: false, error: "WhatsApp no está configurado." };
   const para = telefonoParaWhatsapp(telefono);
@@ -44,8 +57,17 @@ export async function enviarPlantilla(
       template: {
         name: plantilla,
         language: { code: idioma },
-        ...(parametros.length
-          ? { components: [{ type: "body", parameters: parametros.map((text) => ({ type: "text", text })) }] }
+        ...(parametros.length || sufijoBoton
+          ? {
+              components: [
+                ...(parametros.length
+                  ? [{ type: "body", parameters: parametros.map((text) => ({ type: "text", text })) }]
+                  : []),
+                ...(sufijoBoton
+                  ? [{ type: "button", sub_type: "url", index: "0", parameters: [{ type: "text", text: sufijoBoton }] }]
+                  : []),
+              ],
+            }
           : {}),
       },
     }),

@@ -34,6 +34,7 @@ import {
   anularBoleta,
   eliminarBoleta,
   guardarBoleta,
+  enviarBoletaPorWhatsApp,
   importarBoletas,
   type ResultadoAccion,
   type ResultadoImportacion,
@@ -154,6 +155,13 @@ const fecha = new Intl.DateTimeFormat("es-CL", {
   year: "numeric",
 });
 
+/** "10 de noviembre": como lo escribe el mensaje de WhatsApp. */
+const diaMes = new Intl.DateTimeFormat("es-CL", {
+  day: "numeric",
+  month: "long",
+  timeZone: "UTC",
+});
+
 const ESTILO_ESTADO: Record<
   Estado,
   { texto: string; clase: string; icono: typeof CheckCircle2 }
@@ -217,6 +225,7 @@ export function BoletasTabla({
   tarifas,
   tarifasComercial,
   comite,
+  envioAutomatico,
 }: {
   boletas: BoletaFila[];
   socios: SocioOpcion[];
@@ -224,6 +233,8 @@ export function BoletasTabla({
   /** Tarifa de los arranques comerciales, si el comité la definió. */
   tarifasComercial: { cargoFijo: number; valorM3: number } | null;
   comite: DatosComiteWhatsApp;
+  /** Si es true, "Enviar por WhatsApp" manda el mensaje por la API en vez de abrir wa.me. */
+  envioAutomatico: boolean;
 }) {
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<"todas" | Estado>("todas");
@@ -250,15 +261,12 @@ export function BoletasTabla({
   }
   const [pendiente, iniciar] = useTransition();
 
-  function enviarPorWhatsApp(b: BoletaFila) {
-    if (!b.socioTelefono) return;
-    window.open(
-      enlaceWhatsApp(b.socioTelefono, mensajeBoleta(comite, b, plantilla)),
-      "_blank",
-      "noopener"
-    );
+  // Boletas cuyo mensaje se está mandando por la API en este momento.
+  const [enviando, setEnviando] = useState<Set<string>>(new Set());
+
+  function marcarEnviada(id: string) {
     setEnviadas((prev) => {
-      const sig = new Set(prev).add(b.id);
+      const sig = new Set(prev).add(id);
       try {
         localStorage.setItem(CLAVE_ENVIADAS, JSON.stringify([...sig]));
       } catch {
@@ -266,6 +274,52 @@ export function BoletasTabla({
       }
       return sig;
     });
+  }
+
+  /** Manda la boleta como mensaje por la API. Devuelve si salió; `avisar` apaga el aviso individual en los envíos en lote. */
+  async function enviarPorApi(b: BoletaFila, avisar = true) {
+    setEnviando((prev) => new Set(prev).add(b.id));
+    const r = await enviarBoletaPorWhatsApp(b.id).catch(
+      () => ({ ok: false, error: "No pudimos enviar el mensaje. Vuelve a intentarlo." }) as const
+    );
+    setEnviando((prev) => {
+      const sig = new Set(prev);
+      sig.delete(b.id);
+      return sig;
+    });
+    if (r.ok) {
+      marcarEnviada(b.id);
+      if (avisar) toast.success(`Enviada a ${b.socioNombre.split(" ")[0]}`);
+    } else if (avisar) {
+      toast.error(r.error);
+    }
+    return r.ok;
+  }
+
+  /** De a una, para no saturar a WhatsApp ni a la base. */
+  async function enviarTodas(lista: BoletaFila[]) {
+    const pendientes = lista.filter(
+      (b) => telefonoValidoParaWhatsApp(b.socioTelefono) && !enviadas.has(b.id)
+    );
+    let salieron = 0;
+    for (const b of pendientes) if (await enviarPorApi(b, false)) salieron++;
+    const fallaron = pendientes.length - salieron;
+    if (fallaron === 0) toast.success(`${salieron} boletas enviadas`);
+    else toast.error(`${salieron} enviadas y ${fallaron} no salieron. Revisa y reintenta esas.`);
+  }
+
+  function enviarPorWhatsApp(b: BoletaFila) {
+    if (!b.socioTelefono) return;
+    if (envioAutomatico) {
+      void enviarPorApi(b);
+      return;
+    }
+    window.open(
+      enlaceWhatsApp(b.socioTelefono, mensajeBoleta(comite, b, plantilla)),
+      "_blank",
+      "noopener"
+    );
+    marcarEnviada(b.id);
   }
 
   const periodos = useMemo(
@@ -796,6 +850,9 @@ export function BoletasTabla({
         comite={comite}
         plantilla={plantilla}
         onPlantilla={cambiarPlantilla}
+        automatico={envioAutomatico}
+        enviando={enviando}
+        onEnviarTodas={enviarTodas}
       />
 
       <Dialog
@@ -1042,6 +1099,9 @@ function EnviarWhatsAppDialog({
   comite,
   plantilla,
   onPlantilla,
+  automatico,
+  enviando,
+  onEnviarTodas,
 }: {
   abierto: boolean;
   onAbiertoChange: (v: boolean) => void;
@@ -1051,6 +1111,10 @@ function EnviarWhatsAppDialog({
   comite: DatosComiteWhatsApp;
   plantilla: string;
   onPlantilla: (texto: string) => void;
+  /** Envío por la API: el mensaje es fijo (plantilla aprobada por Meta), no se edita. */
+  automatico: boolean;
+  enviando: Set<string>;
+  onEnviarTodas: (lista: BoletaFila[]) => void;
 }) {
   const areaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -1085,14 +1149,34 @@ function EnviarWhatsAppDialog({
         <DialogHeader className="shrink-0 border-b border-border/60 px-5 py-4 pr-12">
           <DialogTitle>Enviar por WhatsApp</DialogTitle>
           <DialogDescription>
-            {unica
-              ? `Recibo de ${unica.socioNombre}. Se envía con un enlace al PDF.`
-              : "Edita el mensaje una vez y se usa para todos. Cada socio recibe el suyo con su recibo en PDF."}
+            {automatico
+              ? unica
+                ? `Boleta de ${unica.socioNombre}. Le llega como mensaje de WhatsApp, con su recibo en PDF y un botón para pagar.`
+                : "Cada socio recibe su mensaje de WhatsApp, con su recibo en PDF y un botón para pagar."
+              : unica
+                ? `Recibo de ${unica.socioNombre}. Se envía con un enlace al PDF.`
+                : "Edita el mensaje una vez y se usa para todos. Cada socio recibe el suyo con su recibo en PDF."}
           </DialogDescription>
         </DialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          <div className="grid min-w-0 gap-5 md:grid-cols-2">
+          {automatico && ejemplo && (
+            <div className="flex min-w-0 flex-col gap-2">
+              <p className="text-[0.85rem] font-medium">
+                Así lo recibirá {ejemplo.socioNombre.split(" ")[0]}
+              </p>
+              <div className="rounded-xl bg-[#efeae2] p-3">
+                <div className="ml-auto max-w-full rounded-lg rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[0.84rem] leading-relaxed break-words whitespace-pre-wrap text-neutral-900 shadow-sm">
+                  {`Hola ${ejemplo.socioNombre.split(" ")[0]}, te escribe ${comite.nombre}. Tu boleta de agua de ${formatearPeriodo(ejemplo.periodo)} ya está disponible por un total de ${clp.format(saldo(ejemplo.montoTotal, ejemplo.montoPagado))}, con vencimiento el ${diaMes.format(ejemplo.fechaVencimiento)}. Descarga tu recibo en PDF aquí: ${ejemplo.reciboUrl}\n\nGracias por tu pago.`}
+                </div>
+                <div className="mt-1 ml-auto max-w-full rounded-lg bg-white px-3 py-2 text-center text-[0.84rem] font-medium text-sky-700 shadow-sm">
+                  Ver y pagar mi cuenta
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className={cn("grid min-w-0 gap-5 md:grid-cols-2", automatico && "hidden")}>
             <div className="flex min-w-0 flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="mensaje-wa">Mensaje</Label>
@@ -1170,9 +1254,16 @@ function EnviarWhatsAppDialog({
                       <Button
                         size="sm"
                         variant={yaEnviada ? "outline" : "default"}
+                        disabled={enviando.has(b.id)}
                         onClick={() => onEnviar(b)}
                       >
-                        {yaEnviada ? <Check /> : <MessageCircle />}
+                        {enviando.has(b.id) ? (
+                          <Loader2 className="animate-spin" />
+                        ) : yaEnviada ? (
+                          <Check />
+                        ) : (
+                          <MessageCircle />
+                        )}
                         {yaEnviada ? "Reenviar" : "Enviar"}
                       </Button>
                     </div>
@@ -1204,9 +1295,18 @@ function EnviarWhatsAppDialog({
           <Button variant="outline" onClick={() => onAbiertoChange(false)}>
             Cerrar
           </Button>
+          {automatico && !unica && porEnviar > 0 && (
+            <Button
+              disabled={enviando.size > 0}
+              onClick={() => onEnviarTodas(conTelefono)}
+            >
+              {enviando.size > 0 ? <Loader2 className="animate-spin" /> : <MessageCircle />}
+              Enviar las {porEnviar} pendientes
+            </Button>
+          )}
           {unica && conTelefono.length === 1 && (
-            <Button onClick={() => onEnviar(unica)}>
-              <MessageCircle />
+            <Button disabled={enviando.has(unica.id)} onClick={() => onEnviar(unica)}>
+              {enviando.has(unica.id) ? <Loader2 className="animate-spin" /> : <MessageCircle />}
               Enviar por WhatsApp
             </Button>
           )}

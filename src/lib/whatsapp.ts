@@ -1,12 +1,12 @@
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 
 /**
- * Envío de boletas por WhatsApp SIN la API de Meta: armamos un link wa.me con
- * el mensaje ya escrito y la directiva solo toca "enviar" en WhatsApp. Es a
- * propósito: la API oficial exige verificación del negocio y plantillas
- * aprobadas, y el producto ya descartó ese trámite (ver facilapr-sin-whatsapp).
- * Si algún día los toques pesan, el reemplazo es enviar desde un worker; la
- * plantilla y `mensajeBoleta` se reutilizan tal cual.
+ * Mensajes por WhatsApp con link wa.me: armamos el mensaje ya escrito y la
+ * directiva solo toca "enviar" en WhatsApp. Es el envío manual, que sigue
+ * sirviendo a los comités sin envío automático.
+ *
+ * El envío automático por la API oficial (plantillas aprobadas por Meta) vive
+ * en `whatsapp-api.ts`; el panel de boletas lo usa cuando está activado.
  *
  * El texto es una plantilla editable con variables entre llaves.
  */
