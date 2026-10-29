@@ -29,6 +29,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/panel/",
         "/api/",
+        "/pagar/",
         "/login",
         "/register",
         "/superadmin-login",
