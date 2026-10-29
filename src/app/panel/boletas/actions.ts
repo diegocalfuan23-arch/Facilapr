@@ -8,6 +8,7 @@ import { boletas, pagos, repactaciones, socios } from "@/lib/db/schema";
 import { urlComprobante } from "@/lib/comprobante-enlace";
 import { codigoRecibo, urlRecibo } from "@/lib/recibo-enlace";
 import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
+import { PLANTILLA_BOLETA_API, parametrosBoletaApi } from "@/lib/whatsapp";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { requireAdmin } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
@@ -16,9 +17,7 @@ import {
   calcularDesdeLecturas,
   tarifasPara,
   estadoQueCorresponde,
-  formatearPeriodo,
   normalizarPeriodo,
-  saldo,
   type EstadoBoleta,
 } from "@/lib/boletas";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
@@ -562,12 +561,10 @@ export async function eliminarBoleta(
   return { ok: true };
 }
 
-const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-const diaMes = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", timeZone: "UTC" });
-
 /**
  * Manda la boleta al socio como mensaje de WhatsApp por la API (plantilla
- * `boleta_disponible`, con el recibo en PDF y el botón para pagar). El comité y
+ * `boleta_disponible_v2`: consumo, total, recibo en PDF, cómo pagar y el botón
+ * para pagar). El comité y
  * el teléfono salen de la base, nunca del cliente: solo se recibe el id.
  */
 export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<ResultadoAccion> {
@@ -584,6 +581,7 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
       montoPagado: boletas.montoPagado,
       estado: boletas.estado,
       fechaVencimiento: boletas.fechaVencimiento,
+      consumoM3: boletas.consumoM3,
     })
     .from(boletas)
     .innerJoin(socios, eq(boletas.socioId, socios.id))
@@ -594,15 +592,11 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
   if (b.estado === "ANULADA") return { ok: false, error: "Esa boleta está anulada." };
   if (!b.telefono) return { ok: false, error: "El socio no tiene teléfono." };
 
-  const r = await enviarPlantilla(b.telefono, "boleta_disponible", {
-    parametros: [
-      b.socioNombre.trim().split(/\s+/)[0] ?? "",
-      apr.nombre,
-      formatearPeriodo(b.periodo),
-      clp.format(saldo(b.montoTotal, b.montoPagado)),
-      diaMes.format(b.fechaVencimiento),
-      urlRecibo(b.id),
-    ],
+  const r = await enviarPlantilla(b.telefono, PLANTILLA_BOLETA_API, {
+    parametros: parametrosBoletaApi(
+      { nombre: apr.nombre, slug: apr.slug, infoPago: apr.infoPago },
+      { ...b, socioNombre: b.socioNombre, reciboUrl: urlRecibo(b.id) }
+    ),
     sufijoBoton: codigoRecibo(b.id),
   });
   if (!r.ok) {

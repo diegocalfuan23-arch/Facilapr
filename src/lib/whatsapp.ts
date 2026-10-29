@@ -24,6 +24,16 @@ const diaMes = new Intl.DateTimeFormat("es-CL", {
   month: "long",
 });
 
+/**
+ * Primer nombre del socio, para saludar. Se saltan los artículos del inicio:
+ * un socio cargado como "el Oliver Machuca" se saluda "Oliver", no "el".
+ */
+export function primerNombre(nombre: string) {
+  const palabras = nombre.trim().split(/\s+/);
+  while (palabras.length > 1 && /^(el|la|los|las)$/i.test(palabras[0])) palabras.shift();
+  return palabras[0] ?? "";
+}
+
 /** Variables que la directiva puede usar al editar el mensaje. */
 export const VARIABLES_PLANTILLA = [
   { nombre: "nombre", ayuda: "Primer nombre del socio" },
@@ -90,7 +100,7 @@ function valoresDe(comite: DatosComiteWhatsApp, boleta: DatosBoletaWhatsApp) {
   const abonada = boleta.montoPagado > 0 && porPagar > 0;
 
   return {
-    nombre: boleta.socioNombre.trim().split(/\s+/)[0] ?? "",
+    nombre: primerNombre(boleta.socioNombre),
     comite: comite.nombre,
     periodo: formatearPeriodo(boleta.periodo),
     consumo: boleta.consumoM3 !== null ? `${boleta.consumoM3} m³` : "",
@@ -127,6 +137,52 @@ export function mensajeBoleta(
   return lineas.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
+/**
+ * Plantilla aprobada por Meta del envío automático de la boleta. Su cuerpo,
+ * con {{1}}…{{8}}, es el de `textoBoletaApi`; lleva además un botón de pago
+ * cuya dirección es https://facilapr.cl/pagar/{{1}}.
+ */
+export const PLANTILLA_BOLETA_API = "boleta_disponible_v2";
+
+/** Meta no acepta variables vacías ni con saltos de línea o espacios repetidos. */
+function paraVariable(texto: string, respaldo: string) {
+  return texto.replace(/\s+/g, " ").trim().slice(0, 300) || respaldo;
+}
+
+/** Los valores de {{1}}…{{8}} de la plantilla de la boleta, en ese orden. */
+export function parametrosBoletaApi(comite: DatosComiteWhatsApp, boleta: DatosBoletaWhatsApp) {
+  const v = valoresDe(comite, boleta);
+  return [
+    v.nombre,
+    v.comite,
+    v.periodo,
+    paraVariable(v.consumo, "Sin lectura"),
+    clp.format(saldo(boleta.montoTotal, boleta.montoPagado)),
+    v.vence,
+    v.recibo,
+    paraVariable(v.como_pagar, "Consulta en la oficina del comité"),
+  ];
+}
+
+/** El texto de la plantilla ya relleno: lo que recibe el socio y lo que muestra la vista previa. */
+export function textoBoletaApi(comite: DatosComiteWhatsApp, boleta: DatosBoletaWhatsApp) {
+  const [nombre, nombreComite, periodo, consumo, total, vence, recibo, comoPagar] =
+    parametrosBoletaApi(comite, boleta);
+  return [
+    `Hola ${nombre}, te escribe ${nombreComite}. Tu boleta de agua de ${periodo} ya está disponible:`,
+    "",
+    `Consumo: ${consumo}`,
+    `Total a pagar: ${total}`,
+    `Vence el ${vence}`,
+    "",
+    `Descarga tu recibo en PDF: ${recibo}`,
+    "",
+    `Cómo pagar: ${comoPagar}`,
+    "",
+    "Gracias por tu pago.",
+  ].join("\n");
+}
+
 /** Días que dura el enlace de invitación al portal (ver lib/invitacion-socio.ts). */
 export const DIAS_VIGENCIA_INVITACION = 14;
 
@@ -136,7 +192,7 @@ export function mensajeInvitacionPortal(
   nombreSocio: string,
   url: string
 ) {
-  const nombre = nombreSocio.trim().split(/\s+/)[0] ?? "";
+  const nombre = primerNombre(nombreSocio);
   return [
     `Hola ${nombre}, te escribe ${comite}.`,
     "",
@@ -171,7 +227,7 @@ export function mensajeRestablecerClave(
   nombreSocio: string,
   url: string
 ) {
-  const nombre = nombreSocio.trim().split(/\s+/)[0] ?? "";
+  const nombre = primerNombre(nombreSocio);
   return [
     `Hola ${nombre}, te escribe ${comite}.`,
     "",
@@ -196,7 +252,7 @@ export function mensajeComprobantePago(
     pagadoPor?: string | null;
   }
 ) {
-  const nombre = (datos.pagadoPor || datos.socioNombre).trim().split(/\s+/)[0] ?? "";
+  const nombre = primerNombre(datos.pagadoPor || datos.socioNombre);
   const porPagar = saldo(datos.montoTotal, datos.montoPagado);
   return [
     `Hola ${nombre}, te escribe ${comite}.`,
@@ -225,7 +281,7 @@ export function mensajeComprobanteCobro(
     pagadoPor?: string | null;
   }
 ) {
-  const nombre = (datos.pagadoPor || datos.socioNombre).trim().split(/\s+/)[0] ?? "";
+  const nombre = primerNombre(datos.pagadoPor || datos.socioNombre);
   const detalle = datos.descripcion ? ` (${datos.descripcion})` : "";
   return [
     `Hola ${nombre}, te escribe ${comite}.`,
@@ -252,7 +308,7 @@ export function mensajeComprobanteCuota(
     pagadoPor?: string | null;
   }
 ) {
-  const nombre = (datos.pagadoPor || datos.socioNombre).trim().split(/\s+/)[0] ?? "";
+  const nombre = primerNombre(datos.pagadoPor || datos.socioNombre);
   return [
     `Hola ${nombre}, te escribe ${comite}.`,
     "",
@@ -266,9 +322,6 @@ export function mensajeComprobanteCuota(
     `Descarga tu comprobante: ${datos.comprobanteUrl}`,
   ].join("\n");
 }
-
-/** Primer nombre del socio, para saludar. */
-const primerNombre = (nombre: string) => nombre.trim().split(/\s+/)[0] ?? "";
 
 const enlaceCuenta = (comite: DatosComiteWhatsApp) =>
   comite.slug ? `https://${DOMINIO_RAIZ}/${comite.slug}/cuenta/entrar` : "";

@@ -75,7 +75,9 @@ import {
   enlaceWhatsApp,
   mensajeBoleta,
   PLANTILLA_POR_DEFECTO,
+  primerNombre,
   telefonoValidoParaWhatsApp,
+  textoBoletaApi,
   VARIABLES_PLANTILLA,
   type DatosComiteWhatsApp,
 } from "@/lib/whatsapp";
@@ -153,13 +155,6 @@ const fecha = new Intl.DateTimeFormat("es-CL", {
   day: "2-digit",
   month: "2-digit",
   year: "numeric",
-});
-
-/** "10 de noviembre": como lo escribe el mensaje de WhatsApp. */
-const diaMes = new Intl.DateTimeFormat("es-CL", {
-  day: "numeric",
-  month: "long",
-  timeZone: "UTC",
 });
 
 const ESTILO_ESTADO: Record<
@@ -289,7 +284,7 @@ export function BoletasTabla({
     });
     if (r.ok) {
       marcarEnviada(b.id);
-      if (avisar) toast.success(`Enviada a ${b.socioNombre.split(" ")[0]}`);
+      if (avisar) toast.success(`Enviada a ${primerNombre(b.socioNombre)}`);
     } else if (avisar) {
       toast.error(r.error);
     }
@@ -1229,7 +1224,7 @@ function EnviarWhatsAppDialog({
             <div className="mt-5 flex min-w-0 flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-[0.85rem] font-medium">
-                  Así lo recibirá {ejemplo.socioNombre.split(" ")[0]}
+                  Así lo recibirá {primerNombre(ejemplo.socioNombre)}
                 </p>
                 {!automatico && (
                   <button
@@ -1244,7 +1239,7 @@ function EnviarWhatsAppDialog({
               <div className="rounded-xl bg-[#efeae2] p-3">
                 <div className="ml-auto max-w-full rounded-lg rounded-tr-sm bg-[#d9fdd3] px-3 py-2 text-[0.84rem] leading-relaxed break-words whitespace-pre-wrap text-neutral-900 shadow-sm">
                   {automatico
-                    ? `Hola ${ejemplo.socioNombre.split(" ")[0]}, te escribe ${comite.nombre}. Tu boleta de agua de ${formatearPeriodo(ejemplo.periodo)} ya está disponible por un total de ${clp.format(saldo(ejemplo.montoTotal, ejemplo.montoPagado))}, con vencimiento el ${diaMes.format(ejemplo.fechaVencimiento)}. Descarga tu recibo en PDF aquí: ${ejemplo.reciboUrl}\n\nGracias por tu pago.`
+                    ? textoBoletaApi(comite, ejemplo)
                     : mensajeBoleta(comite, ejemplo, plantilla)}
                 </div>
                 {automatico && (
