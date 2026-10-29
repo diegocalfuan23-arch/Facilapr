@@ -3,7 +3,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aprs, boletas, socios } from "@/lib/db/schema";
 import { boletaIdDeCodigo } from "@/lib/recibo-enlace";
-import { BASE_SITIO } from "@/lib/mercadopago";
+import { BASE_SITIO, mpConfigurado } from "@/lib/mercadopago";
 import { crearLinkPago, pagoEnLineaActivo } from "@/lib/mercadopago-pagos";
 
 /**
@@ -41,6 +41,10 @@ export async function GET(
   const ir = (url: string) => new Response(null, { status: 302, headers: { location: url, ...sinCache } });
 
   if (!fila.slug || !(await pagoEnLineaActivo({ id: fila.aprId, mercadoPagoHabilitado: fila.mercadoPagoHabilitado }))) {
+    // Queda anotado por qué no se fue a pagar: interruptor del comité, cuenta sin conectar o servidor sin configurar.
+    console.info(
+      `Pago desde WhatsApp sin pago en línea: interruptor=${fila.mercadoPagoHabilitado}, servidor=${mpConfigurado()}, slug=${Boolean(fila.slug)}`
+    );
     return ir(cuenta);
   }
 
@@ -48,6 +52,7 @@ export async function GET(
     const link = await crearLinkPago(fila.aprId, boletaId, {
       volverA: `${BASE_SITIO()}/${fila.slug}/cuenta/boletas`,
     });
+    if (!link.ok) console.error("Pago desde WhatsApp, Mercado Pago no creó el link:", link.error);
     return ir(link.ok ? link.url : cuenta);
   } catch (e) {
     console.error("Pago desde WhatsApp:", e instanceof Error ? e.message : "error");
