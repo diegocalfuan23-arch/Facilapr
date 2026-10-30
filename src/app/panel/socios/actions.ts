@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { boletas, lecturas, socios } from "@/lib/db/schema";
@@ -25,6 +25,9 @@ const socioSchema = z.object({
 });
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
+
+/** La casilla marcada llega como "on"; sin marcar, no llega. */
+const aceptaWhatsapp = (formData: FormData) => formData.get("whatsappConsentimiento") === "on";
 
 /** Vacío = sin teléfono (null); lo demás se normaliza a E.164. */
 function telefonoOpcional(valor: string | undefined) {
@@ -63,6 +66,8 @@ export async function crearSocio(
       telefono: telefonoOpcional(datos.telefono),
       direccion: datos.direccion,
       numeroCliente: datos.numeroCliente,
+      whatsappConsentimiento: aceptaWhatsapp(formData),
+      whatsappConsentimientoAt: aceptaWhatsapp(formData) ? new Date() : null,
     });
   } catch (error) {
     const mensaje = error instanceof Error ? error.message : "";
@@ -116,6 +121,11 @@ export async function editarSocio(
         telefono: telefonoOpcional(datos.telefono),
         direccion: datos.direccion ?? null,
         numeroCliente: datos.numeroCliente ?? null,
+        whatsappConsentimiento: aceptaWhatsapp(formData),
+        // Si ya había aceptado, se conserva desde cuándo.
+        whatsappConsentimientoAt: aceptaWhatsapp(formData)
+          ? sql`coalesce(${socios.whatsappConsentimientoAt}, now())`
+          : null,
         updatedAt: new Date(),
       })
       // El filtro por aprId impide editar un socio de otro comité.

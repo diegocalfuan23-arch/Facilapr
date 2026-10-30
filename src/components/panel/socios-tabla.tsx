@@ -83,8 +83,6 @@ import { formatearRut, formatearTelefono, iniciales } from "@/lib/formato";
 
 export type SocioFila = SocioEditable & {
   activo: boolean;
-  /** Aceptó recibir WhatsApp automáticos de su comité. */
-  whatsappConsentimiento: boolean;
   conCuenta: boolean;
   /** El servicio de este arranque está cortado por morosidad. */
   cortado: boolean;

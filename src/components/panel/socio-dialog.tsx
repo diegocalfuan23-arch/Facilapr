@@ -28,6 +28,8 @@ export type SocioEditable = {
   telefono: string | null;
   direccion: string | null;
   numeroCliente: string | null;
+  /** Aceptó recibir WhatsApp automáticos de su comité. */
+  whatsappConsentimiento: boolean;
 };
 
 export function SocioDialog({
@@ -95,6 +97,21 @@ export function SocioDialog({
               />
             </div>
           </div>
+
+          <label className="flex items-start gap-2.5">
+            <input
+              type="checkbox"
+              name="whatsappConsentimiento"
+              defaultChecked={socio?.whatsappConsentimiento ?? false}
+              className="mt-0.5 size-4 shrink-0 accent-primary"
+            />
+            <span className="text-[0.88rem]">
+              <span className="font-medium">Acepta recibir WhatsApp automáticos</span>
+              <span className="block text-[0.8rem] text-muted-foreground">
+                Boletas, comprobantes y avisos. Márcalo solo si el socio te lo dijo.
+              </span>
+            </span>
+          </label>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="tipo">Tipo</Label>
