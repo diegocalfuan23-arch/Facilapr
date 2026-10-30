@@ -28,6 +28,7 @@ export default async function SociosPage() {
       numeroCliente: true,
       activo: true,
       userId: true,
+      whatsappConsentimiento: true,
     },
   });
 

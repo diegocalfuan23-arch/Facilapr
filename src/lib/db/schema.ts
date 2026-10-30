@@ -87,6 +87,10 @@ export const aprs = pgTable(
      * Se prende comité por comité; hasta entonces no se ve nada de esto.
      */
     mercadoPagoHabilitado: boolean("mercadoPagoHabilitado").notNull().default(false),
+    /** WhatsApp automático: el comprobante sale solo al registrar un pago. Lo prende el comité. */
+    whatsappComprobanteAuto: boolean("whatsappComprobanteAuto").notNull().default(false),
+    /** WhatsApp automático: el aviso antes de cortar sale solo, una vez al día. Lo prende el comité. */
+    whatsappAvisoCorteAuto: boolean("whatsappAvisoCorteAuto").notNull().default(false),
     /** Sale en el buscador público de socios (facilapr.cl/socios). Lo decide el comité; necesita slug. */
     apareceEnBuscador: boolean("apareceEnBuscador").notNull().default(false),
     /** IA dentro del chat (plan Grande): APAGADO · SIEMPRE (· SIN_RESPUESTA, próximamente). */
@@ -240,6 +244,12 @@ export const socios = pgTable(
     activo: boolean("activo").notNull().default(true),
     /** La directiva pausó la IA del chat solo en la conversación de este arranque. */
     iaPausada: boolean("iaPausada").notNull().default(false),
+    /**
+     * El socio aceptó recibir WhatsApp automáticos de su comité (Meta lo exige).
+     * Lo marca la directiva, que es quien tiene ese acuerdo con el socio.
+     */
+    whatsappConsentimiento: boolean("whatsappConsentimiento").notNull().default(false),
+    whatsappConsentimientoAt: timestamp("whatsappConsentimientoAt", { precision: 3 }),
     /**
      * La cuenta de Better Auth del socio, si tiene panel propio. Sin FK
      * formal a propósito: `user` vive en auth-schema.ts, un módulo aparte
@@ -746,6 +756,47 @@ export const avisosCorte = pgTable(
   (table) => [
     index("AvisoCorte_socioId_idx").on(table.socioId, table.createdAt),
     index("AvisoCorte_aprId_idx").on(table.aprId),
+  ]
+);
+
+/** Qué mensaje automático de WhatsApp es. */
+export type TipoMensajeWhatsapp = "BOLETA" | "COMPROBANTE" | "AVISO_CORTE";
+
+/** Cómo va un mensaje: lo que Meta avisa por el webhook. */
+export type EstadoMensajeWhatsapp = "ENVIADO" | "ENTREGADO" | "LEIDO" | "FALLIDO";
+
+/**
+ * Cada mensaje de WhatsApp que Facilapr envía por la API. Sirve para no repetir
+ * un envío, para ver si llegó y para contar cuántos usó cada comité. No guarda
+ * el teléfono: se llega al socio por `socioId`.
+ */
+export const mensajesWhatsapp = pgTable(
+  "MensajeWhatsApp",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    socioId: text("socioId").references(() => socios.id, { onDelete: "set null" }),
+    tipo: text("tipo").$type<TipoMensajeWhatsapp>().notNull(),
+    /** La boleta, el pago o el aviso al que corresponde. */
+    referenciaId: text("referenciaId"),
+    plantilla: text("plantilla").notNull(),
+    /** El identificador (wamid) que devuelve Meta: con él se cruza el estado del webhook. */
+    metaId: text("metaId"),
+    estado: text("estado").$type<EstadoMensajeWhatsapp>().notNull().default("ENVIADO"),
+    error: text("error"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("MensajeWhatsApp_aprId_createdAt_idx").on(table.aprId, table.createdAt),
+    index("MensajeWhatsApp_socioId_tipo_idx").on(table.socioId, table.tipo, table.createdAt),
+    index("MensajeWhatsApp_metaId_idx").on(table.metaId),
+    // Un pago manda un solo comprobante automático, aunque el aviso llegue dos veces.
+    uniqueIndex("MensajeWhatsApp_comprobante_unico_key")
+      .on(table.referenciaId)
+      .where(sql`${table.tipo} = 'COMPROBANTE'`),
   ]
 );
 

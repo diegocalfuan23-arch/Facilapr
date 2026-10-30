@@ -34,6 +34,7 @@ import {
   alternarActivo,
   desactivarSocios,
   cambiarUsoSocios,
+  marcarConsentimientoWhatsapp,
   eliminarSocio,
   eliminarSociosSinMovimientos,
 } from "@/app/panel/socios/actions";
@@ -82,6 +83,8 @@ import { formatearRut, formatearTelefono, iniciales } from "@/lib/formato";
 
 export type SocioFila = SocioEditable & {
   activo: boolean;
+  /** Aceptó recibir WhatsApp automáticos de su comité. */
+  whatsappConsentimiento: boolean;
   conCuenta: boolean;
   /** El servicio de este arranque está cortado por morosidad. */
   cortado: boolean;
@@ -753,6 +756,36 @@ export function SociosTabla({
                   <Home />
                   Residencial
                 </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pendiente}
+                  title="Confirmas que estos socios aceptaron recibir WhatsApp automáticos de tu comité"
+                  onClick={() =>
+                    startTransition(async () => {
+                      const r = await marcarConsentimientoWhatsapp([...seleccion], true);
+                      if (r.ok) toast.success("Marcados: aceptan WhatsApp");
+                      else toast.error(r.error);
+                    })
+                  }
+                >
+                  <MessageCircle />
+                  Aceptan WhatsApp
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={pendiente}
+                  onClick={() =>
+                    startTransition(async () => {
+                      const r = await marcarConsentimientoWhatsapp([...seleccion], false);
+                      if (r.ok) toast.success("Marcados: no reciben WhatsApp automáticos");
+                      else toast.error(r.error);
+                    })
+                  }
+                >
+                  Sin WhatsApp
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setAccionMasiva("desactivar")}>
                   <UserX />
                   Desactivar
@@ -880,6 +913,9 @@ export function SociosTabla({
                       </TableCell>
                       <TableCell className="px-4 py-3.5 tabular-nums text-muted-foreground">
                         {socio.telefono ? formatearTelefono(socio.telefono) : "—"}
+                        {socio.telefono && socio.whatsappConsentimiento && (
+                          <div className="text-[0.74rem]">Acepta WhatsApp</div>
+                        )}
                       </TableCell>
                       <TableCell className="px-4 py-3.5 text-muted-foreground">
                         {socio.direccion ?? "—"}
@@ -956,6 +992,7 @@ export function SociosTabla({
                         {socio.telefono && (
                           <span className="tabular-nums">
                             {formatearTelefono(socio.telefono)}
+                            {socio.whatsappConsentimiento && " · Acepta WhatsApp"}
                           </span>
                         )}
                       </div>

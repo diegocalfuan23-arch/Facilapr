@@ -277,6 +277,32 @@ export async function generarEnlaceRestablecerClave(
   };
 }
 
+/**
+ * La directiva deja constancia de si estos socios aceptaron recibir WhatsApp
+ * automáticos de su comité (Meta lo exige). Es el comité quien tiene ese acuerdo
+ * con sus socios; Facilapr solo guarda la marca y desde cuándo.
+ */
+export async function marcarConsentimientoWhatsapp(
+  ids: string[],
+  acepta: boolean
+): Promise<ResultadoAccion> {
+  const { apr } = await requireAdmin();
+  if (!Array.isArray(ids) || ids.length === 0) return { ok: false, error: "No hay socios seleccionados." };
+
+  await db
+    .update(socios)
+    .set({
+      whatsappConsentimiento: acepta,
+      whatsappConsentimientoAt: acepta ? new Date() : null,
+      updatedAt: new Date(),
+    })
+    // El filtro por aprId impide tocar socios de otro comité.
+    .where(and(eq(socios.aprId, apr.id), inArray(socios.id, ids.slice(0, 2000))));
+
+  revalidatePath("/panel/socios");
+  return { ok: true };
+}
+
 /** Marcar varios arranques como residenciales o comerciales de una vez. */
 export async function cambiarUsoSocios(
   ids: string[],

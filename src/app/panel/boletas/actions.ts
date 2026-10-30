@@ -9,6 +9,7 @@ import { urlComprobante } from "@/lib/comprobante-enlace";
 import { codigoRecibo, urlRecibo } from "@/lib/recibo-enlace";
 import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
 import { parametrosBoletaApi, plantillaBoletaApi } from "@/lib/whatsapp";
+import { registrarMensaje } from "@/lib/whatsapp-mensajes";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { requireAdmin } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
@@ -574,8 +575,10 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
   const [b] = await db
     .select({
       id: boletas.id,
+      socioId: socios.id,
       socioNombre: socios.nombre,
       telefono: socios.telefono,
+      consentimiento: socios.whatsappConsentimiento,
       periodo: boletas.periodo,
       montoTotal: boletas.montoTotal,
       montoPagado: boletas.montoPagado,
@@ -591,6 +594,9 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
   if (!b) return { ok: false, error: "No encontramos esa boleta." };
   if (b.estado === "ANULADA") return { ok: false, error: "Esa boleta está anulada." };
   if (!b.telefono) return { ok: false, error: "El socio no tiene teléfono." };
+  if (!b.consentimiento) {
+    return { ok: false, error: "Este socio todavía no aceptó recibir WhatsApp automáticos. Márcalo en Socios." };
+  }
 
   const plantilla = plantillaBoletaApi();
   const r = await enviarPlantilla(b.telefono, plantilla, {
@@ -606,6 +612,14 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
     console.error("WhatsApp boleta:", r.error);
     return { ok: false, error: "WhatsApp no pudo enviar el mensaje. Prueba de nuevo o usa el envío manual." };
   }
+  await registrarMensaje({
+    aprId: apr.id,
+    socioId: b.socioId,
+    tipo: "BOLETA",
+    referenciaId: b.id,
+    plantilla,
+    metaId: r.id,
+  });
   return { ok: true };
 }
 
