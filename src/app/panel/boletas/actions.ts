@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -10,6 +11,7 @@ import { codigoRecibo, urlRecibo } from "@/lib/recibo-enlace";
 import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
 import { parametrosBoletaApi, plantillaBoletaApi } from "@/lib/whatsapp";
 import { registrarMensaje } from "@/lib/whatsapp-mensajes";
+import { enviarComprobanteAuto } from "@/lib/whatsapp-comprobante";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { requireAdmin } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
@@ -356,6 +358,9 @@ export async function registrarPago(
     .returning({ id: pagos.id });
 
   const total = await recalcularBoleta(boletaId);
+
+  // Si el comité lo prendió, el comprobante sale solo por WhatsApp, sin demorar esta respuesta.
+  after(() => enviarComprobanteAuto(pago.id));
 
   revalidatePath("/panel/boletas");
   revalidatePath("/panel/pagos");

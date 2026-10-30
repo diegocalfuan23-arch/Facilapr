@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
+import { after } from "next/server";
 import { db } from "@/lib/db";
 import { aprs, boletas, pagos, socios } from "@/lib/db/schema";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
+import { enviarComprobanteAuto } from "@/lib/whatsapp-comprobante";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { BASE_SITIO, estadoConexion, modoMp, mpConfigurado, tokenDelComite } from "@/lib/mercadopago";
 
@@ -153,16 +155,21 @@ export async function procesarPagoMp(aprId: string, paymentId: string): Promise<
     if (falta > 0) {
       // Lo que cubre la boleta se anota como pago; si pagaron de más, el resto queda aparte.
       const aBoleta = Math.min(recibido, falta);
-      await db.insert(pagos).values({
-        boletaId: boleta.id,
-        socioId: boleta.socioId,
-        concepto: "BOLETA",
-        monto: aBoleta,
-        fecha,
-        medio: "MERCADO_PAGO",
-        referencia: paymentId,
-      });
+      const [pagoBoleta] = await db
+        .insert(pagos)
+        .values({
+          boletaId: boleta.id,
+          socioId: boleta.socioId,
+          concepto: "BOLETA",
+          monto: aBoleta,
+          fecha,
+          medio: "MERCADO_PAGO",
+          referencia: paymentId,
+        })
+        .returning({ id: pagos.id });
       await recalcularBoleta(boleta.id);
+      // Si el comité lo prendió, el comprobante sale solo por WhatsApp.
+      after(() => enviarComprobanteAuto(pagoBoleta.id));
       if (recibido > aBoleta) {
         await db.insert(pagos).values({
           socioId: boleta.socioId,
