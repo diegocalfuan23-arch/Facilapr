@@ -275,31 +275,6 @@ export function LecturasTabla({
         </div>
       )}
 
-      {porRevisar > 0 && (
-        <div className="flex items-start gap-2.5 rounded-xl border border-tertiary/40 bg-tertiary/10 px-4 py-3">
-          <AlertCircle className="mt-0.5 size-4 shrink-0 text-tertiary" />
-          <p className="text-[0.88rem] leading-relaxed">
-            <strong>
-              {porRevisar}{" "}
-              {porRevisar === 1
-                ? "lectura espera tu revisión."
-                : "lecturas esperan tu revisión."}
-            </strong>{" "}
-            Hasta que no se aprueben, no se genera la boleta del socio.
-          </p>
-          {listas.length > 0 && (
-            <Button
-              size="sm"
-              className="ml-auto shrink-0"
-              onClick={() => setAprobandoListas(true)}
-            >
-              <Check />
-              Aprobar las {listas.length} listas
-            </Button>
-          )}
-        </div>
-      )}
-
       <div data-tour="lec-kpis" className="grid grid-cols-3 gap-2 sm:gap-4">
         <TarjetaResumen
           icono={<Clock />}
@@ -396,6 +371,16 @@ export function LecturasTabla({
                 </option>
               ))}
             </select>
+            {listas.length > 0 && (
+              <Button
+                variant="outline"
+                className="h-10 w-full sm:w-auto"
+                onClick={() => setAprobandoListas(true)}
+              >
+                <Check />
+                Aprobar las {listas.length} listas
+              </Button>
+            )}
           </div>
 
           {/* Escritorio: tabla. Celular: una tarjeta por lectura, porque seis
