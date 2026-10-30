@@ -39,6 +39,7 @@ type Resultado = { ok: true; id: string } | { ok: false; error: string };
 /**
  * Envía una plantilla aprobada. `parametros` son los valores de {{1}}, {{2}}… del cuerpo;
  * `sufijoBoton` es lo que va al final de la dirección del botón dinámico (si la plantilla lo tiene).
+ * `credenciales` es el número y el acceso del comité, si conectó el suyo; sin ellas sale por el número de Facilapr.
  */
 export async function enviarPlantilla(
   telefono: string,
@@ -47,16 +48,24 @@ export async function enviarPlantilla(
     idioma = process.env.WHATSAPP_IDIOMA ?? "es_CL",
     parametros = [],
     sufijoBoton,
-  }: { idioma?: string; parametros?: string[]; sufijoBoton?: string } = {},
+    credenciales,
+  }: {
+    idioma?: string;
+    parametros?: string[];
+    sufijoBoton?: string;
+    credenciales?: { phoneNumberId: string; token: string } | null;
+  } = {},
 ): Promise<Resultado> {
-  if (!whatsappConfigurado()) return { ok: false, error: "WhatsApp no está configurado." };
+  const numeroId = credenciales?.phoneNumberId ?? variable("WHATSAPP_PHONE_NUMBER_ID");
+  const token = credenciales?.token ?? variable("WHATSAPP_TOKEN");
+  if (!numeroId || !token) return { ok: false, error: "WhatsApp no está configurado." };
   const para = telefonoParaWhatsapp(telefono);
   if (!para) return { ok: false, error: "El teléfono no es un celular chileno válido." };
 
   const version = variable("WHATSAPP_API_VERSION") || "v21.0";
-  const respuesta = await fetch(`https://graph.facebook.com/${version}/${variable("WHATSAPP_PHONE_NUMBER_ID")}/messages`, {
+  const respuesta = await fetch(`https://graph.facebook.com/${version}/${numeroId}/messages`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${variable("WHATSAPP_TOKEN")}`, "Content-Type": "application/json" },
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({
       messaging_product: "whatsapp",
       to: para,

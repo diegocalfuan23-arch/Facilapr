@@ -9,6 +9,7 @@ import { LIMITE_SOCIOS, LIMITE_TECNICOS, NOMBRE_PLAN, puede, type Plan } from "@
 import { resumenDatos } from "@/app/panel/configuracion/datos-actions";
 import { ConfiguracionForm } from "@/components/panel/configuracion-form";
 import { envioAutomaticoActivo } from "@/lib/whatsapp-api";
+import { conexionDeComitesActiva, conexionDelComite } from "@/lib/whatsapp-conexion";
 
 export const metadata: Metadata = {
   title: "Configuración",
@@ -71,6 +72,8 @@ export default async function ConfiguracionPage() {
         apareceEnBuscador: apr.apareceEnBuscador,
         whatsappDisponible: envioAutomaticoActivo(),
         whatsappComprobanteAuto: apr.whatsappComprobanteAuto,
+        conexionWhatsappDisponible: conexionDeComitesActiva(),
+        conexionWhatsapp: conexionDeComitesActiva() ? await conexionDelComite(apr.id) : null,
       }}
       />
     </>

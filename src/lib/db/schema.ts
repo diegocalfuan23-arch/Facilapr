@@ -489,6 +489,42 @@ export const mercadoPagoConexiones = pgTable("MercadoPagoConexion", {
   updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
 });
 
+/** CONECTADA: el comité puede enviar por su número. ERROR: algún paso de la conexión falló (ver ultimoError). */
+export type EstadoConexionWhatsapp = "CONECTADA" | "ERROR";
+
+/**
+ * El WhatsApp que un comité conectó con el registro insertado de Meta. Con este
+ * acceso Facilapr envía por el número del comité, que le paga a Meta sus propios
+ * mensajes. El token y el PIN se guardan cifrados (ver lib/mercadopago, cifrar).
+ */
+export const whatsappConexiones = pgTable(
+  "WhatsappConexion",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .unique()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** La cuenta de mensajes del comité (lo que Meta llama waba_id). */
+    wabaId: text("wabaId").notNull(),
+    phoneNumberId: text("phoneNumberId").notNull(),
+    numeroMostrado: text("numeroMostrado"),
+    nombreVerificado: text("nombreVerificado"),
+    accessToken: text("accessToken").notNull(),
+    tokenExpiraEn: timestamp("tokenExpiraEn", { precision: 3 }),
+    pin: text("pin").notNull(),
+    estado: text("estado").$type<EstadoConexionWhatsapp>().notNull().default("CONECTADA"),
+    ultimoError: text("ultimoError"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Un número pertenece a un solo comité: el webhook de Meta llega con este id.
+    uniqueIndex("WhatsappConexion_phoneNumberId_key").on(table.phoneNumberId),
+    index("WhatsappConexion_wabaId_idx").on(table.wabaId),
+  ]
+);
+
 /**
  * Cada pago que un comité hace de su plan de Facilapr (por Flow). Cuando Flow
  * confirma, el plan queda pagado hasta `vigenteHasta`. Es lo que el comité le paga

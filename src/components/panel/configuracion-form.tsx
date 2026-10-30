@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { UsoComite, type DatosUso } from "@/components/panel/uso-comite";
 import { AjustesComite } from "@/components/panel/ajustes-comite";
+import type { ConexionWhatsapp } from "@/components/panel/conectar-whatsapp";
 
 export type DatosConfiguracion = {
   /** El plan incluye la IA dentro del chat (Estándar y Grande). */
@@ -78,6 +79,9 @@ export type DatosConfiguracion = {
   whatsappDisponible: boolean;
   /** El comprobante sale solo por WhatsApp al registrar un pago. */
   whatsappComprobanteAuto: boolean;
+  /** Se puede conectar el WhatsApp propio del comité. */
+  conexionWhatsappDisponible: boolean;
+  conexionWhatsapp: ConexionWhatsapp | null;
 };
 
 /**
@@ -387,6 +391,8 @@ export function ConfiguracionForm({
             tieneSlug={Boolean(datos.slug)}
             whatsappDisponible={datos.whatsappDisponible}
             comprobanteAuto={datos.whatsappComprobanteAuto}
+            conexionDisponible={datos.conexionWhatsappDisponible}
+            conexion={datos.conexionWhatsapp}
           />
         </Bloque>
       )}

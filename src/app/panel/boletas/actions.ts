@@ -11,6 +11,7 @@ import { codigoRecibo, urlRecibo } from "@/lib/recibo-enlace";
 import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
 import { parametrosBoletaApi, plantillaBoletaApi } from "@/lib/whatsapp";
 import { registrarMensaje } from "@/lib/whatsapp-mensajes";
+import { credencialesDelComite } from "@/lib/whatsapp-conexion";
 import { enviarComprobanteAuto } from "@/lib/whatsapp-comprobante";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { requireAdmin } from "@/lib/apr-session";
@@ -611,6 +612,7 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
       plantilla
     ),
     sufijoBoton: codigoRecibo(b.id),
+    credenciales: await credencialesDelComite(apr.id),
   });
   if (!r.ok) {
     // El detalle va al registro del servidor; a la directiva, un aviso que pueda entender.

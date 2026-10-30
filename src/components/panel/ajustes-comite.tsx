@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { cambiarApareceEnBuscador } from "@/app/panel/configuracion/buscador-actions";
 import { cambiarComprobanteAuto } from "@/app/panel/configuracion/whatsapp-auto-actions";
 import { Switch } from "@/components/ui/switch";
+import { ConectarWhatsapp, type ConexionWhatsapp } from "@/components/panel/conectar-whatsapp";
 
 type Resultado = { ok: true } | { ok: false; error: string };
 
@@ -56,12 +57,17 @@ export function AjustesComite({
   tieneSlug,
   whatsappDisponible,
   comprobanteAuto,
+  conexionDisponible,
+  conexion,
 }: {
   apareceEnBuscador: boolean;
   tieneSlug: boolean;
   /** El envío por la API de WhatsApp está activo en el servidor. */
   whatsappDisponible: boolean;
   comprobanteAuto: boolean;
+  /** Se puede conectar el WhatsApp propio del comité (la app de Meta está lista para eso). */
+  conexionDisponible: boolean;
+  conexion: ConexionWhatsapp | null;
 }) {
   return (
     <div className="flex flex-col gap-4 border-t border-border pt-4">
@@ -81,6 +87,7 @@ export function AjustesComite({
           guardar={cambiarComprobanteAuto}
         />
       )}
+      {conexionDisponible && <ConectarWhatsapp conexion={conexion} />}
     </div>
   );
 }

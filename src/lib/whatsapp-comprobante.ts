@@ -5,6 +5,7 @@ import { urlComprobante } from "@/lib/comprobante-enlace";
 import { formatearPeriodo } from "@/lib/boletas";
 import { primerNombre } from "@/lib/whatsapp";
 import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
+import { credencialesDelComite } from "@/lib/whatsapp-conexion";
 
 /**
  * Comprobante de pago automático: al registrarse el pago de una boleta, el socio
@@ -72,6 +73,7 @@ export async function enviarComprobanteAuto(pagoId: string) {
         formatearPeriodo(f.periodo),
         urlComprobante(pagoId),
       ],
+      credenciales: await credencialesDelComite(f.aprId),
     });
 
     await db
