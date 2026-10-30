@@ -404,7 +404,7 @@ export function LecturasTabla({
             <Table>
               <TableHeader>
                 <TableRow className="border-b-border/40 hover:bg-transparent">
-                  {["Socio", "Período", "Lectura", "Registrada por", "Estado"].map(
+                  {["Socio", "Período", "Tipo", "Lectura", "Registrada por", "Estado"].map(
                     (h) => (
                       <TableHead
                         key={h}
@@ -424,7 +424,7 @@ export function LecturasTabla({
                 {visibles.length === 0 ? (
                   <TableRow className="hover:bg-transparent">
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="py-12 text-center text-[0.92rem] text-muted-foreground"
                     >
                       Ninguna lectura coincide con el filtro.
@@ -609,11 +609,6 @@ function DetalleValor({ l }: { l: LecturaFila }) {
               : `Anterior ${numero.format(l.anterior)} · +${numero.format(l.valor - l.anterior)} m³`}
         </div>
       )}
-      {l.inicial && (
-        <div className="text-[0.78rem] text-muted-foreground">
-          Lectura inicial (sin boleta)
-        </div>
-      )}
       {l.observacion && l.observacion !== "Lectura inicial" && (
         <div
           title={l.observacion}
@@ -623,6 +618,33 @@ function DetalleValor({ l }: { l: LecturaFila }) {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * Qué clase de lectura es. La "inicial" es el punto de partida de un medidor:
+ * queda aprobada y no genera boleta; la de "consumo" sí. Sin acento de color a
+ * propósito: es información de apoyo, el estado ya lleva el color.
+ */
+function TipoLectura({ l }: { l: LecturaFila }) {
+  if (l.estado === "RECHAZADA") return <span className="text-muted-foreground">—</span>;
+
+  const { texto, ayuda } =
+    l.estado === "APROBADA"
+      ? l.inicial
+        ? { texto: "Inicial", ayuda: "Punto de partida del medidor: no genera boleta." }
+        : { texto: "Consumo", ayuda: "Generó la boleta del período." }
+      : l.anterior === null
+        ? { texto: "Primera", ayuda: "Primera lectura del arranque: al aprobarla se usa como inicial." }
+        : { texto: "Consumo", ayuda: "Al aprobarla genera la boleta del período." };
+
+  return (
+    <span
+      title={ayuda}
+      className="inline-flex rounded-md bg-muted px-2 py-0.5 text-[0.78rem] font-medium text-muted-foreground"
+    >
+      {texto}
+    </span>
   );
 }
 
@@ -720,6 +742,9 @@ function FilaLectura({
       <TableCell className="px-4 py-3.5 whitespace-nowrap">
         {formatearPeriodo(l.periodo)}
       </TableCell>
+      <TableCell className="px-4 py-3.5">
+        <TipoLectura l={l} />
+      </TableCell>
       <TableCell className="px-4 py-3.5 tabular-nums">
         <DetalleValor l={l} />
       </TableCell>
@@ -785,6 +810,10 @@ function TarjetaLectura({
           </div>
         </div>
         <MenuAccionesLectura l={l} onEditar={onEditar} onEliminar={onEliminar} />
+      </div>
+
+      <div>
+        <TipoLectura l={l} />
       </div>
 
       <div className="flex items-start justify-between gap-3">
