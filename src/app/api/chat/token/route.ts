@@ -2,17 +2,13 @@ import { NextRequest } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
 import { puedeEscucharChatSocio } from "@/lib/chat/autorizacion";
-import { firmarTokenChat, salaChatSocio, usaSocketIo } from "@/lib/chat/tiempo-real";
+import { firmarTokenChat, salaChatSocio } from "@/lib/chat/tiempo-real";
 
 /**
  * Entrega el token con el que el navegador se conecta al servidor Socket.IO.
  * Solo se firma para la sala de un socio que esa persona puede escuchar.
  */
 export async function GET(req: NextRequest) {
-  if (!usaSocketIo()) {
-    return new Response("No disponible.", { status: 404 });
-  }
-
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return new Response("No autorizado.", { status: 401 });
 

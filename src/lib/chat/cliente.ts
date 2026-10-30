@@ -1,14 +1,12 @@
 "use client";
 
 import { io } from "socket.io-client";
-import { pusherClient } from "@/lib/pusher/client";
 
 const EVENTO = "mensaje-nuevo";
 
 /**
  * Escucha los mensajes nuevos del chat de un socio y devuelve la función que
- * deja de escuchar. Usa Pusher o el servidor Socket.IO propio según
- * NEXT_PUBLIC_CHAT_TRANSPORTE (ver lib/chat/tiempo-real.ts).
+ * deja de escuchar. Se conecta al servidor Socket.IO propio (ver lib/chat/tiempo-real.ts).
  */
 export type OpcionesEscribiendo = {
   /** Quién soy yo en esta conversación: lo que escribe el otro es lo que se muestra. */
@@ -21,16 +19,6 @@ export function escucharChat<T>(
   alRecibir: (mensaje: T) => void,
   escribiendo?: OpcionesEscribiendo
 ) {
-  if (process.env.NEXT_PUBLIC_CHAT_TRANSPORTE !== "socketio") {
-    const pusher = pusherClient();
-    const canal = `private-chat-socio-${socioId}`;
-    pusher.subscribe(canal).bind(EVENTO, alRecibir);
-    // «Escribiendo…» solo va por el servidor propio; con Pusher no hace nada.
-    return Object.assign(() => pusher.unsubscribe(canal), {
-      avisarEscribiendo: () => undefined,
-    });
-  }
-
   const socket = io(process.env.NEXT_PUBLIC_CHAT_URL!, {
     transports: ["websocket", "polling"],
     // Se pide un token nuevo en cada (re)conexión: dura minutos y se renueva solo.

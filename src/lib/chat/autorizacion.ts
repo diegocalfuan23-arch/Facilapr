@@ -9,7 +9,7 @@ type UsuarioChat = { id: string; rol?: string | null; aprId?: string | null };
  * Quién puede escuchar el chat de un socio: ese mismo socio, o un ADMIN del
  * comité al que pertenece. Nunca otro socio ni un ADMIN de otro comité: sin
  * esta comprobación, cualquiera con el id de un socio podría leer su
- * conversación. La usan tanto Pusher como el servicio Socket.IO.
+ * conversación. La usa el token que se entrega al servicio Socket.IO.
  */
 export async function puedeEscucharChatSocio(user: UsuarioChat, socioId: string) {
   if (user.rol === "SOCIO") {

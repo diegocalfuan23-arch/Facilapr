@@ -1,23 +1,19 @@
 import { SignJWT } from "jose";
-import { pusherServer, canalChatSocio, EVENTO_MENSAJE_NUEVO } from "@/lib/pusher/server";
 
 /**
- * El chat puede ir por Pusher (servicio administrado, por defecto) o por el
- * servidor Socket.IO propio (carpeta servicio-chat/). Se elige con
- * CHAT_TRANSPORTE=pusher|socketio en el servidor y NEXT_PUBLIC_CHAT_TRANSPORTE
- * en el navegador: pasar de uno a otro es cambiar variables, no código.
+ * El chat en tiempo real va por el servidor Socket.IO propio (servicio-chat/,
+ * alojado en Railway). Vercel es serverless y no puede mantener WebSockets, así
+ * que publica cada mensaje nuevo al servicio con una llamada interna firmada.
+ *
+ * Variables: CHAT_URL_INTERNA y CHAT_EMIT_SECRET (publicar), CHAT_JWT_SECRET
+ * (token del navegador) y NEXT_PUBLIC_CHAT_URL (donde se conecta el navegador).
  */
-export const usaSocketIo = () => process.env.CHAT_TRANSPORTE === "socketio";
+export const EVENTO_MENSAJE_NUEVO = "mensaje-nuevo";
 
 export const salaChatSocio = (socioId: string) => `chat-socio-${socioId}`;
 
 /** Publica un mensaje nuevo a quienes están escuchando el chat de ese socio. */
 export async function publicarMensajeEnVivo(socioId: string, mensaje: unknown) {
-  if (!usaSocketIo()) {
-    await pusherServer.trigger(canalChatSocio(socioId), EVENTO_MENSAJE_NUEVO, mensaje);
-    return;
-  }
-
   const url = process.env.CHAT_URL_INTERNA;
   const secreto = process.env.CHAT_EMIT_SECRET;
   if (!url || !secreto) throw new Error("Falta CHAT_URL_INTERNA o CHAT_EMIT_SECRET.");

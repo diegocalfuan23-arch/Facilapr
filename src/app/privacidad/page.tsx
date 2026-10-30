@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     "Cómo Facilapr trata los datos personales de socios de comités de Agua Potable Rural, conforme a la Ley 21.719.",
 };
 
-const ACTUALIZADO = "30 de agosto de 2026";
+const ACTUALIZADO = "30 de octubre de 2026";
 
 /**
  * Redactada sobre la Ley 21.719, que moderniza la protección de datos en
@@ -193,6 +193,13 @@ export default function PrivacidadPage() {
                   <tr className="border-b border-border/60">
                     <td className="py-2.5 pr-4">Vercel</td>
                     <td className="py-2.5 pr-4">Alojamiento de la aplicación</td>
+                    <td className="py-2.5">Estados Unidos</td>
+                  </tr>
+                  <tr className="border-b border-border/60">
+                    <td className="py-2.5 pr-4">Railway</td>
+                    <td className="py-2.5 pr-4">
+                      Chat en tiempo real entre el comité y sus socios
+                    </td>
                     <td className="py-2.5">Estados Unidos</td>
                   </tr>
                   <tr>
