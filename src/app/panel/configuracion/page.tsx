@@ -8,8 +8,6 @@ import { usoIaChat } from "@/lib/ia-chat-cuota";
 import { LIMITE_SOCIOS, LIMITE_TECNICOS, NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { resumenDatos } from "@/app/panel/configuracion/datos-actions";
 import { ConfiguracionForm } from "@/components/panel/configuracion-form";
-import { BuscadorSociosSwitch } from "@/components/panel/buscador-socios-switch";
-import { WhatsappAutoSwitch } from "@/components/panel/whatsapp-auto-switch";
 import { envioAutomaticoActivo } from "@/lib/whatsapp-api";
 
 export const metadata: Metadata = {
@@ -30,8 +28,6 @@ export default async function ConfiguracionPage() {
 
   return (
     <>
-      <BuscadorSociosSwitch inicial={apr.apareceEnBuscador} tieneSlug={Boolean(apr.slug)} />
-      {envioAutomaticoActivo() && <WhatsappAutoSwitch comprobante={apr.whatsappComprobanteAuto} />}
       <ConfiguracionForm
       resumenDatos={resumen}
       uso={{
@@ -72,6 +68,9 @@ export default async function ConfiguracionPage() {
         diasGraciaCorte: apr.diasGraciaCorte,
         diasAvisoCorte: apr.diasAvisoCorte,
         costoReconexion: apr.costoReconexion,
+        apareceEnBuscador: apr.apareceEnBuscador,
+        whatsappDisponible: envioAutomaticoActivo(),
+        whatsappComprobanteAuto: apr.whatsappComprobanteAuto,
       }}
       />
     </>

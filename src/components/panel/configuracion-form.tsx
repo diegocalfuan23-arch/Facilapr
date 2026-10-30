@@ -35,6 +35,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { UsoComite, type DatosUso } from "@/components/panel/uso-comite";
+import { AjustesComite } from "@/components/panel/ajustes-comite";
 
 export type DatosConfiguracion = {
   /** El plan incluye la IA dentro del chat (Estándar y Grande). */
@@ -71,6 +72,12 @@ export type DatosConfiguracion = {
   diasGraciaCorte: number;
   diasAvisoCorte: number;
   costoReconexion: number;
+  /** Sale en el buscador público de socios. */
+  apareceEnBuscador: boolean;
+  /** El envío por la API de WhatsApp está activo en el servidor. */
+  whatsappDisponible: boolean;
+  /** El comprobante sale solo por WhatsApp al registrar un pago. */
+  whatsappComprobanteAuto: boolean;
 };
 
 /**
@@ -374,6 +381,13 @@ export function ConfiguracionForm({
               />
             </Campo>
           </div>
+
+          <AjustesComite
+            apareceEnBuscador={datos.apareceEnBuscador}
+            tieneSlug={Boolean(datos.slug)}
+            whatsappDisponible={datos.whatsappDisponible}
+            comprobanteAuto={datos.whatsappComprobanteAuto}
+          />
         </Bloque>
       )}
 
