@@ -19,9 +19,14 @@ const PLANTILLA = "comprobante_pago";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
+/** Deja anotado por qué no se envió: un comprobante que no sale en silencio es imposible de diagnosticar. */
+function omitido(motivo: string) {
+  console.info(`WhatsApp comprobante omitido: ${motivo}.`);
+}
+
 export async function enviarComprobanteAuto(pagoId: string) {
   try {
-    if (!envioAutomaticoActivo()) return;
+    if (!envioAutomaticoActivo()) return omitido("el envío automático está apagado en el servidor");
 
     const [f] = await db
       .select({
@@ -44,7 +49,11 @@ export async function enviarComprobanteAuto(pagoId: string) {
       .limit(1);
 
     // Solo el pago de una boleta: la plantilla habla de "la boleta de {mes}".
-    if (!f || f.concepto !== "BOLETA" || !f.automatico || !f.consentimiento || !f.telefono) return;
+    if (!f) return omitido("el pago no tiene boleta o socio");
+    if (f.concepto !== "BOLETA") return omitido("no es el pago de una boleta");
+    if (!f.automatico) return omitido("el comité no prendió el comprobante automático");
+    if (!f.consentimiento) return omitido("el socio no está marcado como que acepta WhatsApp");
+    if (!f.telefono) return omitido("el socio no tiene teléfono");
 
     // Se reserva el envío antes de mandarlo: el índice único deja pasar uno solo por pago,
     // aunque el aviso de pago llegue dos veces.
@@ -53,7 +62,7 @@ export async function enviarComprobanteAuto(pagoId: string) {
       .values({ aprId: f.aprId, socioId: f.socioId, tipo: "COMPROBANTE", referenciaId: pagoId, plantilla: PLANTILLA })
       .onConflictDoNothing()
       .returning({ id: mensajesWhatsapp.id });
-    if (!reserva) return;
+    if (!reserva) return omitido("ya se había enviado el comprobante de este pago");
 
     const r = await enviarPlantilla(f.telefono, PLANTILLA, {
       parametros: [
