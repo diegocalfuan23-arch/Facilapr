@@ -116,21 +116,54 @@ async function crearPlantillas(wabaId: string, token: string) {
 export type ResultadoConexion = { ok: true; numero: string | null; avisos: string[] } | { ok: false; error: string };
 
 /**
+ * Coexistencia: el comité ya usa su número en la app WhatsApp Business y lo sigue
+ * usando. Meta exige pedir, dentro de las 24 horas, la sincronización de sus
+ * contactos y de sus chats de los últimos 180 días; si no se pide, hay que
+ * desconectar y volver a conectar. Cada una se puede pedir una sola vez.
+ * Por ahora lo que llega por el webhook de esa sincronización no se guarda.
+ */
+async function sincronizarCoexistencia(phoneNumberId: string, token: string) {
+  const avisos: string[] = [];
+  for (const tipo of ["smb_app_state_sync", "history"] as const) {
+    const r = await llamar(
+      graph(`${phoneNumberId}/smb_app_data`),
+      enJson(token, { messaging_product: "whatsapp", sync_type: tipo })
+    );
+    if (!r.ok) avisos.push(`Sincronización ${tipo}: ${r.error}`);
+  }
+  return avisos;
+}
+
+/**
  * Convierte lo que devuelve el registro insertado en una conexión usable. Los
  * pasos que dejan el número sin poder enviar (token, webhook, registro) cortan
  * y quedan anotados; las plantillas no cortan: se pueden reintentar.
+ *
+ * Con `coexistencia` el número ya está registrado (no se vuelve a registrar) y
+ * Meta no siempre devuelve su id: se busca en la cuenta.
  */
 export async function conectarComite(datos: {
   aprId: string;
   code: string;
   wabaId: string;
-  phoneNumberId: string;
+  phoneNumberId?: string;
+  coexistencia?: boolean;
 }): Promise<ResultadoConexion> {
-  const { aprId, code, wabaId, phoneNumberId } = datos;
+  const { aprId, code, wabaId, coexistencia = false } = datos;
 
   const token = await intercambiarCodigo(code);
   if (!token.ok) return { ok: false, error: `No se pudo obtener el acceso del comité: ${token.error}` };
   const accessToken = token.datos.access_token;
+
+  let phoneNumberId = datos.phoneNumberId;
+  if (!phoneNumberId) {
+    const numeros = await llamar<{ data?: { id: string }[] }>(
+      `${graph(`${wabaId}/phone_numbers`)}?fields=id`,
+      autorizado(accessToken)
+    );
+    phoneNumberId = numeros.ok ? numeros.datos.data?.[0]?.id : undefined;
+    if (!phoneNumberId) return { ok: false, error: "No encontramos el número de esa cuenta de WhatsApp." };
+  }
 
   const info = await llamar<{ display_phone_number?: string; verified_name?: string }>(
     `${graph(phoneNumberId)}?fields=display_phone_number,verified_name`,
@@ -167,13 +200,17 @@ export async function conectarComite(datos: {
   const suscripcion = await llamar(graph(`${wabaId}/subscribed_apps`), { method: "POST", ...autorizado(accessToken) });
   if (!suscripcion.ok) return fallo(`No se pudo suscribir el aviso de mensajes: ${suscripcion.error}`);
 
-  const registro = await llamar(
-    graph(`${phoneNumberId}/register`),
-    enJson(accessToken, { messaging_product: "whatsapp", pin })
-  );
-  if (!registro.ok) return fallo(`No se pudo registrar el número: ${registro.error}`);
+  // En coexistencia el número ya está registrado en la API: registrarlo de nuevo lo rompería.
+  if (!coexistencia) {
+    const registro = await llamar(
+      graph(`${phoneNumberId}/register`),
+      enJson(accessToken, { messaging_product: "whatsapp", pin })
+    );
+    if (!registro.ok) return fallo(`No se pudo registrar el número: ${registro.error}`);
+  }
 
   const avisos = await crearPlantillas(wabaId, accessToken);
+  if (coexistencia) avisos.push(...(await sincronizarCoexistencia(phoneNumberId, accessToken)));
   return { ok: true, numero, avisos };
 }
 

@@ -21,6 +21,13 @@ import { META_APP_ID, META_CONFIG_ID } from "@/lib/meta-ids";
 /** Versión del SDK de JavaScript de Meta. */
 const VERSION_SDK = "v26.0";
 
+/** Valores que Meta documenta para conectar un número que ya está en la app WhatsApp Business (coexistencia). */
+const EXTRAS_COEXISTENCIA = {
+  setup: {},
+  featureType: "whatsapp_business_app_onboarding",
+  sessionInfoVersion: "3",
+};
+
 type RespuestaLogin = { authResponse?: { code?: string } | null };
 
 declare global {
@@ -58,12 +65,18 @@ export type ConexionWhatsapp = {
 };
 
 /** Lo que llega de Meta, en dos tiempos: el código (SDK) y los ids (mensaje de la ventana). */
-type Sesion = { code: string | null; ids: { wabaId: string; phoneNumberId: string } | null; enviada: boolean };
+type Sesion = {
+  code: string | null;
+  /** En coexistencia Meta puede devolver solo la cuenta; el servidor busca el número. */
+  ids: { wabaId: string; phoneNumberId?: string } | null;
+  coexistencia: boolean;
+  enviada: boolean;
+};
 
 export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | null }) {
   const router = useRouter();
   const [trabajando, setTrabajando] = useState(false);
-  const sesion = useRef<Sesion>({ code: null, ids: null, enviada: false });
+  const sesion = useRef<Sesion>({ code: null, ids: null, coexistencia: false, enviada: false });
   const espera = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function finalizar() {
@@ -72,7 +85,12 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
     s.enviada = true;
     if (espera.current) clearTimeout(espera.current);
 
-    const r = await conectarWhatsapp({ code: s.code, wabaId: s.ids.wabaId, phoneNumberId: s.ids.phoneNumberId });
+    const r = await conectarWhatsapp({
+      code: s.code,
+      wabaId: s.ids.wabaId,
+      phoneNumberId: s.ids.phoneNumberId,
+      coexistencia: s.coexistencia,
+    });
     setTrabajando(false);
     if (r.ok) {
       toast.success(r.numero ? `WhatsApp conectado: ${r.numero}` : "WhatsApp conectado");
@@ -97,8 +115,12 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
 
       if (typeof d.event === "string" && d.event.startsWith("FINISH")) {
         const { waba_id, phone_number_id } = d.data ?? {};
-        if (waba_id && phone_number_id) {
-          sesion.current.ids = { wabaId: String(waba_id), phoneNumberId: String(phone_number_id) };
+        // Con coexistencia basta la cuenta; con el flujo normal hacen falta la cuenta y el número.
+        if (waba_id && (phone_number_id || sesion.current.coexistencia)) {
+          sesion.current.ids = {
+            wabaId: String(waba_id),
+            phoneNumberId: phone_number_id ? String(phone_number_id) : undefined,
+          };
           void finalizar();
         }
       } else if (d.event === "CANCEL") {
@@ -114,7 +136,7 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function conectar() {
+  async function conectar(coexistencia = false) {
     setTrabajando(true);
     try {
       await cargarSdk();
@@ -124,7 +146,7 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
       return;
     }
 
-    sesion.current = { code: null, ids: null, enviada: false };
+    sesion.current = { code: null, ids: null, coexistencia, enviada: false };
     window.FB?.login(
       (r) => {
         const code = r.authResponse?.code;
@@ -146,7 +168,7 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
         config_id: META_CONFIG_ID,
         response_type: "code",
         override_default_response_type: true,
-        extras: { setup: {} },
+        extras: coexistencia ? EXTRAS_COEXISTENCIA : { setup: {} },
       }
     );
   }
@@ -168,7 +190,7 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
         <p className="mt-0.5 text-[0.8rem] text-muted-foreground">
           {conectada
             ? `Tus mensajes salen desde ${conexion?.numeroMostrado ?? "tu número"}${conexion?.nombreVerificado ? ` (${conexion.nombreVerificado})` : ""}. Meta cobra los mensajes directo a tu cuenta.`
-            : "Conecta el WhatsApp de tu comité para que los mensajes salgan desde tu propio número. Meta cobra los mensajes directo a tu cuenta, sin pasar por Facilapr."}
+            : "Conecta el WhatsApp de tu comité para que los mensajes salgan desde tu propio número. Si ya usas la app WhatsApp Business en tu celular, puedes conectar ese mismo número y seguir usándola. Meta cobra los mensajes directo a tu cuenta, sin pasar por Facilapr."}
         </p>
         {conexion?.estado === "ERROR" && (
           <p className="mt-0.5 text-[0.8rem] text-destructive">
@@ -182,10 +204,15 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
           Desconectar
         </Button>
       ) : (
-        <Button type="button" size="sm" onClick={conectar} disabled={trabajando}>
-          {trabajando && <Loader2 className="animate-spin" />}
-          {conexion ? "Reintentar" : "Conectar mi WhatsApp"}
-        </Button>
+        <div className="flex shrink-0 flex-col items-end gap-2">
+          <Button type="button" size="sm" onClick={() => conectar(false)} disabled={trabajando}>
+            {trabajando && <Loader2 className="animate-spin" />}
+            {conexion ? "Reintentar" : "Conectar mi WhatsApp"}
+          </Button>
+          <Button type="button" variant="outline" size="sm" onClick={() => conectar(true)} disabled={trabajando}>
+            Ya uso WhatsApp Business
+          </Button>
+        </div>
       )}
     </div>
   );

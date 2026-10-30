@@ -13,20 +13,23 @@ export type ResultadoConectar = { ok: true; numero: string | null; avisos: strin
 export async function conectarWhatsapp(datos: {
   code: string;
   wabaId: string;
-  phoneNumberId: string;
+  /** En coexistencia Meta puede no devolverlo: se busca en la cuenta. */
+  phoneNumberId?: string;
+  /** El comité conectó un número que ya usa en la app WhatsApp Business. */
+  coexistencia?: boolean;
 }): Promise<ResultadoConectar> {
   const { apr } = await requireAdmin();
   if (!conexionDeComitesActiva()) return { ok: false, error: "La conexión de WhatsApp todavía no está disponible." };
 
   const code = String(datos.code ?? "").trim();
   const wabaId = String(datos.wabaId ?? "").trim();
-  const phoneNumberId = String(datos.phoneNumberId ?? "").trim();
+  const phoneNumberId = String(datos.phoneNumberId ?? "").trim() || undefined;
   // Los ids de Meta son numéricos: cualquier otra cosa no viene de su ventana.
-  if (!code || !/^\d{5,25}$/.test(wabaId) || !/^\d{5,25}$/.test(phoneNumberId)) {
+  if (!code || !/^\d{5,25}$/.test(wabaId) || (phoneNumberId && !/^\d{5,25}$/.test(phoneNumberId))) {
     return { ok: false, error: "Meta no devolvió los datos de tu cuenta. Vuelve a intentarlo." };
   }
 
-  const r = await conectarComite({ aprId: apr.id, code, wabaId, phoneNumberId });
+  const r = await conectarComite({ aprId: apr.id, code, wabaId, phoneNumberId, coexistencia: datos.coexistencia === true });
   if (!r.ok) console.error("Conexión de WhatsApp:", r.error);
   revalidatePath("/panel/configuracion");
   return r;
