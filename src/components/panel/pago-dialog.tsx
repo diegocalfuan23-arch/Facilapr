@@ -26,6 +26,7 @@ import { normalizarTelefono } from "@/lib/formato";
 import {
   enlaceWhatsApp,
   mensajeComprobantePago,
+  primerNombre,
   telefonoValidoParaWhatsApp,
   type DatosComiteWhatsApp,
 } from "@/lib/whatsapp";
@@ -41,6 +42,8 @@ export type BoletaParaPago = {
   id: string;
   socioNombre: string;
   socioTelefono: string | null;
+  /** Aceptó recibir WhatsApp automáticos: sin esto el comprobante automático no le sale. */
+  socioConsentimiento?: boolean;
   periodo: string;
   montoTotal: number;
   montoPagado: number;
@@ -94,6 +97,13 @@ export function PagoDialog({
   // El comprobante se manda a quien pagó, si dejó su número; si no, al titular.
   const telefonoDestino = registrado?.pagadoPorTelefono ?? boleta.socioTelefono;
   const puedeWhatsApp = telefonoValidoParaWhatsApp(telefonoDestino);
+  // Si el comprobante ya le sale solo al titular, el botón manual sobra; se mantiene si pagó
+  // otra persona y dejó su número (el automático va solo al titular) o si al titular no le sale.
+  const cubiertoPorAutomatico =
+    Boolean(comite.comprobanteAutomatico) &&
+    Boolean(boleta.socioConsentimiento) &&
+    telefonoValidoParaWhatsApp(boleta.socioTelefono) &&
+    !registrado?.pagadoPorTelefono;
 
   function enviarComprobante() {
     if (!registrado || !telefonoDestino) return;
@@ -134,7 +144,11 @@ export function PagoDialog({
                 ? `Quedan ${clp.format(pendienteDePago)} por pagar.`
                 : "La boleta quedó pagada completa."}
             </p>
-            {puedeWhatsApp ? (
+            {cubiertoPorAutomatico ? (
+              <p className="rounded-lg bg-muted/60 px-3.5 py-2.5 text-[0.84rem] text-muted-foreground">
+                El comprobante le llega a {primerNombre(boleta.socioNombre)} por WhatsApp automáticamente.
+              </p>
+            ) : puedeWhatsApp ? (
               <Button onClick={enviarComprobante} className="h-10">
                 <MessageCircle />
                 Enviar comprobante por WhatsApp

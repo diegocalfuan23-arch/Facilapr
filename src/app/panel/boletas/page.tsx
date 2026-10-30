@@ -23,6 +23,7 @@ export default async function BoletasPage() {
       socioNombre: socios.nombre,
       socioRut: socios.rut,
       socioTelefono: socios.telefono,
+      socioConsentimiento: socios.whatsappConsentimiento,
       periodo: boletas.periodo,
       montoTotal: boletas.montoTotal,
       montoPagado: boletas.montoPagado,
@@ -66,6 +67,7 @@ export default async function BoletasPage() {
         nombre: apr.nombre,
         slug: apr.slug,
         infoPago: apr.infoPago,
+        comprobanteAutomatico: envioAutomaticoActivo() && apr.whatsappComprobanteAuto,
       }}
       envioAutomatico={envioAutomaticoActivo()}
       plantillaBoleta={plantillaBoletaApi()}

@@ -8,6 +8,7 @@ import { urlComprobante } from "@/lib/comprobante-enlace";
 import { PagosTabla } from "@/components/panel/pagos-tabla";
 import { MercadoPagoCard } from "@/components/panel/mercadopago-card";
 import { estadoConexion, modoMp, mpConfigurado } from "@/lib/mercadopago";
+import { envioAutomaticoActivo } from "@/lib/whatsapp-api";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 
 export const metadata: Metadata = {
@@ -59,6 +60,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
       socioId: socios.id,
       socioNombre: socios.nombre,
       socioTelefono: socios.telefono,
+      socioConsentimiento: socios.whatsappConsentimiento,
       socioRut: socios.rut,
       socioNumero: socios.numeroCliente,
       socioTipo: socios.tipo,
@@ -127,11 +129,17 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
         socioId: b.socioId,
         socioNombre: b.socioNombre,
         socioTelefono: b.socioTelefono,
+        socioConsentimiento: b.socioConsentimiento,
         periodo: b.periodo,
         montoTotal: b.montoTotal,
         montoPagado: b.montoPagado,
       }))}
-      comite={{ nombre: apr.nombre, slug: apr.slug, infoPago: apr.infoPago }}
+      comite={{
+        nombre: apr.nombre,
+        slug: apr.slug,
+        infoPago: apr.infoPago,
+        comprobanteAutomatico: envioAutomaticoActivo() && apr.whatsappComprobanteAuto,
+      }}
       mpConectado={Boolean(conexionMp)}
       mpHabilitado={apr.mercadoPagoHabilitado}
       mpModo={modoMp()}

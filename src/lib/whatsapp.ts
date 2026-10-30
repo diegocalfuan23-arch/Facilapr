@@ -82,6 +82,8 @@ export type DatosComiteWhatsApp = {
   nombre: string;
   slug: string | null;
   infoPago: string | null;
+  /** El comprobante sale solo por WhatsApp al registrar un pago (interruptor prendido y envío activo). */
+  comprobanteAutomatico?: boolean;
 };
 
 export type DatosBoletaWhatsApp = {

@@ -91,6 +91,7 @@ export type BoletaFila = {
   socioNombre: string;
   socioRut: string | null;
   socioTelefono: string | null;
+  socioConsentimiento: boolean;
   periodo: string;
   montoTotal: number;
   montoPagado: number;
