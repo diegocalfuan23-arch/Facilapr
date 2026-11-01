@@ -78,6 +78,8 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
   const [trabajando, setTrabajando] = useState(false);
   const sesion = useRef<Sesion>({ code: null, ids: null, coexistencia: false, enviada: false });
   const espera = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** El último evento que Meta avisó desde su ventana: ayuda a explicar por qué una conexión no terminó. */
+  const eventoVisto = useRef<string | null>(null);
 
   async function finalizar() {
     const s = sesion.current;
@@ -112,11 +114,20 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
         return;
       }
       if (d?.type !== "WA_EMBEDDED_SIGNUP") return;
+      eventoVisto.current = d.event ?? null;
+      // Solo ids y el nombre del evento: sirve para diagnosticar desde la consola del navegador.
+      console.info("Registro insertado de Meta:", d.event, d.data?.waba_id ?? "", d.data?.phone_number_id ?? "");
 
       if (typeof d.event === "string" && d.event.startsWith("FINISH")) {
         const { waba_id, phone_number_id } = d.data ?? {};
         // Con coexistencia basta la cuenta; con el flujo normal hacen falta la cuenta y el número.
-        if (waba_id && (phone_number_id || sesion.current.coexistencia)) {
+        if (waba_id && !phone_number_id && !sesion.current.coexistencia) {
+          // Meta creó la cuenta pero no se agregó ningún número: sin número no se puede enviar.
+          sesion.current.enviada = true;
+          if (espera.current) clearTimeout(espera.current);
+          setTrabajando(false);
+          toast.error("Terminaste sin agregar un número de teléfono. Vuelve a intentarlo y agrega el número de tu comité.");
+        } else if (waba_id && (phone_number_id || sesion.current.coexistencia)) {
           sesion.current.ids = {
             wabaId: String(waba_id),
             phoneNumberId: phone_number_id ? String(phone_number_id) : undefined,
@@ -147,6 +158,7 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
     }
 
     sesion.current = { code: null, ids: null, coexistencia, enviada: false };
+    eventoVisto.current = null;
     window.FB?.login(
       (r) => {
         const code = r.authResponse?.code;
@@ -160,7 +172,11 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
         espera.current = setTimeout(() => {
           if (!sesion.current.enviada) {
             setTrabajando(false);
-            toast.error("Meta no terminó de confirmar tu cuenta. Vuelve a intentarlo.");
+            toast.error(
+              eventoVisto.current
+                ? `Meta no terminó de confirmar tu cuenta (último aviso: ${eventoVisto.current}). Vuelve a intentarlo.`
+                : "Meta no terminó de confirmar tu cuenta. Vuelve a intentarlo."
+            );
           }
         }, 15000);
       },
