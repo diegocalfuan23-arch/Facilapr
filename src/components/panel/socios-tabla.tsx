@@ -5,8 +5,6 @@ import { useMemo, useState, useTransition } from "react";
 import {
   ArrowUpDown,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronsUpDown,
   Download,
   FilterX,
@@ -73,6 +71,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { ImportarSociosDialog } from "@/components/panel/importar-socios-dialog";
+import { Paginador } from "@/components/panel/paginador";
 import { RestablecerClaveDialog } from "@/components/panel/restablecer-clave-dialog";
 import { InvitarPortalDialog } from "@/components/panel/invitar-portal-dialog";
 import {
@@ -1038,31 +1037,7 @@ export function SociosTabla({
               )}
             </p>
 
-            <div className="flex items-center gap-1 text-[0.87rem] text-muted-foreground">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={paginaActual === 1}
-                onClick={() => setPagina(paginaActual - 1)}
-                aria-label="Página anterior"
-              >
-                <ChevronLeft />
-              </Button>
-              <span className="rounded-md bg-muted px-2.5 py-1 font-medium text-foreground tabular-nums">
-                {paginaActual}
-              </span>
-              <span className="px-1">de</span>
-              <span className="tabular-nums">{totalPaginas}</span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={paginaActual === totalPaginas}
-                onClick={() => setPagina(paginaActual + 1)}
-                aria-label="Página siguiente"
-              >
-                <ChevronRight />
-              </Button>
-            </div>
+            <Paginador pagina={paginaActual} total={totalPaginas} onCambiar={setPagina} />
           </div>
         </div>
       )}

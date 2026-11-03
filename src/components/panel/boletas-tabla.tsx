@@ -14,8 +14,6 @@ import {
   Check,
   CheckCircle2,
   FileDown,
-  ChevronLeft,
-  ChevronRight,
   Clock,
   Coins,
   FileText,
@@ -69,6 +67,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { PagoDialog } from "@/components/panel/pago-dialog";
+import { Paginador } from "@/components/panel/paginador";
 import { formatearRut, formatearTelefono } from "@/lib/formato";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
 import {
@@ -784,31 +783,7 @@ export function BoletasTabla({
               </span>{" "}
               {filtradas.length === 1 ? "boleta" : "boletas"}
             </p>
-            <div className="flex items-center gap-1 text-[0.87rem] text-muted-foreground">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={paginaActual === 1}
-                onClick={() => setPagina(paginaActual - 1)}
-                aria-label="Página anterior"
-              >
-                <ChevronLeft />
-              </Button>
-              <span className="rounded-md bg-muted px-2.5 py-1 font-medium tabular-nums text-foreground">
-                {paginaActual}
-              </span>
-              <span className="px-1">de</span>
-              <span className="tabular-nums">{totalPaginas}</span>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                disabled={paginaActual === totalPaginas}
-                onClick={() => setPagina(paginaActual + 1)}
-                aria-label="Página siguiente"
-              >
-                <ChevronRight />
-              </Button>
-            </div>
+            <Paginador pagina={paginaActual} total={totalPaginas} onCambiar={setPagina} />
           </div>
         </div>
       )}
