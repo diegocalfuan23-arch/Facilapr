@@ -7,8 +7,8 @@ import { aprobarLecturasListas } from "@/app/panel/lecturas/actions";
 import {
   confirmarLecturas,
   previsualizarLecturas,
-  type PrevisualizacionMasiva,
 } from "@/app/panel/lecturas/masivas-actions";
+import type { PrevisualizacionMasiva } from "@/lib/cargar-lecturas";
 import type { ModoLecturas } from "@/lib/importar-lecturas";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
