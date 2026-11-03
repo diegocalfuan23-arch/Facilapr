@@ -1020,7 +1020,8 @@ export function SociosTabla({
             )}
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+          {/* Contador y paginador juntos a la izquierda: a la derecha quedan los botones flotantes de ayuda. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3.5">
             <p className="text-[0.87rem] text-muted-foreground">
               <span className="font-medium text-foreground tabular-nums">
                 {filtrados.length}
