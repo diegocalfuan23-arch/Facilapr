@@ -31,7 +31,7 @@ export const PLANES_COMERCIALES: {
     descripcion: "Para APR con hasta 200 socios.",
     mensual: 0.7,
     lista: [
-      "Boletas, lecturas y recibo en PDF por WhatsApp",
+      "Boletas y recibos en PDF para compartir",
       "Portal para cada socio: sus boletas, pagos y solicitudes",
       "Hasta 200 socios cargados",
       "1 técnico en terreno",
