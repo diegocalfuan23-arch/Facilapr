@@ -3,7 +3,8 @@
 import { useEffect, useState, useTransition } from "react";
 import { CreditCard, Loader2, Repeat } from "lucide-react";
 import { toast } from "sonner";
-import { cotizarPlan, iniciarPagoAutomatico, iniciarPagoPlan, type Cotizacion } from "@/app/panel/plan/actions";
+import { cotizarPlan, iniciarPagoAutomatico, iniciarPagoPlan } from "@/app/panel/plan/actions";
+import type { Cotizacion } from "@/lib/cotizar-plan";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

@@ -11,10 +11,8 @@ import {
   iniciarRegistroTarjetaFlow,
   quitarTarjetaFlow,
 } from "@/lib/flow";
-import { calcularCotizacion, type Cotizacion, type ResultadoCotizacion } from "@/lib/cotizar-plan";
+import { calcularCotizacion, type ResultadoCotizacion } from "@/lib/cotizar-plan";
 import type { Plan } from "@/lib/planes";
-
-export type { Cotizacion, ResultadoCotizacion };
 
 /** Cuánto cuesta un plan hoy en pesos: la UF del día por el precio del plan, más IVA. */
 export async function cotizarPlan(plan: Plan, periodo: "MENSUAL" | "ANUAL"): Promise<ResultadoCotizacion> {
