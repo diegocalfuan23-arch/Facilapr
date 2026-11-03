@@ -560,6 +560,41 @@ export const pagosPlan = pgTable(
   ]
 );
 
+/**
+ * Pago automático del plan: la tarjeta del comité queda guardada en Flow y cada
+ * período se le cobra el monto del día (la UF de ese día). Un comité, una fila.
+ */
+export const tarjetasPlan = pgTable(
+  "TarjetaPlan",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    flowCustomerId: text("flowCustomerId").notNull(),
+    /** PENDIENTE (registrando la tarjeta) | ACTIVA | SUSPENDIDA (falló el cobro) | CANCELADA */
+    estado: text("estado").notNull().default("PENDIENTE"),
+    plan: text("plan").notNull(),
+    /** MENSUAL | ANUAL */
+    periodo: text("periodo").notNull(),
+    registroToken: text("registroToken"),
+    tarjetaTipo: text("tarjetaTipo"),
+    tarjetaUltimos: text("tarjetaUltimos"),
+    /** Cuándo toca el próximo cobro; null si no hay nada programado. */
+    proximoCobro: timestamp("proximoCobro", { precision: 3 }),
+    /** Cobros seguidos que fallaron; al tercero se suspende. */
+    intentos: integer("intentos").notNull().default(0),
+    autorizadoPorId: text("autorizadoPorId"),
+    autorizadoAt: timestamp("autorizadoAt", { precision: 3 }),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("TarjetaPlan_aprId_key").on(table.aprId),
+    index("TarjetaPlan_proximoCobro_idx").on(table.proximoCobro),
+  ]
+);
+
 export const boletasRelations = relations(boletas, ({ one }) => ({
   socio: one(socios, {
     fields: [boletas.socioId],

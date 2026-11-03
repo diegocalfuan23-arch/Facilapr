@@ -37,7 +37,21 @@ export async function aplicarPagoFlow(token: string): Promise<ResultadoPagoPlan>
     return "DESCONOCIDO";
   }
 
-  // El plan queda pagado desde hoy, o desde donde terminaba el período vigente si se renueva antes de tiempo.
+  await marcarOrdenPagada(orden, flow.flowOrder || orden.flowOrder);
+  return "PAGADO";
+}
+
+/**
+ * Deja pagada una orden de plan: el plan queda pagado desde hoy, o desde donde
+ * terminaba el período vigente si se renueva antes de tiempo, y el comité pasa al
+ * plan comprado. Devuelve hasta cuándo quedó vigente, o null si otro proceso ya la
+ * había marcado (así no se aplica dos veces). Lo usan el pago en línea y el cobro
+ * automático.
+ */
+export async function marcarOrdenPagada(
+  orden: { id: string; aprId: string; plan: string; periodo: string },
+  flowOrder: string | null
+): Promise<Date | null> {
   const vigentes = await db
     .select({ hasta: pagosPlan.vigenteHasta })
     .from(pagosPlan)
@@ -50,16 +64,15 @@ export async function aplicarPagoFlow(token: string): Promise<ResultadoPagoPlan>
 
   const actualizada = await db
     .update(pagosPlan)
-    .set({ estado: "PAGADO", pagadoAt: ahora, vigenteDesde: desde, vigenteHasta: hasta, flowOrder: flow.flowOrder || orden.flowOrder })
+    .set({ estado: "PAGADO", pagadoAt: ahora, vigenteDesde: desde, vigenteHasta: hasta, flowOrder: flowOrder || undefined })
     .where(and(eq(pagosPlan.id, orden.id), eq(pagosPlan.estado, "PENDIENTE")))
     .returning({ id: pagosPlan.id });
 
-  // Solo quien logró marcarla como pagada cambia el plan: así no se aplica dos veces.
-  if (actualizada.length > 0) {
-    await db
-      .update(aprs)
-      .set({ plan: orden.plan as "BASICO" | "ESTANDAR" | "PREMIUM", updatedAt: new Date() })
-      .where(eq(aprs.id, orden.aprId));
-  }
-  return "PAGADO";
+  // Solo quien logró marcarla como pagada cambia el plan.
+  if (actualizada.length === 0) return null;
+  await db
+    .update(aprs)
+    .set({ plan: orden.plan as "BASICO" | "ESTANDAR" | "PREMIUM", updatedAt: new Date() })
+    .where(eq(aprs.id, orden.aprId));
+  return hasta;
 }

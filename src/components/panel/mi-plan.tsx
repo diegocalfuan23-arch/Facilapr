@@ -1,14 +1,27 @@
 "use client";
 
+import { useTransition } from "react";
+import { toast } from "sonner";
 import { PlanesComparados } from "@/components/panel/planes-comparados";
-import type { VigenciaPlan } from "@/app/panel/plan/actions";
+import { Button } from "@/components/ui/button";
+import { cancelarPagoAutomatico, type PagoAutomatico, type VigenciaPlan } from "@/app/panel/plan/actions";
 import { NOMBRE_PLAN, type Plan } from "@/lib/planes";
 
 const fecha = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "long", year: "numeric" });
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
 /** Los planes con el del comité marcado, hasta cuándo está pagado y lo que ya pagó. */
-export function MiPlan({ planActual, vigencia }: { planActual: Plan; vigencia: VigenciaPlan }) {
+export function MiPlan({
+  planActual,
+  vigencia,
+  automatico,
+}: {
+  planActual: Plan;
+  vigencia: VigenciaPlan;
+  automatico: PagoAutomatico;
+}) {
+  const [cancelando, cancelar] = useTransition();
+
   return (
     <div className="flex flex-col gap-8">
       <div className="rounded-xl border border-border bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
@@ -24,6 +37,42 @@ export function MiPlan({ planActual, vigencia }: { planActual: Plan; vigencia: V
           </p>
         )}
       </div>
+
+      {automatico.estado && (
+        <div className="rounded-xl border border-border bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
+          <div className="text-[0.8rem] text-muted-foreground">Pago automático</div>
+          <div className="mt-0.5 text-[1.05rem] font-semibold">
+            {automatico.estado === "ACTIVA" && "Activo"}
+            {automatico.estado === "SUSPENDIDA" && "Pausado: la tarjeta no pasó"}
+            {automatico.estado === "PENDIENTE" && "Falta terminar de guardar la tarjeta"}
+          </div>
+          <p className="mt-0.5 text-[0.84rem] text-muted-foreground">
+            {automatico.tarjeta && `${automatico.tarjeta}. `}
+            {automatico.estado === "ACTIVA" && automatico.proximoCobro
+              ? `Próximo cobro: ${fecha.format(new Date(automatico.proximoCobro))}, con la UF de ese día.`
+              : automatico.estado === "SUSPENDIDA"
+                ? "Registra otra tarjeta desde los planes de abajo, o paga en línea."
+                : null}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            disabled={cancelando}
+            onClick={() =>
+              cancelar(async () => {
+                const r = await cancelarPagoAutomatico();
+                if (r.ok) {
+                  toast.success("Pago automático cancelado. Tu plan sigue vigente hasta la fecha pagada.");
+                  window.location.reload();
+                } else toast.error(r.error);
+              })
+            }
+          >
+            Cancelar pago automático
+          </Button>
+        </div>
+      )}
 
       <PlanesComparados planActual={planActual} />
 

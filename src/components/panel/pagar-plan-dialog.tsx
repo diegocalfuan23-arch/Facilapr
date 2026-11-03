@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { CreditCard, Loader2 } from "lucide-react";
+import { CreditCard, Loader2, Repeat } from "lucide-react";
 import { toast } from "sonner";
-import { cotizarPlan, iniciarPagoPlan, type Cotizacion } from "@/app/panel/plan/actions";
+import { cotizarPlan, iniciarPagoAutomatico, iniciarPagoPlan, type Cotizacion } from "@/app/panel/plan/actions";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -34,6 +34,7 @@ export function PagarPlanDialog({
   const [cot, setCot] = useState<Cotizacion | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
   const [pagando, iniciar] = useTransition();
+  const [acepta, setAcepta] = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -97,6 +98,13 @@ export function PagarPlanDialog({
                 <dd className="tabular-nums">{clp.format(cot.total)}</dd>
               </div>
             </dl>
+            <label className="flex items-start gap-2 rounded-lg border border-border/60 px-3 py-2.5 text-[0.82rem] text-muted-foreground">
+              <input type="checkbox" className="mt-0.5" checked={acepta} onChange={(e) => setAcepta(e.target.checked)} />
+              <span>
+                Quiero que el plan se pague solo cada {periodo === "ANUAL" ? "año" : "mes"} con mi tarjeta. Cada cobro se calcula con la UF de
+                ese día, y puedo cancelarlo cuando quiera desde Mi plan.
+              </span>
+            </label>
             {error && <p className="text-[0.86rem] text-destructive">{error}</p>}
           </div>
         )}
@@ -104,6 +112,25 @@ export function PagarPlanDialog({
         <DialogFooter>
           <Button variant="outline" onClick={onCerrar}>
             Cancelar
+          </Button>
+          <Button
+            variant="outline"
+            disabled={!cot || pagando || !acepta}
+            onClick={() =>
+              iniciar(async () => {
+                setError(null);
+                const r = await iniciarPagoAutomatico(plan, periodo, acepta);
+                if (r.ok) {
+                  window.location.href = r.url;
+                } else {
+                  setError(r.error);
+                  toast.error(r.error);
+                }
+              })
+            }
+          >
+            {pagando ? <Loader2 className="animate-spin" /> : <Repeat />}
+            Activar pago automático
           </Button>
           <Button
             disabled={!cot || pagando}

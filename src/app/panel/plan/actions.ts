@@ -2,65 +2,24 @@
 
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { pagosPlan } from "@/lib/db/schema";
+import { pagosPlan, tarjetasPlan } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
-import { crearPagoFlow, flowConfigurado } from "@/lib/flow";
-import { valorUfHoy } from "@/lib/uf";
-import { MESES_GRATIS, PLANES_COMERCIALES } from "@/lib/planes-comerciales";
+import {
+  crearClienteFlow,
+  crearPagoFlow,
+  flowConfigurado,
+  iniciarRegistroTarjetaFlow,
+  quitarTarjetaFlow,
+} from "@/lib/flow";
+import { calcularCotizacion, type Cotizacion, type ResultadoCotizacion } from "@/lib/cotizar-plan";
 import type { Plan } from "@/lib/planes";
 
-const IVA = 0.19;
-
-/**
- * Lo que cobra Flow por cada pago, como fracción del monto cobrado (sin IVA; la
- * comisión lleva IVA aparte, que se recupera como crédito fiscal). Cambia con
- * FLOW_COMISION en Vercel, por ejemplo 0.0319 para 3,19 %. Confírmalo con tu
- * contrato de Flow: es el dato que más mueve tu ganancia líquida.
- */
-function comisionFlow() {
-  const v = Number(process.env.FLOW_COMISION ?? "0.0319");
-  return Number.isFinite(v) && v >= 0 && v < 0.2 ? v : 0.0319;
-}
-
-export type Cotizacion = {
-  plan: Plan;
-  nombrePlan: string;
-  periodo: "MENSUAL" | "ANUAL";
-  uf: number;
-  valorUf: number;
-  neto: number;
-  iva: number;
-  /** Lo que se suma para que, tras la comisión de Flow, el comité reciba el neto completo. */
-  comision: number;
-  total: number;
-};
-
-export type ResultadoCotizacion = { ok: true; cotizacion: Cotizacion } | { ok: false; error: string };
+export type { Cotizacion, ResultadoCotizacion };
 
 /** Cuánto cuesta un plan hoy en pesos: la UF del día por el precio del plan, más IVA. */
 export async function cotizarPlan(plan: Plan, periodo: "MENSUAL" | "ANUAL"): Promise<ResultadoCotizacion> {
   await requireAdmin();
-
-  const def = PLANES_COMERCIALES.find((p) => p.clave === plan);
-  if (!def || def.mensual === null) {
-    return { ok: false, error: "Ese plan se contrata a medida: escríbenos y lo conversamos." };
-  }
-
-  const valorUf = await valorUfHoy();
-  if (!valorUf) {
-    return { ok: false, error: "No pudimos obtener el valor de la UF de hoy. Inténtalo en unos minutos." };
-  }
-
-  const uf = def.mensual * (periodo === "ANUAL" ? 12 - MESES_GRATIS : 1);
-  const neto = Math.round(uf * valorUf);
-  const iva = Math.round(neto * IVA);
-  // El total se arma para que, descontada la comisión de Flow, quede intacto el neto:
-  //   neto = total/(1+IVA) − comisión×total   →   total = neto / (1/(1+IVA) − comisión)
-  const total = Math.round(neto / (1 / (1 + IVA) - comisionFlow()));
-  return {
-    ok: true,
-    cotizacion: { plan, nombrePlan: def.nombre, periodo, uf, valorUf, neto, iva, comision: total - neto - iva, total },
-  };
+  return calcularCotizacion(plan, periodo);
 }
 
 /** Crea la orden en Flow y devuelve la dirección de pago a la que se manda al usuario. */
@@ -152,3 +111,102 @@ export async function vigenciaDelPlan(aprId: string): Promise<VigenciaPlan> {
   }
 }
 
+
+// ---------------------------------------------------------------- pago automático
+
+export type PagoAutomatico = {
+  /** ACTIVA | SUSPENDIDA | PENDIENTE; null si el comité no tiene pago automático. */
+  estado: "ACTIVA" | "SUSPENDIDA" | "PENDIENTE" | null;
+  plan: string | null;
+  periodo: string | null;
+  tarjeta: string | null;
+  proximoCobro: string | null;
+};
+
+/** El pago automático del comité. Si la tabla todavía no existe, devuelve vacío: la pantalla sigue funcionando. */
+export async function pagoAutomaticoDelPlan(aprId: string): Promise<PagoAutomatico> {
+  const vacio: PagoAutomatico = { estado: null, plan: null, periodo: null, tarjeta: null, proximoCobro: null };
+  try {
+    const t = await db.query.tarjetasPlan.findFirst({ where: eq(tarjetasPlan.aprId, aprId) });
+    if (!t || t.estado === "CANCELADA") return vacio;
+    return {
+      estado: t.estado as PagoAutomatico["estado"],
+      plan: t.plan,
+      periodo: t.periodo,
+      tarjeta: t.tarjetaUltimos ? `${t.tarjetaTipo ?? "Tarjeta"} terminada en ${t.tarjetaUltimos}` : null,
+      proximoCobro: t.proximoCobro ? t.proximoCobro.toISOString() : null,
+    };
+  } catch {
+    return vacio;
+  }
+}
+
+/**
+ * Empieza el pago automático: lleva al comité a registrar su tarjeta en Flow. La
+ * tarjeta no pasa por Facilapr. Exige que el comité acepte expresamente los cobros.
+ */
+export async function iniciarPagoAutomatico(
+  plan: Plan,
+  periodo: "MENSUAL" | "ANUAL",
+  acepta: boolean
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  const { user, apr } = await requireAdmin();
+
+  if (!acepta) {
+    return { ok: false, error: "Tienes que aceptar el cobro automático para activarlo." };
+  }
+  if (!flowConfigurado()) {
+    return { ok: false, error: "Los pagos en línea todavía no están activados. Escríbenos a hola@facilapr.cl y te ayudamos." };
+  }
+  const c = await calcularCotizacion(plan, periodo);
+  if (!c.ok) return c;
+
+  const base = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? "https://facilapr.cl").replace(/\/$/, "");
+
+  try {
+    const existente = await db.query.tarjetasPlan.findFirst({ where: eq(tarjetasPlan.aprId, apr.id) });
+    const flowCustomerId =
+      existente?.flowCustomerId ?? (await crearClienteFlow({ nombre: apr.nombre, correo: user.email, externalId: apr.id }));
+
+    const registro = await iniciarRegistroTarjetaFlow(flowCustomerId, `${base}/api/flow/tarjeta`);
+    const datos = {
+      flowCustomerId,
+      estado: "PENDIENTE",
+      plan,
+      periodo,
+      registroToken: registro.token,
+      autorizadoPorId: user.id,
+      autorizadoAt: new Date(),
+      intentos: 0,
+      updatedAt: new Date(),
+    };
+    if (existente) {
+      await db.update(tarjetasPlan).set(datos).where(eq(tarjetasPlan.id, existente.id));
+    } else {
+      await db.insert(tarjetasPlan).values({ aprId: apr.id, ...datos });
+    }
+    return { ok: true, url: registro.url };
+  } catch (e) {
+    console.error("Registro de tarjeta en Flow:", e);
+    return { ok: false, error: "No pudimos iniciar el registro de la tarjeta. Inténtalo de nuevo en un momento." };
+  }
+}
+
+/** Apaga el cobro automático y pide a Flow que olvide la tarjeta. El plan ya pagado sigue vigente. */
+export async function cancelarPagoAutomatico(): Promise<{ ok: true } | { ok: false; error: string }> {
+  const { apr } = await requireAdmin();
+  const t = await db.query.tarjetasPlan.findFirst({ where: eq(tarjetasPlan.aprId, apr.id) });
+  if (!t) return { ok: true };
+
+  // Primero se apaga aquí: aunque Flow falle, no se vuelve a cobrar.
+  await db
+    .update(tarjetasPlan)
+    .set({ estado: "CANCELADA", proximoCobro: null, updatedAt: new Date() })
+    .where(eq(tarjetasPlan.id, t.id));
+  try {
+    await quitarTarjetaFlow(t.flowCustomerId);
+  } catch (e) {
+    console.error("Flow no pudo quitar la tarjeta:", e);
+  }
+  return { ok: true };
+}

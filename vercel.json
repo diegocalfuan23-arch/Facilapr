@@ -3,6 +3,10 @@
     {
       "path": "/api/mantenimiento/borrar-cuentas",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/cobrar-planes",
+      "schedule": "0 12 * * *"
     }
   ]
 }

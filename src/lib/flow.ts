@@ -83,3 +83,102 @@ export async function estadoPagoFlow(token: string) {
     flowOrder: String(json.flowOrder ?? ""),
   };
 }
+
+// ---------------------------------------------------------------- cobro automático
+// Flow guarda la tarjeta del comité (registro hecho en la página de Flow, nunca
+// pasa por aquí) y nosotros pedimos cada cobro con el monto del día.
+
+async function postFlow<T>(ruta: string, extra: Record<string, string | number>): Promise<T> {
+  const apiKey = process.env.FLOW_API_KEY;
+  if (!apiKey) throw new Error("Falta FLOW_API_KEY.");
+  const params: Record<string, string | number> = { apiKey, ...extra };
+  const cuerpo = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+    s: firmar(params),
+  });
+  const r = await fetch(`${URL_BASE()}${ruta}`, {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: cuerpo,
+    signal: AbortSignal.timeout(20000),
+  });
+  const json = (await r.json().catch(() => null)) as (T & { message?: string }) | null;
+  if (!r.ok || !json) throw new Error(json?.message ?? `Flow respondió ${r.status}`);
+  return json;
+}
+
+async function getFlow<T>(ruta: string, extra: Record<string, string | number>): Promise<T> {
+  const apiKey = process.env.FLOW_API_KEY;
+  if (!apiKey) throw new Error("Falta FLOW_API_KEY.");
+  const params: Record<string, string | number> = { apiKey, ...extra };
+  const consulta = new URLSearchParams({
+    ...Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])),
+    s: firmar(params),
+  });
+  const r = await fetch(`${URL_BASE()}${ruta}?${consulta}`, { signal: AbortSignal.timeout(20000) });
+  const json = (await r.json().catch(() => null)) as (T & { message?: string }) | null;
+  if (!r.ok || !json) throw new Error(json?.message ?? `Flow respondió ${r.status}`);
+  return json;
+}
+
+/** Crea al comité como cliente de Flow (una vez). `externalId` es el id del comité en Facilapr. */
+export async function crearClienteFlow(datos: { nombre: string; correo: string; externalId: string }) {
+  const c = await postFlow<{ customerId?: string }>("/customer/create", {
+    name: datos.nombre.slice(0, 100),
+    email: datos.correo,
+    externalId: datos.externalId,
+  });
+  if (!c.customerId) throw new Error("Flow no devolvió el cliente.");
+  return c.customerId;
+}
+
+/** Devuelve la página de Flow donde el comité registra su tarjeta. */
+export async function iniciarRegistroTarjetaFlow(customerId: string, urlRetorno: string) {
+  const r = await postFlow<{ url?: string; token?: string }>("/customer/register", {
+    customerId,
+    url_return: urlRetorno,
+  });
+  if (!r.url || !r.token) throw new Error("Flow no devolvió la dirección de registro.");
+  return { url: `${r.url}?token=${r.token}`, token: r.token };
+}
+
+/** Cómo terminó el registro de la tarjeta. `registrada` es cierto cuando Flow ya la guardó. */
+export async function estadoRegistroTarjetaFlow(token: string) {
+  const r = await getFlow<{
+    status?: number | string;
+    customerId?: string;
+    creditCardType?: string;
+    last4CardDigits?: string;
+  }>("/customer/getRegisterStatus", { token });
+  return {
+    registrada: Number(r.status) === 1,
+    customerId: r.customerId ?? "",
+    tipo: r.creditCardType ?? null,
+    ultimos: r.last4CardDigits ?? null,
+  };
+}
+
+/** Cobra `monto` (pesos, con IVA) a la tarjeta registrada. `orden` debe ser único por cobro. */
+export async function cobrarTarjetaFlow(datos: { customerId: string; monto: number; asunto: string; orden: string }) {
+  const r = await postFlow<{ status?: number | string; flowOrder?: number | string }>("/customer/charge", {
+    customerId: datos.customerId,
+    amount: datos.monto,
+    subject: datos.asunto.slice(0, 120),
+    commerceOrder: datos.orden,
+    currency: "CLP",
+  });
+  return { estado: Number(r.status) as EstadoFlow, flowOrder: String(r.flowOrder ?? "") };
+}
+
+/** Estado de un pago a partir del número de orden de Flow (para los cobros que quedaron pendientes). */
+export async function estadoPagoPorOrdenFlow(flowOrder: string) {
+  const r = await getFlow<{ status?: number | string; amount?: number | string }>("/payment/getStatusByFlowOrder", {
+    flowOrder,
+  });
+  return { estado: Number(r.status) as EstadoFlow, monto: Number(r.amount ?? 0) };
+}
+
+/** Quita la tarjeta guardada: después de esto Flow ya no puede cobrar sola. */
+export async function quitarTarjetaFlow(customerId: string) {
+  await postFlow("/customer/unRegister", { customerId });
+}
