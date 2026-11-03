@@ -29,6 +29,7 @@ import {
   UserRound,
   UserX,
   Users,
+  X,
 } from "lucide-react";
 import {
   alternarActivo,
@@ -578,8 +579,21 @@ export function SociosTabla({
                 }}
                 placeholder="Buscar por nombre, RUT o teléfono…"
                 aria-label="Buscar socios"
-                className="h-10 border-transparent bg-muted/60 pl-10"
+                className="h-10 border-transparent bg-muted/60 pl-10 pr-10"
               />
+              {busqueda && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBusqueda("");
+                    setPagina(1);
+                  }}
+                  aria-label="Limpiar búsqueda"
+                  className="absolute top-1/2 right-2 flex size-8 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2">
