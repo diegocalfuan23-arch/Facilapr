@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/marca/logo";
+import { MenuMovil } from "@/components/site/menu-movil";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -55,13 +56,21 @@ export function Header() {
             >
               Acceso APR
             </Link>
+            {/* En celular el acceso queda a un toque y el resto va en el menú. */}
+            <Link
+              href="/login"
+              className="text-sm font-medium whitespace-nowrap text-primary sm:hidden"
+            >
+              Ingresar
+            </Link>
             <a
               href="#contacto"
               title="Solicitar una demo del software de gestión APR"
-              className={cn(buttonVariants({ variant: "outline" }), "rounded-full")}
+              className={cn(buttonVariants({ variant: "outline" }), "hidden rounded-full sm:inline-flex")}
             >
               Solicitar una demo
             </a>
+            <MenuMovil enlaces={enlaces} />
           </div>
         </nav>
       </div>
