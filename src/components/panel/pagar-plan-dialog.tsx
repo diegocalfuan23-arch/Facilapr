@@ -56,7 +56,7 @@ export function PagarPlanDialog({
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="sm:max-w-[440px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>Pagar mi plan</DialogTitle>
           <DialogDescription>Pagas con Flow (tarjeta, Webpay o transferencia). Al confirmar el pago, el plan queda activo al tiro.</DialogDescription>
@@ -110,7 +110,7 @@ export function PagarPlanDialog({
           </div>
         )}
 
-        <DialogFooter>
+        <DialogFooter className="sm:flex-wrap">
           <Button variant="outline" onClick={onCerrar}>
             Cancelar
           </Button>
