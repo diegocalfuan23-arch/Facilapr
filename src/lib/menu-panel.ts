@@ -52,7 +52,7 @@ const gestion: Enlace[] = [
 ];
 
 /**
- * Finanzas (plan Grande): la plata del comité en un solo lugar. Pagos se muda aquí desde
+ * Finanzas (desde el plan Estándar): la plata del comité en un solo lugar. Pagos se muda aquí desde
  * Gestión; en los demás planes se queda en Gestión, porque registrar pagos es de todos.
  */
 const finanzas: Enlace[] = [
@@ -90,7 +90,7 @@ export function gruposDelMenu({
   rol: "ADMIN" | "OPERADOR";
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat: boolean;
-  /** El plan incluye Finanzas (Grande): aparece su grupo y Pagos se muda a él. */
+  /** El plan incluye Finanzas (Estándar y Grande): aparece su grupo y Pagos se muda a él. */
   conFinanzas: boolean;
 }): GrupoMenu[] {
   if (rol !== "ADMIN") return [{ titulo: "Terreno", icono: Droplets, enlaces: soloOperador }];
@@ -99,7 +99,7 @@ export function gruposDelMenu({
     {
       titulo: "Gestión",
       icono: LayoutGrid,
-      // Con Finanzas (Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: es del plan Grande.
+      // Con Finanzas (Estándar y Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: va con el mismo plan.
       enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
     },
     ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),

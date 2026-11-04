@@ -135,8 +135,8 @@ export default async function PanelLayout({
               <span className="text-sm font-medium">{apr.nombre}</span>
             </div>
 
-            {/* El buscador de módulos es del plan Grande, el mismo que incluye Finanzas. */}
-            {!esOperador && puede(apr.plan as Plan, "finanzas") && (
+            {/* El buscador de módulos es solo del plan Grande. */}
+            {!esOperador && puede(apr.plan as Plan, "buscador") && (
               <BuscadorModulos
                 rol={rol}
                 chat={puede(apr.plan as Plan, "chat")}

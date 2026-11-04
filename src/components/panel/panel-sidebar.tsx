@@ -259,7 +259,7 @@ export function PanelSidebar({
   insignias?: Record<string, number>;
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat?: boolean;
-  /** El plan incluye Finanzas (Grande): aparece su grupo y Pagos se muda a él. */
+  /** El plan incluye Finanzas (Estándar y Grande): aparece su grupo y Pagos se muda a él. */
   conFinanzas?: boolean;
 }) {
   const pathname = usePathname();

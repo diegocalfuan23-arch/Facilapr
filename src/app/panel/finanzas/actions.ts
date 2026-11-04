@@ -46,7 +46,7 @@ export async function crearMovimiento(
 ): Promise<ResultadoFinanzas> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) {
-    return { ok: false, error: "La Caja está disponible en el plan Grande." };
+    return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   }
 
   const parsed = movimientoSchema.safeParse({
@@ -113,7 +113,7 @@ export async function guardarSaldoInicial(
 ): Promise<ResultadoFinanzas> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) {
-    return { ok: false, error: "La Caja está disponible en el plan Grande." };
+    return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   }
 
   const parsed = z
@@ -176,7 +176,7 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
  */
 export async function reabrirCaja(diaCrudo: string): Promise<ResultadoFinanzas> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible en el plan Grande." };
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
 
   const dia = diaValido(diaCrudo);
   const borrados = await db
@@ -200,7 +200,7 @@ export async function cerrarCaja(
 ): Promise<ResultadoFinanzas> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) {
-    return { ok: false, error: "La Caja está disponible en el plan Grande." };
+    return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   }
 
   const dia = diaValido(String(formData.get("dia") ?? ""));
@@ -273,7 +273,7 @@ async function categoriaDe(aprId: string, tipo: "INGRESO" | "EGRESO", nombreCrud
 /** Crea una categoría desde el modal de categorías. Avisa si ya existía una con ese nombre. */
 export async function crearCategoriaMov(tipo: "INGRESO" | "EGRESO", nombreCrudo: string): Promise<ResultadoFinanzas> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible en el plan Grande." };
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   if (tipo !== "INGRESO" && tipo !== "EGRESO") return { ok: false, error: "Tipo no válido." };
 
   const nombre = limpiarNombre(nombreCrudo);
@@ -294,7 +294,7 @@ export async function crearCategoriaMov(tipo: "INGRESO" | "EGRESO", nombreCrudo:
 /** Cambia el nombre de una categoría. Los movimientos que la usan la siguen usando: guardan su id. */
 export async function renombrarCategoriaMov(id: string, nombreCrudo: string): Promise<ResultadoFinanzas> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible en el plan Grande." };
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
 
   const nombre = limpiarNombre(nombreCrudo);
   if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };

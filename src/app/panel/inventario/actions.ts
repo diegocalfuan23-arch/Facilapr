@@ -17,7 +17,7 @@ import {
 
 export type ResultadoInventario = { ok: true } | { ok: false; error: string };
 
-const SIN_PLAN = "El inventario está disponible en el plan Grande.";
+const SIN_PLAN = "El inventario está disponible desde el plan Estándar.";
 
 /** Una cantidad escrita a la chilena: acepta «1,5» y descarta espacios. Vacío es 0. */
 function aCantidad(v: FormDataEntryValue | null) {

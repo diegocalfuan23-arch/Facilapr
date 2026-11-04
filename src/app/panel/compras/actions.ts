@@ -15,7 +15,7 @@ import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 
 export type ResultadoCompras = { ok: true } | { ok: false; error: string };
 
-const SIN_PLAN = "Las compras están disponibles en el plan Grande.";
+const SIN_PLAN = "Las compras están disponibles desde el plan Estándar.";
 
 function refrescar() {
   revalidatePath("/panel/compras");
