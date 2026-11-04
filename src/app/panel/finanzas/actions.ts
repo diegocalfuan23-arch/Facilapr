@@ -13,9 +13,11 @@ import {
   PREFIJO_CATEGORIA_MOV,
   TIPO_CIERRE,
   TIPO_SALDO_INICIAL,
+  diaCerrado,
   diaValido,
   diaVecino,
   libroDelDia,
+  mensajeDiaCerrado,
   resumenPeriodo,
 } from "@/lib/finanzas";
 
@@ -63,6 +65,7 @@ export async function crearMovimiento(
   if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === d.medio)) {
     return { ok: false, error: "El medio de pago no es válido." };
   }
+  if (await diaCerrado(db, apr.id, d.fecha)) return { ok: false, error: mensajeDiaCerrado(d.fecha) };
 
   // La categoría es ninguna, una del comité para este tipo de movimiento, o una nueva por crear.
   let categoria = d.categoria;
@@ -152,11 +155,35 @@ export async function guardarSaldoInicial(
 export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas> {
   const { apr } = await requireAdmin();
 
+  // Solo ingresos y egresos: el saldo inicial y los cierres de caja no se borran por aquí.
+  const [m] = await db
+    .select({ fecha: movimientos.fecha, tipo: movimientos.tipo })
+    .from(movimientos)
+    .where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)))
+    .limit(1);
+  if (!m || (m.tipo !== "INGRESO" && m.tipo !== "EGRESO")) return { ok: false, error: "No encontramos ese movimiento." };
+  if (await diaCerrado(db, apr.id, m.fecha)) return { ok: false, error: mensajeDiaCerrado(m.fecha) };
+
+  await db.delete(movimientos).where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)));
+
+  revalidatePath("/panel/caja");
+  return { ok: true };
+}
+
+/**
+ * Reabre la caja de un día cerrado: borra la constancia del cierre y el día vuelve a admitir
+ * movimientos. Solo la directiva. Los movimientos del día no se tocan.
+ */
+export async function reabrirCaja(diaCrudo: string): Promise<ResultadoFinanzas> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible en el plan Grande." };
+
+  const dia = diaValido(diaCrudo);
   const borrados = await db
     .delete(movimientos)
-    .where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)))
+    .where(and(eq(movimientos.aprId, apr.id), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, dia)))
     .returning({ id: movimientos.id });
-  if (borrados.length === 0) return { ok: false, error: "No encontramos ese movimiento." };
+  if (borrados.length === 0) return { ok: false, error: "Esa caja no estaba cerrada." };
 
   revalidatePath("/panel/caja");
   return { ok: true };

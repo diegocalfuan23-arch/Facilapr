@@ -259,8 +259,20 @@ export function CajaVista({
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
             {resumen.disponible === null ? <span className="text-muted-foreground/50">—</span> : clp.format(resumen.disponible)}
           </p>
-          {cerrada && resumen.cierre?.cerradoPor && (
-            <p className="mt-2 text-[0.8rem] text-muted-foreground">Cerrada por {resumen.cierre.cerradoPor}</p>
+          {cerrada && resumen.cierre && (
+            <p className="mt-2 text-[0.8rem] text-muted-foreground">
+              Cerrada{resumen.cierre.cerradoPor ? ` por ${resumen.cierre.cerradoPor}` : ""}
+            </p>
+          )}
+          {/* Si después de cerrar entró algo (un pago de socio), el cierre y el total ya no coinciden. */}
+          {cerrada && resumen.cierre && resumen.disponible !== null && resumen.disponible !== resumen.cierre.disponible && (
+            <button
+              type="button"
+              onClick={() => setCerrando(true)}
+              className="mt-1 text-left text-[0.8rem] font-medium text-red-600 hover:underline dark:text-red-400"
+            >
+              Cambió desde el cierre ({clp.format(resumen.cierre.disponible)}). Ver
+            </button>
           )}
         </div>
       </section>

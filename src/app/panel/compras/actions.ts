@@ -11,6 +11,7 @@ import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
 import { UNIDADES_INSUMO } from "@/lib/inventario-comun";
 import { totalesDe } from "@/lib/compras-comun";
 import { anotarCambioStock } from "@/lib/inventario-historial";
+import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 
 export type ResultadoCompras = { ok: true } | { ok: false; error: string };
 
@@ -140,6 +141,9 @@ export async function crearCompra(
       return { ok: false, error: "Elige en qué unidad se cuenta cada material nuevo." };
     }
   }
+
+  // Una compra pagada deja su egreso en Caja el día de la compra: ese día no puede estar cerrado.
+  if (d.estado === "PAGADA" && (await diaCerrado(db, apr.id, d.fecha))) return { ok: false, error: mensajeDiaCerrado(d.fecha) };
 
   const { subtotal, impuesto, total } = totalesDe(d.items, d.conIva);
 
@@ -290,6 +294,8 @@ export async function marcarPagada(compraId: string, medio: string): Promise<Res
         .limit(1);
       if (!c) return "NO_EXISTE" as const;
       if (c.estado !== "PENDIENTE") return "ESTADO" as const;
+      // El egreso queda con la fecha de hoy: si la caja de hoy está cerrada, no se puede anotar.
+      if (await diaCerrado(tx, apr.id, hoyEnChile())) return "CERRADA" as const;
 
       const [egreso] = await tx
         .insert(movimientos)
@@ -314,6 +320,7 @@ export async function marcarPagada(compraId: string, medio: string): Promise<Res
     });
     if (r === "NO_EXISTE") return { ok: false, error: "No encontramos esa compra." };
     if (r === "ESTADO") return { ok: false, error: "Esa compra ya no está por pagar." };
+    if (r === "CERRADA") return { ok: false, error: mensajeDiaCerrado(hoyEnChile()) };
   } catch (e) {
     console.error("Compras: no se pudo marcar como pagada:", e);
     return { ok: false, error: "No pudimos marcar la compra como pagada. Inténtalo de nuevo." };
@@ -328,6 +335,7 @@ export async function anularCompra(compraId: string): Promise<ResultadoCompras> 
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
 
+  let diaBloqueado = "";
   try {
     const r = await db.transaction(async (tx) => {
       const [c] = await tx
@@ -337,6 +345,19 @@ export async function anularCompra(compraId: string): Promise<ResultadoCompras> 
         .limit(1);
       if (!c) return "NO_EXISTE" as const;
       if (c.estado === "ANULADA") return "ESTADO" as const;
+
+      // Anular borra el egreso de Caja: si ese día ya se cerró, primero hay que reabrir la caja.
+      if (c.movimientoId) {
+        const [egreso] = await tx
+          .select({ fecha: movimientos.fecha })
+          .from(movimientos)
+          .where(and(eq(movimientos.id, c.movimientoId), eq(movimientos.aprId, apr.id)))
+          .limit(1);
+        if (egreso && (await diaCerrado(tx, apr.id, egreso.fecha))) {
+          diaBloqueado = egreso.fecha;
+          return "CERRADA" as const;
+        }
+      }
 
       // El stock vuelve a lo que era, sin bajar de cero.
       const lineas = await tx
@@ -383,6 +404,7 @@ export async function anularCompra(compraId: string): Promise<ResultadoCompras> 
     });
     if (r === "NO_EXISTE") return { ok: false, error: "No encontramos esa compra." };
     if (r === "ESTADO") return { ok: false, error: "Esa compra ya estaba anulada." };
+    if (r === "CERRADA") return { ok: false, error: mensajeDiaCerrado(diaBloqueado) };
   } catch (e) {
     console.error("Compras: no se pudo anular la compra:", e);
     return { ok: false, error: "No pudimos anular la compra. No se cambió nada; inténtalo otra vez." };
@@ -401,6 +423,8 @@ export async function anotarEgresoCompra(compraId: string, medio: string): Promi
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
   if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === medio)) return { ok: false, error: "El medio de pago no es válido." };
 
+  // Si el egreso cae en un día de caja cerrada, se avisa con la fecha de ese día.
+  let diaBloqueado = "";
   try {
     const r = await db.transaction(async (tx) => {
       const [c] = await tx
@@ -410,6 +434,10 @@ export async function anotarEgresoCompra(compraId: string, medio: string): Promi
         .limit(1);
       if (!c) return "NO_EXISTE" as const;
       if (c.estado !== "PAGADA") return "ESTADO" as const;
+      if (await diaCerrado(tx, apr.id, c.fecha)) {
+        diaBloqueado = c.fecha;
+        return "CERRADA" as const;
+      }
 
       if (c.movimientoId) {
         const [ya] = await tx
@@ -441,6 +469,7 @@ export async function anotarEgresoCompra(compraId: string, medio: string): Promi
     if (r === "NO_EXISTE") return { ok: false, error: "No encontramos esa compra." };
     if (r === "ESTADO") return { ok: false, error: "Esa compra no está pagada." };
     if (r === "YA_TIENE") return { ok: false, error: "Esa compra ya tiene su egreso en Caja." };
+    if (r === "CERRADA") return { ok: false, error: mensajeDiaCerrado(diaBloqueado) };
   } catch (e) {
     console.error("Compras: no se pudo anotar el egreso de la compra:", e);
     return { ok: false, error: "No pudimos anotar el egreso. Inténtalo de nuevo en un momento." };

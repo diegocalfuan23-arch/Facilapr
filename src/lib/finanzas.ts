@@ -272,3 +272,22 @@ export async function resumenPeriodo(
       : null,
   };
 }
+
+/**
+ * Si la caja de ese día (AAAA-MM-DD) ya está cerrada. Un día cerrado no admite movimientos
+ * manuales ni compras hasta que se reabra. Recibe `db` o una transacción, para poder usarse
+ * dentro de una operación en curso. Si la tabla no se puede leer, el día cuenta como abierto.
+ */
+export async function diaCerrado(ejecutor: Pick<typeof db, "select">, aprId: string, dia: string): Promise<boolean> {
+  const [c] = await ejecutor
+    .select({ id: movimientos.id })
+    .from(movimientos)
+    .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, dia)))
+    .limit(1)
+    .catch(() => []);
+  return Boolean(c);
+}
+
+/** El mensaje que se da cuando algo intenta tocar un día cerrado. */
+export const mensajeDiaCerrado = (dia: string) =>
+  `La caja del ${dia.split("-").reverse().join("-")} ya está cerrada. Reábrela desde Caja para hacer este cambio.`;

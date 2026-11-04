@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2, Lock } from "lucide-react";
-import { cerrarCaja, type ResultadoFinanzas } from "@/app/panel/finanzas/actions";
+import { cerrarCaja, reabrirCaja, type ResultadoFinanzas } from "@/app/panel/finanzas/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ResumenPeriodo } from "@/lib/finanzas-comun";
@@ -12,9 +12,9 @@ const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP",
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 
 /**
- * Cerrar la caja de un día, igual que en MecánicoApp: el resumen del día, un comentario
- * y el botón. Deja anotado con cuánta plata se terminó y quién la cerró. Es una marca de
- * control; no impide seguir anotando movimientos de ese día.
+ * Cerrar la caja de un día: el resumen, un comentario y el botón. Deja anotado con cuánta plata se
+ * terminó y quién la cerró, y bloquea ese día para movimientos manuales y compras hasta que se
+ * reabra. Si después de cerrar el total cambia (por un pago de socio), lo avisa.
  */
 export function CerrarCajaDialog({
   resumen,
@@ -32,7 +32,21 @@ export function CerrarCajaDialog({
   onCerrar: () => void;
 }) {
   const [estado, enviar, pendiente] = useActionState<ResultadoFinanzas | null, FormData>(cerrarCaja, null);
+  const [reabriendo, iniciarReapertura] = useTransition();
   const cerrada = resumen.cierre !== null;
+
+  function reabrir() {
+    if (!window.confirm(`¿Reabrir la caja del ${fechaCorta(resumen.desde)}? Se borra la constancia del cierre y el día vuelve a admitir cambios.`)) return;
+    iniciarReapertura(async () => {
+      const r = await reabrirCaja(resumen.desde);
+      if (r.ok) {
+        toast.success("Caja reabierta");
+        onCerrar();
+      } else {
+        toast.error(r.error);
+      }
+    });
+  }
 
   useEffect(() => {
     if (estado?.ok) {
@@ -53,9 +67,25 @@ export function CerrarCajaDialog({
         </DialogHeader>
 
         {cerrada && resumen.cierre && (
-          <div className="rounded-lg bg-amber-100 px-4 py-3 text-[0.9rem] font-medium text-amber-950 dark:bg-amber-500/90">
-            Caja cerrada{resumen.cierre.cerradoPor ? ` por ${resumen.cierre.cerradoPor}` : ""}, con{" "}
-            {clp.format(resumen.cierre.disponible)} disponibles.
+          <div className="flex flex-col gap-2">
+            <div className="rounded-lg bg-amber-100 px-4 py-3 text-[0.9rem] font-medium text-amber-950 dark:bg-amber-500/90">
+              Caja cerrada{resumen.cierre.cerradoPor ? ` por ${resumen.cierre.cerradoPor}` : ""}, con{" "}
+              {clp.format(resumen.cierre.disponible)} disponibles.
+            </div>
+
+            {/* Un pago de socio puede registrarse después de cerrar: si cambió el total, se dice. */}
+            {resumen.disponible !== null && resumen.disponible !== resumen.cierre.disponible && (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[0.85rem] text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">
+                <strong className="font-semibold">El total cambió después de cerrar.</strong> Se cerró con{" "}
+                {clp.format(resumen.cierre.disponible)} y hoy el disponible de este día es {clp.format(resumen.disponible)}. Lo más probable
+                es que se haya registrado un pago de socio con esta fecha. Reabre la caja y vuelve a cerrarla para que quede cuadrada.
+              </p>
+            )}
+
+            <p className="text-[0.8rem] text-muted-foreground">
+              Mientras esté cerrada no se pueden anotar ni borrar movimientos manuales, ni pagar o anular compras, con fecha de este día. Los
+              pagos de socios sí se siguen registrando.
+            </p>
           </div>
         )}
 
@@ -109,6 +139,15 @@ export function CerrarCajaDialog({
             <p className="text-[0.8rem] text-destructive" role="alert">
               {estado.error}
             </p>
+          )}
+
+          {cerrada && (
+            <div className="flex justify-end">
+              <Button type="button" variant="outline" className="h-10 rounded-full px-5 text-[0.95rem]" onClick={reabrir} disabled={reabriendo}>
+                {reabriendo && <Loader2 className="animate-spin" />}
+                Reabrir caja
+              </Button>
+            </div>
           )}
 
           {!cerrada && (
