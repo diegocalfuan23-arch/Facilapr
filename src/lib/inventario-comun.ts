@@ -82,3 +82,30 @@ export function formatoCantidad(n: number) {
 
 /** Está a punto de acabarse: tiene aviso configurado y el stock llegó a ese mínimo o bajó de él. */
 export const estaBajo = (i: Pick<Insumo, "stock" | "stockMinimo">) => i.stockMinimo > 0 && i.stock <= i.stockMinimo;
+
+/** De dónde vino un cambio de stock. */
+export type OrigenStock = "MANUAL" | "COMPRA" | "ANULACION" | "INICIAL" | "CORRECCION";
+
+export const TEXTO_ORIGEN_STOCK: Record<OrigenStock, string> = {
+  MANUAL: "Ajuste a mano",
+  COMPRA: "Compra",
+  ANULACION: "Compra anulada",
+  INICIAL: "Stock inicial",
+  CORRECCION: "Corrección al editar",
+};
+
+/** Una línea del historial del inventario. */
+export type MovimientoStockFila = {
+  id: string;
+  insumo: string;
+  unidad: string;
+  /** Positivo si el stock subió, negativo si bajó. */
+  cantidad: number;
+  stockResultante: number;
+  origen: OrigenStock;
+  motivo: string | null;
+  /** Quién lo hizo, si se sabe. */
+  quien: string | null;
+  /** Fecha y hora en ISO. */
+  fecha: string;
+};

@@ -661,6 +661,38 @@ export const categoriasMovimiento = pgTable(
   (table) => [uniqueIndex("CategoriaMovimiento_aprId_tipo_nombre_key").on(table.aprId, table.tipo, table.nombre)]
 );
 
+/**
+ * El historial del inventario: cada vez que cambia el stock de un material queda una línea con
+ * cuánto cambió, cuánto quedó, por qué y quién lo hizo. Guarda el nombre del material para que
+ * el historial se conserve aunque el material se borre después.
+ */
+export const movimientosStock = pgTable(
+  "MovimientoStock",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    insumoId: text("insumoId").references(() => insumos.id, { onDelete: "set null" }),
+    insumoNombre: text("insumoNombre").notNull(),
+    unidad: text("unidad").notNull().default("UNIDAD"),
+    /** Cuánto cambió: positivo si el stock subió, negativo si bajó. */
+    cantidad: doublePrecision("cantidad").notNull(),
+    /** Cuánto stock quedó después del cambio. */
+    stockResultante: doublePrecision("stockResultante").notNull(),
+    /** MANUAL | COMPRA | ANULACION | INICIAL | CORRECCION */
+    origen: text("origen").notNull().default("MANUAL"),
+    /** Para qué se sacó, de dónde vino, a qué compra corresponde. */
+    motivo: text("motivo"),
+    registradoPorId: text("registradoPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("MovimientoStock_aprId_createdAt_idx").on(table.aprId, table.createdAt),
+    index("MovimientoStock_insumoId_idx").on(table.insumoId),
+  ]
+);
+
 /** A quién le compra el comité (cloro, cañerías, repuestos, servicios). */
 export const proveedores = pgTable(
   "Proveedor",

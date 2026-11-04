@@ -3,6 +3,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/apr-session";
 import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
 import { estaBajo, listarCategorias, listarInsumos } from "@/lib/inventario";
+import { listarHistorial } from "@/lib/inventario-historial";
 import { InventarioVista } from "@/components/panel/inventario-vista";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -29,7 +30,11 @@ export default async function InventarioPage() {
     );
   }
 
-  const [insumos, categoriasPropias] = await Promise.all([listarInsumos(apr.id), listarCategorias(apr.id)]);
+  const [insumos, categoriasPropias, historial] = await Promise.all([
+    listarInsumos(apr.id),
+    listarCategorias(apr.id),
+    listarHistorial(apr.id),
+  ]);
   const bajos = insumos.filter(estaBajo).length;
 
   return (
@@ -45,7 +50,7 @@ export default async function InventarioPage() {
         </p>
       </div>
 
-      <InventarioVista insumos={insumos} categoriasPropias={categoriasPropias} />
+      <InventarioVista insumos={insumos} categoriasPropias={categoriasPropias} historial={historial} />
     </div>
   );
 }

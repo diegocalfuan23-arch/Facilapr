@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { categoriasInsumo, insumos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
+import { anotarCambioStock } from "@/lib/inventario-historial";
 import {
   CATEGORIA_NUEVA,
   CATEGORIAS_INSUMO,
@@ -39,7 +40,7 @@ export async function guardarInsumo(
   _prev: ResultadoInventario | null,
   formData: FormData
 ): Promise<ResultadoInventario> {
-  const { apr } = await requireAdmin();
+  const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   const parsed = insumoSchema.safeParse({
@@ -75,14 +76,49 @@ export async function guardarInsumo(
   const id = String(formData.get("id") ?? "");
   try {
     if (id) {
+      const [antes] = await db
+        .select({ stock: insumos.stock })
+        .from(insumos)
+        .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id)))
+        .limit(1);
       const [editado] = await db
         .update(insumos)
         .set({ ...parsed.data, categoria, updatedAt: new Date() })
         .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id)))
-        .returning({ id: insumos.id });
+        .returning({ id: insumos.id, nombre: insumos.nombre, unidad: insumos.unidad, stock: insumos.stock });
       if (!editado) return { ok: false, error: "No encontramos ese material." };
+
+      // Cambiar el stock al editar también queda en el historial.
+      if (antes && antes.stock !== editado.stock) {
+        await anotarCambioStock(db, {
+          aprId: apr.id,
+          insumoId: editado.id,
+          insumoNombre: editado.nombre,
+          unidad: editado.unidad,
+          cantidad: Math.round((editado.stock - antes.stock) * 1000) / 1000,
+          stockResultante: editado.stock,
+          origen: "CORRECCION",
+          motivo: "Corregido al editar el material",
+          registradoPorId: user.id,
+        });
+      }
     } else {
-      await db.insert(insumos).values({ ...parsed.data, categoria, aprId: apr.id });
+      const [nuevo] = await db
+        .insert(insumos)
+        .values({ ...parsed.data, categoria, aprId: apr.id })
+        .returning({ id: insumos.id, nombre: insumos.nombre, unidad: insumos.unidad, stock: insumos.stock });
+      if (nuevo.stock > 0) {
+        await anotarCambioStock(db, {
+          aprId: apr.id,
+          insumoId: nuevo.id,
+          insumoNombre: nuevo.nombre,
+          unidad: nuevo.unidad,
+          cantidad: nuevo.stock,
+          stockResultante: nuevo.stock,
+          origen: "INICIAL",
+          registradoPorId: user.id,
+        });
+      }
     }
   } catch (e) {
     console.error("Inventario: no se pudo guardar el material:", e);
@@ -93,15 +129,24 @@ export async function guardarInsumo(
   return { ok: true };
 }
 
-/** Suma o resta stock (entrada o salida). No deja el stock bajo cero. */
-export async function ajustarStock(id: string, cantidad: number, tipo: "ENTRADA" | "SALIDA"): Promise<ResultadoInventario> {
-  const { apr } = await requireAdmin();
+/**
+ * Suma o resta stock (entrada o salida). No deja el stock bajo cero. Queda anotado en el
+ * historial, con el motivo si se dio uno (por qué se sacó, de dónde vino).
+ */
+export async function ajustarStock(
+  id: string,
+  cantidad: number,
+  tipo: "ENTRADA" | "SALIDA",
+  motivo = ""
+): Promise<ResultadoInventario> {
+  const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false, error: "La cantidad debe ser mayor que 0." };
+  if (String(motivo ?? "").length > 200) return { ok: false, error: "El motivo es muy largo (máximo 200 letras)." };
 
   const [actual] = await db
-    .select({ stock: insumos.stock })
+    .select({ stock: insumos.stock, nombre: insumos.nombre, unidad: insumos.unidad })
     .from(insumos)
     .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id)))
     .limit(1);
@@ -117,6 +162,18 @@ export async function ajustarStock(id: string, cantidad: number, tipo: "ENTRADA"
     .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id), eq(insumos.stock, actual.stock)))
     .returning({ id: insumos.id });
   if (!hecho) return { ok: false, error: "El stock cambió mientras lo ajustabas. Inténtalo de nuevo." };
+
+  await anotarCambioStock(db, {
+    aprId: apr.id,
+    insumoId: id,
+    insumoNombre: actual.nombre,
+    unidad: actual.unidad,
+    cantidad: tipo === "ENTRADA" ? cantidad : -cantidad,
+    stockResultante: Math.round(nuevo * 1000) / 1000,
+    origen: "MANUAL",
+    motivo,
+    registradoPorId: user.id,
+  });
 
   revalidatePath("/panel/inventario");
   return { ok: true };

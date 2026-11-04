@@ -2,12 +2,13 @@
 
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, ChevronDown, Loader2, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, History, Loader2, Trash2 } from "lucide-react";
 import { ajustarStock, eliminarInsumo } from "@/app/panel/inventario/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { CategoriasDialog } from "@/components/panel/categorias-dialog";
+import { HistorialStock } from "@/components/panel/historial-stock";
 import { InsumoDialog } from "@/components/panel/insumo-dialog";
 import {
   estaBajo,
@@ -18,6 +19,7 @@ import {
   unidadCorta,
   type CategoriaPropia,
   type Insumo,
+  type MovimientoStockFila,
 } from "@/lib/inventario-comun";
 import { cn } from "@/lib/utils";
 
@@ -33,13 +35,14 @@ const VERDE_TXT = "text-emerald-700 dark:text-emerald-400";
 function AjusteDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => void }) {
   const [tipo, setTipo] = useState<"ENTRADA" | "SALIDA">("SALIDA");
   const [cantidad, setCantidad] = useState("");
+  const [motivo, setMotivo] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
 
   function guardar() {
     setError(null);
     iniciar(async () => {
-      const r = await ajustarStock(insumo.id, Number(cantidad.replace(",", ".")), tipo);
+      const r = await ajustarStock(insumo.id, Number(cantidad.replace(",", ".")), tipo, motivo);
       if (!r.ok) {
         setError(r.error);
         return;
@@ -105,6 +108,20 @@ function AjusteDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => vo
           />
         </div>
 
+        <div className="mt-4">
+          <label htmlFor="aj-motivo" className="mb-2 block text-[0.8rem] font-medium">
+            Motivo (opcional)
+          </label>
+          <Input
+            id="aj-motivo"
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder={tipo === "SALIDA" ? "Ej.: cloración semanal, reparación del pozo" : "Ej.: donación, devolución"}
+            maxLength={200}
+            className={cn(alto, "px-3 text-[0.95rem]")}
+          />
+        </div>
+
         {error && (
           <p className="mt-3 text-[0.8rem] text-destructive" role="alert">
             {error}
@@ -167,7 +184,17 @@ function EliminarDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => 
  * arriba, pestañas, la tabla en una tarjeta y los formularios en modales. Cada material
  * dice cuánto hay y avisa cuando está por acabarse.
  */
-export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insumo[]; categoriasPropias: CategoriaPropia[] }) {
+export function InventarioVista({
+  insumos,
+  categoriasPropias,
+  historial,
+}: {
+  insumos: Insumo[];
+  categoriasPropias: CategoriaPropia[];
+  historial: MovimientoStockFila[];
+}) {
+  const [vista, setVista] = useState<"materiales" | "historial">("materiales");
+  const [busquedaHistorial, setBusquedaHistorial] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<"todos" | "bajo">("todos");
   const [categoria, setCategoria] = useState("todas");
@@ -230,6 +257,37 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
         </div>
       </section>
 
+      <div className="flex w-full gap-1 rounded-xl border border-border p-1 sm:w-fit" role="tablist" aria-label="Sección">
+        {(
+          [
+            ["materiales", "Materiales"],
+            ["historial", "Historial"],
+          ] as const
+        ).map(([id, texto]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={vista === id}
+            onClick={() => {
+              setVista(id);
+              // Al entrar por la pestaña (y no por el botón de un material), se ve todo el historial.
+              if (id === "historial") setBusquedaHistorial("");
+            }}
+            className={cn(
+              "rounded-lg px-5 py-1.5 text-[0.9rem] font-medium transition-colors",
+              vista === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            {texto}
+          </button>
+        ))}
+      </div>
+
+      {vista === "historial" ? (
+        <HistorialStock historial={historial} busquedaInicial={busquedaHistorial} />
+      ) : (
+        <>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
           value={busqueda}
@@ -358,6 +416,19 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
                         <Button
                           variant="ghost"
                           size="icon-sm"
+                          aria-label={`Ver el historial de ${i.nombre}`}
+                          title="Ver el historial"
+                          className="text-muted-foreground"
+                          onClick={() => {
+                            setBusquedaHistorial(i.nombre);
+                            setVista("historial");
+                          }}
+                        >
+                          <History />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
                           aria-label={`Eliminar ${i.nombre}`}
                           className="text-muted-foreground"
                           onClick={() => setEliminando(i)}
@@ -372,6 +443,8 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
             </tbody>
           </table>
         </div>
+      )}
+        </>
       )}
 
       {(creando || editando) && <InsumoDialog key={editando?.id ?? "nuevo"} insumo={editando} categorias={categorias} onCerrar={cerrarForm} />}

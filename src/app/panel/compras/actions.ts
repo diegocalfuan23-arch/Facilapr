@@ -10,6 +10,7 @@ import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
 import { UNIDADES_INSUMO } from "@/lib/inventario-comun";
 import { totalesDe } from "@/lib/compras-comun";
+import { anotarCambioStock } from "@/lib/inventario-historial";
 
 export type ResultadoCompras = { ok: true } | { ok: false; error: string };
 
@@ -173,9 +174,20 @@ export async function crearCompra(
             .update(insumos)
             .set({ stock: sql`${insumos.stock} + ${i.cantidad}`, updatedAt: new Date() })
             .where(and(eq(insumos.id, i.insumoId as string), eq(insumos.aprId, apr.id)))
-            .returning({ id: insumos.id });
+            .returning({ id: insumos.id, nombre: insumos.nombre, unidad: insumos.unidad, stock: insumos.stock });
           if (!actualizado) throw new Error("INSUMO");
           insumoId = actualizado.id;
+          await anotarCambioStock(tx, {
+            aprId: apr.id,
+            insumoId: actualizado.id,
+            insumoNombre: actualizado.nombre,
+            unidad: actualizado.unidad,
+            cantidad: i.cantidad,
+            stockResultante: actualizado.stock,
+            origen: "COMPRA",
+            motivo: `Compra C-${numeroNuevo}`,
+            registradoPorId: user.id,
+          });
         } else if (i.origen === "NUEVO") {
           const [nuevo] = await tx
             .insert(insumos)
@@ -187,8 +199,19 @@ export async function crearCompra(
               stock: i.cantidad,
               costo: i.costoUnitario,
             })
-            .returning({ id: insumos.id });
+            .returning({ id: insumos.id, nombre: insumos.nombre, unidad: insumos.unidad, stock: insumos.stock });
           insumoId = nuevo.id;
+          await anotarCambioStock(tx, {
+            aprId: apr.id,
+            insumoId: nuevo.id,
+            insumoNombre: nuevo.nombre,
+            unidad: nuevo.unidad,
+            cantidad: i.cantidad,
+            stockResultante: nuevo.stock,
+            origen: "COMPRA",
+            motivo: `Compra C-${numeroNuevo} (material nuevo)`,
+            registradoPorId: user.id,
+          });
         }
         lineas.push({
           origen: i.origen,
@@ -302,7 +325,7 @@ export async function marcarPagada(compraId: string, medio: string): Promise<Res
 
 /** Anula una compra: devuelve el stock que había sumado y, si estaba pagada, borra su egreso de Caja. */
 export async function anularCompra(compraId: string): Promise<ResultadoCompras> {
-  const { apr } = await requireAdmin();
+  const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
 
   try {
@@ -322,10 +345,30 @@ export async function anularCompra(compraId: string): Promise<ResultadoCompras> 
         .where(eq(comprasItems.compraId, c.id));
       for (const l of lineas) {
         if (l.insumoId && (l.origen === "INVENTARIO" || l.origen === "NUEVO")) {
-          await tx
+          const [antes] = await tx
+            .select({ stock: insumos.stock })
+            .from(insumos)
+            .where(and(eq(insumos.id, l.insumoId), eq(insumos.aprId, apr.id)))
+            .limit(1);
+          const [despues] = await tx
             .update(insumos)
             .set({ stock: sql`greatest(0, ${insumos.stock} - ${l.cantidad})`, updatedAt: new Date() })
-            .where(and(eq(insumos.id, l.insumoId), eq(insumos.aprId, apr.id)));
+            .where(and(eq(insumos.id, l.insumoId), eq(insumos.aprId, apr.id)))
+            .returning({ nombre: insumos.nombre, unidad: insumos.unidad, stock: insumos.stock });
+          // Lo que de verdad bajó: si ya se había usado parte, no baja más de lo que había.
+          if (antes && despues) {
+            await anotarCambioStock(tx, {
+              aprId: apr.id,
+              insumoId: l.insumoId,
+              insumoNombre: despues.nombre,
+              unidad: despues.unidad,
+              cantidad: Math.round((despues.stock - antes.stock) * 1000) / 1000,
+              stockResultante: despues.stock,
+              origen: "ANULACION",
+              motivo: `Se anuló la compra C-${c.numero}`,
+              registradoPorId: user.id,
+            });
+          }
         }
       }
 
