@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "Órdenes",
 };
 
-/** Las órdenes de terreno, para el técnico y para la directiva cuando sale ella. */
+/** Las órdenes de terreno, para el operador y para la directiva cuando sale ella. */
 export default async function OrdenesPage() {
   const { apr } = await requireApr();
 

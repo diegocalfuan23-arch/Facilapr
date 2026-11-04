@@ -18,7 +18,7 @@ export async function cerrarSesionPanel(router: { push: (ruta: string) => void }
   router.push("/login");
 }
 
-/** `compacto`: solo el ícono, para el encabezado de la app del técnico. */
+/** `compacto`: solo el ícono, para el encabezado de la app del operador. */
 export function SignOutButton({ compacto = false }: { compacto?: boolean }) {
   const router = useRouter();
 

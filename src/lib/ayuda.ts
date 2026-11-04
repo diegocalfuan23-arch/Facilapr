@@ -30,7 +30,7 @@ export type Articulo = {
   resumen: string;
   categoria: Categoria;
   /** Quién necesita este artículo. */
-  para: "Administrador" | "Técnico" | "Todos";
+  para: "Administrador" | "Operador" | "Todos";
   /** Minutos aproximados que toma hacerlo. */
   minutos: number;
   pasos: Paso[];
@@ -132,7 +132,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Pulsa Entrar al panel",
         texto:
-          "Verás el resumen del comité. Si eres técnico, entrarás directo a Lecturas.",
+          "Verás el resumen del comité. Si eres operador, entrarás directo a Lecturas.",
         nota: "Si aparece «Correo o contraseña incorrectos», revisa mayúsculas y espacios. Si no la recuerdas, usa ¿La olvidaste?",
       },
     ],
@@ -360,7 +360,7 @@ export const ARTICULOS: Articulo[] = [
   },
   {
     slug: "invitar-tecnico",
-    titulo: "Invitar a un técnico para tomar lecturas",
+    titulo: "Invitar a un operador para tomar lecturas",
     resumen:
       "Dale acceso a quien recorre los medidores, solo para cargar lecturas.",
     categoria: "Equipo",
@@ -368,18 +368,18 @@ export const ARTICULOS: Articulo[] = [
     minutos: 2,
     pasos: [
       {
-        titulo: "Abre Técnicos",
-        texto: "En el menú de la izquierda entra a Técnicos.",
+        titulo: "Abre Operadores",
+        texto: "En el menú de la izquierda entra a Operadores.",
       },
       {
-        titulo: "Pulsa Invitar técnico",
+        titulo: "Pulsa Invitar operador",
         texto: "Se genera al tiro un enlace de invitación personal, que sirve una sola vez y vence en 7 días.",
       },
       {
         titulo: "Envíalo por WhatsApp",
         texto:
-          "Si quieres, escribe el teléfono del técnico y pulsa «Enviar por WhatsApp»: se abre su chat con el mensaje y el enlace ya escritos. Si dejas el teléfono vacío, WhatsApp te deja elegir el contacto. También puedes copiar el enlace y mandarlo por otro medio. Con ese enlace la persona crea su propia contraseña.",
-        nota: "El técnico solo ve la sección de lecturas: no accede a socios, boletas ni configuración.",
+          "Si quieres, escribe el teléfono del operador y pulsa «Enviar por WhatsApp»: se abre su chat con el mensaje y el enlace ya escritos. Si dejas el teléfono vacío, WhatsApp te deja elegir el contacto. También puedes copiar el enlace y mandarlo por otro medio. Con ese enlace la persona crea su propia contraseña.",
+        nota: "El operador solo ve la sección de lecturas: no accede a socios, boletas ni configuración.",
       },
       {
         titulo: "Desactívalo cuando ya no corresponda",
@@ -395,7 +395,7 @@ export const ARTICULOS: Articulo[] = [
     resumen:
       "Toma las lecturas de los medidores desde el celular, aunque no haya internet: quedan guardadas y se envían solas cuando vuelve la señal.",
     categoria: "Lecturas",
-    para: "Técnico",
+    para: "Operador",
     minutos: 3,
     pasos: [
       {
@@ -624,7 +624,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Sube la foto del medidor cortado",
         texto:
-          "El técnico (o el presidente, si lo hace él) abre la orden en su celular, saca la foto del medidor con el servicio cortado y la envía. Sin foto no queda respaldo.",
+          "El operador (o el presidente, si lo hace él) abre la orden en su celular, saca la foto del medidor con el servicio cortado y la envía. Sin foto no queda respaldo.",
       },
       {
         titulo: "Da de alta el corte",
@@ -819,7 +819,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Que sirva en terreno, aunque no haya internet",
         texto:
-          "Muchas lecturas se toman donde no hay señal. Revisa que el técnico pueda anotarlas desde el celular y que se envíen solas cuando vuelva la conexión.",
+          "Muchas lecturas se toman donde no hay señal. Revisa que el operador pueda anotarlas desde el celular y que se envíen solas cuando vuelva la conexión.",
       },
       {
         titulo: "Que registre pagos, abonos y morosidad",
@@ -1030,25 +1030,25 @@ export const ARTICULOS: Articulo[] = [
     titulo: "Qué plan elegir para tu APR: Pequeño, Estándar o Grande",
     tituloSeo: "Qué plan elegir para tu APR: Pequeño, Estándar o Grande",
     resumen:
-      "Qué incluye cada plan de Facilapr, cuántos socios y técnicos admite, cuánto cuesta y cuál le conviene a tu comité.",
+      "Qué incluye cada plan de Facilapr, cuántos socios y operadores admite, cuánto cuesta y cuál le conviene a tu comité.",
     categoria: "Tu plan",
     para: "Administrador",
     minutos: 3,
     pasos: [
       {
-        titulo: "Cuenta cuántos socios y técnicos tienes",
+        titulo: "Cuenta cuántos socios y operadores tienes",
         texto:
           "El tamaño del comité define el plan. Cuenta los arranques con servicio, no a las personas, porque quien tiene dos medidores ocupa dos cuentas. Y piensa cuántas personas toman lecturas en terreno.",
       },
       {
         titulo: "Pequeño: hasta 200 socios",
         texto:
-          "Para comités que parten o son chicos. Incluye 1 técnico, boletas, lecturas, pagos con comprobante, cortes y la cuenta en línea de cada socio. No incluye finanzas, chat ni asistente de IA. Cuesta 0,7 UF al mes más IVA.",
+          "Para comités que parten o son chicos. Incluye 1 operador, boletas, lecturas, pagos con comprobante, cortes y la cuenta en línea de cada socio. No incluye finanzas, chat ni asistente de IA. Cuesta 0,7 UF al mes más IVA.",
       },
       {
         titulo: "Estándar: hasta 800 socios",
         texto:
-          "Para comités medianos. Suma hasta 3 técnicos, las finanzas del comité (Caja, Compras, Inventario y Reportes), el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
+          "Para comités medianos. Suma hasta 3 operadores, las finanzas del comité (Caja, Compras, Inventario y Reportes), el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
       },
       {
         titulo: "Grande: sin tope de socios",
@@ -1097,7 +1097,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Aprueba o rechaza una reparación o una reposición",
         texto:
-          "Pulsa Aprobar y el pedido pasa a En trámite: alguien tiene que ir a terreno. El técnico sube la foto del trabajo y queda Por dar de alta, donde tú la confirmas. Si no corresponde, pulsa Rechazar y puedes explicarle el motivo.",
+          "Pulsa Aprobar y el pedido pasa a En trámite: alguien tiene que ir a terreno. El operador sube la foto del trabajo y queda Por dar de alta, donde tú la confirmas. Si no corresponde, pulsa Rechazar y puedes explicarle el motivo.",
       },
       {
         titulo: "Da de baja o reanuda el servicio",
@@ -1140,7 +1140,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Toma las lecturas cada mes",
         texto:
-          "El técnico las anota desde el celular con Modo terreno, incluso sin señal, o las subes desde una planilla. El consumo sale de restar la lectura anterior.",
+          "El operador las anota desde el celular con Modo terreno, incluso sin señal, o las subes desde una planilla. El consumo sale de restar la lectura anterior.",
       },
       {
         titulo: "Revisa, aprueba y genera las boletas",
@@ -1241,7 +1241,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Qué más conviene mirar",
         texto:
-          "Que ordene las solicitudes de los socios (reclamos, reparaciones, reposiciones), que permita roles distintos para la directiva y los técnicos, y que se pueda dejar sin contrato de permanencia. Tus datos son del comité: pregunta si puedes exportarlos.",
+          "Que ordene las solicitudes de los socios (reclamos, reparaciones, reposiciones), que permita roles distintos para la directiva y los operadores, y que se pueda dejar sin contrato de permanencia. Tus datos son del comité: pregunta si puedes exportarlos.",
       },
       {
         titulo: "Cuánto cuesta",

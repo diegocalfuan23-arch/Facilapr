@@ -12,7 +12,7 @@ import type { OpcionSocio } from "@/components/panel/socio-buscador";
 const fecha = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" });
 
 /**
- * Lo que el técnico tiene que hacer en terreno (o el presidente, si sale él):
+ * Lo que el operador tiene que hacer en terreno (o el presidente, si sale él):
  * cada orden aprobada por la directiva, con el botón para subir la foto. Desde
  * aquí también se puede pedir una reposición o una reparación, que la directiva
  * aprueba antes de que alguien vaya.

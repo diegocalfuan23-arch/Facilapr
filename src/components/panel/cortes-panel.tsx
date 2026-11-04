@@ -73,9 +73,9 @@ function avisoPendiente(diasDesdeAviso: number | null, plazo: number) {
 
 /**
  * Cortes y órdenes de terreno del comité. La directiva ordena el corte de un
- * moroso, el técnico (o el presidente) sube la foto del medidor cortado y la
+ * moroso, el operador (o el presidente) sube la foto del medidor cortado y la
  * directiva da de alta. Las reposiciones y reparaciones las puede pedir también
- * el técnico, y aquí se aprueban.
+ * el operador, y aquí se aprueban.
  */
 export function CortesPanel({
   ordenes,
@@ -316,7 +316,7 @@ export function CortesPanel({
               <Fila
                 key={o.id}
                 titulo={`${TIPOS_ORDEN[o.tipo].texto} · ${o.socioNombre}`}
-                detalle={[o.socioDireccion, o.detalle, `pedida por ${o.origen === "SOCIO" ? "el socio" : "el técnico"} ${fecha.format(new Date(o.creada))}`]}
+                detalle={[o.socioDireccion, o.detalle, `pedida por ${o.origen === "SOCIO" ? "el socio" : "el operador"} ${fecha.format(new Date(o.creada))}`]}
                 acciones={
                   <>
                     <Button size="sm" variant="ghost" onClick={() => setViendo(o)}>
@@ -538,7 +538,7 @@ function ResolverDialog({
         ? "El arranque queda inactivo y deja de aparecer en los cobros. Lo que debe hasta hoy no se borra."
         : reanudacion
           ? "El arranque vuelve a estar activo. Si hay que reconectarlo en terreno, ordena una reposición."
-          : "Pasa a trámite: el técnico (o el presidente) va a terreno y sube la foto.";
+          : "Pasa a trámite: el operador (o el presidente) va a terreno y sube la foto.";
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>

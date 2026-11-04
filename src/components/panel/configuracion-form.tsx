@@ -200,7 +200,7 @@ const SECCIONES: {
   { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
   { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge },
   { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors },
-  { id: "uso", label: "Uso y consumo", resumen: "Socios, técnicos y tokens de IA", icono: BarChart3 },
+  { id: "uso", label: "Uso y consumo", resumen: "Socios, operadores y tokens de IA", icono: BarChart3 },
   { id: "iaChat", label: "Asistente de chat", resumen: "Respuestas automáticas con IA", icono: Sparkles },
   { id: "datos", label: "Datos y privacidad", resumen: "Respaldo y borrado de datos", icono: ShieldCheck },
 ];
@@ -629,7 +629,7 @@ export function ConfiguracionForm({
           </div>
 
           {/* "Pedir foto del medidor" está oculto a propósito: el formulario del
-              técnico todavía no pide ni guarda la foto, así que el interruptor
+              operador todavía no pide ni guarda la foto, así que el interruptor
               prometía algo que no pasaba. Se vuelve a mostrar cuando exista la
               subida de fotos. Mientras, el valor guardado se conserva tal cual. */}
           {datos.requiereFotoLectura && (

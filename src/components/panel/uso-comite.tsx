@@ -33,7 +33,7 @@ function Medidor({ titulo, usados, limite }: { titulo: string; usados: number; l
   );
 }
 
-/** Cuánto lleva usado el comité de lo que incluye su plan: socios, técnicos y tokens de IA. */
+/** Cuánto lleva usado el comité de lo que incluye su plan: socios, operadores y tokens de IA. */
 export function UsoComite({ uso }: { uso: DatosUso }) {
   return (
     <div className="flex flex-col gap-5">
@@ -43,7 +43,7 @@ export function UsoComite({ uso }: { uso: DatosUso }) {
         </div>
         <div className="flex flex-col gap-4">
           <Medidor titulo="Socios cargados" usados={uso.socios.usados} limite={uso.socios.limite} />
-          <Medidor titulo="Técnicos en terreno" usados={uso.tecnicos.usados} limite={uso.tecnicos.limite} />
+          <Medidor titulo="Operadores en terreno" usados={uso.tecnicos.usados} limite={uso.tecnicos.limite} />
         </div>
       </div>
 

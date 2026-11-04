@@ -1,5 +1,5 @@
 /**
- * Cola local de lecturas para cuando el técnico no tiene señal en terreno.
+ * Cola local de lecturas para cuando el operador no tiene señal en terreno.
  *
  * Las lecturas se guardan en el localStorage del teléfono y se envían con la
  * misma acción de siempre (registrarLectura) cuando vuelve la conexión. Así

@@ -66,7 +66,7 @@ export function TecnicosPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[1.35rem] font-semibold tracking-tight">
-            Técnicos
+            Operadores
           </h1>
           <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
             Quienes cargan lecturas en terreno. Solo ven lecturas.
@@ -76,10 +76,10 @@ export function TecnicosPanel({
       </div>
 
       <section>
-        <h2 className="mb-3 text-[0.95rem] font-semibold">Técnicos</h2>
+        <h2 className="mb-3 text-[0.95rem] font-semibold">Operadores</h2>
         {tecnicos.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
-            Todavía no tienes técnicos invitados.
+            Todavía no tienes operadores invitados.
           </p>
         ) : (
           <>
@@ -95,7 +95,7 @@ export function TecnicosPanel({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="h-11 px-4">Técnico</TableHead>
+                  <TableHead className="h-11 px-4">Operador</TableHead>
                   <TableHead className="h-11 px-4">Correo</TableHead>
                   <TableHead className="h-11 px-4">Desde</TableHead>
                   <TableHead className="h-11 px-4">Estado</TableHead>
@@ -150,7 +150,7 @@ export function TecnicosPanel({
   );
 }
 
-/** Desactivar / reactivar a un técnico, con su confirmación. La usan la tabla y la tarjeta. */
+/** Desactivar / reactivar a un operador, con su confirmación. La usan la tabla y la tarjeta. */
 function AccionesTecnico({ tecnico: t }: { tecnico: Tecnico }) {
   const router = useRouter();
   const [confirmando, setConfirmando] = useState(false);
@@ -269,7 +269,7 @@ function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
   );
 }
 
-/** El mismo técnico como tarjeta, para pantallas angostas. */
+/** El mismo operador como tarjeta, para pantallas angostas. */
 function TarjetaTecnico({ tecnico: t }: { tecnico: Tecnico }) {
   return (
     <li className="flex flex-col gap-3 p-4">
@@ -336,7 +336,7 @@ function InvitacionFila({ invitacion }: { invitacion: InvitacionPendiente }) {
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-tertiary/15 text-tertiary-foreground">
             <Clock className="size-4" />
           </span>
-          <span className="font-medium">Invitación para técnico</span>
+          <span className="font-medium">Invitación para operador</span>
         </div>
       </TableCell>
       <TableCell className="px-4 py-3.5 whitespace-nowrap text-muted-foreground">
@@ -368,7 +368,7 @@ function TarjetaInvitacion({ invitacion }: { invitacion: InvitacionPendiente }) 
             <Clock className="size-4" />
           </span>
           <div className="min-w-0">
-            <div className="font-medium">Invitación para técnico</div>
+            <div className="font-medium">Invitación para operador</div>
             <div className="text-[0.8rem] text-muted-foreground">
               Vence el {fecha.format(invitacion.expiraEn)}
             </div>
@@ -438,7 +438,7 @@ function InvitarTecnico() {
     <>
       <Button type="button" data-tour="tec-invitar" onClick={abrir}>
         <UserPlus />
-        Invitar técnico
+        Invitar operador
       </Button>
 
       <Dialog
@@ -450,7 +450,7 @@ function InvitarTecnico() {
       >
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Invitar técnico</DialogTitle>
+            <DialogTitle>Invitar operador</DialogTitle>
             <DialogDescription>
               Mándalo por WhatsApp o copia el enlace. Sirve una sola vez y
               vence en 7 días.
@@ -493,7 +493,7 @@ function InvitarTecnico() {
           {url && (
             <div className="flex flex-col gap-2">
               <label htmlFor="tecnico-telefono" className="text-[0.85rem] font-medium">
-                Teléfono del técnico <span className="font-normal text-muted-foreground">(opcional)</span>
+                Teléfono del operador <span className="font-normal text-muted-foreground">(opcional)</span>
               </label>
               <Input
                 id="tecnico-telefono"

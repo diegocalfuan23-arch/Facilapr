@@ -19,7 +19,7 @@ import {
  *  - "inicial": la lectura de partida de cada medidor; queda aprobada y SIN
  *    boleta, para que la primera boleta cobre solo el consumo del mes.
  *  - "mensual": las lecturas del mes; quedan POR REVISAR (como si las hubiera
- *    cargado un técnico) y se aprueban después, de a una o en bloque.
+ *    cargado un operador) y se aprueban después, de a una o en bloque.
  */
 
 const MAX_BYTES = 4_000_000;

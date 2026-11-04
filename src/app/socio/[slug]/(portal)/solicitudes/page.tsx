@@ -40,7 +40,7 @@ export default async function SolicitudesSocioPage({ params }: Props) {
           tipo: o.tipo,
           estado: o.estado,
           detalle: o.detalle,
-          // Solo reclamos y bajas llevan respuesta escrita; en terreno la nota es del técnico.
+          // Solo reclamos y bajas llevan respuesta escrita; en terreno la nota es del operador.
           respuesta: o.tipo === "RECLAMO" || o.tipo === "BAJA" || o.tipo === "REANUDACION" ? o.respuesta : null,
           creada: o.creada,
           arranque: o.socioNombre,

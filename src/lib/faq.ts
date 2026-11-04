@@ -32,7 +32,7 @@ export const PREGUNTAS: { pregunta: string; respuesta: string }[] = [
   {
     pregunta: "¿Cómo se manejan los cortes por morosidad?",
     respuesta:
-      "El sistema lista a los socios con deuda vencida más allá de los días de gracia que defina el comité, ayuda a avisarles por WhatsApp, y registra el corte con una foto del medidor que sube el técnico. Después se da de alta el corte y, cuando el socio regulariza, se registra la reposición del servicio.",
+      "El sistema lista a los socios con deuda vencida más allá de los días de gracia que defina el comité, ayuda a avisarles por WhatsApp, y registra el corte con una foto del medidor que sube el operador. Después se da de alta el corte y, cuando el socio regulariza, se registra la reposición del servicio.",
   },
   {
     pregunta: "¿Cómo registran los pagos los socios?",

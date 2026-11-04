@@ -40,7 +40,7 @@ export const LIMITE_SOCIOS: Record<Plan, number> = {
   PREMIUM: Number.POSITIVE_INFINITY,
 };
 
-/** Cuántos técnicos puede tener el comité (con acceso o con invitación pendiente). */
+/** Cuántos operadores puede tener el comité (con acceso o con invitación pendiente). */
 export const LIMITE_TECNICOS: Record<Plan, number> = {
   BASICO: 1,
   ESTANDAR: 3,

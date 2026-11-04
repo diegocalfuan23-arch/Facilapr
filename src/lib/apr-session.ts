@@ -26,7 +26,7 @@ export async function requireApr() {
 
   const { user } = session;
 
-  // Un técnico desactivado por la directiva: se cierran sus sesiones y vuelve al
+  // Un operador desactivado por la directiva: se cierran sus sesiones y vuelve al
   // inicio de sesión. Se revisa aquí porque toda página del panel pasa por aquí.
   if (user.rol === "DESACTIVADO") {
     await db.delete(sessionTable).where(eq(sessionTable.userId, user.id));

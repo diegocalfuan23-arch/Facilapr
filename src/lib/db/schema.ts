@@ -412,8 +412,8 @@ export const repactaciones = pgTable(
 /**
  * Órdenes de trabajo en terreno sobre un arranque: cortes por morosidad,
  * reposiciones del servicio y reparaciones. Cada una pasa por EN_TRAMITE
- * (alguien tiene que ir), POR_CONFIRMAR (el técnico subió la foto) y
- * COMPLETADA (el comité la dio de alta). Las que piden el socio o el técnico
+ * (alguien tiene que ir), POR_CONFIRMAR (el operador subió la foto) y
+ * COMPLETADA (el comité la dio de alta). Las que piden el socio o el operador
  * parten en SOLICITADA hasta que el comité las aprueba.
  */
 export const ordenes = pgTable(
@@ -813,7 +813,7 @@ export const boletasRelations = relations(boletas, ({ one }) => ({
 }));
 
 /**
- * Link de invitación para que un técnico se registre como OPERADOR de un
+ * Link de invitación para que un operador se registre como OPERADOR de un
  * comité, sin tener que adivinar el RUT del APR (que es como hoy se une
  * un ADMIN nuevo). El admin genera el código desde el panel y lo comparte
  * por WhatsApp o correo; se consume una sola vez.

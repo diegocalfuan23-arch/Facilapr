@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Crear una orden a mano: elegir el arranque, el tipo y, si hace falta, el detalle.
- * La directiva puede pedir los tres tipos; el técnico solo reposiciones y
+ * La directiva puede pedir los tres tipos; el operador solo reposiciones y
  * reparaciones, y esas quedan pendientes de que la directiva las apruebe.
  */
 export function NuevaOrdenDialog({

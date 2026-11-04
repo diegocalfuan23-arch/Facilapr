@@ -94,7 +94,7 @@ export async function ordenarCorte(socioId: string, detalle?: string): Promise<R
 
 /**
  * Pedir una reposición o una reparación. Si la pide la directiva queda de una
- * vez en trámite; si la pide un técnico, espera que la directiva la apruebe.
+ * vez en trámite; si la pide un operador, espera que la directiva la apruebe.
  */
 export async function solicitarOrden(
   socioId: string,
@@ -198,7 +198,7 @@ export async function resolverSolicitud(
 }
 
 /**
- * Quien fue a terreno (el técnico, o el presidente si lo hace él) sube la foto
+ * Quien fue a terreno (el operador, o el presidente si lo hace él) sube la foto
  * como evidencia. La orden queda por dar de alta.
  */
 export async function registrarEjecucion(

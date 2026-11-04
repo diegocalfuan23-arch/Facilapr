@@ -50,7 +50,7 @@ const gestion: Enlace[] = [
   { href: "/panel/inventario", label: "Inventario", icon: Package },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
-  { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
+  { href: "/panel/tecnicos", label: "Operadores", icon: HardHat },
   { href: "/panel/personal", label: "Personal", icon: Briefcase },
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
 ];

@@ -237,7 +237,7 @@ export function LecturasTabla({
             className={cn(buttonVariants({ variant: "outline" }))}
           >
             <Users />
-            Técnicos
+            Operadores
           </Link>
           <Link
             data-tour="lec-terreno"
@@ -304,7 +304,7 @@ export function LecturasTabla({
             Aún no hay lecturas
           </h2>
           <p className="mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed text-muted-foreground">
-            Los técnicos cargan las lecturas desde terreno y llegan aquí para
+            Los operadores cargan las lecturas desde terreno y llegan aquí para
             tu revisión. También puedes cargar una tú misma.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
@@ -313,7 +313,7 @@ export function LecturasTabla({
               className={cn(buttonVariants({ variant: "outline" }))}
             >
               <Users />
-              Invitar técnico
+              Invitar operador
             </Link>
             <Button onClick={() => setCreando(true)} disabled={socios.length === 0}>
               <Plus />

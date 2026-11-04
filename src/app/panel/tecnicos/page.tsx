@@ -7,7 +7,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { TecnicosPanel } from "@/components/panel/tecnicos-panel";
 
 export const metadata: Metadata = {
-  title: "Técnicos",
+  title: "Operadores",
 };
 
 export default async function TecnicosPage() {

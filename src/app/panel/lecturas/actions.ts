@@ -583,7 +583,7 @@ export type ResultadoInvitacion =
 export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> {
   const { apr } = await requireAdmin();
 
-  // Técnicos con acceso + invitaciones sin usar: el tope del plan los cuenta a todos.
+  // Operadores con acceso + invitaciones sin usar: el tope del plan los cuenta a todos.
   const limite = LIMITE_TECNICOS[apr.plan as Plan];
   if (Number.isFinite(limite)) {
     const [{ n: tecnicos }] = await db
@@ -603,7 +603,7 @@ export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> 
     if (tecnicos + pendientes >= limite) {
       return {
         ok: false,
-        error: `Tu plan ${NOMBRE_PLAN[apr.plan as Plan]} permite ${limite} ${limite === 1 ? "técnico" : "técnicos"}. Pasa a un plan mayor para invitar a más.`,
+        error: `Tu plan ${NOMBRE_PLAN[apr.plan as Plan]} permite ${limite} ${limite === 1 ? "operador" : "operadores"}. Pasa a un plan mayor para invitar a más.`,
       };
     }
   }

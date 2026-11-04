@@ -44,7 +44,7 @@ export const metadata: Metadata = {
     "boletas APR",
     "pagos online APR",
     "lecturas de medidor APR",
-    "app técnico terreno APR",
+    "app operador terreno APR",
     "control de morosidad APR",
     "avisos de corte de agua",
     "sitio web para APR",

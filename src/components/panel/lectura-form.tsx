@@ -137,7 +137,7 @@ export function LecturaForm({
   const cola = useMemo(() => parsearCola(crudoCola), [crudoCola]);
   const enLinea = useSyncExternalStore(suscribirConexion, hayConexion, () => true);
 
-  // Consumo en vivo: lo que el técnico escribe menos la última aprobada.
+  // Consumo en vivo: lo que el operador escribe menos la última aprobada.
   // Solo orienta; el administrador sigue revisando antes de generar la boleta.
   const anterior = socio?.anterior ?? null;
 

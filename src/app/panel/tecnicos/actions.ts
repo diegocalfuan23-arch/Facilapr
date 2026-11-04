@@ -26,7 +26,7 @@ export async function cancelarInvitacion(
 }
 
 /**
- * Quita el acceso a un técnico que ya se registró (dejó el cargo, cambió el
+ * Quita el acceso a un operador que ya se registró (dejó el cargo, cambió el
  * teléfono, etc.). No borra su usuario ni sus lecturas: quedan en el historial
  * con su nombre. Se cierran sus sesiones y, mientras esté desactivado, no puede
  * entrar (ver requireApr). Se puede reactivar.
@@ -42,7 +42,7 @@ export async function desactivarOperador(userId: string): Promise<ResultadoAccio
     ),
     columns: { id: true },
   });
-  if (!tecnico) return { ok: false, error: "No encontramos a ese técnico." };
+  if (!tecnico) return { ok: false, error: "No encontramos a ese operador." };
 
   await db
     .update(userTable)
@@ -65,7 +65,7 @@ export async function reactivarOperador(userId: string): Promise<ResultadoAccion
     ),
     columns: { id: true },
   });
-  if (!tecnico) return { ok: false, error: "No encontramos a ese técnico." };
+  if (!tecnico) return { ok: false, error: "No encontramos a ese operador." };
 
   await db
     .update(userTable)

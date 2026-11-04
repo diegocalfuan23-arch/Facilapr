@@ -224,10 +224,10 @@ export function mensajeInvitacionPortal(
   ].join("\n");
 }
 
-/** Días que dura el enlace de invitación a un técnico (ver generarInvitacionOperador). */
+/** Días que dura el enlace de invitación a un operador (ver generarInvitacionOperador). */
 export const DIAS_VIGENCIA_INVITACION_TECNICO = 7;
 
-/** El mensaje con el que la directiva invita a un técnico a cargar lecturas en terreno. */
+/** El mensaje con el que la directiva invita a un operador a cargar lecturas en terreno. */
 export function mensajeInvitacionTecnico(comite: string, url: string) {
   return [
     `Hola, te escribe ${comite}.`,

@@ -90,7 +90,7 @@ export const RECORRIDOS: Recorrido[] = [
       },
       {
         selector: enMenu("/panel/tecnicos"),
-        titulo: "Técnicos",
+        titulo: "Operadores",
         texto: "Quienes toman las lecturas en terreno.",
       },
       {
@@ -273,7 +273,7 @@ export const RECORRIDOS: Recorrido[] = [
     pasos: [
       {
         selector: enMenu("lec-tecnicos"),
-        titulo: "Técnicos",
+        titulo: "Operadores",
         texto:
           "Quienes toman las lecturas en terreno. Desde aquí los invitas o ves quiénes tienen acceso: solo ven lecturas, nada más.",
         lado: "bottom",
@@ -397,14 +397,14 @@ export const RECORRIDOS: Recorrido[] = [
     pasos: [
       {
         selector: enMenu("tec-invitar"),
-        titulo: "Invitar técnico",
+        titulo: "Invitar operador",
         texto:
           "Escribe su nombre y copia el enlace de invitación para enviárselo (por WhatsApp, por ejemplo). Con ese enlace crea su propia contraseña.",
         lado: "bottom",
       },
       {
         selector: enMenu("tec-tabla"),
-        titulo: "Tus técnicos",
+        titulo: "Tus operadores",
         texto:
           "Quienes ya aceptaron y pueden entrar. Si alguien deja de trabajar con el comité, lo desactivas: pierde el acceso al instante y sus lecturas se conservan. Puedes reactivarlo cuando quieras.",
         lado: "top",
@@ -417,7 +417,7 @@ export const RECORRIDOS: Recorrido[] = [
         lado: "top",
       },
       {
-        titulo: "Qué ve el técnico",
+        titulo: "Qué ve el operador",
         texto:
           "Solo la sección de lecturas: no accede a socios, boletas ni configuración. Tú apruebas cada lectura antes de que cuente. Si deja de trabajar con el comité, lo desactivas desde esta misma pantalla.",
       },
@@ -489,13 +489,13 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
         selector: enMenu("cor-pestanas"),
         titulo: "El camino de cada orden",
         texto:
-          "Morosos: quienes pasaron los días de gracia. En trámite: lo que alguien tiene que ir a hacer. Por dar de alta: ya hay foto y falta tu revisión. Solicitudes: lo que piden tus socios o el técnico. Cortados: quiénes tienen el servicio cortado ahora.",
+          "Morosos: quienes pasaron los días de gracia. En trámite: lo que alguien tiene que ir a hacer. Por dar de alta: ya hay foto y falta tu revisión. Solicitudes: lo que piden tus socios o el operador. Cortados: quiénes tienen el servicio cortado ahora.",
         lado: "bottom",
       },
       {
         titulo: "Cómo se corta",
         texto:
-          "Avisas al moroso por WhatsApp, ordenas el corte, el técnico (o el presidente) sube la foto del medidor ya cortado y tú das de alta. Sin foto, el corte no queda registrado.",
+          "Avisas al moroso por WhatsApp, ordenas el corte, el operador (o el presidente) sube la foto del medidor ya cortado y tú das de alta. Sin foto, el corte no queda registrado.",
       },
       {
         selector: enMenu("cor-nueva"),

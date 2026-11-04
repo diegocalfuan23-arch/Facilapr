@@ -20,7 +20,7 @@ export async function guardarPerfil(datos: { nombre: string; cargo: string }): P
     return { ok: false, error: "Escribe tu nombre (entre 2 y 80 caracteres)." };
   }
 
-  // El cargo lo declara quien registró el comité; un técnico no tiene uno que elegir.
+  // El cargo lo declara quien registró el comité; un operador no tiene uno que elegir.
   const cambios: { name: string; cargo?: string; updatedAt: Date } = { name: nombre, updatedAt: new Date() };
   if (user.rol === "ADMIN") {
     if (!CARGOS.some((c) => c.value === datos.cargo)) {

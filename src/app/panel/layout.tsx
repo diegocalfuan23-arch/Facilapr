@@ -27,12 +27,12 @@ export default async function PanelLayout({
 }) {
   const { user, apr } = await requireApr();
   const rol = user.rol === "OPERADOR" ? "OPERADOR" : "ADMIN";
-  // El técnico trabaja desde el teléfono en terreno: en pantalla chica el
+  // El operador trabaja desde el teléfono en terreno: en pantalla chica el
   // marco se vuelve una app (encabezado compacto fijo, sin menú lateral); en
   // escritorio (md:) queda el panel de siempre.
   const esOperador = rol === "OPERADOR";
 
-  // Lo que espera acción: el técnico, órdenes por hacer; la directiva, solicitudes por
+  // Lo que espera acción: el operador, órdenes por hacer; la directiva, solicitudes por
   // resolver y evidencias por dar de alta. Si la consulta falla, simplemente no hay número.
   const insignias: Record<string, number> = {};
   try {
@@ -103,7 +103,7 @@ export default async function PanelLayout({
                     {apr.nombre}
                   </div>
                   <div className="text-[0.75rem] text-muted-foreground">
-                    Técnico de terreno
+                    Operador de terreno
                   </div>
                 </div>
                 <Link

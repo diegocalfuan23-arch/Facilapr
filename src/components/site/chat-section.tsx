@@ -41,7 +41,7 @@ const mensajes: { de: "socio" | "ia" | "directiva"; texto: string }[] = [
   { de: "socio", texto: "Quiero pedir una reparación, tengo una filtración." },
   {
     de: "directiva",
-    texto: "Marta, mañana pasa el técnico por tu casa. Ya quedó anotado.",
+    texto: "Marta, mañana pasa el operador por tu casa. Ya quedó anotado.",
   },
 ];
 

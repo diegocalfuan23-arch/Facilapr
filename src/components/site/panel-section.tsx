@@ -15,9 +15,9 @@ const funciones = [
   },
   {
     icon: Gauge,
-    titulo: "Técnico en terreno",
+    titulo: "Operador en terreno",
     detalle:
-      "El técnico sube las lecturas desde su propio módulo, en el mismo terreno, sin acceso a socios ni boletas. La directiva las revisa y aprueba antes de emitir.",
+      "El operador sube las lecturas desde su propio módulo, en el mismo terreno, sin acceso a socios ni boletas. La directiva las revisa y aprueba antes de emitir.",
   },
   {
     icon: Wallet,
