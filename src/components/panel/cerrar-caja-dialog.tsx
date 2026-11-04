@@ -54,15 +54,15 @@ export function CerrarCajaDialog({
         )}
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <div className="rounded-xl border border-forest/30 bg-forest/10 p-4">
-            <p className="text-[0.75rem] font-medium tracking-wide text-forest uppercase">Total ingresos</p>
-            <p className="mt-2 text-xl font-bold tabular-nums text-forest">{clp.format(resumen.ingresos)}</p>
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 p-4">
+            <p className="text-[0.75rem] font-medium tracking-wide text-emerald-700 dark:text-emerald-400 uppercase">Total ingresos</p>
+            <p className="mt-2 text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{clp.format(resumen.ingresos)}</p>
           </div>
-          <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-            <p className="text-[0.75rem] font-medium tracking-wide text-destructive uppercase">Total egresos</p>
-            <p className="mt-2 text-xl font-bold tabular-nums text-destructive">{clp.format(resumen.egresos)}</p>
+          <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10 p-4">
+            <p className="text-[0.75rem] font-medium tracking-wide text-red-600 dark:text-red-400 uppercase">Total egresos</p>
+            <p className="mt-2 text-xl font-bold tabular-nums text-red-600 dark:text-red-400">{clp.format(resumen.egresos)}</p>
           </div>
-          <div className="rounded-xl border bg-card p-4">
+          <div className="rounded-xl border border-border bg-card p-4">
             <p className="text-[0.75rem] font-medium tracking-wide text-muted-foreground uppercase">Disponible del día</p>
             <p className="mt-2 text-xl font-bold tabular-nums">
               {resumen.disponible === null ? "—" : clp.format(resumen.disponible)}
@@ -84,7 +84,7 @@ export function CerrarCajaDialog({
               Comentario del cierre
             </label>
             {cerrada ? (
-              <p className="rounded-lg border bg-background px-4 py-2 text-[0.9rem] text-muted-foreground">
+              <p className="rounded-lg border border-border bg-background px-4 py-2 text-[0.9rem] text-muted-foreground">
                 {resumen.cierre?.comentario || "Sin comentarios."}
               </p>
             ) : (
@@ -94,7 +94,7 @@ export function CerrarCajaDialog({
                 rows={3}
                 maxLength={200}
                 placeholder="Observaciones sobre el cierre…"
-                className="w-full rounded-lg border bg-background px-4 py-2 text-[0.9rem] outline-none placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-1 focus:ring-primary/30"
+                className="w-full rounded-lg border border-input bg-background px-4 py-2 text-[0.9rem] outline-none placeholder:text-muted-foreground/50 focus:border-primary/60 focus:ring-1 focus:ring-primary/30"
               />
             )}
           </div>
@@ -113,7 +113,7 @@ export function CerrarCajaDialog({
                 </p>
               )}
               <div className="flex justify-end">
-                <Button type="submit" className="h-10 px-4 text-[0.95rem]" disabled={pendiente || resumen.disponible === null}>
+                <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente || resumen.disponible === null}>
                   {pendiente && <Loader2 className="animate-spin" />}
                   Cerrar caja
                 </Button>

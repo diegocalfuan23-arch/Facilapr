@@ -70,9 +70,9 @@ export function NuevoMovimientoDialog({
                 onClick={() => setTipo("INGRESO")}
                 aria-pressed={tipo === "INGRESO"}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-[0.9rem] font-medium transition-colors",
+                  "flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-[0.9rem] font-medium transition-colors",
                   tipo === "INGRESO"
-                    ? "border-forest bg-forest/10 text-forest"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -84,9 +84,9 @@ export function NuevoMovimientoDialog({
                 onClick={() => setTipo("EGRESO")}
                 aria-pressed={tipo === "EGRESO"}
                 className={cn(
-                  "flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-[0.9rem] font-medium transition-colors",
+                  "flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-[0.9rem] font-medium transition-colors",
                   tipo === "EGRESO"
-                    ? "border-destructive bg-destructive/10 text-destructive"
+                    ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
@@ -189,7 +189,7 @@ export function NuevoMovimientoDialog({
             <Button type="button" variant="outline" className="h-10 px-4 text-[0.95rem]" onClick={onCerrar}>
               Cancelar
             </Button>
-            <Button type="submit" className="h-10 px-4 text-[0.95rem]" disabled={pendiente}>
+            <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente}>
               {pendiente && <Loader2 className="animate-spin" />}
               Registrar
             </Button>

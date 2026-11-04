@@ -32,7 +32,7 @@ export default async function CajaPage({
 
   if (!puede(apr.plan as Plan, "finanzas")) {
     return (
-      <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-xl border bg-card p-8 text-center">
+      <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 text-center">
         <h1 className="text-[1.35rem] font-semibold tracking-tight">Caja</h1>
         <p className="text-[0.9rem] text-muted-foreground">
           Lleva la plata de tu comité en un solo lugar: con cuánta partes, lo que entra y sale, por día o por mes, y el

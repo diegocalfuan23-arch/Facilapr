@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronDown, ChevronLeft, ChevronRight, Download, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
@@ -168,7 +168,7 @@ export function CajaVista({
   const cerrada = resumen.cierre !== null;
   const ingresos = porCategoria.filter((c) => c.tipo === "INGRESO");
   const egresos = porCategoria.filter((c) => c.tipo === "EGRESO");
-  const botonNavegar = cn(alto, "flex w-10 items-center justify-center rounded-lg border hover:bg-muted");
+  const botonNavegar = cn(alto, "flex w-10 items-center justify-center rounded-xl border border-border hover:bg-muted");
 
   return (
     <div className="flex flex-col gap-6">
@@ -182,18 +182,18 @@ export function CajaVista({
               type="date"
               value={desde}
               onChange={(e) => e.target.value && navegar(() => router.push(`/panel/caja?vista=dia&dia=${e.target.value}`))}
-              className={cn(alto, "w-auto px-3 text-[0.95rem]")}
+              className={cn(alto, "w-auto rounded-full px-4 text-[0.95rem]")}
               aria-label="Día"
             />
           ) : (
-            <span className={cn(alto, "flex min-w-44 items-center justify-center rounded-lg border px-4 text-[0.95rem] capitalize")}>
+            <span className={cn(alto, "flex min-w-44 items-center justify-center rounded-lg border border-border px-4 text-[0.95rem] capitalize")}>
               {etiqueta}
             </span>
           )}
           <Link href={hrefSiguiente} aria-label="Siguiente" className={botonNavegar}>
             <ChevronRight className="size-4" />
           </Link>
-          <Link href={hrefOtraVista} className={cn(buttonVariants({ variant: "ghost" }), alto, "px-4 text-[0.95rem]")}>
+          <Link href={hrefOtraVista} className="px-3 text-[0.85rem] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">
             {esDia ? "Ver el mes" : "Ver por día"}
           </Link>
         </div>
@@ -204,7 +204,7 @@ export function CajaVista({
               {cerrada ? "Caja cerrada" : "Cerrar caja"}
             </Button>
           )}
-          <Button className={cn(alto, "px-4 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
+          <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
             + Registrar movimiento
           </Button>
         </div>
@@ -226,24 +226,24 @@ export function CajaVista({
       )}
 
       <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Disponible anterior</p>
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
-            {resumen.disponibleAnterior === null ? "—" : clp.format(resumen.disponibleAnterior)}
+            {resumen.disponibleAnterior === null ? <span className="text-muted-foreground/50">—</span> : clp.format(resumen.disponibleAnterior)}
           </p>
         </div>
-        <div className="rounded-xl border border-forest/30 bg-forest/10 p-5">
-          <p className={cn(etiquetaKpi, "text-forest")}>Total ingresos</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums text-forest">{clp.format(resumen.ingresos)}</p>
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 p-5">
+          <p className={cn(etiquetaKpi, "text-emerald-700 dark:text-emerald-400")}>Total ingresos</p>
+          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums text-emerald-700 dark:text-emerald-400">{clp.format(resumen.ingresos)}</p>
         </div>
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5">
-          <p className={cn(etiquetaKpi, "text-destructive")}>Total egresos</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums text-destructive">{clp.format(resumen.egresos)}</p>
+        <div className="rounded-xl border border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10 p-5">
+          <p className={cn(etiquetaKpi, "text-red-600 dark:text-red-400")}>Total egresos</p>
+          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums text-red-600 dark:text-red-400">{clp.format(resumen.egresos)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-5">
+        <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>{esDia ? "Disponible del día" : "Disponible al cierre"}</p>
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
-            {resumen.disponible === null ? "—" : clp.format(resumen.disponible)}
+            {resumen.disponible === null ? <span className="text-muted-foreground/50">—</span> : clp.format(resumen.disponible)}
           </p>
           {cerrada && resumen.cierre?.cerradoPor && (
             <p className="mt-2 text-[0.8rem] text-muted-foreground">Cerrada por {resumen.cierre.cerradoPor}</p>
@@ -257,7 +257,7 @@ export function CajaVista({
             { titulo: "De dónde vino", filas: ingresos },
             { titulo: "A dónde fue", filas: egresos },
           ].map((bloque) => (
-            <div key={bloque.titulo} className="rounded-xl border bg-card p-5">
+            <div key={bloque.titulo} className="rounded-xl border border-border bg-card p-5">
               <h2 className={cn(etiquetaKpi, "text-muted-foreground")}>{bloque.titulo}</h2>
               {bloque.filas.length === 0 ? (
                 <p className="mt-3 text-[0.9rem] text-muted-foreground">Nada este mes.</p>
@@ -281,7 +281,7 @@ export function CajaVista({
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
           placeholder="Buscar por descripción o referencia…"
-          className={cn(alto, "px-4 text-[0.95rem] sm:w-80")}
+          className={cn(alto, "rounded-full px-5 text-[0.95rem] sm:w-80")}
           aria-label="Buscar movimientos"
         />
         <div className="flex flex-col gap-3 sm:flex-row">
@@ -297,33 +297,35 @@ export function CajaVista({
           </Selector>
           <Button
             variant="outline"
-            className={cn(alto, "px-4 text-[0.95rem]")}
+            size="icon"
+            className={cn(alto, "w-10 rounded-xl")}
             onClick={() => descargarCsv(lineas, desde)}
             disabled={lineas.length === 0}
+            aria-label="Descargar en Excel"
+            title="Descargar en Excel"
           >
             <Download />
-            Descargar
           </Button>
         </div>
       </div>
 
       {filtradas.length === 0 ? (
-        <div className="rounded-xl border border-dashed py-20 text-center">
+        <div className="rounded-xl border border-border border-dashed py-20 text-center">
           <p className="text-[1.05rem] font-medium">Sin movimientos de caja</p>
           <p className="mx-auto mt-2 max-w-xl px-4 text-[0.95rem] text-muted-foreground">
             {lineas.length === 0
               ? "Los pagos de socios aparecerán aquí al registrarlos, y los ingresos y egresos manuales al anotarlos."
               : "Ningún movimiento coincide con la búsqueda o los filtros."}
           </p>
-          <Button className={cn(alto, "mt-5 px-4 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
+          <Button className={cn(alto, "mt-5 rounded-full px-5 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
             + Registrar movimiento
           </Button>
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-160 border-collapse text-[0.95rem]">
             <thead>
-              <tr className="border-b bg-card">
+              <tr className="border-b border-border bg-card">
                 {[...(esDia ? [] : ["Fecha"]), "Descripción", "Tipo", "Origen", "Medio", "Monto"].map((c) => (
                   <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
                     {c}
@@ -334,7 +336,7 @@ export function CajaVista({
             </thead>
             <tbody>
               {filtradas.map((l) => (
-                <tr key={l.id} className="border-b last:border-0 hover:bg-card/50">
+                <tr key={l.id} className="border-b border-border last:border-0 hover:bg-card/50">
                   {!esDia && (
                     <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">
                       {fechaCorta(l.fecha).slice(0, 5)}
@@ -352,7 +354,7 @@ export function CajaVista({
                     <span
                       className={cn(
                         "rounded-full px-3 py-1 text-[0.8rem] font-medium",
-                        l.tipo === "INGRESO" ? "bg-forest/10 text-forest" : "bg-destructive/10 text-destructive"
+                        l.tipo === "INGRESO" ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
                       )}
                     >
                       {l.tipo === "INGRESO" ? "Ingreso" : "Egreso"}
@@ -365,7 +367,7 @@ export function CajaVista({
                   <td
                     className={cn(
                       "px-5 py-4 font-medium whitespace-nowrap tabular-nums",
-                      l.tipo === "INGRESO" ? "text-forest" : "text-destructive"
+                      l.tipo === "INGRESO" ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
                     )}
                   >
                     {l.tipo === "INGRESO" ? "+" : "-"}
