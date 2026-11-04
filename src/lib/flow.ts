@@ -152,6 +152,8 @@ export async function estadoRegistroTarjetaFlow(token: string) {
   }>("/customer/getRegisterStatus", { token });
   return {
     registrada: Number(r.status) === 1,
+    /** Lo que Flow respondió tal cual, para el registro de errores. */
+    status: r.status ?? null,
     customerId: r.customerId ?? "",
     tipo: r.creditCardType ?? null,
     ultimos: r.last4CardDigits ?? null,

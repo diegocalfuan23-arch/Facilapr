@@ -222,11 +222,15 @@ export type ResultadoRegistro = "ACTIVA" | "COBRO_FALLIDO" | "FALLIDO" | "DESCON
  */
 export async function completarRegistroTarjeta(token: string): Promise<ResultadoRegistro> {
   const t = await db.query.tarjetasPlan.findFirst({ where: eq(tarjetasPlan.registroToken, token) });
-  if (!t) return "DESCONOCIDO";
+  if (!t) {
+    console.warn("Registro de tarjeta: no hay ninguna tarjeta pendiente con ese token.");
+    return "DESCONOCIDO";
+  }
   if (t.estado === "ACTIVA") return "ACTIVA";
 
   const r = await estadoRegistroTarjetaFlow(token);
   if (!r.registrada) {
+    console.warn("Registro de tarjeta: Flow no la dio por guardada, status =", r.status);
     await db
       .update(tarjetasPlan)
       .set({ estado: "CANCELADA", proximoCobro: null, updatedAt: new Date() })
