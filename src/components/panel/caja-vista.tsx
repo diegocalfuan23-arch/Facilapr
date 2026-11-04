@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Tag, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, PiggyBank, Tag, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -202,7 +202,23 @@ export function CajaVista({
           </Link>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            className={cn(alto, "rounded-xl px-3 text-[0.9rem]", !saldoInicial && "border-dashed")}
+            onClick={() => setDefiniendoSaldo(true)}
+            title={saldoInicial ? "Ver o cambiar el saldo inicial" : "Definir con cuánta plata partes"}
+          >
+            <PiggyBank />
+            {saldoInicial ? (
+              <>
+                <span className="hidden sm:inline">Saldo inicial</span>
+                <span className="font-semibold tabular-nums">{clp.format(saldoInicial.monto)}</span>
+              </>
+            ) : (
+              "Definir saldo inicial"
+            )}
+          </Button>
           {esDia && (
             <Button variant="outline" className={cn(alto, "px-4 text-[0.95rem]")} onClick={() => setCerrando(true)}>
               {cerrada ? "Caja cerrada" : "Cerrar caja"}
@@ -214,24 +230,12 @@ export function CajaVista({
         </div>
       </div>
 
+      {/* El saldo inicial se ve y se cambia en un solo lugar: el botón de arriba. Aquí solo se explica el guion. */}
       {resumen.disponibleAnterior === null && (
-        <p className="text-[0.9rem] text-muted-foreground">
-          {saldoInicial ? (
-            <>
-              Tu saldo inicial es de {clp.format(saldoInicial.monto)} al {fechaCorta(saldoInicial.fecha)}: antes de ese día no se sabe con
-              cuánta plata partías, así que no hay disponible.{" "}
-              <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
-                Cambiar saldo inicial
-              </button>
-            </>
-          ) : (
-            <>
-              Define con cuánta plata partes para ver el disponible.{" "}
-              <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
-                Definir saldo inicial
-              </button>
-            </>
-          )}
+        <p className="text-[0.85rem] text-muted-foreground">
+          {saldoInicial
+            ? `Antes del ${fechaCorta(saldoInicial.fecha)} (la fecha de tu saldo inicial) no se sabe con cuánta plata partías, así que no hay disponible.`
+            : "Define el saldo inicial para ver el disponible."}
         </p>
       )}
 
@@ -240,15 +244,6 @@ export function CajaVista({
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Disponible anterior</p>
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
             {resumen.disponibleAnterior === null ? <span className="text-muted-foreground/50">—</span> : clp.format(resumen.disponibleAnterior)}
-          </p>
-          {/* No se escribe aquí: se calcula desde el saldo inicial. Ese es el que se cambia. */}
-          <p className="mt-2 text-[0.8rem] text-muted-foreground">
-            {saldoInicial
-              ? `Saldo inicial: ${clp.format(saldoInicial.monto)} al ${fechaCorta(saldoInicial.fecha)}. `
-              : "Falta definir con cuánta plata partes. "}
-            <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
-              {saldoInicial ? "Cambiar" : "Definir saldo inicial"}
-            </button>
           </p>
         </div>
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 p-5">
