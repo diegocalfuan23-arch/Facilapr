@@ -99,7 +99,8 @@ export function gruposDelMenu({
     {
       titulo: "Gestión",
       icono: LayoutGrid,
-      enlaces: conFinanzas ? gestion.filter((e) => e.href !== "/panel/pagos") : gestion,
+      // Con Finanzas (Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: es del plan Grande.
+      enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
     },
     ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),
     {
