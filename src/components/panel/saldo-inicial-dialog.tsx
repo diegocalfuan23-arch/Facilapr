@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { guardarSaldoInicial, type ResultadoFinanzas } from "@/app/panel/finanzas/actions";
@@ -27,6 +27,8 @@ export function SaldoInicialDialog({
   onCerrar: () => void;
 }) {
   const [estado, enviar, pendiente] = useActionState<ResultadoFinanzas | null, FormData>(guardarSaldoInicial, null);
+  // Solo los dígitos; el formato de dinero se arma al mostrarlo.
+  const [monto, setMonto] = useState(actual ? String(actual.monto) : "");
 
   useEffect(() => {
     if (!estado) return;
@@ -43,25 +45,25 @@ export function SaldoInicialDialog({
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>Saldo inicial</DialogTitle>
-          <DialogDescription>
-            Cuánta plata tenía el comité (caja y banco juntos) el día en que empiezas a llevar las finanzas aquí.
-            Desde ese día, Facilapr suma lo que entra y resta lo que sale.
-          </DialogDescription>
+          <DialogDescription>Con cuánta plata partes: caja y banco juntos.</DialogDescription>
         </DialogHeader>
 
         <form action={enviar} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="saldo-fecha">Al día</Label>
+            <Label htmlFor="saldo-fecha">Desde el día</Label>
             <Input id="saldo-fecha" name="fecha" type="date" defaultValue={actual?.fecha ?? ""} required />
           </div>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="saldo-monto">Saldo (CLP)</Label>
+            <Label htmlFor="saldo-monto">Saldo</Label>
+            {/* Se escribe con formato de dinero ($1.500.000); al servidor viaja solo con los dígitos. */}
+            <input type="hidden" name="monto" value={monto} />
             <Input
               id="saldo-monto"
-              name="monto"
+              value={monto === "" ? "" : `$${Number(monto).toLocaleString("es-CL")}`}
+              onChange={(e) => setMonto(e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 10))}
               inputMode="numeric"
-              defaultValue={actual?.monto ?? ""}
-              placeholder="1500000"
+              placeholder="$0"
+              autoComplete="off"
               required
             />
           </div>
