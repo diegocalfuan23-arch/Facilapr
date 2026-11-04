@@ -7,6 +7,7 @@ import {
   Droplets,
   HardHat,
   Briefcase,
+  Building,
   Headset,
   Landmark,
   LayoutDashboard,
@@ -58,6 +59,7 @@ const gestion: Enlace[] = [
 const operacion: Enlace[] = [
   { href: "/panel/personal", label: "Personal", icon: Briefcase },
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
+  { href: "/panel/activos", label: "Activos fijos", icon: Building },
 ];
 
 /**
@@ -146,6 +148,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/tecnicos": "operadores equipo invitar",
   "/panel/personal": "trabajadores empleados sueldos honorarios operador tesorero remuneraciones",
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
+  "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",
   "/panel/compras": "proveedores facturas comprar gastos",
   "/panel/reportes": "informe año resumen estadisticas",

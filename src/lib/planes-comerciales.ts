@@ -52,6 +52,7 @@ export const PLANES_COMERCIALES: {
       "Finanzas completas: Caja de ingresos y egresos, compras y proveedores, reportes e informe para la asamblea",
       "Inventario de bodega con categorías e historial de stock",
       "Personal con sus pagos (quedan en la Caja) e incidentes del sistema: fugas, fallas y cuánto costó repararlas",
+      "Activos fijos: bombas, estanques, terreno y demás bienes, con su valor actual",
       "Hasta 800 socios cargados",
       "Hasta 3 operadores en terreno",
       "Sitio público con avisos de corte",

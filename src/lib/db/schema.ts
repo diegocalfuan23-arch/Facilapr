@@ -1244,3 +1244,33 @@ export const incidentes = pgTable(
     uniqueIndex("Incidente_aprId_numero_key").on(table.aprId, table.numero),
   ]
 );
+
+/**
+ * Los bienes de largo plazo del comité (bomba, estanque, terreno, vehículo, medidores…): qué son,
+ * cuándo y en cuánto se compraron, y cuánto valen hoy según su vida útil (depreciación lineal).
+ */
+export const activosFijos = pgTable(
+  "ActivoFijo",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /** Código interno o inventario del comité, si lo usan. */
+    codigo: text("codigo"),
+    /** BOMBA | ESTANQUE | CAPTACION | RED | TERRENO | EDIFICIO | VEHICULO | EQUIPO | MEDIDORES | OTRO */
+    categoria: text("categoria").notNull().default("OTRO"),
+    ubicacion: text("ubicacion"),
+    fechaAdquisicion: date("fechaAdquisicion", { mode: "string" }).notNull(),
+    costo: integer("costo").notNull().default(0),
+    /** Años que dura útil. 0 = no se deprecia (un terreno). */
+    vidaUtilAnios: integer("vidaUtilAnios").notNull().default(0),
+    /** OPERATIVO | EN_REPARACION | BAJA */
+    estado: text("estado").notNull().default("OPERATIVO"),
+    responsable: text("responsable"),
+    notas: text("notas"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("ActivoFijo_aprId_idx").on(table.aprId)]
+);
