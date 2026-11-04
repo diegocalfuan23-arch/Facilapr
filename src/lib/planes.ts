@@ -10,12 +10,13 @@ export type Capacidad =
   | "dominioPropio"
   | "avisos"
   | "chat"
-  | "iaChat";
+  | "iaChat"
+  | "finanzas";
 
 const CAPACIDADES: Record<Plan, Capacidad[]> = {
   BASICO: [],
   ESTANDAR: ["landing", "avisos", "chat", "iaChat"],
-  PREMIUM: ["landing", "avisos", "chat", "iaChat", "dominioPropio"],
+  PREMIUM: ["landing", "avisos", "chat", "iaChat", "dominioPropio", "finanzas"],
 };
 
 

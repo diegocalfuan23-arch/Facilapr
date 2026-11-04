@@ -6,6 +6,7 @@ import {
   boolean,
   doublePrecision,
   timestamp,
+  date,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -558,6 +559,39 @@ export const pagosPlan = pgTable(
     index("PagoPlan_aprId_idx").on(table.aprId),
     uniqueIndex("PagoPlan_flowToken_key").on(table.flowToken).where(sql`${table.flowToken} IS NOT NULL`),
   ]
+);
+
+/**
+ * Lo que entra y sale de plata del comité, fuera de las boletas: egresos (luz,
+ * reparaciones, insumos, sueldos…) e ingresos que no vienen de un socio (subsidios,
+ * aportes). Los pagos de boletas y cobros NO se copian aquí: ya viven en la tabla
+ * Pago y el libro los junta al mostrarlos, para que no haya dos versiones de lo mismo.
+ */
+export const movimientos = pgTable(
+  "Movimiento",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** INGRESO | EGRESO */
+    tipo: text("tipo").notNull(),
+    /** El día en que ocurrió, sin hora (así no depende de la zona horaria). AAAA-MM-DD. */
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    monto: integer("monto").notNull(),
+    /** Una de las categorías de lib/finanzas. */
+    categoria: text("categoria").notNull(),
+    concepto: text("concepto").notNull(),
+    /** EFECTIVO | TRANSFERENCIA | CHEQUE | OTRO */
+    medio: text("medio").notNull().default("OTRO"),
+    /** N.º de factura, boleta, transferencia o cheque, si lo hay. */
+    referencia: text("referencia"),
+    /** A quién se pagó o de quién vino (proveedor, institución). */
+    contraparte: text("contraparte"),
+    registradoPorId: text("registradoPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Movimiento_aprId_fecha_idx").on(table.aprId, table.fecha)]
 );
 
 /**
