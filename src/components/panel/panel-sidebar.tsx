@@ -15,6 +15,7 @@ import {
   LifeBuoy,
   LayoutGrid,
   Banknote,
+  BarChart3,
   Headset,
   Landmark,
   Package,
@@ -74,6 +75,7 @@ const finanzas = [
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
   { href: "/panel/caja", label: "Caja", icon: Banknote },
   { href: "/panel/compras", label: "Compras", icon: ShoppingCart },
+  { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
 ];
 
 const atencion = [
