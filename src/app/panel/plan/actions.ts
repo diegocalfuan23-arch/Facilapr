@@ -36,18 +36,25 @@ export async function iniciarPagoPlan(
 
   const base = (process.env.NEXT_PUBLIC_SITE_URL ?? process.env.BETTER_AUTH_URL ?? "https://facilapr.cl").replace(/\/$/, "");
 
-  const [orden] = await db
-    .insert(pagosPlan)
-    .values({
-      aprId: apr.id,
-      plan,
-      periodo,
-      montoNeto: c.cotizacion.neto,
-      montoTotal: c.cotizacion.total,
-      valorUf: c.cotizacion.valorUf,
-      creadoPorId: user.id,
-    })
-    .returning({ id: pagosPlan.id });
+  let orden: { id: string };
+  try {
+    [orden] = await db
+      .insert(pagosPlan)
+      .values({
+        aprId: apr.id,
+        plan,
+        periodo,
+        montoNeto: c.cotizacion.neto,
+        montoTotal: c.cotizacion.total,
+        valorUf: c.cotizacion.valorUf,
+        creadoPorId: user.id,
+      })
+      .returning({ id: pagosPlan.id });
+  } catch (e) {
+    // Sin esto, una tabla que falta tumba toda la sección en vez de avisar.
+    console.error("No se pudo crear la orden de pago del plan:", e);
+    return { ok: false, error: "No pudimos iniciar el pago. Inténtalo de nuevo en un momento." };
+  }
 
   try {
     const flow = await crearPagoFlow({
