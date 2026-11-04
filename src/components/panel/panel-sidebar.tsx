@@ -330,6 +330,16 @@ export function PanelSidebar({
               de tamaño para no tocar los bordes. */}
           <Logo className="size-12 group-data-[collapsible=icon]:size-8" />
         </Link>
+        {/* El plan, centrado bajo la marca. Colapsado no cabe, así que se oculta. */}
+        {rol === "ADMIN" && (
+          <Link
+            href="/panel/plan"
+            title="Ver mi plan"
+            className="mx-auto rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground group-data-[collapsible=icon]:hidden"
+          >
+            Plan {plan}
+          </Link>
+        )}
       </SidebarHeader>
 
       <SidebarContent>
