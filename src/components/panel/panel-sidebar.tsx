@@ -16,6 +16,7 @@ import {
   LayoutGrid,
   Banknote,
   Headset,
+  Landmark,
   Package,
   Wallet,
   ChevronsUpDown,
@@ -58,11 +59,19 @@ const gestion = [
   { href: "/panel/socios", label: "Socios", icon: Users },
   { href: "/panel/boletas", label: "Boletas", icon: ReceiptText },
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
-  { href: "/panel/caja", label: "Caja", icon: Banknote },
   { href: "/panel/inventario", label: "Inventario", icon: Package },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
   { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
+];
+
+/**
+ * Finanzas (plan Grande): la plata del comité en un solo lugar. Pagos se muda aquí desde
+ * Gestión; en los demás planes se queda en Gestión, porque registrar pagos es de todos.
+ */
+const finanzas = [
+  { href: "/panel/pagos", label: "Pagos", icon: Wallet },
+  { href: "/panel/caja", label: "Caja", icon: Banknote },
 ];
 
 const atencion = [
@@ -306,6 +315,7 @@ export function PanelSidebar({
   usuario,
   insignias,
   chat = false,
+  conFinanzas = false,
 }: {
   apr: string;
   comuna: string;
@@ -316,6 +326,8 @@ export function PanelSidebar({
   insignias?: Record<string, number>;
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat?: boolean;
+  /** El plan incluye Finanzas (Grande): aparece su grupo y Pagos se muda a él. */
+  conFinanzas?: boolean;
 }) {
   const pathname = usePathname();
   const inicio = rol === "ADMIN" ? "/panel" : "/panel/lecturas";
@@ -349,7 +361,16 @@ export function PanelSidebar({
       <SidebarContent>
         {rol === "ADMIN" ? (
           <>
-            <GrupoEnlaces titulo="Gestión" icono={LayoutGrid} enlaces={gestion} pathname={pathname} insignias={insignias} />
+            <GrupoEnlaces
+              titulo="Gestión"
+              icono={LayoutGrid}
+              enlaces={conFinanzas ? gestion.filter((e) => e.href !== "/panel/pagos") : gestion}
+              pathname={pathname}
+              insignias={insignias}
+            />
+            {conFinanzas && (
+              <GrupoEnlaces titulo="Finanzas" icono={Landmark} enlaces={finanzas} pathname={pathname} insignias={insignias} />
+            )}
             <GrupoEnlaces
               titulo="Atención"
               icono={Headset}

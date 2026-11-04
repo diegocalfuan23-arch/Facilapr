@@ -78,6 +78,7 @@ export default async function PanelLayout({
           plan={NOMBRE_PLAN[apr.plan as Plan]}
           usuario={{ nombre: user.name, correo: user.email }}
           chat={puede(apr.plan as Plan, "chat")}
+          conFinanzas={puede(apr.plan as Plan, "finanzas")}
         />
         {!esOperador && <Recorrido usuarioId={user.id} />}
         {!esOperador && <PrimerosPasosFlotante />}
