@@ -223,3 +223,37 @@ body {
   max-width: 100%;
   overflow-x: clip;
 }
+
+/*
+ * Barra de desplazamiento fina y suave: un pulgar redondeado de gris claro, que se
+ * oscurece al pasar el mouse, y sin las flechas de la barra nativa de Windows.
+ */
+@utility scroll-fino {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklch, var(--foreground) 22%, transparent) transparent;
+
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-button {
+    display: none;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: color-mix(in oklch, var(--foreground) 18%, transparent);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklch, var(--foreground) 34%, transparent);
+    background-clip: padding-box;
+  }
+}

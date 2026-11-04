@@ -310,7 +310,7 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
           )}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
+        <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
           <table className="w-full min-w-160 border-collapse text-[0.95rem]">
             <thead>
               <tr className="border-b border-border bg-card">
