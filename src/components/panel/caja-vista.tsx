@@ -218,8 +218,8 @@ export function CajaVista({
         <p className="text-[0.9rem] text-muted-foreground">
           {saldoInicial ? (
             <>
-              Tu saldo inicial es del {fechaCorta(saldoInicial.fecha)}: antes de ese día no se sabe con cuánta plata partías, así que no hay
-              disponible.{" "}
+              Tu saldo inicial es de {clp.format(saldoInicial.monto)} al {fechaCorta(saldoInicial.fecha)}: antes de ese día no se sabe con
+              cuánta plata partías, así que no hay disponible.{" "}
               <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
                 Cambiar saldo inicial
               </button>
@@ -243,7 +243,9 @@ export function CajaVista({
           </p>
           {/* No se escribe aquí: se calcula desde el saldo inicial. Ese es el que se cambia. */}
           <p className="mt-2 text-[0.8rem] text-muted-foreground">
-            {saldoInicial ? `Parte del saldo inicial del ${fechaCorta(saldoInicial.fecha)}. ` : "Falta definir con cuánta plata partes. "}
+            {saldoInicial
+              ? `Saldo inicial: ${clp.format(saldoInicial.monto)} al ${fechaCorta(saldoInicial.fecha)}. `
+              : "Falta definir con cuánta plata partes. "}
             <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
               {saldoInicial ? "Cambiar" : "Definir saldo inicial"}
             </button>
