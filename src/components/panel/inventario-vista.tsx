@@ -184,7 +184,10 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
   const cerrarEliminar = useCallback(() => setEliminando(null), []);
   const cerrarCategorias = useCallback(() => setGestionandoCategorias(false), []);
 
-  const categorias = opcionesDeCategoria(categoriasPropias);
+  const categorias = opcionesDeCategoria(
+    categoriasPropias,
+    insumos.map((i) => i.categoria)
+  );
   // Cuántos materiales usa cada categoría propia, para avisar antes de borrarla.
   const usos: Record<string, number> = {};
   for (const i of insumos) {
@@ -194,13 +197,16 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
     }
   }
 
+  const sinCategoria = insumos.filter((i) => textoCategoriaInsumo(i.categoria, categorias) === null).length;
+  const cuantos = (valor: string) => insumos.filter((i) => i.categoria === valor).length;
   const bajos = insumos.filter(estaBajo);
   const valor = insumos.reduce((s, i) => s + i.stock * i.costo, 0);
 
   const q = busqueda.trim().toLowerCase();
   const filtrados = insumos.filter((i) => {
     if (pestana === "bajo" && !estaBajo(i)) return false;
-    if (categoria !== "todas" && i.categoria !== categoria) return false;
+    if (categoria === "sin" && textoCategoriaInsumo(i.categoria, categorias) !== null) return false;
+    if (categoria !== "todas" && categoria !== "sin" && i.categoria !== categoria) return false;
     if (q && !i.nombre.toLowerCase().includes(q) && !i.codigo?.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -233,25 +239,28 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
           aria-label="Buscar materiales"
         />
         <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative sm:w-56">
-            <select
-              value={categoria}
-              onChange={(e) => setCategoria(e.target.value)}
-              aria-label="Categoría"
-              className={cn(
-                alto,
-                "w-full appearance-none rounded-xl border border-input bg-transparent pr-10 pl-4 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-              )}
-            >
-              <option value="todas">Todas las categorías</option>
-              {categorias.map((c) => (
-                <option key={c.valor} value={c.valor}>
-                  {c.texto}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          {categorias.length > 0 && (
+            <div className="relative sm:w-56">
+              <select
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+                aria-label="Categoría"
+                className={cn(
+                  alto,
+                  "w-full appearance-none rounded-xl border border-input bg-transparent pr-10 pl-4 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+                )}
+              >
+                <option value="todas">Todas las categorías</option>
+                {categorias.map((c) => (
+                  <option key={c.valor} value={c.valor}>
+                    {c.texto} ({cuantos(c.valor)})
+                  </option>
+                ))}
+                {sinCategoria > 0 && <option value="sin">Sin categoría ({sinCategoria})</option>}
+              </select>
+              <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+            </div>
+          )}
           <Button variant="outline" className={cn(alto, "rounded-xl px-4 text-[0.95rem]")} onClick={() => setGestionandoCategorias(true)}>
             Categorías
           </Button>
@@ -326,7 +335,7 @@ export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insum
                       <div className="font-medium">{i.nombre}</div>
                       {i.codigo && <div className="text-[0.8rem] text-muted-foreground">{i.codigo}</div>}
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoCategoriaInsumo(i.categoria, categorias)}</td>
+                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoCategoriaInsumo(i.categoria, categorias) ?? "—"}</td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       <span className={cn("font-medium tabular-nums", bajo ? ROJO_TXT : VERDE_TXT)}>
                         {formatoCantidad(i.stock)} {unidadCorta(i.unidad)}

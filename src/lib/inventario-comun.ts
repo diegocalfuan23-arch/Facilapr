@@ -4,6 +4,7 @@
  * cargar la conexión a la base (lib/inventario.ts la trae y solo se usa desde el servidor).
  */
 
+/** Solo para reconocer las categorías antiguas; ya no se ofrecen. */
 export const CATEGORIAS_INSUMO = [
   { valor: "CLORO", texto: "Cloro y químicos" },
   { valor: "CANERIAS", texto: "Cañerías y fittings" },
@@ -37,24 +38,41 @@ export type Insumo = {
 /** Una categoría creada por el comité. */
 export type CategoriaPropia = { id: string; nombre: string };
 
-/** Una opción para elegir en el formulario y el filtro: las predeterminadas y las propias. */
-export type OpcionCategoria = { valor: string; texto: string; propia: boolean };
+/** Una opción para elegir en el formulario y el filtro. */
+export type OpcionCategoria = { valor: string; texto: string };
 
-/** Así se guarda en el material la categoría que creó el comité: «p:<id>». */
+/** Así se guarda en el material la categoría que creó el comité: «p:<id>». Vacío es «sin categoría». */
 export const PREFIJO_CATEGORIA_PROPIA = "p:";
 
-/** Las categorías predeterminadas seguidas de las del comité, ordenadas por nombre. */
-export function opcionesDeCategoria(propias: CategoriaPropia[]): OpcionCategoria[] {
-  return [
-    ...CATEGORIAS_INSUMO.map((c) => ({ valor: c.valor as string, texto: c.texto as string, propia: false })),
-    ...[...propias]
-      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
-      .map((c) => ({ valor: `${PREFIJO_CATEGORIA_PROPIA}${c.id}`, texto: c.nombre, propia: true })),
-  ];
+/** En el formulario, la opción para crear una categoría nueva sin salir de él. */
+export const CATEGORIA_NUEVA = "__nueva";
+
+/**
+ * Las categorías antiguas, de cuando eran fijas. Ya no se ofrecen ni se pueden elegir; solo se
+ * reconocen para que los materiales que las tenían sigan mostrando su nombre.
+ */
+const CATEGORIAS_ANTIGUAS: Record<string, string> = Object.fromEntries(CATEGORIAS_INSUMO.map((c) => [c.valor, c.texto]));
+
+/** Una categoría antigua que ya no se ofrece. «Otros» pasa a ser «sin categoría». */
+export const esCategoriaAntigua = (c: string) => c in CATEGORIAS_ANTIGUAS && c !== "OTROS";
+
+/**
+ * Las categorías del comité, por nombre. Las antiguas solo aparecen si algún material todavía
+ * las usa (`usadas`), para poder filtrarlo; las nuevas se eligen siempre.
+ */
+export function opcionesDeCategoria(propias: CategoriaPropia[], usadas: string[] = []): OpcionCategoria[] {
+  const antiguas = [...new Set(usadas.filter(esCategoriaAntigua))].map((c) => ({ valor: c, texto: CATEGORIAS_ANTIGUAS[c] }));
+  const delComite = [...propias]
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+    .map((c) => ({ valor: `${PREFIJO_CATEGORIA_PROPIA}${c.id}`, texto: c.nombre }));
+  return [...delComite, ...antiguas];
 }
 
-export const textoCategoriaInsumo = (c: string, opciones: OpcionCategoria[]) =>
-  opciones.find((x) => x.valor === c)?.texto ?? "Otros";
+/** El nombre de la categoría de un material, o null si no tiene. */
+export function textoCategoriaInsumo(c: string, opciones: OpcionCategoria[]): string | null {
+  if (!c || c === "OTROS") return null;
+  return opciones.find((x) => x.valor === c)?.texto ?? CATEGORIAS_ANTIGUAS[c] ?? null;
+}
 export const unidadCorta = (u: string) => UNIDADES_INSUMO.find((x) => x.valor === u)?.corta ?? "un.";
 
 /** Una cantidad con hasta dos decimales y sin ceros de sobra: 1,5 · 12 · 0,25. */

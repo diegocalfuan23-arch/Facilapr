@@ -1,13 +1,13 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { guardarInsumo, type ResultadoInventario } from "@/app/panel/inventario/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { UNIDADES_INSUMO, type Insumo, type OpcionCategoria } from "@/lib/inventario-comun";
+import { CATEGORIA_NUEVA, UNIDADES_INSUMO, type Insumo, type OpcionCategoria } from "@/lib/inventario-comun";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const selectClase =
@@ -21,12 +21,14 @@ export function InsumoDialog({
   onCerrar,
 }: {
   insumo: Insumo | null;
-  /** Las predeterminadas y las que creó el comité. */
+  /** Las categorías que creó el comité. */
   categorias: OpcionCategoria[];
   onCerrar: () => void;
 }) {
   const [estado, enviar, pendiente] = useActionState<ResultadoInventario | null, FormData>(guardarInsumo, null);
   const editando = insumo !== null;
+  // «Otros» era la categoría por omisión de antes: ahora es no tener categoría.
+  const [categoria, setCategoria] = useState(insumo && insumo.categoria !== "OTROS" ? insumo.categoria : "");
 
   useEffect(() => {
     if (estado?.ok) {
@@ -79,14 +81,22 @@ export function InsumoDialog({
             </div>
             <div>
               <label htmlFor="ins-categoria" className={etiqueta}>
-                Categoría
+                Categoría (opcional)
               </label>
-              <select id="ins-categoria" name="categoria" className={selectClase} defaultValue={insumo?.categoria ?? "OTROS"}>
+              <select
+                id="ins-categoria"
+                name="categoria"
+                className={selectClase}
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+              >
+                <option value="">Sin categoría</option>
                 {categorias.map((c) => (
                   <option key={c.valor} value={c.valor}>
                     {c.texto}
                   </option>
                 ))}
+                <option value={CATEGORIA_NUEVA}>+ Crear categoría nueva…</option>
               </select>
             </div>
             <div>
@@ -101,6 +111,22 @@ export function InsumoDialog({
                 ))}
               </select>
             </div>
+            {categoria === CATEGORIA_NUEVA && (
+              <div className="sm:col-span-2">
+                <label htmlFor="ins-categoria-nueva" className={etiqueta}>
+                  Nombre de la categoría nueva
+                </label>
+                <Input
+                  id="ins-categoria-nueva"
+                  name="categoriaNueva"
+                  placeholder="Ej.: Válvulas, Pintura, Uniformes…"
+                  maxLength={40}
+                  className={campo}
+                  autoFocus
+                  required
+                />
+              </div>
+            )}
             <div>
               <label htmlFor="ins-stock" className={etiqueta}>
                 Stock actual

@@ -7,7 +7,12 @@ import { db } from "@/lib/db";
 import { categoriasInsumo, insumos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { CATEGORIAS_INSUMO, PREFIJO_CATEGORIA_PROPIA, UNIDADES_INSUMO } from "@/lib/inventario-comun";
+import {
+  CATEGORIA_NUEVA,
+  CATEGORIAS_INSUMO,
+  PREFIJO_CATEGORIA_PROPIA,
+  UNIDADES_INSUMO,
+} from "@/lib/inventario-comun";
 
 export type ResultadoInventario = { ok: true } | { ok: false; error: string };
 
@@ -22,7 +27,7 @@ function aCantidad(v: FormDataEntryValue | null) {
 const insumoSchema = z.object({
   nombre: z.string().trim().min(1, "Escribe el nombre del material.").max(120),
   codigo: z.string().trim().max(60).nullable(),
-  categoria: z.string().min(1, "Elige una categoría.").max(60),
+  categoria: z.string().max(60),
   unidad: z.enum(UNIDADES_INSUMO.map((u) => u.valor) as [string, ...string[]], { message: "Elige una unidad." }),
   stock: z.number({ message: "El stock no es un número." }).min(0, "El stock no puede ser negativo.").max(1_000_000_000),
   stockMinimo: z.number({ message: "El aviso no es un número." }).min(0, "El aviso no puede ser negativo.").max(1_000_000_000),
@@ -48,20 +53,23 @@ export async function guardarInsumo(
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
-  // La categoría es una de las predeterminadas o una propia de ESTE comité.
-  if (!CATEGORIAS_INSUMO.some((c) => c.valor === parsed.data.categoria)) {
-    const idCategoria = parsed.data.categoria.startsWith(PREFIJO_CATEGORIA_PROPIA)
-      ? parsed.data.categoria.slice(PREFIJO_CATEGORIA_PROPIA.length)
-      : "";
-    const [existe] = idCategoria
-      ? await db
-          .select({ id: categoriasInsumo.id })
-          .from(categoriasInsumo)
-          .where(and(eq(categoriasInsumo.id, idCategoria), eq(categoriasInsumo.aprId, apr.id)))
-          .limit(1)
-          .catch(() => [])
-      : [];
+  // La categoría es ninguna, una propia de ESTE comité, una antigua que el material ya tenía, o una nueva por crear.
+  let categoria = parsed.data.categoria;
+  if (categoria === CATEGORIA_NUEVA) {
+    const creada = await crearCategoriaDe(apr.id, String(formData.get("categoriaNueva") ?? ""));
+    if (!creada.ok) return creada;
+    categoria = `${PREFIJO_CATEGORIA_PROPIA}${creada.id}`;
+  } else if (categoria.startsWith(PREFIJO_CATEGORIA_PROPIA)) {
+    const idCategoria = categoria.slice(PREFIJO_CATEGORIA_PROPIA.length);
+    const [existe] = await db
+      .select({ id: categoriasInsumo.id })
+      .from(categoriasInsumo)
+      .where(and(eq(categoriasInsumo.id, idCategoria), eq(categoriasInsumo.aprId, apr.id)))
+      .limit(1)
+      .catch(() => []);
     if (!existe) return { ok: false, error: "Esa categoría ya no existe. Elige otra." };
+  } else if (categoria !== "" && !CATEGORIAS_INSUMO.some((c) => c.valor === categoria)) {
+    return { ok: false, error: "Esa categoría no es válida." };
   }
 
   const id = String(formData.get("id") ?? "");
@@ -69,12 +77,12 @@ export async function guardarInsumo(
     if (id) {
       const [editado] = await db
         .update(insumos)
-        .set({ ...parsed.data, updatedAt: new Date() })
+        .set({ ...parsed.data, categoria, updatedAt: new Date() })
         .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id)))
         .returning({ id: insumos.id });
       if (!editado) return { ok: false, error: "No encontramos ese material." };
     } else {
-      await db.insert(insumos).values({ ...parsed.data, aprId: apr.id });
+      await db.insert(insumos).values({ ...parsed.data, categoria, aprId: apr.id });
     }
   } catch (e) {
     console.error("Inventario: no se pudo guardar el material:", e);
@@ -127,39 +135,57 @@ export async function eliminarInsumo(id: string): Promise<ResultadoInventario> {
   return { ok: true };
 }
 
-/** Crea una categoría propia del comité. No puede repetir el nombre de otra ni de una predeterminada. */
+type ResultadoCategoria = { ok: true; id: string } | { ok: false; error: string };
+
+/**
+ * Crea una categoría propia del comité, o devuelve la que ya tiene ese nombre (sin distinguir
+ * mayúsculas ni tildes). Así crearla desde el formulario del material nunca falla por repetida.
+ */
+async function crearCategoriaDe(aprId: string, nombreCrudo: string): Promise<ResultadoCategoria> {
+  const nombre = String(nombreCrudo ?? "").trim().replace(/\s+/g, " ");
+  if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };
+  if (nombre.length > 40) return { ok: false, error: "El nombre de la categoría es muy largo (máximo 40 letras)." };
+
+  try {
+    const propias = await db
+      .select({ id: categoriasInsumo.id, nombre: categoriasInsumo.nombre })
+      .from(categoriasInsumo)
+      .where(eq(categoriasInsumo.aprId, aprId));
+    const repetida = propias.find((c) => c.nombre.localeCompare(nombre, "es", { sensitivity: "base" }) === 0);
+    if (repetida) return { ok: true, id: repetida.id };
+    if (propias.length >= 40) return { ok: false, error: "Llegaste al máximo de 40 categorías." };
+
+    const [creada] = await db.insert(categoriasInsumo).values({ aprId, nombre }).returning({ id: categoriasInsumo.id });
+    return { ok: true, id: creada.id };
+  } catch (e) {
+    console.error("Inventario: no se pudo crear la categoría:", e);
+    return { ok: false, error: "No pudimos crear la categoría. Inténtalo de nuevo en un momento." };
+  }
+}
+
+/** Crea una categoría propia desde el modal de categorías. Avisa si ya existía una con ese nombre. */
 export async function crearCategoria(nombreCrudo: string): Promise<ResultadoInventario> {
   const { apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   const nombre = String(nombreCrudo ?? "").trim().replace(/\s+/g, " ");
-  if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };
-  if (nombre.length > 40) return { ok: false, error: "El nombre es muy largo (máximo 40 letras)." };
-
-  const igual = (a: string, b: string) => a.localeCompare(b, "es", { sensitivity: "base" }) === 0;
-  if (CATEGORIAS_INSUMO.some((c) => igual(c.texto, nombre))) {
-    return { ok: false, error: "Ya existe una categoría con ese nombre." };
+  const antes = await db
+    .select({ nombre: categoriasInsumo.nombre })
+    .from(categoriasInsumo)
+    .where(eq(categoriasInsumo.aprId, apr.id))
+    .catch(() => []);
+  if (antes.some((c) => c.nombre.localeCompare(nombre, "es", { sensitivity: "base" }) === 0)) {
+    return { ok: false, error: "Ya tienes una categoría con ese nombre." };
   }
 
-  try {
-    const propias = await db
-      .select({ nombre: categoriasInsumo.nombre })
-      .from(categoriasInsumo)
-      .where(eq(categoriasInsumo.aprId, apr.id));
-    if (propias.some((c) => igual(c.nombre, nombre))) return { ok: false, error: "Ya existe una categoría con ese nombre." };
-    if (propias.length >= 40) return { ok: false, error: "Llegaste al máximo de 40 categorías propias." };
-
-    await db.insert(categoriasInsumo).values({ aprId: apr.id, nombre });
-  } catch (e) {
-    console.error("Inventario: no se pudo crear la categoría:", e);
-    return { ok: false, error: "No pudimos crear la categoría. Inténtalo de nuevo en un momento." };
-  }
+  const r = await crearCategoriaDe(apr.id, nombre);
+  if (!r.ok) return r;
 
   revalidatePath("/panel/inventario");
   return { ok: true };
 }
 
-/** Borra una categoría propia. Los materiales que la usaban pasan a «Otros»: no se pierde ninguno. */
+/** Borra una categoría propia. Los materiales que la usaban quedan sin categoría: no se pierde ninguno. */
 export async function eliminarCategoria(id: string): Promise<ResultadoInventario> {
   const { apr } = await requireAdmin();
 
@@ -172,7 +198,7 @@ export async function eliminarCategoria(id: string): Promise<ResultadoInventario
       if (!borrada) throw new Error("NO_EXISTE");
       await tx
         .update(insumos)
-        .set({ categoria: "OTROS", updatedAt: new Date() })
+        .set({ categoria: "", updatedAt: new Date() })
         .where(and(eq(insumos.aprId, apr.id), eq(insumos.categoria, `${PREFIJO_CATEGORIA_PROPIA}${id}`)));
     });
   } catch (e) {

@@ -7,11 +7,11 @@ import { crearCategoria, eliminarCategoria } from "@/app/panel/inventario/action
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CATEGORIAS_INSUMO, type CategoriaPropia } from "@/lib/inventario-comun";
+import type { CategoriaPropia } from "@/lib/inventario-comun";
 
 /**
- * Las categorías del inventario: las predeterminadas no se tocan; las del comité se
- * agregan y se borran aquí. Al borrar una, sus materiales pasan a «Otros».
+ * Las categorías del inventario: las crea el propio comité, según lo que guarda en bodega.
+ * Se agregan y se borran aquí. Al borrar una, sus materiales quedan sin categoría.
  */
 export function CategoriasDialog({
   propias,
@@ -44,7 +44,7 @@ export function CategoriasDialog({
 
   function borrar(c: CategoriaPropia) {
     const n = usos[c.id] ?? 0;
-    const aviso = n > 0 ? ` Sus ${n} ${n === 1 ? "material pasa" : "materiales pasan"} a «Otros».` : "";
+    const aviso = n > 0 ? ` ${n === 1 ? "Su material queda" : `Sus ${n} materiales quedan`} sin categoría.` : "";
     if (!window.confirm(`¿Borrar la categoría «${c.nombre}»?${aviso}`)) return;
     setBorrandoId(c.id);
     iniciar(async () => {
@@ -61,7 +61,7 @@ export function CategoriasDialog({
         <DialogHeader>
           <DialogTitle className="text-lg font-medium">Categorías del inventario</DialogTitle>
           <DialogDescription className="text-[0.9rem]">
-            Agrega las categorías que necesita tu bodega. Aparecen al crear un material y en el filtro.
+            Crea las categorías que necesita tu bodega. Aparecen al registrar un material y en el filtro. También puedes crearlas directo desde el formulario del material.
           </DialogDescription>
         </DialogHeader>
 
@@ -90,7 +90,7 @@ export function CategoriasDialog({
           <section>
             <h3 className="mb-2 text-[0.8rem] font-medium tracking-wide text-muted-foreground uppercase">Tus categorías</h3>
             {propias.length === 0 ? (
-              <p className="text-[0.9rem] text-muted-foreground">Todavía no creaste ninguna.</p>
+              <p className="text-[0.9rem] text-muted-foreground">Todavía no creaste ninguna. Escribe una arriba, por ejemplo «Válvulas» o «Cloro».</p>
             ) : (
               <ul className="flex flex-col divide-y divide-border rounded-xl border border-border">
                 {propias.map((c) => (
@@ -115,11 +115,6 @@ export function CategoriasDialog({
                 ))}
               </ul>
             )}
-          </section>
-
-          <section>
-            <h3 className="mb-2 text-[0.8rem] font-medium tracking-wide text-muted-foreground uppercase">Predeterminadas</h3>
-            <p className="text-[0.9rem] text-muted-foreground">{CATEGORIAS_INSUMO.map((c) => c.texto).join(" · ")}</p>
           </section>
         </div>
 
