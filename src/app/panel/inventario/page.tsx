@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
-import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
+import { puede, type Plan } from "@/lib/planes";
 import { estaBajo, listarCategorias, listarInsumos } from "@/lib/inventario";
 import { listarHistorial } from "@/lib/inventario-historial";
 import { InventarioVista } from "@/components/panel/inventario-vista";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Inventario",
@@ -15,20 +13,8 @@ export const metadata: Metadata = {
 export default async function InventarioPage() {
   const { apr } = await requireAdmin();
 
-  if (!puede(apr.plan as Plan, "inventario")) {
-    return (
-      <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 text-center">
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Inventario</h1>
-        <p className="text-[0.9rem] text-muted-foreground">
-          Lleva el control de la bodega de tu comité: cloro, cañerías, medidores y repuestos, con aviso cuando algo se esté
-          acabando. Disponible en el plan {NOMBRE_PLAN[planMinimoPara("inventario")]}.
-        </p>
-        <Link href="/panel/plan" className={cn(buttonVariants())}>
-          Ver planes
-        </Link>
-      </div>
-    );
-  }
+  // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
+  if (!puede(apr.plan as Plan, "inventario")) redirect("/panel");
 
   const [insumos, categoriasPropias, historial] = await Promise.all([
     listarInsumos(apr.id),

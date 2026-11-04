@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { requireAdmin } from "@/lib/apr-session";
-import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
+import { puede, type Plan } from "@/lib/planes";
 import { hoyEnChile, listarCategoriasMovimiento, nombreMes, textoCategoria } from "@/lib/finanzas";
 import { listarCompras } from "@/lib/compras";
 import { resumenAnual } from "@/lib/reportes";
 import { GraficoMeses } from "@/components/panel/grafico-meses";
 import { DescargarCsvBoton } from "@/components/panel/descargar-csv-boton";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -44,20 +44,8 @@ function ListaTotales({ filas, vacio }: { filas: { clave: string; texto: string;
 export default async function ReportesPage({ searchParams }: { searchParams: Promise<{ anio?: string }> }) {
   const { apr } = await requireAdmin();
 
-  if (!puede(apr.plan as Plan, "finanzas")) {
-    return (
-      <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 text-center">
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Reportes</h1>
-        <p className="text-[0.9rem] text-muted-foreground">
-          Los números de tu comité por año: ingresos, egresos y lo que debes a proveedores. Disponible en el plan{" "}
-          {NOMBRE_PLAN[planMinimoPara("finanzas")]}.
-        </p>
-        <Link href="/panel/plan" className={cn(buttonVariants())}>
-          Ver planes
-        </Link>
-      </div>
-    );
-  }
+  // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
+  if (!puede(apr.plan as Plan, "finanzas")) redirect("/panel");
 
   const hoy = hoyEnChile();
   const anioActual = Number(hoy.slice(0, 4));
