@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
@@ -101,6 +101,8 @@ type Props = {
   hrefSiguiente: string;
   /** A dónde lleva el botón que cambia entre día y mes. */
   hrefOtraVista: string;
+  /** El informe imprimible del mes, para la asamblea. Solo existe en la vista mensual. */
+  hrefInforme: string | null;
   resumen: ResumenPeriodo;
   lineas: LineaLibro[];
   /** Cuánto fue a cada categoría; se muestra en el mes. */
@@ -121,6 +123,7 @@ export function CajaVista({
   hrefAnterior,
   hrefSiguiente,
   hrefOtraVista,
+  hrefInforme,
   resumen,
   lineas,
   porCategoria,
@@ -295,6 +298,16 @@ export function CajaVista({
             <option value="pago">Pago de socio</option>
             <option value="manual">Manual</option>
           </Selector>
+          {hrefInforme && (
+            <Link
+              href={hrefInforme}
+              target="_blank"
+              className={cn(buttonVariants({ variant: "outline" }), alto, "rounded-xl px-4 text-[0.95rem]")}
+            >
+              <FileText />
+              Informe
+            </Link>
+          )}
           <Button
             variant="outline"
             size="icon"

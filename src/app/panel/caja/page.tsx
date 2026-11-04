@@ -74,6 +74,7 @@ export default async function CajaPage({
             ? `/panel/caja?vista=mes&mes=${dia.slice(0, 7)}`
             : `/panel/caja?vista=dia&dia=${mes === hoyEnChile().slice(0, 7) ? hoyEnChile() : `${mes}-01`}`
         }
+        hrefInforme={esDia ? null : `/informes/caja/${mes}`}
         resumen={resumen}
         lineas={lineas}
         porCategoria={resumir(lineas).porCategoria}
