@@ -217,7 +217,13 @@ export function CajaVista({
       {resumen.disponibleAnterior === null && (
         <p className="text-[0.9rem] text-muted-foreground">
           {saldoInicial ? (
-            <>El saldo inicial es del {fechaCorta(saldoInicial.fecha)}: de ese día en adelante se ve la plata disponible.</>
+            <>
+              Tu saldo inicial es del {fechaCorta(saldoInicial.fecha)}: antes de ese día no se sabe con cuánta plata partías, así que no hay
+              disponible.{" "}
+              <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
+                Cambiar saldo inicial
+              </button>
+            </>
           ) : (
             <>
               Define con cuánta plata partes para ver el disponible.{" "}
