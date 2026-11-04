@@ -12,7 +12,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { InsumoDialog } from "@/components/panel/insumo-dialog";
 import { ProveedorDialog } from "@/components/panel/proveedor-dialog";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
-import { UNIDADES_INSUMO, type Insumo, type OpcionCategoria } from "@/lib/inventario-comun";
+import {
+  formatoCantidad,
+  textoCategoriaInsumo,
+  UNIDADES_INSUMO,
+  unidadCorta,
+  type Insumo,
+  type OpcionCategoria,
+} from "@/lib/inventario-comun";
 import { TASA_IVA, totalesDe, type OrigenItem, type ProveedorFila } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
 
@@ -212,7 +219,9 @@ export function CompraFormulario({
     const nuevo = insumos.find((i) => !insumosAntes.current?.includes(i.id));
     if (nuevo) {
       const clave = lineaEsperando.current;
-      setLineas((ls) => ls.map((l) => (l.clave === clave ? { ...l, insumoId: nuevo.id } : l)));
+      setLineas((ls) =>
+        ls.map((l) => (l.clave === clave ? { ...l, insumoId: nuevo.id, costo: nuevo.costo > 0 ? String(nuevo.costo) : l.costo } : l))
+      );
       insumosAntes.current = null;
       lineaEsperando.current = null;
     }
@@ -433,7 +442,11 @@ export function CompraFormulario({
                     <Buscador
                       items={insumos.map((i) => ({ id: i.id, titulo: i.nombre, detalle: i.codigo ?? undefined }))}
                       valor={l.insumoId}
-                      onElegir={(id) => cambiar(l.clave, { insumoId: id })}
+                      onElegir={(id) => {
+                        // El precio ya viene del inventario; solo se corrige si esta vez salió distinto.
+                        const elegido = insumos.find((i) => i.id === id);
+                        cambiar(l.clave, { insumoId: id, costo: elegido && elegido.costo > 0 ? String(elegido.costo) : "" });
+                      }}
                       placeholder="Buscar por nombre o código del material…"
                       sinResultados={
                         insumos.length === 0
@@ -453,21 +466,53 @@ export function CompraFormulario({
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-12">
-                <div className={l.origen === "NUEVO" ? "sm:col-span-8" : "sm:col-span-12"}>
-                  <label htmlFor={`lin-desc-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
-                    Descripción
-                  </label>
-                  <Input
-                    id={`lin-desc-${l.clave}`}
-                    value={l.origen === "INVENTARIO" ? (insumo?.nombre ?? "") : l.descripcion}
-                    onChange={(e) => cambiar(l.clave, { descripcion: e.target.value })}
-                    readOnly={l.origen === "INVENTARIO"}
-                    placeholder={l.origen === "NUEVO" ? "Cloro granulado" : l.origen === "GASTO" ? "Reparación de la bomba" : ""}
-                    maxLength={160}
-                    className={campo}
-                  />
+              {/* Ya elegido, el inventario sabe todo del material: aquí solo se muestra, no se vuelve a escribir. */}
+              {l.origen === "INVENTARIO" && insumo && (
+                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 rounded-xl bg-muted/50 px-4 py-3 text-[0.9rem]">
+                  <span className="font-medium">
+                    {insumo.nombre}
+                    {[insumo.codigo, textoCategoriaInsumo(insumo.categoria, categorias)].filter(Boolean).length > 0 && (
+                      <span className="ml-2 text-[0.8rem] font-normal text-muted-foreground">
+                        {[insumo.codigo, textoCategoriaInsumo(insumo.categoria, categorias)].filter(Boolean).join(" · ")}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-muted-foreground">
+                    Hay{" "}
+                    <strong className="font-semibold text-foreground tabular-nums">
+                      {formatoCantidad(insumo.stock)} {unidadCorta(insumo.unidad)}
+                    </strong>
+                    {aCantidad(l.cantidad) > 0 && (
+                      <>
+                        {" "}
+                        · con esta compra quedarán{" "}
+                        <strong className="font-semibold text-foreground tabular-nums">
+                          {formatoCantidad(insumo.stock + aCantidad(l.cantidad))} {unidadCorta(insumo.unidad)}
+                        </strong>
+                      </>
+                    )}
+                  </span>
                 </div>
+              )}
+
+              {/* Un material del inventario sin elegir todavía no tiene nada que completar. */}
+              {(l.origen !== "INVENTARIO" || insumo) && (
+              <div className="grid gap-4 sm:grid-cols-12">
+                {l.origen !== "INVENTARIO" && (
+                  <div className={l.origen === "NUEVO" ? "sm:col-span-8" : "sm:col-span-12"}>
+                    <label htmlFor={`lin-desc-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
+                      Descripción
+                    </label>
+                    <Input
+                      id={`lin-desc-${l.clave}`}
+                      value={l.descripcion}
+                      onChange={(e) => cambiar(l.clave, { descripcion: e.target.value })}
+                      placeholder={l.origen === "NUEVO" ? "Cloro granulado" : "Reparación de la bomba"}
+                      maxLength={160}
+                      className={campo}
+                    />
+                  </div>
+                )}
                 {l.origen === "NUEVO" && (
                   <div className="sm:col-span-4">
                     <label htmlFor={`lin-unidad-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
@@ -485,7 +530,7 @@ export function CompraFormulario({
 
                 <div className="sm:col-span-4">
                   <label htmlFor={`lin-cant-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
-                    Cantidad
+                    Cantidad{insumo ? ` (${unidadCorta(insumo.unidad)})` : ""}
                   </label>
                   <Input
                     id={`lin-cant-${l.clave}`}
@@ -507,6 +552,9 @@ export function CompraFormulario({
                     inputMode="numeric"
                     className={campo}
                   />
+                  {insumo && insumo.costo > 0 && (
+                    <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Costo en el inventario: {clp.format(insumo.costo)}</p>
+                  )}
                 </div>
                 <div className="sm:col-span-4">
                   <span className="mb-2 block text-[0.85rem] text-muted-foreground">Total línea</span>
@@ -515,6 +563,7 @@ export function CompraFormulario({
                   </div>
                 </div>
               </div>
+              )}
             </div>
           );
         })}
