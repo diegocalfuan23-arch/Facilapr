@@ -1053,7 +1053,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Grande: sin tope de socios",
         texto:
-          "Para comités muy grandes o con varias sedes. El precio es a medida y parte desde 4 UF al mes más IVA, según tus socios y sedes.",
+          "Para comités muy grandes o con varias sedes. El precio es a medida y parte desde 6 UF al mes más IVA, según tus socios y sedes.",
       },
       {
         titulo: "Cómo se calcula el precio",
