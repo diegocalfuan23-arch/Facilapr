@@ -257,6 +257,8 @@ export function InventarioVista({
         </div>
       </section>
 
+      {/* Una sola fila: las pestañas a la izquierda y las acciones principales a la derecha. */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
       <div className="flex w-full gap-1 rounded-xl border border-border p-1 sm:w-fit" role="tablist" aria-label="Sección">
         {(
           [
@@ -282,6 +284,18 @@ export function InventarioVista({
             {texto}
           </button>
         ))}
+      </div>
+
+      {vista === "materiales" && (
+        <div className="flex gap-3">
+          <Button variant="outline" className={cn(alto, "rounded-xl px-4 text-[0.95rem]")} onClick={() => setGestionandoCategorias(true)}>
+            Categorías
+          </Button>
+          <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
+            + Nuevo material
+          </Button>
+        </div>
+      )}
       </div>
 
       {vista === "historial" ? (
@@ -319,36 +333,27 @@ export function InventarioVista({
               <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           )}
-          <Button variant="outline" className={cn(alto, "rounded-xl px-4 text-[0.95rem]")} onClick={() => setGestionandoCategorias(true)}>
-            Categorías
-          </Button>
-          <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
-            + Nuevo material
-          </Button>
-        </div>
-      </div>
-
-      <div className="flex w-full gap-1 rounded-xl border border-border p-1 sm:w-fit" role="tablist" aria-label="Filtro">
-        {(
-          [
-            ["todos", "Todos"],
-            ["bajo", `Stock bajo${bajos.length ? ` (${bajos.length})` : ""}`],
-          ] as const
-        ).map(([id, texto]) => (
+          {/* El filtro de stock bajo es un botón que se enciende y se apaga, no otra fila de pestañas. */}
           <button
-            key={id}
             type="button"
-            role="tab"
-            aria-selected={pestana === id}
-            onClick={() => setPestana(id)}
+            aria-pressed={pestana === "bajo"}
+            onClick={() => setPestana(pestana === "bajo" ? "todos" : "bajo")}
             className={cn(
-              "rounded-lg px-4 py-1.5 text-[0.85rem] font-medium whitespace-nowrap transition-colors",
-              pestana === id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              alto,
+              "inline-flex items-center justify-center gap-2 rounded-xl border px-4 text-[0.95rem] whitespace-nowrap transition-colors",
+              pestana === "bajo"
+                ? "border-red-300 bg-red-50 text-red-600 dark:border-red-500/40 dark:bg-red-500/10 dark:text-red-400"
+                : "border-input text-muted-foreground hover:text-foreground"
             )}
           >
-            {texto}
+            Stock bajo
+            {bajos.length > 0 && (
+              <span className="rounded-full bg-red-600 px-2 py-0.5 text-[0.75rem] leading-none font-medium text-white">
+                {bajos.length}
+              </span>
+            )}
           </button>
-        ))}
+        </div>
       </div>
 
       {filtrados.length === 0 ? (
@@ -359,7 +364,7 @@ export function InventarioVista({
           <p className="mx-auto mt-2 max-w-xl px-4 text-[0.95rem] text-muted-foreground">
             {insumos.length === 0
               ? "Cloro, cañerías, medidores, repuestos de bomba: anota lo que guardas en bodega y te avisamos cuando se esté acabando."
-              : "Prueba con otra palabra, o cambia la categoría o la pestaña."}
+              : "Prueba con otra palabra, o cambia la categoría o el filtro de stock bajo."}
           </p>
           {insumos.length === 0 && (
             <Button className={cn(alto, "mt-5 rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
