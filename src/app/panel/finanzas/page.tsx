@@ -2,7 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { requireAdmin } from "@/lib/apr-session";
 import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
-import { libroDelMes, mesValido, mesVecino, nombreMes, resumir } from "@/lib/finanzas";
+import {
+  libroDelMes,
+  mesValido,
+  mesVecino,
+  nombreMes,
+  resumir,
+  saldoAlCierre,
+  saldoInicialDe,
+} from "@/lib/finanzas";
 import { FinanzasVista } from "@/components/panel/finanzas-vista";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,7 +39,11 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
   }
 
   const mes = mesValido((await searchParams).mes);
-  const lineas = await libroDelMes(apr.id, mes);
+  const [lineas, saldo, saldoInicial] = await Promise.all([
+    libroDelMes(apr.id, mes),
+    saldoAlCierre(apr.id, mes),
+    saldoInicialDe(apr.id),
+  ]);
 
   return (
     <FinanzasVista
@@ -41,6 +53,8 @@ export default async function FinanzasPage({ searchParams }: { searchParams: Pro
       mesSiguiente={mesVecino(mes, 1)}
       lineas={lineas}
       resumen={resumir(lineas)}
+      saldo={saldo}
+      saldoInicial={saldoInicial}
     />
   );
 }

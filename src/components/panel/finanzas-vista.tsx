@@ -7,7 +7,15 @@ import { ChevronLeft, ChevronRight, Download, Plus, Trash2 } from "lucide-react"
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
 import { Button } from "@/components/ui/button";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
-import { textoCategoria, textoMedioLinea, type LineaLibro, type ResumenMes, type TipoMovimiento } from "@/lib/finanzas";
+import { SaldoInicialDialog } from "@/components/panel/saldo-inicial-dialog";
+import {
+  textoCategoria,
+  textoMedioLinea,
+  type LineaLibro,
+  type ResumenMes,
+  type SaldoCaja,
+  type TipoMovimiento,
+} from "@/lib/finanzas";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -58,6 +66,8 @@ export function FinanzasVista({
   mesSiguiente,
   lineas,
   resumen,
+  saldo,
+  saldoInicial,
 }: {
   mes: string;
   nombreMes: string;
@@ -65,8 +75,14 @@ export function FinanzasVista({
   mesSiguiente: string;
   lineas: LineaLibro[];
   resumen: ResumenMes;
+  /** Lo que hay al cierre del mes; null si no hay saldo inicial o el mes es anterior a él. */
+  saldo: SaldoCaja | null;
+  /** El saldo inicial guardado, si lo hay. */
+  saldoInicial: { monto: number; fecha: string } | null;
 }) {
   const [anotando, setAnotando] = useState<TipoMovimiento | null>(null);
+  const [definiendoSaldo, setDefiniendoSaldo] = useState(false);
+  const cerrarSaldo = useCallback(() => setDefiniendoSaldo(false), []);
   const [borrando, iniciar] = useTransition();
   const cerrar = useCallback(() => setAnotando(null), []);
 
@@ -132,6 +148,36 @@ export function FinanzasVista({
         </div>
       </section>
 
+      <section className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2 rounded-xl border bg-card px-4 py-3">
+        {saldo ? (
+          <>
+            <div className="flex items-baseline gap-3">
+              <span className="text-[0.85rem] text-muted-foreground">Plata en caja al cierre de {nombreMes}</span>
+              <span className="text-[1.15rem] font-semibold tabular-nums">{clp.format(saldo.alCierre)}</span>
+            </div>
+            <span className="text-[0.8rem] text-muted-foreground">
+              Partiendo de {clp.format(saldo.inicial)} el {fechaCorta(saldo.desde)} ·{" "}
+              <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
+                Cambiar
+              </button>
+            </span>
+          </>
+        ) : saldoInicial ? (
+          <span className="text-[0.85rem] text-muted-foreground">
+            El saldo inicial es del {fechaCorta(saldoInicial.fecha)}: de ese día en adelante se ve la plata en caja.
+          </span>
+        ) : (
+          <>
+            <span className="text-[0.85rem] text-muted-foreground">
+              Define con cuánta plata partes y verás cuánto hay en caja cada mes.
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setDefiniendoSaldo(true)}>
+              Definir saldo inicial
+            </Button>
+          </>
+        )}
+      </section>
+
       {(ingresos.length > 0 || egresos.length > 0) && (
         <section className="grid gap-4 sm:grid-cols-2">
           {[
@@ -164,7 +210,7 @@ export function FinanzasVista({
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-[0.875rem]">
+            <table className="w-full min-w-160 text-[0.875rem]">
               <thead>
                 <tr className="border-b text-left text-[0.75rem] text-muted-foreground">
                   <th className="px-4 py-2 font-medium">Fecha</th>
@@ -214,6 +260,7 @@ export function FinanzasVista({
       </p>
 
       {anotando && <NuevoMovimientoDialog tipoInicial={anotando} onCerrar={cerrar} />}
+      {definiendoSaldo && <SaldoInicialDialog actual={saldoInicial} onCerrar={cerrarSaldo} />}
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, movimientos, pagos, socios } from "@/lib/db/schema";
 import { textoConcepto, textoMedioPago } from "@/lib/pagos";
@@ -41,6 +41,13 @@ const TEXTO_CATEGORIA: Record<string, string> = Object.fromEntries(
 export const textoCategoria = (categoria: string) => TEXTO_CATEGORIA[categoria] ?? "Otro";
 
 export type TipoMovimiento = "INGRESO" | "EGRESO";
+
+/**
+ * El saldo con que el comité parte en Facilapr (lo que había en caja y banco ese día).
+ * Se guarda como un movimiento de este tipo, uno por comité, para no tocar la tabla del
+ * comité; nunca cuenta como ingreso ni como egreso de ningún mes.
+ */
+export const TIPO_SALDO_INICIAL = "SALDO_INICIAL";
 
 /** Una línea del libro, venga de un pago de socio o de un movimiento anotado a mano. */
 export type LineaLibro = {
@@ -93,7 +100,15 @@ export async function libroDelMes(aprId: string, mes: string): Promise<LineaLibr
   const deMovimientos = await db
     .select()
     .from(movimientos)
-    .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${desde}`, sql`${movimientos.fecha} < ${hasta}`))
+    .where(
+      and(
+        eq(movimientos.aprId, aprId),
+        // El saldo inicial es un punto de partida, no un ingreso del mes.
+        ne(movimientos.tipo, TIPO_SALDO_INICIAL),
+        sql`${movimientos.fecha} >= ${desde}`,
+        sql`${movimientos.fecha} < ${hasta}`
+      )
+    )
     .orderBy(desc(movimientos.fecha), desc(movimientos.createdAt))
     .catch((e) => {
       console.error("Finanzas: no se pudieron leer los movimientos:", e);
@@ -193,3 +208,59 @@ export function resumir(lineas: LineaLibro[]): ResumenMes {
 }
 
 export const textoMedioLinea = (medio: string) => textoMedioPago(medio);
+
+export type SaldoCaja = {
+  /** Lo que hay al cierre del mes: el saldo inicial más todo lo que entró y salió desde entonces. */
+  alCierre: number;
+  /** El día desde el que se cuenta (AAAA-MM-DD) y el saldo con que se partió. */
+  desde: string;
+  inicial: number;
+};
+
+/** El saldo inicial definido por el comité, o null si todavía no lo ha puesto (o la tabla no existe). */
+export async function saldoInicialDe(aprId: string) {
+  const [s] = await db
+    .select({ monto: movimientos.monto, fecha: movimientos.fecha })
+    .from(movimientos)
+    .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_SALDO_INICIAL)))
+    .orderBy(desc(movimientos.createdAt))
+    .limit(1)
+    .catch(() => []);
+  return s ?? null;
+}
+
+/**
+ * Cuánta plata hay al cierre de un mes. Se parte del saldo inicial y se suman los
+ * ingresos y restan los egresos desde ese día hasta el fin del mes; los pagos de
+ * socios cuentan igual que en el libro. Null si no hay saldo inicial, o si el mes
+ * pedido es anterior a él (no se sabría cuánto había).
+ */
+export async function saldoAlCierre(aprId: string, mes: string): Promise<SaldoCaja | null> {
+  const base = await saldoInicialDe(aprId);
+  if (!base) return null;
+
+  const hasta = `${mesVecino(mes, 1)}-01`;
+  if (base.fecha >= hasta) return null;
+
+  const movs = await db
+    .select({
+      ingresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'INGRESO' then ${movimientos.monto} else 0 end), 0)::int`,
+      egresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'EGRESO' then ${movimientos.monto} else 0 end), 0)::int`,
+    })
+    .from(movimientos)
+    .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${base.fecha}`, sql`${movimientos.fecha} < ${hasta}`));
+
+  const diaChile = sql<string>`to_char(${pagos.fecha} AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const [deSocios] = await db
+    .select({ total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
+    .from(pagos)
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${base.fecha}`, sql`${diaChile} < ${hasta}`));
+
+  return {
+    inicial: base.monto,
+    desde: base.fecha,
+    alCierre: base.monto + (movs[0]?.ingresos ?? 0) + (deSocios?.total ?? 0) - (movs[0]?.egresos ?? 0),
+  };
+}

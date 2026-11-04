@@ -11,6 +11,7 @@ import {
   CATEGORIAS_EGRESO,
   CATEGORIAS_INGRESO,
   MEDIOS_MOVIMIENTO,
+  TIPO_SALDO_INICIAL,
 } from "@/lib/finanzas";
 
 export type ResultadoFinanzas = { ok: true } | { ok: false; error: string };
@@ -67,6 +68,54 @@ export async function crearMovimiento(
   } catch (e) {
     console.error("Finanzas: no se pudo guardar el movimiento:", e);
     return { ok: false, error: "No pudimos guardar el movimiento. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/finanzas");
+  return { ok: true };
+}
+
+/**
+ * Define con cuánta plata parte el comité en Facilapr (caja y banco juntos) y desde qué día.
+ * Reemplaza al anterior: es un solo saldo de partida por comité.
+ */
+export async function guardarSaldoInicial(
+  _prev: ResultadoFinanzas | null,
+  formData: FormData
+): Promise<ResultadoFinanzas> {
+  const { user, apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "finanzas")) {
+    return { ok: false, error: "Finanzas está disponible en el plan Grande." };
+  }
+
+  const parsed = z
+    .object({
+      fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
+      monto: z.number().int("El monto debe ser un número entero.").min(0, "El saldo no puede ser negativo.").max(2_000_000_000),
+    })
+    .safeParse({
+      fecha: formData.get("fecha"),
+      monto: Number(String(formData.get("monto") ?? "").replace(/[^\d]/g, "")),
+    });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(movimientos)
+        .where(and(eq(movimientos.aprId, apr.id), eq(movimientos.tipo, TIPO_SALDO_INICIAL)));
+      await tx.insert(movimientos).values({
+        aprId: apr.id,
+        tipo: TIPO_SALDO_INICIAL,
+        fecha: parsed.data.fecha,
+        monto: parsed.data.monto,
+        categoria: TIPO_SALDO_INICIAL,
+        concepto: "Saldo inicial",
+        registradoPorId: user.id,
+      });
+    });
+  } catch (e) {
+    console.error("Finanzas: no se pudo guardar el saldo inicial:", e);
+    return { ok: false, error: "No pudimos guardar el saldo inicial. Inténtalo de nuevo en un momento." };
   }
 
   revalidatePath("/panel/finanzas");
