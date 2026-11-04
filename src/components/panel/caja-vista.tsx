@@ -440,7 +440,18 @@ export function CajaVista({
         />
       )}
       {gestionandoCategorias && <CategoriasCajaDialog propias={categoriasPropias} onCerrar={cerrarCategorias} />}
-      {cerrando && <CerrarCajaDialog resumen={resumen} movimientos={lineas.length} onCerrar={cerrarCierre} />}
+      {cerrando && (
+        <CerrarCajaDialog
+          resumen={resumen}
+          movimientos={lineas.length}
+          saldoInicial={saldoInicial}
+          onDefinirSaldo={() => {
+            setCerrando(false);
+            setDefiniendoSaldo(true);
+          }}
+          onCerrar={cerrarCierre}
+        />
+      )}
       {definiendoSaldo && <SaldoInicialDialog actual={saldoInicial} onCerrar={cerrarSaldo} />}
     </div>
   );

@@ -19,10 +19,16 @@ const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 export function CerrarCajaDialog({
   resumen,
   movimientos,
+  saldoInicial,
+  onDefinirSaldo,
   onCerrar,
 }: {
   resumen: ResumenPeriodo;
   movimientos: number;
+  /** El saldo inicial del comité, si ya lo definió: sirve para explicar por qué no se puede cerrar. */
+  saldoInicial: { monto: number; fecha: string } | null;
+  /** Abre el formulario del saldo inicial (cierra este antes). */
+  onDefinirSaldo: () => void;
   onCerrar: () => void;
 }) {
   const [estado, enviar, pendiente] = useActionState<ResultadoFinanzas | null, FormData>(cerrarCaja, null);
@@ -108,9 +114,26 @@ export function CerrarCajaDialog({
           {!cerrada && (
             <>
               {resumen.disponible === null && (
-                <p className="text-[0.8rem] text-muted-foreground">
-                  Para cerrar la caja define antes el saldo inicial, en esta misma pantalla.
-                </p>
+                <div className="flex flex-col gap-2 rounded-lg bg-muted px-4 py-3 text-[0.85rem]">
+                  <p>
+                    {saldoInicial ? (
+                      <>
+                        No se puede cerrar este día porque tu saldo inicial es de{" "}
+                        <strong className="font-semibold">{clp.format(saldoInicial.monto)}</strong> al{" "}
+                        <strong className="font-semibold">{fechaCorta(saldoInicial.fecha)}</strong>, y este día (
+                        {fechaCorta(resumen.desde)}) es anterior: no se sabe con cuánta plata empezó. Cambia la fecha del saldo inicial a este
+                        día o a uno anterior, o cierra un día desde el {fechaCorta(saldoInicial.fecha)}.
+                      </>
+                    ) : (
+                      <>Para cerrar la caja primero hay que definir con cuánta plata partes (el saldo inicial).</>
+                    )}
+                  </p>
+                  <div>
+                    <Button type="button" variant="outline" className="h-9 rounded-full px-4 text-[0.9rem]" onClick={onDefinirSaldo}>
+                      {saldoInicial ? "Cambiar saldo inicial" : "Definir saldo inicial"}
+                    </Button>
+                  </div>
+                </div>
               )}
               <div className="flex justify-end">
                 <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente || resumen.disponible === null}>
