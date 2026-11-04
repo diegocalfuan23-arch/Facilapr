@@ -23,6 +23,7 @@ import {
   UserRound,
   Users,
   Wallet,
+  Wrench,
 } from "lucide-react";
 
 /**
@@ -51,12 +52,13 @@ const gestion: Enlace[] = [
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
   { href: "/panel/tecnicos", label: "Operadores", icon: HardHat },
+];
+
+/** Operación (desde el plan Estándar): el personal del comité y las fallas del sistema de agua. */
+const operacion: Enlace[] = [
   { href: "/panel/personal", label: "Personal", icon: Briefcase },
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
 ];
-
-/** Lo que de Gestión solo trae el plan con Finanzas. */
-const SOLO_CON_FINANZAS = ["/panel/inventario", "/panel/personal", "/panel/incidentes"];
 
 /**
  * Finanzas (desde el plan Estándar): la plata del comité en un solo lugar. Pagos se muda aquí desde
@@ -107,9 +109,10 @@ export function gruposDelMenu({
       titulo: "Gestión",
       icono: LayoutGrid,
       // Con Finanzas (Estándar y Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: va con el mismo plan.
-      enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : !SOLO_CON_FINANZAS.includes(e.href))),
+      enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
     },
     ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),
+    ...(conFinanzas ? [{ titulo: "Operación", icono: Wrench, enlaces: operacion }] : []),
     {
       titulo: "Atención",
       icono: Headset,
