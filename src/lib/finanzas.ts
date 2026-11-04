@@ -9,9 +9,8 @@ import {
   diaVecino,
   textoCategoria,
   type LineaLibro,
-  type ResumenDia,
+  type ResumenPeriodo,
   type ResumenMes,
-  type SaldoCaja,
   type TipoMovimiento,
 } from "@/lib/finanzas-comun";
 
@@ -180,23 +179,6 @@ export async function saldoInicialDe(aprId: string) {
 }
 
 /**
- * Cuánta plata hay al cierre de un mes. Se parte del saldo inicial y se suman los
- * ingresos y restan los egresos desde ese día hasta el fin del mes; los pagos de
- * socios cuentan igual que en el libro. Null si no hay saldo inicial, o si el mes
- * pedido es anterior a él (no se sabría cuánto había).
- */
-export async function saldoAlCierre(aprId: string, mes: string): Promise<SaldoCaja | null> {
-  const base = await saldoInicialDe(aprId);
-  if (!base) return null;
-
-  const hasta = `${mesVecino(mes, 1)}-01`;
-  if (base.fecha >= hasta) return null;
-
-  const neto = await netoEntre(aprId, base.fecha, hasta);
-  return { inicial: base.monto, desde: base.fecha, alCierre: base.monto + neto.ingresos - neto.egresos };
-}
-
-/**
  * Cuánto entró y cuánto salió de `desde` (incluido) a `hasta` (excluido), AAAA-MM-DD:
  * los movimientos anotados más los pagos de socios. No cuenta el saldo inicial ni los cierres.
  */
@@ -221,40 +203,54 @@ async function netoEntre(aprId: string, desde: string, hasta: string) {
 }
 
 /**
- * La Caja de un día: con cuánta plata se empezó (el saldo inicial más todo lo anterior),
- * lo que entró y salió ese día y con cuánta se termina. Si todavía no hay saldo inicial
- * (o el día es anterior a él), no se sabe con cuánto se empezó y esos dos números vienen null.
+ * La Caja de un período: con cuánta plata se empezó (el saldo inicial más todo lo anterior),
+ * lo que entró y salió, y con cuánta se termina. Si el saldo inicial cae dentro del período,
+ * se parte de él ese día y solo cuenta lo que pasó desde entonces.
  */
-export async function resumenDelDia(aprId: string, dia: string, lineas: LineaLibro[]): Promise<ResumenDia> {
+export async function resumenPeriodo(
+  aprId: string,
+  desde: string,
+  hasta: string,
+  lineas: LineaLibro[]
+): Promise<ResumenPeriodo> {
   const base = await saldoInicialDe(aprId);
 
+  // Desde cuándo se cuenta: normalmente el inicio del período; o el día del saldo inicial, si cae adentro.
+  const inicio = base && base.fecha > desde && base.fecha < hasta ? base.fecha : desde;
+
   let disponibleAnterior: number | null = null;
-  if (base && base.fecha <= dia) {
-    const previo = base.fecha < dia ? await netoEntre(aprId, base.fecha, dia) : { ingresos: 0, egresos: 0 };
+  if (base && base.fecha <= inicio) {
+    const previo = base.fecha < inicio ? await netoEntre(aprId, base.fecha, inicio) : { ingresos: 0, egresos: 0 };
     disponibleAnterior = base.monto + previo.ingresos - previo.egresos;
   }
 
-  const ingresos = lineas.filter((l) => l.tipo === "INGRESO").reduce((s, l) => s + l.monto, 0);
-  const egresos = lineas.filter((l) => l.tipo === "EGRESO").reduce((s, l) => s + l.monto, 0);
+  const contables = base ? lineas.filter((l) => l.fecha >= inicio) : lineas;
+  const ingresos = contables.filter((l) => l.tipo === "INGRESO").reduce((s, l) => s + l.monto, 0);
+  const egresos = contables.filter((l) => l.tipo === "EGRESO").reduce((s, l) => s + l.monto, 0);
 
-  const [cierre] = await db
-    .select({ comentario: movimientos.concepto, disponible: movimientos.monto, cerradoPor: usuarios.name })
-    .from(movimientos)
-    .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
-    .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, dia)))
-    .limit(1)
-    .catch(() => []);
+  // Un cierre de caja es de un solo día.
+  const esUnDia = diaVecino(desde, 1) === hasta;
+  const [cierre] = esUnDia
+    ? await db
+        .select({ comentario: movimientos.concepto, disponible: movimientos.monto, cerradoPor: usuarios.name })
+        .from(movimientos)
+        .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
+        .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, desde)))
+        .limit(1)
+        .catch(() => [])
+    : [];
 
   return {
-    dia,
+    desde,
+    hasta,
     disponibleAnterior,
     ingresos,
     egresos,
-    disponibleDelDia: disponibleAnterior === null ? null : disponibleAnterior + ingresos - egresos,
+    disponible: disponibleAnterior === null ? null : disponibleAnterior + ingresos - egresos,
     cierre: cierre
       ? {
           cerradoPor: cierre.cerradoPor,
-          // El concepto de un cierre sin comentario es el texto fijo: solo se muestra el que escribió la persona.
+          // Un cierre sin comentario guarda un texto fijo: solo se muestra lo que escribió la persona.
           comentario: cierre.comentario === "Cierre de caja" ? null : cierre.comentario,
           disponible: cierre.disponible,
         }

@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { ResumenDia } from "@/lib/finanzas-comun";
+import type { ResumenPeriodo } from "@/lib/finanzas-comun";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
@@ -28,7 +28,7 @@ export function CerrarCajaDialog({
   movimientos,
   onCerrar,
 }: {
-  resumen: ResumenDia;
+  resumen: ResumenPeriodo;
   movimientos: number;
   onCerrar: () => void;
 }) {
@@ -53,7 +53,7 @@ export function CerrarCajaDialog({
             <Lock className="size-4 text-muted-foreground" />
             {cerrada ? "Caja cerrada" : "Cerrar caja del día"}
           </DialogTitle>
-          <DialogDescription>Resumen del {fechaCorta(resumen.dia)}</DialogDescription>
+          <DialogDescription>Resumen del {fechaCorta(resumen.desde)}</DialogDescription>
         </DialogHeader>
 
         {cerrada && resumen.cierre && (
@@ -63,28 +63,26 @@ export function CerrarCajaDialog({
           </p>
         )}
 
-        <div className="grid grid-cols-3 gap-3 text-center">
-          <div className="rounded-lg border border-forest/30 bg-forest/5 p-3">
-            <div className="text-[0.7rem] font-medium tracking-wide text-forest uppercase">Ingresos</div>
-            <div className="mt-1 font-semibold tabular-nums text-forest">{clp.format(resumen.ingresos)}</div>
+        <dl className="flex flex-col divide-y text-[0.9rem]">
+          <div className="flex items-baseline justify-between py-2">
+            <dt className="text-muted-foreground">Ingresos</dt>
+            <dd className="tabular-nums">+{clp.format(resumen.ingresos)}</dd>
           </div>
-          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-            <div className="text-[0.7rem] font-medium tracking-wide text-destructive uppercase">Egresos</div>
-            <div className="mt-1 font-semibold tabular-nums text-destructive">{clp.format(resumen.egresos)}</div>
+          <div className="flex items-baseline justify-between py-2">
+            <dt className="text-muted-foreground">Egresos</dt>
+            <dd className="tabular-nums">−{clp.format(resumen.egresos)}</dd>
           </div>
-          <div className="rounded-lg border p-3">
-            <div className="text-[0.7rem] font-medium tracking-wide text-muted-foreground uppercase">Disponible</div>
-            <div className="mt-1 font-semibold tabular-nums">
-              {resumen.disponibleDelDia === null ? "—" : clp.format(resumen.disponibleDelDia)}
-            </div>
+          <div className="flex items-baseline justify-between py-2 font-semibold">
+            <dt>Disponible</dt>
+            <dd className="tabular-nums">{resumen.disponible === null ? "—" : clp.format(resumen.disponible)}</dd>
           </div>
-        </div>
+        </dl>
 
         {cerrada ? (
           <p className="text-[0.85rem] text-muted-foreground">{resumen.cierre?.comentario || "Sin comentarios."}</p>
         ) : (
           <form action={enviar} className="flex flex-col gap-4">
-            <input type="hidden" name="dia" value={resumen.dia} />
+            <input type="hidden" name="dia" value={resumen.desde} />
             <p className="text-[0.85rem] text-muted-foreground">
               {movimientos} movimiento{movimientos === 1 ? "" : "s"} en el día.
             </p>
@@ -92,13 +90,13 @@ export function CerrarCajaDialog({
               <Label htmlFor="cierre-comentario">Comentario del cierre</Label>
               <Textarea id="cierre-comentario" name="comentario" rows={3} maxLength={200} placeholder="Observaciones sobre el cierre…" />
             </div>
-            <Button type="submit" disabled={pendiente || resumen.disponibleDelDia === null}>
+            <Button type="submit" disabled={pendiente || resumen.disponible === null}>
               {pendiente && <Loader2 className="animate-spin" />}
               Cerrar caja
             </Button>
-            {resumen.disponibleDelDia === null && (
+            {resumen.disponible === null && (
               <p className="text-[0.8rem] text-muted-foreground">
-                Para cerrar la caja define antes el saldo inicial, en Finanzas.
+                Para cerrar la caja define antes el saldo inicial, en esta misma pantalla.
               </p>
             )}
           </form>

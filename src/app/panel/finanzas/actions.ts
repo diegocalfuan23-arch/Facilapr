@@ -14,8 +14,9 @@ import {
   TIPO_CIERRE,
   TIPO_SALDO_INICIAL,
   diaValido,
+  diaVecino,
   libroDelDia,
-  resumenDelDia,
+  resumenPeriodo,
 } from "@/lib/finanzas";
 
 export type ResultadoFinanzas = { ok: true } | { ok: false; error: string };
@@ -43,7 +44,7 @@ export async function crearMovimiento(
 ): Promise<ResultadoFinanzas> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) {
-    return { ok: false, error: "Finanzas está disponible en el plan Grande." };
+    return { ok: false, error: "La Caja está disponible en el plan Grande." };
   }
 
   const parsed = movimientoSchema.safeParse({
@@ -74,7 +75,6 @@ export async function crearMovimiento(
     return { ok: false, error: "No pudimos guardar el movimiento. Inténtalo de nuevo en un momento." };
   }
 
-  revalidatePath("/panel/finanzas");
   revalidatePath("/panel/caja");
   return { ok: true };
 }
@@ -89,7 +89,7 @@ export async function guardarSaldoInicial(
 ): Promise<ResultadoFinanzas> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) {
-    return { ok: false, error: "Finanzas está disponible en el plan Grande." };
+    return { ok: false, error: "La Caja está disponible en el plan Grande." };
   }
 
   const parsed = z
@@ -123,7 +123,6 @@ export async function guardarSaldoInicial(
     return { ok: false, error: "No pudimos guardar el saldo inicial. Inténtalo de nuevo en un momento." };
   }
 
-  revalidatePath("/panel/finanzas");
   revalidatePath("/panel/caja");
   return { ok: true };
 }
@@ -138,7 +137,6 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
     .returning({ id: movimientos.id });
   if (borrados.length === 0) return { ok: false, error: "No encontramos ese movimiento." };
 
-  revalidatePath("/panel/finanzas");
   revalidatePath("/panel/caja");
   return { ok: true };
 }
@@ -154,15 +152,15 @@ export async function cerrarCaja(
 ): Promise<ResultadoFinanzas> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) {
-    return { ok: false, error: "Finanzas está disponible en el plan Grande." };
+    return { ok: false, error: "La Caja está disponible en el plan Grande." };
   }
 
   const dia = diaValido(String(formData.get("dia") ?? ""));
   const comentario = String(formData.get("comentario") ?? "").trim().slice(0, 200);
 
-  const resumen = await resumenDelDia(apr.id, dia, await libroDelDia(apr.id, dia));
+  const resumen = await resumenPeriodo(apr.id, dia, diaVecino(dia, 1), await libroDelDia(apr.id, dia));
   if (resumen.cierre) return { ok: false, error: "Ese día ya tiene la caja cerrada." };
-  if (resumen.disponibleDelDia === null) {
+  if (resumen.disponible === null) {
     return { ok: false, error: "Para cerrar la caja define antes el saldo inicial, anterior o igual a este día." };
   }
 
@@ -171,7 +169,7 @@ export async function cerrarCaja(
       aprId: apr.id,
       tipo: TIPO_CIERRE,
       fecha: dia,
-      monto: resumen.disponibleDelDia,
+      monto: resumen.disponible,
       categoria: TIPO_CIERRE,
       concepto: comentario || "Cierre de caja",
       registradoPorId: user.id,

@@ -71,14 +71,6 @@ export type ResumenMes = {
   porCategoria: { tipo: TipoMovimiento; categoria: string; texto: string; total: number }[];
 };
 
-export type SaldoCaja = {
-  /** Lo que hay al cierre del mes: el saldo inicial más todo lo que entró y salió desde entonces. */
-  alCierre: number;
-  /** El día desde el que se cuenta (AAAA-MM-DD) y el saldo con que se partió. */
-  desde: string;
-  inicial: number;
-};
-
 export const textoMedioLinea = (medio: string) => textoMedioPago(medio);
 
 /**
@@ -87,13 +79,20 @@ export const textoMedioLinea = (medio: string) => textoMedioPago(medio);
  */
 export const TIPO_CIERRE = "CIERRE";
 
-/** Lo que muestra la Caja de un día. `disponibleAnterior` es null si aún no hay saldo inicial. */
-export type ResumenDia = {
-  dia: string;
+/**
+ * Lo que muestra la Caja de un período (un día o un mes): con cuánta plata se empezó,
+ * lo que entró y salió, y con cuánta se termina. `desde` es el primer día y `hasta` el
+ * día siguiente al último. Sin saldo inicial (o con uno posterior al período) no se sabe
+ * con cuánta se empezó, y `disponibleAnterior` y `disponible` vienen null.
+ */
+export type ResumenPeriodo = {
+  desde: string;
+  hasta: string;
   disponibleAnterior: number | null;
   ingresos: number;
   egresos: number;
-  disponibleDelDia: number | null;
+  disponible: number | null;
+  /** Solo en un día: si ya se cerró la caja, quién y con qué comentario. */
   cierre: { cerradoPor: string | null; comentario: string | null; disponible: number } | null;
 };
 
