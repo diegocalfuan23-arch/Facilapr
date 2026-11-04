@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { listarProveedores } from "@/lib/compras";
-import { listarInsumos } from "@/lib/inventario";
+import { listarCategorias, listarInsumos, opcionesDeCategoria } from "@/lib/inventario";
 import { CompraFormulario } from "@/components/panel/compra-formulario";
 
 export const metadata: Metadata = {
@@ -15,7 +15,11 @@ export default async function NuevaCompraPage() {
   const { apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "finanzas")) redirect("/panel/compras");
 
-  const [proveedores, insumos] = await Promise.all([listarProveedores(apr.id), listarInsumos(apr.id)]);
+  const [proveedores, insumos, categoriasPropias] = await Promise.all([
+    listarProveedores(apr.id),
+    listarInsumos(apr.id),
+    listarCategorias(apr.id),
+  ]);
 
   return (
     <div className="flex w-full flex-col gap-8">
@@ -29,7 +33,14 @@ export default async function NuevaCompraPage() {
         </p>
       </div>
 
-      <CompraFormulario proveedores={proveedores} insumos={insumos} />
+      <CompraFormulario
+        proveedores={proveedores}
+        insumos={insumos}
+        categorias={opcionesDeCategoria(
+          categoriasPropias,
+          insumos.map((i) => i.categoria)
+        )}
+      />
     </div>
   );
 }

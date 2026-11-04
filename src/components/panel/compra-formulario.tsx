@@ -9,9 +9,10 @@ import { crearCompra } from "@/app/panel/compras/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { InsumoDialog } from "@/components/panel/insumo-dialog";
 import { ProveedorDialog } from "@/components/panel/proveedor-dialog";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
-import { UNIDADES_INSUMO, type Insumo } from "@/lib/inventario-comun";
+import { UNIDADES_INSUMO, type Insumo, type OpcionCategoria } from "@/lib/inventario-comun";
 import { TASA_IVA, totalesDe, type OrigenItem, type ProveedorFila } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
 
@@ -146,7 +147,16 @@ function Selector({ id, valor, onCambiar, children }: { id: string; valor: strin
  * Además lleva lo que le sirve a un comité: vencimiento, medio de pago, IVA y la unidad.
  * Si se marca pagada, el egreso queda en Caja; si no, queda como una cuenta por pagar.
  */
-export function CompraFormulario({ proveedores, insumos }: { proveedores: ProveedorFila[]; insumos: Insumo[] }) {
+export function CompraFormulario({
+  proveedores,
+  insumos,
+  categorias,
+}: {
+  proveedores: ProveedorFila[];
+  insumos: Insumo[];
+  /** Las categorías del inventario, para registrar un material nuevo desde aquí. */
+  categorias: OpcionCategoria[];
+}) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -182,6 +192,31 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
       idsAntes.current = null;
     }
   }, [proveedores]);
+
+  // Igual con un material que todavía no está en el inventario: se registra sin salir de la compra
+  // y queda elegido en la línea desde la que se pidió.
+  const [lineaNuevoMaterial, setLineaNuevoMaterial] = useState<number | null>(null);
+  const insumosAntes = useRef<string[] | null>(null);
+  const lineaEsperando = useRef<number | null>(null);
+  const abrirNuevoMaterial = (clave: number) => {
+    insumosAntes.current = insumos.map((i) => i.id);
+    lineaEsperando.current = clave;
+    setLineaNuevoMaterial(clave);
+  };
+  const cerrarNuevoMaterial = useCallback(() => {
+    setLineaNuevoMaterial(null);
+    router.refresh();
+  }, [router]);
+  useEffect(() => {
+    if (!insumosAntes.current || lineaEsperando.current === null) return;
+    const nuevo = insumos.find((i) => !insumosAntes.current?.includes(i.id));
+    if (nuevo) {
+      const clave = lineaEsperando.current;
+      setLineas((ls) => ls.map((l) => (l.clave === clave ? { ...l, insumoId: nuevo.id } : l)));
+      insumosAntes.current = null;
+      lineaEsperando.current = null;
+    }
+  }, [insumos]);
 
   const totales = totalesDe(
     lineas.map((l) => ({ cantidad: aCantidad(l.cantidad), costoUnitario: aPesos(l.costo) })),
@@ -393,13 +428,29 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
               </div>
 
               {l.origen === "INVENTARIO" && (
-                <Buscador
-                  items={insumos.map((i) => ({ id: i.id, titulo: i.nombre, detalle: i.codigo ?? undefined }))}
-                  valor={l.insumoId}
-                  onElegir={(id) => cambiar(l.clave, { insumoId: id })}
-                  placeholder="Buscar por nombre o código del material…"
-                  sinResultados={insumos.length === 0 ? "Todavía no hay materiales en el inventario." : "Ningún material coincide."}
-                />
+                <div className="flex gap-3">
+                  <div className="min-w-0 flex-1">
+                    <Buscador
+                      items={insumos.map((i) => ({ id: i.id, titulo: i.nombre, detalle: i.codigo ?? undefined }))}
+                      valor={l.insumoId}
+                      onElegir={(id) => cambiar(l.clave, { insumoId: id })}
+                      placeholder="Buscar por nombre o código del material…"
+                      sinResultados={
+                        insumos.length === 0
+                          ? "Todavía no hay materiales. Crea uno con «+ Nuevo material»."
+                          : "Ningún material coincide. Si es nuevo, usa «+ Nuevo material»."
+                      }
+                    />
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-11 shrink-0 rounded-full px-5 text-[0.95rem]"
+                    onClick={() => abrirNuevoMaterial(l.clave)}
+                  >
+                    + Nuevo material
+                  </Button>
+                </div>
               )}
 
               <div className="grid gap-4 sm:grid-cols-12">
@@ -508,6 +559,7 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
       que lo interceptaba y no dejaba guardar al proveedor.
     */}
     {creandoProveedor && <ProveedorDialog proveedor={null} onCerrar={cerrarNuevoProveedor} />}
+    {lineaNuevoMaterial !== null && <InsumoDialog insumo={null} categorias={categorias} onCerrar={cerrarNuevoMaterial} />}
     </>
   );
 }
