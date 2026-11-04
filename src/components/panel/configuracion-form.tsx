@@ -36,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { UsoComite, type DatosUso } from "@/components/panel/uso-comite";
 import { AjustesComite } from "@/components/panel/ajustes-comite";
+import { LogoComite } from "@/components/panel/logo-comite";
 import type { ConexionWhatsapp } from "@/components/panel/conectar-whatsapp";
 
 export type DatosConfiguracion = {
@@ -56,6 +57,8 @@ export type DatosConfiguracion = {
   telefono: string | null;
   email: string | null;
   sitioWeb: string | null;
+  /** El logo del comité (PNG incrustado): sale en recibos y comprobantes. */
+  logoUrl: string | null;
   /** Tarifa única del comité: cargo fijo + valor por m³ (CLP). */
   tarifaCargoFijo: number | null;
   tarifaMetroCubico: number | null;
@@ -311,6 +314,8 @@ export function ConfiguracionForm({
           descripcion="Aparecen en las boletas y en tu sitio público."
           accion={guardarComite}
         >
+          <LogoComite logoUrl={datos.logoUrl} />
+
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo id="nombre" label="Nombre del comité">
               <Input

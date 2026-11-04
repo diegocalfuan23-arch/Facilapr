@@ -53,6 +53,7 @@ export default async function ConfiguracionPage() {
         telefono: apr.telefono,
         email: apr.email,
         sitioWeb: apr.sitioWeb,
+        logoUrl: apr.logoUrl,
         tarifaCargoFijo: apr.tarifaCargoFijo,
         tarifaMetroCubico: apr.tarifaMetroCubico,
         tarifaCargoFijoComercial: apr.tarifaCargoFijoComercial,

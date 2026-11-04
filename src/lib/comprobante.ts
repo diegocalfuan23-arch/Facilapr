@@ -11,6 +11,8 @@ export type ComprobanteDatos = {
     direccion: string | null;
     comuna: string;
     telefono: string | null;
+    /** El logo del comité (PNG incrustado), si lo subió. */
+    logo: string | null;
   };
   socio: { nombre: string; rut: string | null; numeroCliente: string | null };
   /** Null en un cobro que no es una boleta. */
@@ -55,6 +57,7 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
       comiteDireccion: aprs.direccion,
       comiteComuna: aprs.comuna,
       comiteTelefono: aprs.telefono,
+      comiteLogo: aprs.logoUrl,
     })
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
@@ -74,6 +77,7 @@ export async function comprobantePorId(pagoId: string): Promise<ComprobanteDatos
       direccion: f.comiteDireccion,
       comuna: f.comiteComuna,
       telefono: f.comiteTelefono,
+      logo: f.comiteLogo,
     },
     socio: { nombre: f.socioNombre, rut: f.socioRut, numeroCliente: f.socioNumero },
     periodo: f.periodo,

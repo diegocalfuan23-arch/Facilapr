@@ -19,6 +19,8 @@ export type ReciboDatos = {
     comuna: string;
     telefono: string | null;
     infoPago: string | null;
+    /** El logo del comité (PNG incrustado), si lo subió. */
+    logo: string | null;
   };
   socio: {
     nombre: string;
@@ -70,6 +72,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
       comiteComuna: aprs.comuna,
       comiteTelefono: aprs.telefono,
       comiteInfoPago: aprs.infoPago,
+      comiteLogo: aprs.logoUrl,
       comiteSlug: aprs.slug,
       comitePlan: aprs.plan,
     })
@@ -101,6 +104,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
       comuna: f.comiteComuna,
       telefono: f.comiteTelefono,
       infoPago: f.comiteInfoPago,
+      logo: f.comiteLogo,
     },
     socio: {
       nombre: f.socioNombre,

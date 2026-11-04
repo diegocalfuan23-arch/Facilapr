@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 import { textoConcepto, textoMedioPago } from "@/lib/pagos";
-import { seguro } from "@/lib/recibo-pdf";
+import { dibujarLogo, seguro } from "@/lib/recibo-pdf";
 import type { ComprobanteDatos } from "@/lib/comprobante";
 
 /**
@@ -73,7 +73,8 @@ export async function generarComprobantePdf(c: ComprobanteDatos): Promise<Uint8A
   }
 
   // ---- Encabezado.
-  texto(c.comite.nombre, margen, 15, { fuente: negrita });
+  const izq = margen + (await dibujarLogo(pdf, page, c.comite.logo, margen, y + 11, 44));
+  texto(c.comite.nombre, izq, 15, { fuente: negrita });
   texto("COMPROBANTE DE PAGO", derechaX, 11, { fuente: negrita, derecha: true });
   y -= 15;
   const subtitulos = [
@@ -85,10 +86,12 @@ export async function generarComprobantePdf(c: ComprobanteDatos): Promise<Uint8A
   ].filter((s): s is string => Boolean(s));
   const datosDer = [`N.° ${c.id.slice(-8).toUpperCase()}`, `Pagado el ${fechaCorta.format(c.fecha)}`];
   for (let i = 0; i < Math.max(subtitulos.length, datosDer.length); i++) {
-    if (subtitulos[i]) texto(subtitulos[i], margen, 9, { color: GRIS });
+    if (subtitulos[i]) texto(subtitulos[i], izq, 9, { color: GRIS });
     if (datosDer[i]) texto(datosDer[i], derechaX, 9, { color: GRIS, derecha: true });
     y -= 12;
   }
+  // Con logo, el encabezado no puede ser más bajo que el logo.
+  if (izq > margen) y = Math.min(y, alto - margen - 33 - 4);
   y -= 6;
   linea(1);
   y -= 22;

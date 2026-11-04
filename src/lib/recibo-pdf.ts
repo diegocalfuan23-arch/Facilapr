@@ -7,6 +7,7 @@ import {
 } from "pdf-lib";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
+import { bytesDeLogo } from "@/lib/logo";
 import type { ReciboDatos } from "@/lib/recibo";
 
 /**
@@ -46,6 +47,33 @@ export function seguro(fuente: PDFFont, texto: string) {
   return Array.from(texto.replace(/\s+/g, " "))
     .map((c) => (permitidos.has(c.codePointAt(0)!) ? c : "?"))
     .join("");
+}
+
+/**
+ * Dibuja el logo del comité en la esquina del encabezado, dentro de un cuadrado de
+ * `lado` pt y sin deformarlo. Devuelve cuánto hay que correr el texto a su derecha
+ * (0 si no hay logo, o si la imagen está dañada: un logo malo no debe romper el recibo).
+ */
+export async function dibujarLogo(
+  pdf: PDFDocument,
+  page: PDFPage,
+  logo: string | null,
+  x: number,
+  arriba: number,
+  lado: number
+): Promise<number> {
+  const bytes = bytesDeLogo(logo);
+  if (!bytes) return 0;
+  try {
+    const imagen = await pdf.embedPng(bytes);
+    const escala = Math.min(lado / imagen.width, lado / imagen.height);
+    const w = imagen.width * escala;
+    const h = imagen.height * escala;
+    page.drawImage(imagen, { x, y: arriba - h, width: w, height: h });
+    return lado + 10;
+  } catch {
+    return 0;
+  }
 }
 
 function envolver(fuente: PDFFont, tam: number, texto: string, ancho: number) {
@@ -110,7 +138,8 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
 
   // ---- Encabezado: comité a la izquierda, datos del recibo a la derecha.
   const derechaX = ancho - margen;
-  texto(r.comite.nombre, margen, 15, { fuente: negrita });
+  const izq = margen + (await dibujarLogo(pdf, page, r.comite.logo, margen, y + 11, 44));
+  texto(r.comite.nombre, izq, 15, { fuente: negrita });
   texto("RECIBO DE AGUA", derechaX, 11, { fuente: negrita, derecha: true });
   y -= 15;
 
@@ -128,11 +157,13 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
   ];
   const filas = Math.max(subtitulos.length, datosDer.length);
   for (let i = 0; i < filas; i++) {
-    if (subtitulos[i]) texto(subtitulos[i], margen, 9, { color: GRIS });
+    if (subtitulos[i]) texto(subtitulos[i], izq, 9, { color: GRIS });
     if (datosDer[i]) texto(datosDer[i], derechaX, 9, { color: GRIS, derecha: true });
     y -= 12;
   }
 
+  // Con logo, el encabezado no puede ser más bajo que el logo.
+  if (izq > margen) y = Math.min(y, alto - margen - 33 - 4);
   y -= 6;
   linea(1);
   y -= 22;
