@@ -1,11 +1,15 @@
-import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
+import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, movimientos, pagos, socios } from "@/lib/db/schema";
+import { user as usuarios } from "@/lib/db/auth-schema";
 import { textoConcepto } from "@/lib/pagos";
 import {
+  TIPO_CIERRE,
   TIPO_SALDO_INICIAL,
+  diaVecino,
   textoCategoria,
   type LineaLibro,
+  type ResumenDia,
   type ResumenMes,
   type SaldoCaja,
   type TipoMovimiento,
@@ -45,9 +49,17 @@ export function nombreMes(mes: string) {
 }
 
 /** Todo lo del mes, ordenado del día más reciente al más antiguo. */
-export async function libroDelMes(aprId: string, mes: string): Promise<LineaLibro[]> {
-  const desde = `${mes}-01`;
-  const hasta = `${mesVecino(mes, 1)}-01`;
+export function libroDelMes(aprId: string, mes: string): Promise<LineaLibro[]> {
+  return lineasEntre(aprId, `${mes}-01`, `${mesVecino(mes, 1)}-01`);
+}
+
+/** Todo lo de un día (AAAA-MM-DD). */
+export function libroDelDia(aprId: string, dia: string): Promise<LineaLibro[]> {
+  return lineasEntre(aprId, dia, diaVecino(dia, 1));
+}
+
+/** Lo que entró y salió de `desde` (incluido) a `hasta` (excluido), AAAA-MM-DD. */
+async function lineasEntre(aprId: string, desde: string, hasta: string): Promise<LineaLibro[]> {
 
   // Si la tabla de movimientos todavía no existe en la base, el libro sigue mostrando los pagos de socios.
   const deMovimientos = await db
@@ -56,8 +68,8 @@ export async function libroDelMes(aprId: string, mes: string): Promise<LineaLibr
     .where(
       and(
         eq(movimientos.aprId, aprId),
-        // El saldo inicial es un punto de partida, no un ingreso del mes.
-        ne(movimientos.tipo, TIPO_SALDO_INICIAL),
+        // El saldo inicial y los cierres de caja son marcas, no ingresos ni egresos.
+        notInArray(movimientos.tipo, [TIPO_SALDO_INICIAL, TIPO_CIERRE]),
         sql`${movimientos.fecha} >= ${desde}`,
         sql`${movimientos.fecha} < ${hasta}`
       )
@@ -180,13 +192,22 @@ export async function saldoAlCierre(aprId: string, mes: string): Promise<SaldoCa
   const hasta = `${mesVecino(mes, 1)}-01`;
   if (base.fecha >= hasta) return null;
 
+  const neto = await netoEntre(aprId, base.fecha, hasta);
+  return { inicial: base.monto, desde: base.fecha, alCierre: base.monto + neto.ingresos - neto.egresos };
+}
+
+/**
+ * Cuánto entró y cuánto salió de `desde` (incluido) a `hasta` (excluido), AAAA-MM-DD:
+ * los movimientos anotados más los pagos de socios. No cuenta el saldo inicial ni los cierres.
+ */
+async function netoEntre(aprId: string, desde: string, hasta: string) {
   const movs = await db
     .select({
       ingresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'INGRESO' then ${movimientos.monto} else 0 end), 0)::int`,
       egresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'EGRESO' then ${movimientos.monto} else 0 end), 0)::int`,
     })
     .from(movimientos)
-    .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${base.fecha}`, sql`${movimientos.fecha} < ${hasta}`));
+    .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${desde}`, sql`${movimientos.fecha} < ${hasta}`));
 
   const diaChile = sql<string>`to_char(${pagos.fecha} AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
   const [deSocios] = await db
@@ -194,11 +215,49 @@ export async function saldoAlCierre(aprId: string, mes: string): Promise<SaldoCa
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
     .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
-    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${base.fecha}`, sql`${diaChile} < ${hasta}`));
+    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`));
+
+  return { ingresos: (movs[0]?.ingresos ?? 0) + (deSocios?.total ?? 0), egresos: movs[0]?.egresos ?? 0 };
+}
+
+/**
+ * La Caja de un día: con cuánta plata se empezó (el saldo inicial más todo lo anterior),
+ * lo que entró y salió ese día y con cuánta se termina. Si todavía no hay saldo inicial
+ * (o el día es anterior a él), no se sabe con cuánto se empezó y esos dos números vienen null.
+ */
+export async function resumenDelDia(aprId: string, dia: string, lineas: LineaLibro[]): Promise<ResumenDia> {
+  const base = await saldoInicialDe(aprId);
+
+  let disponibleAnterior: number | null = null;
+  if (base && base.fecha <= dia) {
+    const previo = base.fecha < dia ? await netoEntre(aprId, base.fecha, dia) : { ingresos: 0, egresos: 0 };
+    disponibleAnterior = base.monto + previo.ingresos - previo.egresos;
+  }
+
+  const ingresos = lineas.filter((l) => l.tipo === "INGRESO").reduce((s, l) => s + l.monto, 0);
+  const egresos = lineas.filter((l) => l.tipo === "EGRESO").reduce((s, l) => s + l.monto, 0);
+
+  const [cierre] = await db
+    .select({ comentario: movimientos.concepto, disponible: movimientos.monto, cerradoPor: usuarios.name })
+    .from(movimientos)
+    .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
+    .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, dia)))
+    .limit(1)
+    .catch(() => []);
 
   return {
-    inicial: base.monto,
-    desde: base.fecha,
-    alCierre: base.monto + (movs[0]?.ingresos ?? 0) + (deSocios?.total ?? 0) - (movs[0]?.egresos ?? 0),
+    dia,
+    disponibleAnterior,
+    ingresos,
+    egresos,
+    disponibleDelDia: disponibleAnterior === null ? null : disponibleAnterior + ingresos - egresos,
+    cierre: cierre
+      ? {
+          cerradoPor: cierre.cerradoPor,
+          // El concepto de un cierre sin comentario es el texto fijo: solo se muestra el que escribió la persona.
+          comentario: cierre.comentario === "Cierre de caja" ? null : cierre.comentario,
+          disponible: cierre.disponible,
+        }
+      : null,
   };
 }

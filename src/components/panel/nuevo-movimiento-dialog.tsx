@@ -14,16 +14,17 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CATEGORIAS_EGRESO, CATEGORIAS_INGRESO, MEDIOS_MOVIMIENTO, type TipoMovimiento } from "@/lib/finanzas-comun";
+import {
+  CATEGORIAS_EGRESO,
+  CATEGORIAS_INGRESO,
+  MEDIOS_MOVIMIENTO,
+  hoyEnChile,
+  type TipoMovimiento,
+} from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
 const selectClase =
   "h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-base outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 md:text-sm dark:bg-input/30";
-
-/** Hoy en Chile, AAAA-MM-DD: la fecha que se propone al anotar un movimiento. */
-function hoyEnChile() {
-  return new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago" }).format(new Date());
-}
 
 /**
  * Anotar un ingreso o un egreso del comité. Al guardar se cierra solo; los pagos
@@ -31,9 +32,12 @@ function hoyEnChile() {
  */
 export function NuevoMovimientoDialog({
   tipoInicial,
+  fecha,
   onCerrar,
 }: {
   tipoInicial: TipoMovimiento;
+  /** El día que se propone (AAAA-MM-DD); si falta, hoy. En la Caja, el día que se está mirando. */
+  fecha?: string;
   onCerrar: () => void;
 }) {
   const [tipo, setTipo] = useState<TipoMovimiento>(tipoInicial);
@@ -84,7 +88,7 @@ export function NuevoMovimientoDialog({
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-2">
               <Label htmlFor="mov-fecha">Fecha</Label>
-              <Input id="mov-fecha" name="fecha" type="date" defaultValue={hoyEnChile()} required />
+              <Input id="mov-fecha" name="fecha" type="date" defaultValue={fecha ?? hoyEnChile()} required />
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="mov-monto">Monto (CLP)</Label>

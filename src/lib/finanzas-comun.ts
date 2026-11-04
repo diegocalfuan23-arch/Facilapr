@@ -80,3 +80,40 @@ export type SaldoCaja = {
 };
 
 export const textoMedioLinea = (medio: string) => textoMedioPago(medio);
+
+/**
+ * El cierre de caja de un día: queda como un movimiento de este tipo (con el disponible
+ * de ese día y un comentario). Es una marca de control, no plata: nunca suma ni resta.
+ */
+export const TIPO_CIERRE = "CIERRE";
+
+/** Lo que muestra la Caja de un día. `disponibleAnterior` es null si aún no hay saldo inicial. */
+export type ResumenDia = {
+  dia: string;
+  disponibleAnterior: number | null;
+  ingresos: number;
+  egresos: number;
+  disponibleDelDia: number | null;
+  cierre: { cerradoPor: string | null; comentario: string | null; disponible: number } | null;
+};
+
+/** Hoy en Chile, AAAA-MM-DD. */
+export function hoyEnChile() {
+  return new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago" }).format(new Date());
+}
+
+/** El día pedido si es una fecha real (AAAA-MM-DD); si no, hoy. */
+export function diaValido(texto: string | undefined): string {
+  if (texto && /^\d{4}-\d{2}-\d{2}$/.test(texto)) {
+    const d = new Date(`${texto}T00:00:00Z`);
+    if (!Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === texto) return texto;
+  }
+  return hoyEnChile();
+}
+
+/** El día de al lado (delta = -1 o +1). */
+export function diaVecino(dia: string, delta: number): string {
+  const d = new Date(`${dia}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + delta);
+  return d.toISOString().slice(0, 10);
+}

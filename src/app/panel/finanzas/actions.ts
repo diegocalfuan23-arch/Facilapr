@@ -11,7 +11,11 @@ import {
   CATEGORIAS_EGRESO,
   CATEGORIAS_INGRESO,
   MEDIOS_MOVIMIENTO,
+  TIPO_CIERRE,
   TIPO_SALDO_INICIAL,
+  diaValido,
+  libroDelDia,
+  resumenDelDia,
 } from "@/lib/finanzas";
 
 export type ResultadoFinanzas = { ok: true } | { ok: false; error: string };
@@ -71,6 +75,7 @@ export async function crearMovimiento(
   }
 
   revalidatePath("/panel/finanzas");
+  revalidatePath("/panel/caja");
   return { ok: true };
 }
 
@@ -119,6 +124,7 @@ export async function guardarSaldoInicial(
   }
 
   revalidatePath("/panel/finanzas");
+  revalidatePath("/panel/caja");
   return { ok: true };
 }
 
@@ -133,5 +139,48 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
   if (borrados.length === 0) return { ok: false, error: "No encontramos ese movimiento." };
 
   revalidatePath("/panel/finanzas");
+  revalidatePath("/panel/caja");
+  return { ok: true };
+}
+
+/**
+ * Cierra la caja de un día: deja anotado con cuánta plata se terminó y un comentario.
+ * Es una marca de control (igual que en MecánicoApp): no bloquea el día ni mueve plata.
+ * Pide que haya saldo inicial, porque sin él no se sabe cuánto había.
+ */
+export async function cerrarCaja(
+  _prev: ResultadoFinanzas | null,
+  formData: FormData
+): Promise<ResultadoFinanzas> {
+  const { user, apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "finanzas")) {
+    return { ok: false, error: "Finanzas está disponible en el plan Grande." };
+  }
+
+  const dia = diaValido(String(formData.get("dia") ?? ""));
+  const comentario = String(formData.get("comentario") ?? "").trim().slice(0, 200);
+
+  const resumen = await resumenDelDia(apr.id, dia, await libroDelDia(apr.id, dia));
+  if (resumen.cierre) return { ok: false, error: "Ese día ya tiene la caja cerrada." };
+  if (resumen.disponibleDelDia === null) {
+    return { ok: false, error: "Para cerrar la caja define antes el saldo inicial, anterior o igual a este día." };
+  }
+
+  try {
+    await db.insert(movimientos).values({
+      aprId: apr.id,
+      tipo: TIPO_CIERRE,
+      fecha: dia,
+      monto: resumen.disponibleDelDia,
+      categoria: TIPO_CIERRE,
+      concepto: comentario || "Cierre de caja",
+      registradoPorId: user.id,
+    });
+  } catch (e) {
+    console.error("Finanzas: no se pudo cerrar la caja:", e);
+    return { ok: false, error: "No pudimos cerrar la caja. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/caja");
   return { ok: true };
 }
