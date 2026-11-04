@@ -1158,3 +1158,89 @@ export const mensajesSocioRelations = relations(mensajesSocio, ({ one }) => ({
     references: [socios.id],
   }),
 }));
+
+/**
+ * Las personas que trabajan para el comité (operador, tesorero, administrativo…), con su sueldo u
+ * honorario. No es lo mismo que un usuario del panel: aquí va la ficha de quien cobra por su trabajo.
+ */
+export const trabajadores = pgTable(
+  "Trabajador",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    rut: text("rut"),
+    cargo: text("cargo").notNull(),
+    telefono: text("telefono"),
+    email: text("email"),
+    /** SUELDO | HONORARIO */
+    contrato: text("contrato").notNull().default("SUELDO"),
+    /** Lo que se le paga cada mes, en pesos. */
+    sueldo: integer("sueldo").notNull().default(0),
+    fechaIngreso: date("fechaIngreso", { mode: "string" }),
+    activo: boolean("activo").notNull().default(true),
+    notas: text("notas"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Trabajador_aprId_idx").on(table.aprId)]
+);
+
+/** Un pago a un trabajador. Deja su egreso en Caja (`movimientoId`); al anularlo, el egreso se borra. */
+export const pagosTrabajador = pgTable(
+  "PagoTrabajador",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    /** El mes que se paga, AAAA-MM. */
+    periodo: text("periodo").notNull(),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    monto: integer("monto").notNull(),
+    medio: text("medio").notNull().default("TRANSFERENCIA"),
+    nota: text("nota"),
+    movimientoId: text("movimientoId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("PagoTrabajador_aprId_periodo_idx").on(table.aprId, table.periodo)]
+);
+
+/** Una falla o evento del sistema de agua (fuga, corte de bomba, turbiedad…) y cómo se resolvió. */
+export const incidentes = pgTable(
+  "Incidente",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** Correlativo por comité: I-1, I-2… */
+    numero: integer("numero").notNull(),
+    titulo: text("titulo").notNull(),
+    descripcion: text("descripcion"),
+    /** FUGA | BOMBA | TURBIEDAD | PRESION | ELECTRICO | OTRO */
+    tipo: text("tipo").notNull().default("OTRO"),
+    lugar: text("lugar"),
+    /** BAJA | MEDIA | ALTA */
+    prioridad: text("prioridad").notNull().default("MEDIA"),
+    /** ABIERTO | EN_REPARACION | RESUELTO */
+    estado: text("estado").notNull().default("ABIERTO"),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    fechaResolucion: date("fechaResolucion", { mode: "string" }),
+    responsable: text("responsable"),
+    solucion: text("solucion"),
+    costo: integer("costo").notNull().default(0),
+    /** El egreso de Caja con el costo de la reparación, si se registró. */
+    movimientoId: text("movimientoId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("Incidente_aprId_fecha_idx").on(table.aprId, table.fecha),
+    uniqueIndex("Incidente_aprId_numero_key").on(table.aprId, table.numero),
+  ]
+);

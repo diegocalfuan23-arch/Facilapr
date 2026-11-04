@@ -13,14 +13,16 @@ export type Capacidad =
   | "iaChat"
   | "finanzas"
   | "inventario"
+  | "personal"
+  | "incidentes"
   | "buscador";
 
 const CAPACIDADES: Record<Plan, Capacidad[]> = {
   BASICO: [],
   // Finanzas (Pagos, Caja, Compras, Reportes) e Inventario: desde el plan Estándar.
-  ESTANDAR: ["landing", "avisos", "chat", "iaChat", "finanzas", "inventario"],
+  ESTANDAR: ["landing", "avisos", "chat", "iaChat", "finanzas", "inventario", "personal", "incidentes"],
   // El buscador de módulos (Ctrl K) es solo del plan Grande.
-  PREMIUM: ["landing", "avisos", "chat", "iaChat", "dominioPropio", "finanzas", "inventario", "buscador"],
+  PREMIUM: ["landing", "avisos", "chat", "iaChat", "dominioPropio", "finanzas", "inventario", "personal", "incidentes", "buscador"],
 };
 
 

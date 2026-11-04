@@ -114,10 +114,15 @@ type Props = {
  * filtros y la tabla. Además se puede pasar a ver el mes entero. Los pagos de socios
  * entran solos; el resto se anota a mano.
  */
-/** Un egreso que nació al pagar una compra: se maneja desde Compras, no se borra desde la Caja. */
-function deCompra(l: { automatico: boolean; categoria: string; concepto: string }) {
-  return !l.automatico && l.categoria === "COMPRAS" && /^Compra C-\d+/.test(l.concepto);
+/** Un egreso que nació en otro módulo (Compras, Personal, Incidentes): se maneja desde ahí, no se borra desde la Caja. */
+function moduloDe(l: { automatico: boolean; categoria: string; concepto: string }): string | null {
+  if (l.automatico) return null;
+  if (l.categoria === "COMPRAS" && /^Compra C-\d+/.test(l.concepto)) return "Compra";
+  if (l.categoria === "REMUNERACIONES" && l.concepto.startsWith("Personal · ")) return "Personal";
+  if (l.categoria === "REPARACIONES" && l.concepto.startsWith("Incidente I-")) return "Incidente";
+  return null;
 }
+const deCompra = (l: { automatico: boolean; categoria: string; concepto: string }) => moduloDe(l) !== null;
 
 export function CajaVista({
   modo,
@@ -162,7 +167,7 @@ export function CajaVista({
     if (filtroTipo !== "todos" && l.tipo !== filtroTipo) return false;
     if (filtroOrigen === "pago" && !l.automatico) return false;
     if (filtroOrigen === "manual" && (l.automatico || deCompra(l))) return false;
-    if (filtroOrigen === "compra" && !deCompra(l)) return false;
+    if (filtroOrigen === "compra" && moduloDe(l) !== "Compra") return false;
     if (
       q &&
       !l.concepto.toLowerCase().includes(q) &&
@@ -421,7 +426,7 @@ export function CajaVista({
                     </span>
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">
-                    {l.automatico ? "Pago de socio" : deCompra(l) ? "Compra" : "Manual"}
+                    {l.automatico ? "Pago de socio" : (moduloDe(l) ?? "Manual")}
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoMedioLinea(l.medio)}</td>
                   <td

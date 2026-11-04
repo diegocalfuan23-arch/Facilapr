@@ -51,6 +51,7 @@ export const PLANES_COMERCIALES: {
       "IA en el chat: responde a tus socios en segundos. Incluye 3 millones de tokens al mes (unas 1.500 respuestas) y puedes sumar packs de +2 millones",
       "Finanzas completas: Caja de ingresos y egresos, compras y proveedores, reportes e informe para la asamblea",
       "Inventario de bodega con categorías e historial de stock",
+      "Personal con sus pagos (quedan en la Caja) e incidentes del sistema: fugas, fallas y cuánto costó repararlas",
       "Hasta 800 socios cargados",
       "Hasta 3 técnicos en terreno",
       "Sitio público con avisos de corte",

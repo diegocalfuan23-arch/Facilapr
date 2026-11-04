@@ -1,10 +1,12 @@
 import {
+  AlertOctagon,
   BarChart3,
   Banknote,
   ClipboardList,
   CreditCard,
   Droplets,
   HardHat,
+  Briefcase,
   Headset,
   Landmark,
   LayoutDashboard,
@@ -49,7 +51,12 @@ const gestion: Enlace[] = [
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
   { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
+  { href: "/panel/personal", label: "Personal", icon: Briefcase },
+  { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
 ];
+
+/** Lo que de Gestión solo trae el plan con Finanzas. */
+const SOLO_CON_FINANZAS = ["/panel/inventario", "/panel/personal", "/panel/incidentes"];
 
 /**
  * Finanzas (desde el plan Estándar): la plata del comité en un solo lugar. Pagos se muda aquí desde
@@ -100,7 +107,7 @@ export function gruposDelMenu({
       titulo: "Gestión",
       icono: LayoutGrid,
       // Con Finanzas (Estándar y Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: va con el mismo plan.
-      enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
+      enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : !SOLO_CON_FINANZAS.includes(e.href))),
     },
     ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),
     {
@@ -134,6 +141,8 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/lecturas": "medidor consumo medicion",
   "/panel/lecturas/terreno": "celular tecnico ruta",
   "/panel/tecnicos": "operadores equipo invitar",
+  "/panel/personal": "trabajadores empleados sueldos honorarios operador tesorero remuneraciones",
+  "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",
   "/panel/compras": "proveedores facturas comprar gastos",
   "/panel/reportes": "informe año resumen estadisticas",

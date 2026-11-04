@@ -1,4 +1,4 @@
-import { BarChart3, Banknote, FileText, Package, ShoppingCart, Wallet } from "lucide-react";
+import { AlertOctagon, BarChart3, Banknote, Briefcase, FileText, Package, ShoppingCart, Wallet } from "lucide-react";
 
 const modulos = [
   {
@@ -30,6 +30,16 @@ const modulos = [
     detalle: "Un resumen del mes listo para imprimir o descargar, para rendir cuentas a los socios sin armar planillas.",
   },
   {
+    icon: Briefcase,
+    titulo: "Personal",
+    detalle: "Quienes trabajan para el comité, con su sueldo u honorario. Cada pago que registras baja a la Caja como egreso.",
+  },
+  {
+    icon: AlertOctagon,
+    titulo: "Incidentes",
+    detalle: "Fugas, fallas de bomba o cortes: su historial, quién los atendió y cuánto costó repararlos.",
+  },
+  {
     icon: Wallet,
     titulo: "Pagos de socios",
     detalle: "Cada abono queda registrado contra su boleta y se suma a los ingresos de la Caja automáticamente.",
@@ -45,7 +55,7 @@ export function GestionSection() {
             No solo cobras el agua: llevas toda la plata del comité.
           </h2>
           <p className="mt-4 text-[0.97rem] text-muted-foreground">
-            Ingresos, egresos, compras e inventario en el mismo lugar donde ya haces las boletas. Disponible desde el
+            Ingresos, egresos, compras, inventario, personal e incidentes en el mismo lugar donde ya haces las boletas. Disponible desde el
             plan Estándar.
           </p>
         </div>
