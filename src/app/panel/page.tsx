@@ -6,6 +6,7 @@ import {
   ArrowDown,
   ArrowRight,
   ArrowUp,
+  Banknote,
   Droplets,
   FlaskConical,
   UserCheck,
@@ -16,6 +17,8 @@ import {
 import { db } from "@/lib/db";
 import { boletas, socios, solicitudesAcceso } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { puede, type Plan } from "@/lib/planes";
+import { libroDelMes, mesValido, mesVecino, resumenPeriodo } from "@/lib/finanzas";
 import {
   GraficoArea,
   GraficoBarras,
@@ -185,6 +188,17 @@ export default async function PanelPage({
         sql`${boletas.fechaEmision} < ${desde}`
       )
     );
+
+  // Con Finanzas (Estándar y Grande), la Caja del mes reemplaza dos tarjetas de cobranza.
+  const conCaja = !demo && puede(apr.plan as Plan, "finanzas");
+  const caja = conCaja
+    ? await (async () => {
+        const mes = mesValido(undefined);
+        const desdeMes = `${mes}-01`;
+        const hastaMes = `${mesVecino(mes, 1)}-01`;
+        return resumenPeriodo(apr.id, desdeMes, hastaMes, await libroDelMes(apr.id, mes)).catch(() => null);
+      })()
+    : null;
 
   /** Sin base con la que comparar, no inventamos un porcentaje. */
   const variacion = (actual: number, anterior: number) =>
@@ -447,19 +461,33 @@ export default async function PanelPage({
           : `${cobertura}% de lo facturado`,
       href: "/panel/boletas",
     },
-    {
-      icono: <ReceiptText />,
-      fondo: "bg-tertiary/15",
-      texto: "text-tertiary-texto",
-      etiqueta: "Facturas emitidas",
-      valor: String(d.facturacion.emitidas),
-      delta: variacion(recienteActual.emitidas, recienteAnterior.emitidas),
-      detalle:
-        d.facturacion.emitidas === 0
-          ? "Sin boletas emitidas"
-          : `${clp.format(d.facturacion.facturado)} facturados`,
-      href: "/panel/boletas",
-    },
+    caja
+      ? {
+          icono: <Banknote />,
+          fondo: "bg-tertiary/15",
+          texto: "text-tertiary-texto",
+          etiqueta: "Disponible en caja",
+          valor: caja.disponible === null ? "—" : clp.format(caja.disponible),
+          delta: null,
+          detalle:
+            caja.disponible === null
+              ? "Falta el saldo inicial"
+              : `${clp.format(caja.egresos)} de egresos este mes`,
+          href: "/panel/caja",
+        }
+      : {
+          icono: <ReceiptText />,
+          fondo: "bg-tertiary/15",
+          texto: "text-tertiary-texto",
+          etiqueta: "Facturas emitidas",
+          valor: String(d.facturacion.emitidas),
+          delta: variacion(recienteActual.emitidas, recienteAnterior.emitidas),
+          detalle:
+            d.facturacion.emitidas === 0
+              ? "Sin boletas emitidas"
+              : `${clp.format(d.facturacion.facturado)} facturados`,
+          href: "/panel/boletas",
+        },
   ];
 
   return (
@@ -579,9 +607,34 @@ export default async function PanelPage({
           </div>
         </Tarjeta>
 
-        {/* Cobertura, no monto: el monto ya está en el KPI de arriba y su
-            curva en las barras del costado. Aquí interesa qué proporción de
-            lo facturado llegó a cobrarse. */}
+        {caja ? (
+          <Tarjeta>
+            <h3 className="text-[1rem] font-semibold">Resultado del mes</h3>
+            <p className="mt-0.5 text-[0.85rem] text-muted-foreground">Lo que entró menos lo que salió</p>
+
+            <div className="mt-5">
+              <div
+                className={cn(
+                  "text-[1.8rem] leading-none font-semibold tabular-nums",
+                  caja.ingresos - caja.egresos < 0 ? "text-destructive" : "text-forest"
+                )}
+              >
+                {clp.format(caja.ingresos - caja.egresos)}
+              </div>
+              <p className="mt-1.5 text-[0.83rem] text-muted-foreground">
+                {clp.format(caja.ingresos)} de ingresos · {clp.format(caja.egresos)} de egresos
+              </p>
+              <Link
+                href="/panel/caja"
+                className="mt-3 inline-flex items-center gap-1 text-[0.85rem] font-medium text-primary hover:underline"
+              >
+                Ver Caja
+                <ArrowRight className="size-3.5" />
+              </Link>
+            </div>
+          </Tarjeta>
+        ) : (
+        // Cobertura, no monto: el monto ya está en el KPI de arriba. Aquí interesa qué proporción de lo facturado llegó a cobrarse.
         <Tarjeta>
           <h3 className="text-[1rem] font-semibold">Cobertura de cobranza</h3>
           <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
@@ -608,6 +661,7 @@ export default async function PanelPage({
             </div>
           </div>
         </Tarjeta>
+        )}
 
         <Tarjeta className="lg:row-span-2">
           <div className="flex items-start justify-between gap-2">
