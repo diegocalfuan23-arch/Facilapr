@@ -61,7 +61,7 @@ export function CategoriasDialog({
         <DialogHeader>
           <DialogTitle className="text-lg font-medium">Categorías del inventario</DialogTitle>
           <DialogDescription className="text-[0.9rem]">
-            Crea las categorías que necesita tu bodega. Aparecen al registrar un material y en el filtro. También puedes crearlas directo desde el formulario del material.
+            Para ordenar los materiales de tu bodega.
           </DialogDescription>
         </DialogHeader>
 
