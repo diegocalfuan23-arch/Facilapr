@@ -114,6 +114,11 @@ type Props = {
  * filtros y la tabla. Además se puede pasar a ver el mes entero. Los pagos de socios
  * entran solos; el resto se anota a mano.
  */
+/** Un egreso que nació al pagar una compra: se maneja desde Compras, no se borra desde la Caja. */
+function deCompra(l: { automatico: boolean; categoria: string; concepto: string }) {
+  return !l.automatico && l.categoria === "COMPRAS" && /^Compra C-\d+/.test(l.concepto);
+}
+
 export function CajaVista({
   modo,
   desde,
@@ -156,7 +161,8 @@ export function CajaVista({
   const filtradas = lineas.filter((l) => {
     if (filtroTipo !== "todos" && l.tipo !== filtroTipo) return false;
     if (filtroOrigen === "pago" && !l.automatico) return false;
-    if (filtroOrigen === "manual" && l.automatico) return false;
+    if (filtroOrigen === "manual" && (l.automatico || deCompra(l))) return false;
+    if (filtroOrigen === "compra" && !deCompra(l)) return false;
     if (
       q &&
       !l.concepto.toLowerCase().includes(q) &&
@@ -325,6 +331,7 @@ export function CajaVista({
             <option value="todos">Todos los orígenes</option>
             <option value="pago">Pago de socio</option>
             <option value="manual">Manual</option>
+            <option value="compra">Compras</option>
           </Selector>
           <Button
             variant="outline"
@@ -414,7 +421,7 @@ export function CajaVista({
                     </span>
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">
-                    {l.automatico ? "Pago de socio" : "Manual"}
+                    {l.automatico ? "Pago de socio" : deCompra(l) ? "Compra" : "Manual"}
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoMedioLinea(l.medio)}</td>
                   <td
@@ -427,7 +434,7 @@ export function CajaVista({
                     {clp.format(l.monto)}
                   </td>
                   <td className="px-2 py-4">
-                    {!l.automatico && (
+                    {!l.automatico && !deCompra(l) && (
                       <Button
                         variant="ghost"
                         size="icon-sm"

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { categoriasMovimiento, movimientos } from "@/lib/db/schema";
+import { categoriasMovimiento, compras, movimientos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
@@ -163,6 +163,15 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
     .limit(1);
   if (!m || (m.tipo !== "INGRESO" && m.tipo !== "EGRESO")) return { ok: false, error: "No encontramos ese movimiento." };
   if (await diaCerrado(db, apr.id, m.fecha)) return { ok: false, error: mensajeDiaCerrado(m.fecha) };
+
+  // El egreso de una compra pagada se maneja desde Compras: si se borrara aquí, la compra quedaría pagada sin egreso.
+  const [deCompra] = await db
+    .select({ id: compras.id })
+    .from(compras)
+    .where(and(eq(compras.movimientoId, id), eq(compras.aprId, apr.id)))
+    .limit(1)
+    .catch(() => []);
+  if (deCompra) return { ok: false, error: "Este egreso viene de una compra. Se maneja desde Compras." };
 
   await db.delete(movimientos).where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)));
 
