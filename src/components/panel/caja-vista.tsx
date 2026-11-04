@@ -241,6 +241,13 @@ export function CajaVista({
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
             {resumen.disponibleAnterior === null ? <span className="text-muted-foreground/50">—</span> : clp.format(resumen.disponibleAnterior)}
           </p>
+          {/* No se escribe aquí: se calcula desde el saldo inicial. Ese es el que se cambia. */}
+          <p className="mt-2 text-[0.8rem] text-muted-foreground">
+            {saldoInicial ? `Parte del saldo inicial del ${fechaCorta(saldoInicial.fecha)}. ` : "Falta definir con cuánta plata partes. "}
+            <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
+              {saldoInicial ? "Cambiar" : "Definir saldo inicial"}
+            </button>
+          </p>
         </div>
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10 p-5">
           <p className={cn(etiquetaKpi, "text-emerald-700 dark:text-emerald-400")}>Total ingresos</p>
