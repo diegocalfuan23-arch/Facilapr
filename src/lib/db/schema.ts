@@ -595,6 +595,37 @@ export const movimientos = pgTable(
 );
 
 /**
+ * Materiales que el comité guarda en bodega (cloro, cañerías, medidores, repuestos de
+ * bomba…): cuánto hay, desde cuánto avisar y cuánto cuesta cada uno. No se venden, así
+ * que no llevan precio; el costo sirve para saber cuánto vale lo que hay guardado.
+ */
+export const insumos = pgTable(
+  "Insumo",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /** Interno o del proveedor. */
+    codigo: text("codigo"),
+    /** Una de las categorías de lib/inventario-comun. */
+    categoria: text("categoria").notNull().default("OTROS"),
+    /** UNIDAD | METRO | KILO | LITRO | SACO | CAJA */
+    unidad: text("unidad").notNull().default("UNIDAD"),
+    /** Con decimales: se guarda cloro por litros, tubería por metros. */
+    stock: doublePrecision("stock").notNull().default(0),
+    /** Se avisa cuando el stock llega a esta cantidad o menos. 0 = sin aviso. */
+    stockMinimo: doublePrecision("stockMinimo").notNull().default(0),
+    /** Costo por unidad, en pesos. */
+    costo: integer("costo").notNull().default(0),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Insumo_aprId_idx").on(table.aprId)]
+);
+
+/**
  * Pago automático del plan: la tarjeta del comité queda guardada en Flow y cada
  * período se le cobra el monto del día (la UF de ese día). Un comité, una fila.
  */
