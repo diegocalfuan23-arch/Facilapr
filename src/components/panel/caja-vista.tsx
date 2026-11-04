@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Download, Lock, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
@@ -57,16 +57,50 @@ function descargarCsv(lineas: LineaLibro[], nombre: string) {
   URL.revokeObjectURL(url);
 }
 
+/** Los controles de la Caja son más grandes que los del resto del panel (40 px), como en MecánicoApp. */
+const alto = "h-10";
+const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
+
+/** Un selector con la flecha a la derecha. */
+function Selector({
+  valor,
+  onCambiar,
+  etiqueta,
+  children,
+}: {
+  valor: string;
+  onCambiar: (v: string) => void;
+  etiqueta: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="relative sm:w-52">
+      <select
+        value={valor}
+        onChange={(e) => onCambiar(e.target.value)}
+        aria-label={etiqueta}
+        className={cn(
+          alto,
+          "w-full appearance-none rounded-lg border border-input bg-transparent pr-10 pl-4 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+        )}
+      >
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  );
+}
+
 type Props = {
   modo: "dia" | "mes";
   /** El primer día del período (AAAA-MM-DD). */
   desde: string;
-  /** "Noviembre 2026" en el mes; la fecha en el día. */
+  /** "Noviembre 2026" en el mes. */
   etiqueta: string;
   hrefAnterior: string;
   hrefSiguiente: string;
-  hrefDia: string;
-  hrefMes: string;
+  /** A dónde lleva el botón que cambia entre día y mes. */
+  hrefOtraVista: string;
   resumen: ResumenPeriodo;
   lineas: LineaLibro[];
   /** Cuánto fue a cada categoría; se muestra en el mes. */
@@ -75,9 +109,10 @@ type Props = {
 };
 
 /**
- * La Caja del comité, por día o por mes, con los mismos cuatro números que la de
- * MecánicoApp (disponible anterior, ingresos, egresos y disponible), una tabla limpia
- * debajo y el cierre de caja. Los pagos de socios entran solos; el resto se anota a mano.
+ * La Caja del comité, igual que la de MecánicoApp: navegador de día, cierre de caja,
+ * cuatro números (disponible anterior, ingresos, egresos y disponible), búsqueda con
+ * filtros y la tabla. Además se puede pasar a ver el mes entero. Los pagos de socios
+ * entran solos; el resto se anota a mano.
  */
 export function CajaVista({
   modo,
@@ -85,8 +120,7 @@ export function CajaVista({
   etiqueta,
   hrefAnterior,
   hrefSiguiente,
-  hrefDia,
-  hrefMes,
+  hrefOtraVista,
   resumen,
   lineas,
   porCategoria,
@@ -96,7 +130,8 @@ export function CajaVista({
   const [, navegar] = useTransition();
   const [borrando, iniciar] = useTransition();
   const [busqueda, setBusqueda] = useState("");
-  const [filtro, setFiltro] = useState<"todos" | "INGRESO" | "EGRESO">("todos");
+  const [filtroTipo, setFiltroTipo] = useState("todos");
+  const [filtroOrigen, setFiltroOrigen] = useState("todos");
   const [registrando, setRegistrando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [definiendoSaldo, setDefiniendoSaldo] = useState(false);
@@ -115,7 +150,9 @@ export function CajaVista({
 
   const q = busqueda.trim().toLowerCase();
   const filtradas = lineas.filter((l) => {
-    if (filtro !== "todos" && l.tipo !== filtro) return false;
+    if (filtroTipo !== "todos" && l.tipo !== filtroTipo) return false;
+    if (filtroOrigen === "pago" && !l.automatico) return false;
+    if (filtroOrigen === "manual" && l.automatico) return false;
     if (
       q &&
       !l.concepto.toLowerCase().includes(q) &&
@@ -131,72 +168,48 @@ export function CajaVista({
   const cerrada = resumen.cierre !== null;
   const ingresos = porCategoria.filter((c) => c.tipo === "INGRESO");
   const egresos = porCategoria.filter((c) => c.tipo === "EGRESO");
+  const botonNavegar = cn(alto, "flex w-10 items-center justify-center rounded-lg border hover:bg-muted");
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Arriba: dónde estoy (día o mes) y qué puedo hacer. */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="inline-flex rounded-lg bg-muted p-1 text-[0.85rem]" role="tablist" aria-label="Período">
-            {[
-              { href: hrefDia, texto: "Día", activo: esDia },
-              { href: hrefMes, texto: "Mes", activo: !esDia },
-            ].map((t) => (
-              <Link
-                key={t.texto}
-                href={t.href}
-                role="tab"
-                aria-selected={t.activo}
-                className={cn(
-                  "rounded-md px-4 py-1 transition-colors",
-                  t.activo ? "bg-background font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {t.texto}
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link href={hrefAnterior} aria-label="Anterior" className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-              <ChevronLeft className="size-4" />
-            </Link>
-            {esDia ? (
-              <Input
-                type="date"
-                value={desde}
-                onChange={(e) => e.target.value && navegar(() => router.push(`/panel/caja?vista=dia&dia=${e.target.value}`))}
-                className="w-auto"
-                aria-label="Día"
-              />
-            ) : (
-              <span className="min-w-36 text-center text-[0.95rem] font-medium capitalize">{etiqueta}</span>
-            )}
-            <Link href={hrefSiguiente} aria-label="Siguiente" className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground">
-              <ChevronRight className="size-4" />
-            </Link>
-          </div>
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <Link href={hrefAnterior} aria-label="Anterior" className={botonNavegar}>
+            <ChevronLeft className="size-4" />
+          </Link>
+          {esDia ? (
+            <Input
+              type="date"
+              value={desde}
+              onChange={(e) => e.target.value && navegar(() => router.push(`/panel/caja?vista=dia&dia=${e.target.value}`))}
+              className={cn(alto, "w-auto px-3 text-[0.95rem]")}
+              aria-label="Día"
+            />
+          ) : (
+            <span className={cn(alto, "flex min-w-44 items-center justify-center rounded-lg border px-4 text-[0.95rem] capitalize")}>
+              {etiqueta}
+            </span>
+          )}
+          <Link href={hrefSiguiente} aria-label="Siguiente" className={botonNavegar}>
+            <ChevronRight className="size-4" />
+          </Link>
+          <Link href={hrefOtraVista} className={cn(buttonVariants({ variant: "ghost" }), alto, "px-4 text-[0.95rem]")}>
+            {esDia ? "Ver el mes" : "Ver por día"}
+          </Link>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" onClick={() => descargarCsv(lineas, desde)} disabled={lineas.length === 0}>
-            <Download />
-            Descargar
-          </Button>
+        <div className="flex gap-2">
           {esDia && (
-            <Button variant="outline" onClick={() => setCerrando(true)}>
-              <Lock />
+            <Button variant="outline" className={cn(alto, "px-4 text-[0.95rem]")} onClick={() => setCerrando(true)}>
               {cerrada ? "Caja cerrada" : "Cerrar caja"}
             </Button>
           )}
-          <Button onClick={() => setRegistrando(true)}>
-            <Plus />
-            Movimiento
+          <Button className={cn(alto, "px-4 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
+            + Registrar movimiento
           </Button>
         </div>
       </div>
 
-      {/* Aviso corto si todavía no se sabe con cuánta plata se parte. */}
       {resumen.disponibleAnterior === null && (
         <p className="text-[0.9rem] text-muted-foreground">
           {saldoInicial ? (
@@ -212,50 +225,46 @@ export function CajaVista({
         </p>
       )}
 
-      {/* Los cuatro números de la caja, igual que en MecánicoApp. */}
       <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-[0.75rem] font-medium tracking-wide text-muted-foreground uppercase">Disponible anterior</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums">
+        <div className="rounded-xl border bg-card p-5">
+          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Disponible anterior</p>
+          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
             {resumen.disponibleAnterior === null ? "—" : clp.format(resumen.disponibleAnterior)}
           </p>
         </div>
-        <div className="rounded-xl border border-forest/30 bg-forest/10 p-4">
-          <p className="text-[0.75rem] font-medium tracking-wide text-forest uppercase">Total ingresos</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-forest">{clp.format(resumen.ingresos)}</p>
+        <div className="rounded-xl border border-forest/30 bg-forest/10 p-5">
+          <p className={cn(etiquetaKpi, "text-forest")}>Total ingresos</p>
+          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums text-forest">{clp.format(resumen.ingresos)}</p>
         </div>
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
-          <p className="text-[0.75rem] font-medium tracking-wide text-destructive uppercase">Total egresos</p>
-          <p className="mt-2 text-2xl font-bold tabular-nums text-destructive">{clp.format(resumen.egresos)}</p>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-5">
+          <p className={cn(etiquetaKpi, "text-destructive")}>Total egresos</p>
+          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums text-destructive">{clp.format(resumen.egresos)}</p>
         </div>
-        <div className="rounded-xl border bg-card p-4">
-          <p className="text-[0.75rem] font-medium tracking-wide text-muted-foreground uppercase">
-            {esDia ? "Disponible del día" : "Disponible al cierre"}
-          </p>
-          <p className="mt-2 text-2xl font-bold tabular-nums">
+        <div className="rounded-xl border bg-card p-5">
+          <p className={cn(etiquetaKpi, "text-muted-foreground")}>{esDia ? "Disponible del día" : "Disponible al cierre"}</p>
+          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">
             {resumen.disponible === null ? "—" : clp.format(resumen.disponible)}
           </p>
           {cerrada && resumen.cierre?.cerradoPor && (
-            <p className="mt-1 text-[0.75rem] text-muted-foreground">Cerrada por {resumen.cierre.cerradoPor}</p>
+            <p className="mt-2 text-[0.8rem] text-muted-foreground">Cerrada por {resumen.cierre.cerradoPor}</p>
           )}
         </div>
       </section>
 
-      {/* En el mes, de dónde vino y a dónde fue la plata. */}
       {!esDia && (ingresos.length > 0 || egresos.length > 0) && (
-        <section className="grid gap-8 sm:grid-cols-2">
+        <section className="grid gap-6 sm:grid-cols-2">
           {[
             { titulo: "De dónde vino", filas: ingresos },
             { titulo: "A dónde fue", filas: egresos },
           ].map((bloque) => (
-            <div key={bloque.titulo} className="flex flex-col gap-2">
-              <h2 className="text-[0.85rem] font-medium text-muted-foreground">{bloque.titulo}</h2>
+            <div key={bloque.titulo} className="rounded-xl border bg-card p-5">
+              <h2 className={cn(etiquetaKpi, "text-muted-foreground")}>{bloque.titulo}</h2>
               {bloque.filas.length === 0 ? (
-                <p className="text-[0.9rem] text-muted-foreground">Nada este mes.</p>
+                <p className="mt-3 text-[0.9rem] text-muted-foreground">Nada este mes.</p>
               ) : (
-                <ul className="flex flex-col divide-y">
+                <ul className="mt-3 flex flex-col gap-2">
                   {bloque.filas.map((c) => (
-                    <li key={`${c.tipo}${c.categoria}`} className="flex items-baseline justify-between gap-4 py-2 text-[0.9rem]">
+                    <li key={`${c.tipo}${c.categoria}`} className="flex items-baseline justify-between gap-4 text-[0.95rem]">
                       <span>{c.texto}</span>
                       <span className="tabular-nums">{clp.format(c.total)}</span>
                     </li>
@@ -267,96 +276,121 @@ export function CajaVista({
         </section>
       )}
 
-      {/* El detalle, línea por línea. */}
-      <section className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="inline-flex gap-1 text-[0.85rem]" role="group" aria-label="Filtrar por tipo">
-            {(
-              [
-                ["todos", "Todos"],
-                ["INGRESO", "Ingresos"],
-                ["EGRESO", "Egresos"],
-              ] as const
-            ).map(([valor, texto]) => (
-              <button
-                key={valor}
-                type="button"
-                aria-pressed={filtro === valor}
-                onClick={() => setFiltro(valor)}
-                className={cn(
-                  "rounded-md px-3 py-1 transition-colors",
-                  filtro === valor ? "bg-muted font-medium" : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {texto}
-              </button>
-            ))}
-          </div>
-          <Input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar…"
-            className="sm:w-64"
-            aria-label="Buscar movimientos"
-          />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por descripción o referencia…"
+          className={cn(alto, "px-4 text-[0.95rem] sm:w-80")}
+          aria-label="Buscar movimientos"
+        />
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Selector valor={filtroTipo} onCambiar={setFiltroTipo} etiqueta="Tipo">
+            <option value="todos">Todos los tipos</option>
+            <option value="INGRESO">Ingresos</option>
+            <option value="EGRESO">Egresos</option>
+          </Selector>
+          <Selector valor={filtroOrigen} onCambiar={setFiltroOrigen} etiqueta="Origen">
+            <option value="todos">Todos los orígenes</option>
+            <option value="pago">Pago de socio</option>
+            <option value="manual">Manual</option>
+          </Selector>
+          <Button
+            variant="outline"
+            className={cn(alto, "px-4 text-[0.95rem]")}
+            onClick={() => descargarCsv(lineas, desde)}
+            disabled={lineas.length === 0}
+          >
+            <Download />
+            Descargar
+          </Button>
         </div>
+      </div>
 
-        {filtradas.length === 0 ? (
-          <p className="py-16 text-center text-[0.9rem] text-muted-foreground">
+      {filtradas.length === 0 ? (
+        <div className="rounded-xl border border-dashed py-20 text-center">
+          <p className="text-[1.05rem] font-medium">Sin movimientos de caja</p>
+          <p className="mx-auto mt-2 max-w-xl px-4 text-[0.95rem] text-muted-foreground">
             {lineas.length === 0
-              ? "Sin movimientos en este período. Los pagos de socios aparecen solos; los demás se anotan con «Movimiento»."
-              : "Ningún movimiento coincide con la búsqueda."}
+              ? "Los pagos de socios aparecerán aquí al registrarlos, y los ingresos y egresos manuales al anotarlos."
+              : "Ningún movimiento coincide con la búsqueda o los filtros."}
           </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-136 text-[0.9rem]">
-              <tbody className="divide-y">
-                {filtradas.map((l) => (
-                  <tr key={l.id} className="group">
-                    {!esDia && (
-                      <td className="w-24 py-4 pr-4 align-top whitespace-nowrap text-muted-foreground tabular-nums">
-                        {fechaCorta(l.fecha).slice(0, 5)}
-                      </td>
-                    )}
-                    <td className="py-4 pr-4">
-                      <div>{l.concepto}</div>
-                      <div className="text-[0.8rem] text-muted-foreground">
-                        {[
-                          l.contraparte,
-                          l.automatico ? null : "Anotado a mano",
-                          textoMedioLinea(l.medio),
-                          l.referencia ? `N.° ${l.referencia}` : null,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </div>
-                    </td>
-                    <td className="hidden py-4 pr-4 align-top text-muted-foreground sm:table-cell">{categoriaDe(l)}</td>
-                    <td className="py-4 text-right align-top font-medium whitespace-nowrap tabular-nums">
-                      {l.tipo === "INGRESO" ? "+" : "−"}
-                      {clp.format(l.monto)}
-                    </td>
-                    <td className="w-10 py-3 pl-2 align-top">
-                      {!l.automatico && (
-                        <Button
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label="Borrar movimiento"
-                          disabled={borrando}
-                          onClick={() => borrar(l)}
-                          className="text-muted-foreground"
-                        >
-                          <Trash2 />
-                        </Button>
-                      )}
-                    </td>
-                  </tr>
+          <Button className={cn(alto, "mt-5 px-4 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
+            + Registrar movimiento
+          </Button>
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border">
+          <table className="w-full min-w-160 border-collapse text-[0.95rem]">
+            <thead>
+              <tr className="border-b bg-card">
+                {[...(esDia ? [] : ["Fecha"]), "Descripción", "Tipo", "Origen", "Medio", "Monto"].map((c) => (
+                  <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
+                    {c}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+                <th className="w-12" />
+              </tr>
+            </thead>
+            <tbody>
+              {filtradas.map((l) => (
+                <tr key={l.id} className="border-b last:border-0 hover:bg-card/50">
+                  {!esDia && (
+                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">
+                      {fechaCorta(l.fecha).slice(0, 5)}
+                    </td>
+                  )}
+                  <td className="px-5 py-4">
+                    <div className="font-medium">{l.concepto}</div>
+                    {(l.contraparte || l.referencia) && (
+                      <div className="text-[0.8rem] text-muted-foreground">
+                        {[l.contraparte, l.referencia ? `N.° ${l.referencia}` : null].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap">
+                    <span
+                      className={cn(
+                        "rounded-full px-3 py-1 text-[0.8rem] font-medium",
+                        l.tipo === "INGRESO" ? "bg-forest/10 text-forest" : "bg-destructive/10 text-destructive"
+                      )}
+                    >
+                      {l.tipo === "INGRESO" ? "Ingreso" : "Egreso"}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">
+                    {l.automatico ? "Pago de socio" : "Manual"}
+                  </td>
+                  <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoMedioLinea(l.medio)}</td>
+                  <td
+                    className={cn(
+                      "px-5 py-4 font-medium whitespace-nowrap tabular-nums",
+                      l.tipo === "INGRESO" ? "text-forest" : "text-destructive"
+                    )}
+                  >
+                    {l.tipo === "INGRESO" ? "+" : "-"}
+                    {clp.format(l.monto)}
+                  </td>
+                  <td className="px-2 py-4">
+                    {!l.automatico && (
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        aria-label="Borrar movimiento"
+                        disabled={borrando}
+                        onClick={() => borrar(l)}
+                        className="text-muted-foreground"
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {registrando && (
         <NuevoMovimientoDialog tipoInicial="EGRESO" fecha={esDia ? desde : undefined} onCerrar={cerrarRegistro} />

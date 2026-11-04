@@ -69,8 +69,11 @@ export default async function CajaPage({
         etiqueta={esDia ? dia : nombreMes(mes)}
         hrefAnterior={esDia ? `/panel/caja?vista=dia&dia=${diaVecino(dia, -1)}` : `/panel/caja?vista=mes&mes=${mesVecino(mes, -1)}`}
         hrefSiguiente={esDia ? `/panel/caja?vista=dia&dia=${diaVecino(dia, 1)}` : `/panel/caja?vista=mes&mes=${mesVecino(mes, 1)}`}
-        hrefDia={`/panel/caja?vista=dia&dia=${esDia ? dia : mes === hoyEnChile().slice(0, 7) ? hoyEnChile() : `${mes}-01`}`}
-        hrefMes={`/panel/caja?vista=mes&mes=${esDia ? dia.slice(0, 7) : mes}`}
+        hrefOtraVista={
+          esDia
+            ? `/panel/caja?vista=mes&mes=${dia.slice(0, 7)}`
+            : `/panel/caja?vista=dia&dia=${mes === hoyEnChile().slice(0, 7) ? hoyEnChile() : `${mes}-01`}`
+        }
         resumen={resumen}
         lineas={lineas}
         porCategoria={resumir(lineas).porCategoria}
