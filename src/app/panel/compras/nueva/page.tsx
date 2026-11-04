@@ -18,7 +18,7 @@ export default async function NuevaCompraPage() {
   const [proveedores, insumos] = await Promise.all([listarProveedores(apr.id), listarInsumos(apr.id)]);
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">
+    <div className="flex w-full flex-col gap-8">
       <div>
         <Link href="/panel/compras" className="text-[0.9rem] text-muted-foreground hover:underline">
           ← Volver a Compras

@@ -2,25 +2,27 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, Loader2, Search, X } from "lucide-react";
 import { crearCompra } from "@/app/panel/compras/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { ProveedorDialog } from "@/components/panel/proveedor-dialog";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
 import { UNIDADES_INSUMO, type Insumo } from "@/lib/inventario-comun";
-import { TASA_IVA, TEXTO_ORIGEN_ITEM, totalesDe, type OrigenItem, type ProveedorFila } from "@/lib/compras-comun";
+import { TASA_IVA, totalesDe, type OrigenItem, type ProveedorFila } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
-const campo = "h-10 px-3 text-[0.95rem]";
+/** Los campos de esta pantalla son de 44 px y en píldora, como en MecánicoApp. */
+const campo = "h-11 rounded-full px-5 text-[0.95rem]";
 const selectClase =
-  "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-const etiqueta = "mb-2 block text-[0.8rem] font-medium";
-const tarjeta = "rounded-xl border border-border bg-card p-5 sm:p-6";
+  "h-11 w-full appearance-none rounded-2xl border border-input bg-transparent pr-10 pl-5 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+const etiqueta = "mb-2 block text-[0.9rem] font-medium";
+const tituloSeccion = "text-[0.85rem] font-medium tracking-wide text-muted-foreground uppercase";
 
 type Linea = {
   clave: number;
@@ -32,22 +34,124 @@ type Linea = {
   costo: string;
 };
 
-const lineaVacia = (clave: number): Linea => ({ clave, origen: "INVENTARIO", insumoId: "", descripcion: "", unidad: "UNIDAD", cantidad: "1", costo: "" });
+const lineaVacia = (clave: number): Linea => ({
+  clave,
+  origen: "INVENTARIO",
+  insumoId: "",
+  descripcion: "",
+  unidad: "UNIDAD",
+  cantidad: "1",
+  costo: "",
+});
 
 const aCantidad = (t: string) => Number(t.replace(/\s/g, "").replace(",", ".")) || 0;
 const aPesos = (t: string) => Number(t.replace(/\D/g, "")) || 0;
 
+const PESTANAS: { origen: OrigenItem; texto: string }[] = [
+  { origen: "INVENTARIO", texto: "Desde inventario" },
+  { origen: "NUEVO", texto: "Material nuevo" },
+  { origen: "GASTO", texto: "Solo gasto" },
+];
+
+/** Un campo de búsqueda con lista de resultados: se escribe, se elige uno y queda elegido. */
+function Buscador({
+  items,
+  valor,
+  onElegir,
+  placeholder,
+  sinResultados,
+}: {
+  items: { id: string; titulo: string; detalle?: string }[];
+  valor: string;
+  onElegir: (id: string) => void;
+  placeholder: string;
+  sinResultados: string;
+}) {
+  const [q, setQ] = useState("");
+  const [abierto, setAbierto] = useState(false);
+  const elegido = items.find((i) => i.id === valor);
+  const texto = q.trim().toLowerCase();
+  const resultados = items.filter((i) => !texto || `${i.titulo} ${i.detalle ?? ""}`.toLowerCase().includes(texto)).slice(0, 8);
+
+  return (
+    <div className="relative">
+      <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        value={abierto ? q : (elegido?.titulo ?? "")}
+        onChange={(e) => setQ(e.target.value)}
+        onFocus={() => {
+          setQ("");
+          setAbierto(true);
+        }}
+        // Un instante de espera: si no, el clic en un resultado llega después de cerrarse la lista.
+        onBlur={() => setTimeout(() => setAbierto(false), 120)}
+        placeholder={placeholder}
+        className={cn(campo, "pl-11", elegido && "pr-11")}
+        autoComplete="off"
+      />
+      {elegido && !abierto && (
+        <button
+          type="button"
+          aria-label="Quitar la selección"
+          onClick={() => onElegir("")}
+          className="absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+      {abierto && (
+        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-md">
+          {resultados.length === 0 ? (
+            <li className="px-3 py-2 text-[0.9rem] text-muted-foreground">{sinResultados}</li>
+          ) : (
+            resultados.map((i) => (
+              <li key={i.id}>
+                <button
+                  type="button"
+                  // mousedown y no click: se ejecuta antes de que el campo pierda el foco y cierre la lista.
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onElegir(i.id);
+                    setAbierto(false);
+                  }}
+                  className="flex w-full items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-left text-[0.9rem] hover:bg-muted"
+                >
+                  <span className="truncate">{i.titulo}</span>
+                  {i.detalle && <span className="shrink-0 text-[0.8rem] text-muted-foreground">{i.detalle}</span>}
+                </button>
+              </li>
+            ))
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** Un selector con la flecha a la derecha. */
+function Selector({ id, valor, onCambiar, children }: { id: string; valor: string; onCambiar: (v: string) => void; children: React.ReactNode }) {
+  return (
+    <div className="relative">
+      <select id={id} value={valor} onChange={(e) => onCambiar(e.target.value)} className={selectClase}>
+        {children}
+      </select>
+      <ChevronDown className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-muted-foreground" />
+    </div>
+  );
+}
+
 /**
- * Registrar una compra: a quién, cuándo y qué se compró. Cada línea puede ser un material que
- * ya está en el inventario (le suma stock), un material nuevo (lo crea) o solo un gasto. Si se
- * marca como pagada, el egreso queda en Caja; si no, queda como una cuenta por pagar.
+ * Registrar una compra, con el formulario de MecánicoApp: datos generales arriba y las líneas
+ * abajo, cada una desde el inventario (suma stock), un material nuevo (lo crea) o solo un gasto.
+ * Además lleva lo que le sirve a un comité: vencimiento, medio de pago, IVA y la unidad.
+ * Si se marca pagada, el egreso queda en Caja; si no, queda como una cuenta por pagar.
  */
 export function CompraFormulario({ proveedores, insumos }: { proveedores: ProveedorFila[]; insumos: Insumo[] }) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [proveedorSel, setProveedorSel] = useState("");
+  const [proveedorId, setProveedorId] = useState("");
   const [proveedorTexto, setProveedorTexto] = useState("");
   const [fecha, setFecha] = useState(hoyEnChile());
   const [vencimiento, setVencimiento] = useState("");
@@ -58,6 +162,26 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
   const [medio, setMedio] = useState("TRANSFERENCIA");
   const [lineas, setLineas] = useState<Linea[]>([lineaVacia(1)]);
   const [siguiente, setSiguiente] = useState(2);
+
+  // Crear un proveedor sin salir de la compra: al cerrarse el modal se recarga la lista y se elige el nuevo.
+  const [creandoProveedor, setCreandoProveedor] = useState(false);
+  const idsAntes = useRef<string[] | null>(null);
+  const abrirNuevoProveedor = () => {
+    idsAntes.current = proveedores.map((p) => p.id);
+    setCreandoProveedor(true);
+  };
+  const cerrarNuevoProveedor = useCallback(() => {
+    setCreandoProveedor(false);
+    router.refresh();
+  }, [router]);
+  useEffect(() => {
+    if (!idsAntes.current) return;
+    const nuevo = proveedores.find((p) => !idsAntes.current?.includes(p.id));
+    if (nuevo) {
+      setProveedorId(nuevo.id);
+      idsAntes.current = null;
+    }
+  }, [proveedores]);
 
   const totales = totalesDe(
     lineas.map((l) => ({ cantidad: aCantidad(l.cantidad), costoUnitario: aPesos(l.costo) })),
@@ -95,10 +219,10 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
 
     iniciar(async () => {
       const r = await crearCompra({
-        proveedorId: proveedorSel && proveedorSel !== "__otro" ? proveedorSel : null,
-        proveedorNombre: proveedorSel === "__otro" ? proveedorTexto : "",
+        proveedorId: proveedorId || null,
+        proveedorNombre: proveedorId ? "" : proveedorTexto,
         fecha,
-        vencimiento: vencimiento || null,
+        vencimiento: estado === "PENDIENTE" ? vencimiento || null : null,
         folio,
         notas,
         conIva,
@@ -116,137 +240,199 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
   }
 
   return (
-    <form onSubmit={guardar} className="flex flex-col gap-6">
-      <section className={tarjeta}>
-        <h2 className="mb-4 text-[0.95rem] font-medium">Datos de la compra</h2>
-        <div className="grid gap-4 sm:grid-cols-2">
+    <form onSubmit={guardar} className="flex flex-col gap-10">
+      <section className="flex flex-col gap-5">
+        <h2 className={tituloSeccion}>Datos generales</h2>
+
+        <div className="grid gap-5 sm:grid-cols-2">
           <div>
-            <label htmlFor="cmp-proveedor" className={etiqueta}>
-              Proveedor
-            </label>
-            <select id="cmp-proveedor" value={proveedorSel} onChange={(e) => setProveedorSel(e.target.value)} className={selectClase}>
-              <option value="">Sin proveedor</option>
-              {proveedores.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.nombre}
-                </option>
-              ))}
-              <option value="__otro">Otro (escribir el nombre)…</option>
-            </select>
-          </div>
-          {proveedorSel === "__otro" ? (
-            <div>
-              <label htmlFor="cmp-proveedor-texto" className={etiqueta}>
-                Nombre del proveedor
-              </label>
-              <Input id="cmp-proveedor-texto" value={proveedorTexto} onChange={(e) => setProveedorTexto(e.target.value)} maxLength={120} className={campo} autoFocus />
+            <span className={etiqueta}>Proveedor</span>
+            <div className="flex gap-3">
+              <div className="min-w-0 flex-1">
+                <Buscador
+                  items={proveedores.map((p) => ({ id: p.id, titulo: p.nombre, detalle: p.rut ?? undefined }))}
+                  valor={proveedorId}
+                  onElegir={setProveedorId}
+                  placeholder="Buscar proveedor…"
+                  sinResultados="Ningún proveedor coincide."
+                />
+              </div>
+              <Button type="button" className="h-11 shrink-0 rounded-full px-5 text-[0.95rem]" onClick={abrirNuevoProveedor}>
+                + Nuevo proveedor
+              </Button>
             </div>
-          ) : (
-            <div className="hidden sm:block" />
-          )}
+          </div>
+          <div>
+            <label htmlFor="cmp-proveedor-texto" className={etiqueta}>
+              Nombre del proveedor (sin registro)
+            </label>
+            <Input
+              id="cmp-proveedor-texto"
+              value={proveedorTexto}
+              onChange={(e) => setProveedorTexto(e.target.value)}
+              placeholder="Opcional si no eliges proveedor"
+              maxLength={120}
+              disabled={proveedorId !== ""}
+              className={campo}
+            />
+          </div>
+
           <div>
             <label htmlFor="cmp-fecha" className={etiqueta}>
-              Fecha de la compra
+              Fecha de compra
             </label>
             <Input id="cmp-fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campo} required />
           </div>
           <div>
-            <label htmlFor="cmp-folio" className={etiqueta}>
-              N.° de factura o boleta (opcional)
+            <label htmlFor="cmp-estado" className={etiqueta}>
+              Estado
             </label>
-            <Input id="cmp-folio" value={folio} onChange={(e) => setFolio(e.target.value)} maxLength={60} className={campo} />
+            <Selector id="cmp-estado" valor={estado} onCambiar={(v) => setEstado(v as "PENDIENTE" | "PAGADA")}>
+              <option value="PENDIENTE">Pendiente (por pagar)</option>
+              <option value="PAGADA">Pagada</option>
+            </Selector>
           </div>
-          <div className="sm:col-span-2">
-            <label htmlFor="cmp-notas" className={etiqueta}>
-              Notas (opcional)
+
+          {estado === "PENDIENTE" ? (
+            <div>
+              <label htmlFor="cmp-vence" className={etiqueta}>
+                Vence el (opcional)
+              </label>
+              <Input id="cmp-vence" type="date" value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} className={campo} />
+            </div>
+          ) : (
+            <div>
+              <label htmlFor="cmp-medio" className={etiqueta}>
+                Medio de pago
+              </label>
+              <Selector id="cmp-medio" valor={medio} onCambiar={setMedio}>
+                {MEDIOS_MOVIMIENTO.map((m) => (
+                  <option key={m.valor} value={m.valor}>
+                    {m.texto}
+                  </option>
+                ))}
+              </Selector>
+            </div>
+          )}
+          <div className="flex items-end pb-3">
+            <label className="flex items-center gap-2 text-[0.95rem]">
+              <input type="checkbox" checked={conIva} onChange={(e) => setConIva(e.target.checked)} className="size-4" />
+              Agregar IVA ({Math.round(TASA_IVA * 100)}%) al total
             </label>
-            <Textarea id="cmp-notas" value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} maxLength={500} />
           </div>
+        </div>
+
+        <div>
+          <label htmlFor="cmp-folio" className={etiqueta}>
+            Folio / referencia
+          </label>
+          <Input
+            id="cmp-folio"
+            value={folio}
+            onChange={(e) => setFolio(e.target.value)}
+            placeholder="N° factura, boleta u otra referencia del proveedor"
+            maxLength={60}
+            className={campo}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="cmp-notas" className={etiqueta}>
+            Notas
+          </label>
+          <Textarea id="cmp-notas" value={notas} onChange={(e) => setNotas(e.target.value)} rows={3} maxLength={500} className="rounded-2xl px-5 py-3" />
         </div>
       </section>
 
-      <section className={tarjeta}>
-        <h2 className="mb-4 text-[0.95rem] font-medium">Qué se compró</h2>
-        <div className="flex flex-col gap-4">
-          {lineas.map((l, idx) => (
-            <div key={l.clave} className="rounded-xl border border-border p-4">
-              <div className="grid gap-3 sm:grid-cols-12">
-                <div className="sm:col-span-4">
-                  <label htmlFor={`lin-origen-${l.clave}`} className={etiqueta}>
-                    Tipo de línea
-                  </label>
-                  <select
-                    id={`lin-origen-${l.clave}`}
-                    value={l.origen}
-                    onChange={(e) => cambiar(l.clave, { origen: e.target.value as OrigenItem })}
-                    className={selectClase}
-                  >
-                    {(Object.keys(TEXTO_ORIGEN_ITEM) as OrigenItem[]).map((o) => (
-                      <option key={o} value={o}>
-                        {TEXTO_ORIGEN_ITEM[o]}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+      <section className="flex flex-col gap-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className={tituloSeccion}>Ítems</h2>
+            <p className="mt-2 text-[0.9rem] text-muted-foreground">
+              Desde inventario (suma stock), material nuevo (lo crea en el inventario) o solo gasto (no toca el inventario).
+            </p>
+          </div>
+          <Button type="button" variant="outline" className="h-10 shrink-0 rounded-xl px-4 text-[0.95rem]" onClick={agregarLinea}>
+            + Agregar línea
+          </Button>
+        </div>
 
-                {l.origen === "INVENTARIO" ? (
-                  <div className="sm:col-span-8">
-                    <label htmlFor={`lin-insumo-${l.clave}`} className={etiqueta}>
-                      Material
-                    </label>
-                    <select
-                      id={`lin-insumo-${l.clave}`}
-                      value={l.insumoId}
-                      onChange={(e) => cambiar(l.clave, { insumoId: e.target.value })}
-                      className={selectClase}
+        {lineas.map((l, idx) => {
+          const insumo = insumos.find((i) => i.id === l.insumoId);
+          return (
+            <div key={l.clave} className="flex flex-col gap-4 rounded-xl border border-border p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex w-fit gap-1 rounded-xl border border-border p-1" role="tablist" aria-label={`Tipo de la línea ${idx + 1}`}>
+                  {PESTANAS.map((p) => (
+                    <button
+                      key={p.origen}
+                      type="button"
+                      role="tab"
+                      aria-selected={l.origen === p.origen}
+                      onClick={() => cambiar(l.clave, { origen: p.origen })}
+                      className={cn(
+                        "rounded-lg px-4 py-1.5 text-[0.9rem] font-medium whitespace-nowrap transition-colors",
+                        l.origen === p.origen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                      )}
                     >
-                      <option value="">{insumos.length === 0 ? "No hay materiales en el inventario" : "Elige un material"}</option>
-                      {insumos.map((i) => (
-                        <option key={i.id} value={i.id}>
-                          {i.nombre}
+                      {p.texto}
+                    </button>
+                  ))}
+                </div>
+                {lineas.length > 1 && (
+                  <button
+                    type="button"
+                    aria-label={`Quitar la línea ${idx + 1}`}
+                    onClick={() => quitar(l.clave)}
+                    className="text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-5" />
+                  </button>
+                )}
+              </div>
+
+              {l.origen === "INVENTARIO" && (
+                <Buscador
+                  items={insumos.map((i) => ({ id: i.id, titulo: i.nombre, detalle: i.codigo ?? undefined }))}
+                  valor={l.insumoId}
+                  onElegir={(id) => cambiar(l.clave, { insumoId: id })}
+                  placeholder="Buscar por nombre o código del material…"
+                  sinResultados={insumos.length === 0 ? "Todavía no hay materiales en el inventario." : "Ningún material coincide."}
+                />
+              )}
+
+              <div className="grid gap-4 sm:grid-cols-12">
+                <div className={l.origen === "NUEVO" ? "sm:col-span-8" : "sm:col-span-12"}>
+                  <label htmlFor={`lin-desc-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
+                    Descripción
+                  </label>
+                  <Input
+                    id={`lin-desc-${l.clave}`}
+                    value={l.origen === "INVENTARIO" ? (insumo?.nombre ?? "") : l.descripcion}
+                    onChange={(e) => cambiar(l.clave, { descripcion: e.target.value })}
+                    readOnly={l.origen === "INVENTARIO"}
+                    placeholder={l.origen === "NUEVO" ? "Cloro granulado" : l.origen === "GASTO" ? "Reparación de la bomba" : ""}
+                    maxLength={160}
+                    className={campo}
+                  />
+                </div>
+                {l.origen === "NUEVO" && (
+                  <div className="sm:col-span-4">
+                    <label htmlFor={`lin-unidad-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
+                      Se cuenta en
+                    </label>
+                    <Selector id={`lin-unidad-${l.clave}`} valor={l.unidad} onCambiar={(v) => cambiar(l.clave, { unidad: v })}>
+                      {UNIDADES_INSUMO.map((u) => (
+                        <option key={u.valor} value={u.valor}>
+                          {u.texto}
                         </option>
                       ))}
-                    </select>
+                    </Selector>
                   </div>
-                ) : (
-                  <>
-                    <div className={l.origen === "NUEVO" ? "sm:col-span-5" : "sm:col-span-8"}>
-                      <label htmlFor={`lin-desc-${l.clave}`} className={etiqueta}>
-                        Descripción
-                      </label>
-                      <Input
-                        id={`lin-desc-${l.clave}`}
-                        value={l.descripcion}
-                        onChange={(e) => cambiar(l.clave, { descripcion: e.target.value })}
-                        placeholder={l.origen === "NUEVO" ? "Cloro granulado" : "Reparación de la bomba"}
-                        maxLength={160}
-                        className={campo}
-                      />
-                    </div>
-                    {l.origen === "NUEVO" && (
-                      <div className="sm:col-span-3">
-                        <label htmlFor={`lin-unidad-${l.clave}`} className={etiqueta}>
-                          Se cuenta en
-                        </label>
-                        <select
-                          id={`lin-unidad-${l.clave}`}
-                          value={l.unidad}
-                          onChange={(e) => cambiar(l.clave, { unidad: e.target.value })}
-                          className={selectClase}
-                        >
-                          {UNIDADES_INSUMO.map((u) => (
-                            <option key={u.valor} value={u.valor}>
-                              {u.texto}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                  </>
                 )}
 
-                <div className="sm:col-span-3">
-                  <label htmlFor={`lin-cant-${l.clave}`} className={etiqueta}>
+                <div className="sm:col-span-4">
+                  <label htmlFor={`lin-cant-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
                     Cantidad
                   </label>
                   <Input
@@ -258,8 +444,8 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
                   />
                 </div>
                 <div className="sm:col-span-4">
-                  <label htmlFor={`lin-costo-${l.clave}`} className={etiqueta}>
-                    Costo por unidad (sin IVA)
+                  <label htmlFor={`lin-costo-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
+                    Precio de compra (sin IVA)
                   </label>
                   <Input
                     id={`lin-costo-${l.clave}`}
@@ -270,104 +456,30 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
                     className={campo}
                   />
                 </div>
-                <div className="flex items-end justify-between gap-2 sm:col-span-5">
-                  <div>
-                    <span className={etiqueta}>Subtotal</span>
-                    <span className="text-[1rem] font-semibold tabular-nums">
-                      {clp.format(Math.round(aCantidad(l.cantidad) * aPesos(l.costo)))}
-                    </span>
+                <div className="sm:col-span-4">
+                  <span className="mb-2 block text-[0.85rem] text-muted-foreground">Total línea</span>
+                  <div className="flex h-11 items-center rounded-2xl border border-border px-5 text-[0.95rem] tabular-nums">
+                    {clp.format(Math.round(aCantidad(l.cantidad) * aPesos(l.costo)))}
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={`Quitar la línea ${idx + 1}`}
-                    className="text-muted-foreground"
-                    disabled={lineas.length === 1}
-                    onClick={() => quitar(l.clave)}
-                  >
-                    <Trash2 />
-                  </Button>
                 </div>
               </div>
             </div>
-          ))}
-        </div>
-        <Button type="button" variant="outline" className="mt-4 h-10 rounded-xl px-4 text-[0.95rem]" onClick={agregarLinea}>
-          <Plus />
-          Agregar otra línea
-        </Button>
+          );
+        })}
       </section>
 
-      <section className={tarjeta}>
-        <div className="grid gap-6 sm:grid-cols-2">
-          <div className="flex flex-col gap-4">
-            <h2 className="text-[0.95rem] font-medium">Pago</h2>
-            <div className="grid grid-cols-2 gap-3" role="group" aria-label="Estado del pago">
-              {(
-                [
-                  ["PENDIENTE", "Por pagar"],
-                  ["PAGADA", "Ya está pagada"],
-                ] as const
-              ).map(([valor, texto]) => (
-                <button
-                  key={valor}
-                  type="button"
-                  onClick={() => setEstado(valor)}
-                  aria-pressed={estado === valor}
-                  className={cn(
-                    "rounded-lg border px-4 py-3 text-[0.9rem] font-medium transition-colors",
-                    estado === valor ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {texto}
-                </button>
-              ))}
-            </div>
-            {estado === "PENDIENTE" ? (
-              <div>
-                <label htmlFor="cmp-vence" className={etiqueta}>
-                  Vence el (opcional)
-                </label>
-                <Input id="cmp-vence" type="date" value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} className={campo} />
-              </div>
-            ) : (
-              <div>
-                <label htmlFor="cmp-medio" className={etiqueta}>
-                  Medio de pago
-                </label>
-                <select id="cmp-medio" value={medio} onChange={(e) => setMedio(e.target.value)} className={selectClase}>
-                  {MEDIOS_MOVIMIENTO.map((m) => (
-                    <option key={m.valor} value={m.valor}>
-                      {m.texto}
-                    </option>
-                  ))}
-                </select>
-                <p className="mt-2 text-[0.8rem] text-muted-foreground">El egreso queda anotado en Caja el día de la compra.</p>
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <label className="flex items-center gap-2 text-[0.9rem]">
-              <input type="checkbox" checked={conIva} onChange={(e) => setConIva(e.target.checked)} className="size-4" />
-              Agregar IVA ({Math.round(TASA_IVA * 100)}%)
-            </label>
-            <dl className="flex flex-col text-[0.95rem]">
-              <div className="flex justify-between py-1">
-                <dt className="text-muted-foreground">Subtotal</dt>
-                <dd className="tabular-nums">{clp.format(totales.subtotal)}</dd>
-              </div>
-              <div className="flex justify-between py-1">
-                <dt className="text-muted-foreground">IVA</dt>
-                <dd className="tabular-nums">{clp.format(totales.impuesto)}</dd>
-              </div>
-              <div className="flex justify-between border-t border-border py-2 text-[1.15rem] font-bold">
-                <dt>Total</dt>
-                <dd className="tabular-nums">{clp.format(totales.total)}</dd>
-              </div>
-            </dl>
-          </div>
+      <section className="flex flex-col gap-1 border-t border-border pt-6 sm:ml-auto sm:w-full sm:max-w-sm">
+        <div className="flex justify-between py-1 text-[0.95rem]">
+          <span className="text-muted-foreground">Subtotal</span>
+          <span className="tabular-nums">{clp.format(totales.subtotal)}</span>
+        </div>
+        <div className="flex justify-between py-1 text-[0.95rem]">
+          <span className="text-muted-foreground">Impuesto</span>
+          <span className="tabular-nums">{clp.format(totales.impuesto)}</span>
+        </div>
+        <div className="flex items-baseline justify-between pt-1">
+          <span className="text-[1.25rem] font-bold">Total</span>
+          <span className="text-[1.5rem] font-bold tabular-nums">{clp.format(totales.total)}</span>
         </div>
       </section>
 
@@ -378,14 +490,16 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
       )}
 
       <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Link href="/panel/compras" className="inline-flex h-10 items-center justify-center rounded-lg border border-border px-4 text-[0.95rem] hover:bg-muted">
+        <Link href="/panel/compras" className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-5 text-[0.95rem] hover:bg-muted">
           Cancelar
         </Link>
-        <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente}>
+        <Button type="submit" className="h-11 rounded-full px-6 text-[0.95rem]" disabled={pendiente}>
           {pendiente && <Loader2 className="animate-spin" />}
           Registrar compra
         </Button>
       </div>
+
+      {creandoProveedor && <ProveedorDialog proveedor={null} onCerrar={cerrarNuevoProveedor} />}
     </form>
   );
 }
