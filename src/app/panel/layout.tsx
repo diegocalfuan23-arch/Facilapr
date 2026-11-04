@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { ordenes, socios, solicitudesAcceso, solicitudesClave } from "@/lib/db/schema";
 import { requireApr } from "@/lib/apr-session";
 import { PanelSidebar } from "@/components/panel/panel-sidebar";
+import { BuscadorModulos } from "@/components/panel/buscador-modulos";
 import { Logo } from "@/components/marca/logo";
 import { cn } from "@/lib/utils";
 import { SignOutButton } from "@/components/auth/sign-out-button";
@@ -133,6 +134,15 @@ export default async function PanelLayout({
               <Separator orientation="vertical" className="mr-1 h-4" />
               <span className="text-sm font-medium">{apr.nombre}</span>
             </div>
+
+            {/* El buscador de módulos es del plan Grande, el mismo que incluye Finanzas. */}
+            {!esOperador && puede(apr.plan as Plan, "finanzas") && (
+              <BuscadorModulos
+                rol={rol}
+                chat={puede(apr.plan as Plan, "chat")}
+                conFinanzas={puede(apr.plan as Plan, "finanzas")}
+              />
+            )}
           </header>
 
           <div

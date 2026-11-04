@@ -2,32 +2,8 @@
 
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Users,
-  ReceiptText,
-  UserCheck,
-  Settings,
-  Droplets,
-  HardHat,
-  MessageCircle,
-  Smartphone,
-  LifeBuoy,
-  LayoutGrid,
-  Banknote,
-  BarChart3,
-  Headset,
-  Landmark,
-  Package,
-  Wallet,
-  ChevronsUpDown,
-  ClipboardList,
-  Scissors,
-  ShoppingCart,
-  CreditCard,
-  LogOut,
-  UserRound,
-} from "lucide-react";
+import { ChevronsUpDown, CreditCard, LayoutDashboard, LogOut, UserRound } from "lucide-react";
+import { gruposDelMenu, type Enlace } from "@/lib/menu-panel";
 import { Logo } from "@/components/marca/logo";
 import { cerrarSesionPanel } from "@/components/auth/sign-out-button";
 import { iniciales } from "@/lib/formato";
@@ -55,53 +31,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
-const gestion = [
-  { href: "/panel", label: "Resumen", icon: LayoutDashboard },
-  { href: "/panel/socios", label: "Socios", icon: Users },
-  { href: "/panel/boletas", label: "Boletas", icon: ReceiptText },
-  { href: "/panel/pagos", label: "Pagos", icon: Wallet },
-  { href: "/panel/inventario", label: "Inventario", icon: Package },
-  { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
-  { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
-  { href: "/panel/tecnicos", label: "Técnicos", icon: HardHat },
-];
-
-/**
- * Finanzas (plan Grande): la plata del comité en un solo lugar. Pagos se muda aquí desde
- * Gestión; en los demás planes se queda en Gestión, porque registrar pagos es de todos.
- */
-const finanzas = [
-  { href: "/panel/pagos", label: "Pagos", icon: Wallet },
-  { href: "/panel/caja", label: "Caja", icon: Banknote },
-  { href: "/panel/compras", label: "Compras", icon: ShoppingCart },
-  { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
-];
-
-const atencion = [
-  { href: "/panel/conversaciones", label: "Conversaciones", icon: MessageCircle },
-  { href: "/panel/socios/solicitudes", label: "Solicitudes", icon: UserCheck },
-  { href: "/panel/cortes", label: "Cortes", icon: Scissors },
-  // "Sitio público" está oculto por ahora: todavía no se ofrece a los comités.
-  // La página sigue existiendo en /panel/sitio; para volver a mostrarla, basta
-  // descomentar esta línea (y volver a importar el ícono Globe de lucide-react). Las tarifas ya no dependen de ella: están en
-  // Configuración → Facturación.
-  // { href: "/panel/sitio", label: "Sitio público", icon: Globe },
-  { href: "/panel/configuracion", label: "Configuración", icon: Settings },
-  { href: "/panel/ayuda", label: "Ayuda", icon: LifeBuoy },
-];
-
-/** Lo único que un OPERADOR puede ver: cargar lecturas, nada más. */
-const soloOperador = [
-  { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
-  { href: "/panel/ordenes", label: "Órdenes", icon: ClipboardList },
-];
-
-type Enlace = {
-  href: string;
-  label: string;
-  icon: typeof LayoutDashboard;
-};
 
 /**
  * Marca el ítem apenas se hace clic, sin esperar a que termine la navegación.
@@ -363,30 +292,17 @@ export function PanelSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {rol === "ADMIN" ? (
-          <>
-            <GrupoEnlaces
-              titulo="Gestión"
-              icono={LayoutGrid}
-              enlaces={conFinanzas ? gestion.filter((e) => e.href !== "/panel/pagos") : gestion}
-              pathname={pathname}
-              insignias={insignias}
-            />
-            {conFinanzas && (
-              <GrupoEnlaces titulo="Finanzas" icono={Landmark} enlaces={finanzas} pathname={pathname} insignias={insignias} />
-            )}
-            <GrupoEnlaces
-              titulo="Atención"
-              icono={Headset}
-              enlaces={atencion.filter(
-                (e) => chat || e.href !== "/panel/conversaciones"
-              )}
-              pathname={pathname}
-            />
-          </>
-        ) : (
-          <GrupoEnlaces titulo="Terreno" icono={Droplets} enlaces={soloOperador} pathname={pathname} insignias={insignias} />
-        )}
+        {gruposDelMenu({ rol, chat, conFinanzas }).map((g) => (
+          <GrupoEnlaces
+            key={g.titulo}
+            titulo={g.titulo}
+            icono={g.icono}
+            enlaces={g.enlaces}
+            pathname={pathname}
+            // Atención nunca ha mostrado números: se mantiene así.
+            insignias={g.titulo === "Atención" ? undefined : insignias}
+          />
+        ))}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">
