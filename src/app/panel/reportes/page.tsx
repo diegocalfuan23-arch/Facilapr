@@ -5,7 +5,6 @@ import { requireAdmin } from "@/lib/apr-session";
 import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
 import { hoyEnChile, listarCategoriasMovimiento, nombreMes, textoCategoria } from "@/lib/finanzas";
 import { listarCompras } from "@/lib/compras";
-import { estaBajo, formatoCantidad, listarInsumos, unidadCorta } from "@/lib/inventario";
 import { resumenAnual } from "@/lib/reportes";
 import { GraficoMeses } from "@/components/panel/grafico-meses";
 import { DescargarCsvBoton } from "@/components/panel/descargar-csv-boton";
@@ -20,14 +19,14 @@ const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP",
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 
 const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
-const tarjeta = "rounded-xl border border-border bg-card p-5 sm:p-6";
+const tarjeta = "rounded-xl border border-border bg-card p-5";
 const tituloTarjeta = "text-[0.8rem] font-medium tracking-wide text-muted-foreground uppercase";
 
 /** Una lista de «nombre … monto», para los totales por categoría o por proveedor. */
 function ListaTotales({ filas, vacio }: { filas: { clave: string; texto: string; total: number }[]; vacio: string }) {
   if (filas.length === 0) return <p className="mt-3 text-[0.9rem] text-muted-foreground">{vacio}</p>;
   return (
-    <ul className="mt-3 flex flex-col divide-y divide-border">
+    <ul className="mt-2 flex flex-col divide-y divide-border">
       {filas.map((f) => (
         <li key={f.clave} className="flex items-baseline justify-between gap-4 py-2 text-[0.95rem]">
           <span className="min-w-0 truncate">{f.texto}</span>
@@ -38,6 +37,10 @@ function ListaTotales({ filas, vacio }: { filas: { clave: string; texto: string;
   );
 }
 
+/**
+ * Reportes de Finanzas: solo plata. Lo que entró y salió en el año, de dónde vino y a dónde fue,
+ * y lo que se debe a proveedores. El inventario tiene su propia pantalla y no va aquí.
+ */
 export default async function ReportesPage({ searchParams }: { searchParams: Promise<{ anio?: string }> }) {
   const { apr } = await requireAdmin();
 
@@ -46,7 +49,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
       <div className="mx-auto mt-8 flex max-w-md flex-col items-center gap-4 rounded-xl border border-border bg-card p-8 text-center">
         <h1 className="text-[1.35rem] font-semibold tracking-tight">Reportes</h1>
         <p className="text-[0.9rem] text-muted-foreground">
-          Los números de tu comité por año: ingresos, egresos, lo que debes y el estado de tu bodega. Disponible en el plan{" "}
+          Los números de tu comité por año: ingresos, egresos y lo que debes a proveedores. Disponible en el plan{" "}
           {NOMBRE_PLAN[planMinimoPara("finanzas")]}.
         </p>
         <Link href="/panel/plan" className={cn(buttonVariants())}>
@@ -61,14 +64,15 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
   const pedido = Number((await searchParams).anio);
   const anio = Number.isInteger(pedido) && pedido >= 2000 && pedido <= anioActual + 1 ? pedido : anioActual;
 
-  const [resumen, propias, compras, insumos] = await Promise.all([
+  const [resumen, propias, compras] = await Promise.all([
     resumenAnual(apr.id, anio),
     listarCategoriasMovimiento(apr.id),
     listarCompras(apr.id),
-    listarInsumos(apr.id),
   ]);
 
   const resultado = resumen.totalIngresos - resumen.totalEgresos;
+  // En la tabla solo van los meses con movimientos: los vacíos no aportan y alargan la página.
+  const mesesConDatos = resumen.meses.filter((m) => m.ingresos > 0 || m.egresos > 0);
 
   // Lo que se debe: las compras por pagar, las que vencen antes primero.
   const porPagar = compras
@@ -89,9 +93,6 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
     .sort((a, b) => b.total - a.total)
     .slice(0, 8);
 
-  const valorInventario = insumos.reduce((s, i) => s + i.stock * i.costo, 0);
-  const bajos = insumos.filter(estaBajo);
-
   const planilla = [
     ["mes", "ingresos", "egresos", "resultado"],
     ...resumen.meses.map((m) => [m.mes, m.ingresos, m.egresos, m.ingresos - m.egresos]),
@@ -99,7 +100,7 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
   ];
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[1.35rem] font-semibold tracking-tight">Reportes</h1>
@@ -151,55 +152,44 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
         </div>
       </section>
 
-      <section className={tarjeta}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      {/* El gráfico y el detalle por mes, lado a lado en pantalla ancha. */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <section className={cn(tarjeta, "lg:col-span-3")}>
           <h2 className={tituloTarjeta}>Mes a mes</h2>
-          <DescargarCsvBoton nombreArchivo={`reporte-${anio}.csv`} filas={planilla} />
-        </div>
-        <div className="mt-5">
-          <GraficoMeses meses={resumen.meses} />
-        </div>
-        <div className="scroll-fino mt-6 overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-136 border-collapse text-[0.95rem]">
-            <thead>
-              <tr className="border-b border-border bg-card">
-                {["Mes", "Ingresos", "Egresos", "Resultado", ""].map((c, i) => (
-                  <th key={c || "informe"} className={cn("px-5 py-3 font-medium text-muted-foreground", i === 0 ? "text-left" : "text-right")}>
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {resumen.meses.map((m) => {
-                const sinDatos = m.ingresos === 0 && m.egresos === 0;
-                return (
-                  <tr key={m.mes} className="border-b border-border last:border-0">
-                    <td className="px-5 py-3 capitalize">{nombreMes(m.mes)}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">{sinDatos ? "—" : clp.format(m.ingresos)}</td>
-                    <td className="px-5 py-3 text-right tabular-nums">{sinDatos ? "—" : clp.format(m.egresos)}</td>
-                    <td className="px-5 py-3 text-right font-medium tabular-nums">{sinDatos ? "—" : clp.format(m.ingresos - m.egresos)}</td>
-                    <td className="px-5 py-3 text-right">
-                      {!sinDatos && (
-                        <Link href={`/informes/caja/${m.mes}`} target="_blank" className="text-[0.85rem] text-primary hover:underline">
-                          Informe
-                        </Link>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-              <tr className="border-t border-border bg-card font-semibold">
-                <td className="px-5 py-3">Total {anio}</td>
-                <td className="px-5 py-3 text-right tabular-nums">{clp.format(resumen.totalIngresos)}</td>
-                <td className="px-5 py-3 text-right tabular-nums">{clp.format(resumen.totalEgresos)}</td>
-                <td className="px-5 py-3 text-right tabular-nums">{clp.format(resultado)}</td>
-                <td />
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </section>
+          <div className="mt-5">
+            <GraficoMeses meses={resumen.meses} />
+          </div>
+        </section>
+
+        <section className={cn(tarjeta, "lg:col-span-2")}>
+          <div className="flex items-center justify-between gap-3">
+            <h2 className={tituloTarjeta}>Detalle por mes</h2>
+            <DescargarCsvBoton nombreArchivo={`reporte-${anio}.csv`} filas={planilla} />
+          </div>
+          {mesesConDatos.length === 0 ? (
+            <p className="mt-4 text-[0.9rem] text-muted-foreground">Sin movimientos en {anio}.</p>
+          ) : (
+            <ul className="mt-3 flex flex-col divide-y divide-border">
+              {mesesConDatos.map((m) => (
+                <li key={m.mes} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5 text-[0.9rem]">
+                  <span className="capitalize">{nombreMes(m.mes)}</span>
+                  <span className="flex items-baseline gap-3 tabular-nums">
+                    <span className="text-emerald-700 dark:text-emerald-400">+{clp.format(m.ingresos)}</span>
+                    <span className="text-red-600 dark:text-red-400">−{clp.format(m.egresos)}</span>
+                    <Link href={`/informes/caja/${m.mes}`} target="_blank" className="text-[0.8rem] text-primary hover:underline">
+                      Informe
+                    </Link>
+                  </span>
+                </li>
+              ))}
+              <li className="flex items-baseline justify-between gap-4 py-2.5 text-[0.95rem] font-semibold">
+                <span>Total {anio}</span>
+                <span className="tabular-nums">{clp.format(resultado)}</span>
+              </li>
+            </ul>
+          )}
+        </section>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className={tarjeta}>
@@ -260,41 +250,6 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
           <ListaTotales filas={comprasPorProveedor} vacio="Sin compras este año." />
         </section>
       </div>
-
-      <section className={tarjeta}>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className={tituloTarjeta}>Inventario</h2>
-          <Link href="/panel/inventario" className="text-[0.85rem] text-primary hover:underline">
-            Ver inventario
-          </Link>
-        </div>
-        <div className="mt-3 grid gap-6 sm:grid-cols-3">
-          <div>
-            <p className="text-[0.85rem] text-muted-foreground">Materiales</p>
-            <p className="text-[1.5rem] font-bold tabular-nums">{insumos.length}</p>
-          </div>
-          <div>
-            <p className="text-[0.85rem] text-muted-foreground">Valor guardado en bodega</p>
-            <p className="text-[1.5rem] font-bold tabular-nums">{clp.format(valorInventario)}</p>
-          </div>
-          <div>
-            <p className="text-[0.85rem] text-muted-foreground">Con stock bajo</p>
-            <p className={cn("text-[1.5rem] font-bold tabular-nums", bajos.length > 0 && "text-red-600 dark:text-red-400")}>{bajos.length}</p>
-          </div>
-        </div>
-        {bajos.length > 0 && (
-          <ul className="mt-4 flex flex-col divide-y divide-border border-t border-border">
-            {bajos.slice(0, 8).map((i) => (
-              <li key={i.id} className="flex items-baseline justify-between gap-4 py-2 text-[0.95rem]">
-                <span className="min-w-0 truncate">{i.nombre}</span>
-                <span className="shrink-0 text-red-600 tabular-nums dark:text-red-400">
-                  quedan {formatoCantidad(i.stock)} {unidadCorta(i.unidad)} · avisar en {formatoCantidad(i.stockMinimo)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
     </div>
   );
 }
