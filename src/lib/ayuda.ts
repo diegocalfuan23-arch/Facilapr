@@ -19,6 +19,7 @@ export type Categoria =
   | "Boletas y cobros"
   | "Portal de socios"
   | "Equipo"
+  | "Finanzas"
   | "Tu plan";
 
 export type Articulo = {
@@ -60,6 +61,10 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   {
     nombre: "Equipo",
     descripcion: "Invita a quienes toman las lecturas en terreno.",
+  },
+  {
+    nombre: "Finanzas",
+    descripcion: "La plata del comité: caja, compras, bodega e informes. Desde el plan Estándar.",
   },
   {
     nombre: "Tu plan",
@@ -888,6 +893,139 @@ export const ARTICULOS: Articulo[] = [
     ],
   },
   {
+    slug: "caja-ingresos-egresos-apr",
+    titulo: "Llevar la caja del comité: ingresos y egresos",
+    resumen: "Anota lo que entra y sale de la plata del comité, y cierra la caja cada día.",
+    categoria: "Finanzas",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Caja",
+        texto:
+          "En el grupo Finanzas del menú, entra a Caja. Ves el disponible, lo que entró y lo que salió, por día o por mes. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Indica con cuánta plata partes",
+        texto:
+          "Pulsa Saldo inicial y escribe cuánta plata tiene hoy el comité. Desde esa fecha, el disponible se calcula solo. Se hace una vez.",
+      },
+      {
+        titulo: "Los pagos de los socios entran solos",
+        texto:
+          "Cada pago que registras en una boleta aparece como ingreso en la Caja. No hay que anotarlo dos veces.",
+      },
+      {
+        titulo: "Anota los otros ingresos y los egresos",
+        texto:
+          "Pulsa Nuevo movimiento, elige si es ingreso o egreso, el monto, la fecha y una categoría. Las categorías las puedes crear y renombrar desde la misma pantalla.",
+        nota: "Las compras que marcas como pagadas bajan solas a la Caja como egreso.",
+      },
+      {
+        titulo: "Cierra la caja del día",
+        texto:
+          "Al terminar el día, pulsa Cerrar caja y, si quieres, deja un comentario. Un día cerrado no admite movimientos manuales ni compras hasta que lo reabras, así nada cambia por error.",
+        nota: "Los pagos de socios sí pueden seguir entrando: son plata que de verdad llegó.",
+      },
+      {
+        titulo: "Descarga o busca",
+        texto: "Puedes buscar un movimiento y descargar el libro en Excel para tu tesorero o para la asamblea.",
+      },
+    ],
+  },
+  {
+    slug: "compras-proveedores-apr",
+    titulo: "Registrar compras y proveedores del comité",
+    resumen: "Anota lo que compra el comité, a quién y si ya se pagó. Lo pagado baja a Caja.",
+    categoria: "Finanzas",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Compras",
+        texto: "En Finanzas → Compras ves tus compras, lo que se debe a proveedores y el total del mes. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Crea el proveedor",
+        texto:
+          "Al registrar una compra puedes elegir un proveedor o crear uno nuevo ahí mismo, con su nombre y datos de contacto.",
+      },
+      {
+        titulo: "Registra la compra",
+        texto:
+          "Pulsa Nueva compra. Agrega cada ítem: un material de tu inventario, un servicio o mano de obra, o un gasto libre. Indica la fecha y el documento si lo tienes.",
+        nota: "Si el ítem es de tu inventario, el stock sube al registrar la compra, aunque aún no la hayas pagado.",
+      },
+      {
+        titulo: "Marca si está pagada",
+        texto:
+          "Una compra pagada genera un egreso en la Caja, en la fecha del pago. Una compra por pagar queda como deuda con el proveedor hasta que la pagues.",
+      },
+      {
+        titulo: "Paga después",
+        texto:
+          "Abre el detalle de la compra y registra el pago con su medio de pago. Desde ese momento aparece en la Caja.",
+      },
+    ],
+  },
+  {
+    slug: "inventario-bodega-apr",
+    titulo: "Controlar el inventario de la bodega del comité",
+    resumen: "Lleva el stock de cloro, repuestos y materiales, con categorías e historial.",
+    categoria: "Finanzas",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Inventario",
+        texto: "En Gestión → Inventario ves cada material con su stock. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Agrega un material",
+        texto: "Registra su nombre, la unidad (litros, unidades, metros), el stock con que parte y su costo.",
+      },
+      {
+        titulo: "Ordénalos en categorías",
+        texto: "Crea tus propias categorías (cloro, tuberías, herramientas) para filtrar y encontrar rápido.",
+      },
+      {
+        titulo: "Ajusta el stock",
+        texto:
+          "Con Ajustar stock registras una entrada o una salida, por ejemplo cuando se usa cloro o se pierde un repuesto. Cada ajuste queda guardado.",
+        nota: "Las compras de materiales suman el stock automáticamente.",
+      },
+      {
+        titulo: "Mira el historial",
+        texto: "Pulsa Ver el historial de un material para saber cuándo y por qué cambió su stock.",
+      },
+    ],
+  },
+  {
+    slug: "reportes-informe-asamblea-apr",
+    titulo: "Reportes del año e informe para la asamblea",
+    resumen: "Ve el año mes a mes y prepara un informe de caja para rendir cuentas a los socios.",
+    categoria: "Finanzas",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Reportes",
+        texto:
+          "En Finanzas → Reportes ves el año completo: cuánto entró, cuánto salió y cuál fue el resultado, con un gráfico mes a mes. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Revisa en qué se gastó",
+        texto: "Las categorías muestran qué parte de los egresos fue a cada gasto, y cuánto se debe aún a proveedores.",
+      },
+      {
+        titulo: "Prepara el informe para la asamblea",
+        texto:
+          "Desde Caja, abre el informe del mes. Es un resumen ordenado que puedes imprimir o guardar como PDF para presentarlo a los socios.",
+        nota: "Los reportes se arman con lo que anotaste en Caja y Compras: mientras más al día esté, más útil es el informe.",
+      },
+    ],
+  },
+  {
     slug: "que-plan-elegir-apr",
     titulo: "Qué plan elegir para tu APR: Pequeño, Estándar o Grande",
     tituloSeo: "Qué plan elegir para tu APR: Pequeño, Estándar o Grande",
@@ -905,12 +1043,12 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Pequeño: hasta 200 socios",
         texto:
-          "Para comités que parten o son chicos. Incluye 1 técnico, boletas, lecturas, pagos con comprobante, cortes y la cuenta en línea de cada socio. No incluye chat ni asistente de IA. Cuesta 0,7 UF al mes más IVA.",
+          "Para comités que parten o son chicos. Incluye 1 técnico, boletas, lecturas, pagos con comprobante, cortes y la cuenta en línea de cada socio. No incluye finanzas, chat ni asistente de IA. Cuesta 0,7 UF al mes más IVA.",
       },
       {
         titulo: "Estándar: hasta 800 socios",
         texto:
-          "Para comités medianos. Suma hasta 3 técnicos, el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
+          "Para comités medianos. Suma hasta 3 técnicos, las finanzas del comité (Caja, Compras, Inventario y Reportes), el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
       },
       {
         titulo: "Grande: sin tope de socios",
