@@ -1,70 +1,23 @@
 import { and, asc, desc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, movimientos, pagos, socios } from "@/lib/db/schema";
-import { textoConcepto, textoMedioPago } from "@/lib/pagos";
+import { textoConcepto } from "@/lib/pagos";
+import {
+  TIPO_SALDO_INICIAL,
+  textoCategoria,
+  type LineaLibro,
+  type ResumenMes,
+  type SaldoCaja,
+  type TipoMovimiento,
+} from "@/lib/finanzas-comun";
+
+export * from "@/lib/finanzas-comun";
 
 /**
  * Finanzas del comité: todo lo que entra y sale de plata, mes a mes. Los ingresos
  * por boletas y cobros salen de la tabla Pago (ya existe, no se duplica); lo demás
  * —egresos y otros ingresos— se anota en Movimiento. El libro junta las dos.
  */
-
-export const CATEGORIAS_INGRESO = [
-  { valor: "SUBSIDIO", texto: "Subsidio o aporte del Estado" },
-  { valor: "APORTE", texto: "Aporte de socios o de un tercero" },
-  { valor: "CUOTA", texto: "Cuota de incorporación" },
-  { valor: "OTRO_INGRESO", texto: "Otro ingreso" },
-] as const;
-
-export const CATEGORIAS_EGRESO = [
-  { valor: "ELECTRICIDAD", texto: "Electricidad" },
-  { valor: "REPARACIONES", texto: "Reparaciones y mantención" },
-  { valor: "INSUMOS", texto: "Insumos (cloro, repuestos, medidores)" },
-  { valor: "REMUNERACIONES", texto: "Sueldos y honorarios" },
-  { valor: "ANALISIS", texto: "Análisis de agua" },
-  { valor: "ADMINISTRATIVO", texto: "Gastos administrativos" },
-  { valor: "IMPUESTOS", texto: "Impuestos y cotizaciones" },
-  { valor: "OTRO_EGRESO", texto: "Otro egreso" },
-] as const;
-
-export const MEDIOS_MOVIMIENTO = [
-  { valor: "EFECTIVO", texto: "Efectivo" },
-  { valor: "TRANSFERENCIA", texto: "Transferencia" },
-  { valor: "CHEQUE", texto: "Cheque" },
-  { valor: "OTRO", texto: "Otro" },
-] as const;
-
-const TEXTO_CATEGORIA: Record<string, string> = Object.fromEntries(
-  [...CATEGORIAS_INGRESO, ...CATEGORIAS_EGRESO].map((c) => [c.valor, c.texto])
-);
-
-export const textoCategoria = (categoria: string) => TEXTO_CATEGORIA[categoria] ?? "Otro";
-
-export type TipoMovimiento = "INGRESO" | "EGRESO";
-
-/**
- * El saldo con que el comité parte en Facilapr (lo que había en caja y banco ese día).
- * Se guarda como un movimiento de este tipo, uno por comité, para no tocar la tabla del
- * comité; nunca cuenta como ingreso ni como egreso de ningún mes.
- */
-export const TIPO_SALDO_INICIAL = "SALDO_INICIAL";
-
-/** Una línea del libro, venga de un pago de socio o de un movimiento anotado a mano. */
-export type LineaLibro = {
-  /** "pago:<id>" o "mov:<id>": solo los movimientos se pueden borrar. */
-  id: string;
-  tipo: TipoMovimiento;
-  /** AAAA-MM-DD */
-  fecha: string;
-  monto: number;
-  categoria: string;
-  concepto: string;
-  medio: string;
-  referencia: string | null;
-  contraparte: string | null;
-  /** true: viene de los pagos de socios y no se edita aquí. */
-  automatico: boolean;
-};
 
 /** AAAA-MM del mes pedido, o el actual en Chile si no es válido. */
 export function mesValido(texto: string | undefined): string {
@@ -174,13 +127,6 @@ export async function libroDelMes(aprId: string, mes: string): Promise<LineaLibr
   return lineas.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
 }
 
-export type ResumenMes = {
-  ingresos: number;
-  egresos: number;
-  resultado: number;
-  /** Cuánto fue a cada categoría, de mayor a menor, por tipo. */
-  porCategoria: { tipo: TipoMovimiento; categoria: string; texto: string; total: number }[];
-};
 
 export function resumir(lineas: LineaLibro[]): ResumenMes {
   let ingresos = 0;
@@ -207,15 +153,7 @@ export function resumir(lineas: LineaLibro[]): ResumenMes {
   };
 }
 
-export const textoMedioLinea = (medio: string) => textoMedioPago(medio);
 
-export type SaldoCaja = {
-  /** Lo que hay al cierre del mes: el saldo inicial más todo lo que entró y salió desde entonces. */
-  alCierre: number;
-  /** El día desde el que se cuenta (AAAA-MM-DD) y el saldo con que se partió. */
-  desde: string;
-  inicial: number;
-};
 
 /** El saldo inicial definido por el comité, o null si todavía no lo ha puesto (o la tabla no existe). */
 export async function saldoInicialDe(aprId: string) {

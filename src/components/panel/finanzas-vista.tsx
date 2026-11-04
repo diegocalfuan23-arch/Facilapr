@@ -15,7 +15,7 @@ import {
   type ResumenMes,
   type SaldoCaja,
   type TipoMovimiento,
-} from "@/lib/finanzas";
+} from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });

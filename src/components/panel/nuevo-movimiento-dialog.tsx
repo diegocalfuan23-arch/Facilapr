@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CATEGORIAS_EGRESO, CATEGORIAS_INGRESO, MEDIOS_MOVIMIENTO, type TipoMovimiento } from "@/lib/finanzas";
+import { CATEGORIAS_EGRESO, CATEGORIAS_INGRESO, MEDIOS_MOVIMIENTO, type TipoMovimiento } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
 const selectClase =
