@@ -16,6 +16,7 @@ export const CATEGORIAS_INGRESO = [
 export const CATEGORIAS_EGRESO = [
   { valor: "ELECTRICIDAD", texto: "Electricidad" },
   { valor: "REPARACIONES", texto: "Reparaciones y mantención" },
+  { valor: "COMPRAS", texto: "Compras a proveedores" },
   { valor: "INSUMOS", texto: "Insumos (cloro, repuestos, medidores)" },
   { valor: "REMUNERACIONES", texto: "Sueldos y honorarios" },
   { valor: "ANALISIS", texto: "Análisis de agua" },

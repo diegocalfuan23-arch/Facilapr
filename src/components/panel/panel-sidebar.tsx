@@ -22,6 +22,7 @@ import {
   ChevronsUpDown,
   ClipboardList,
   Scissors,
+  ShoppingCart,
   CreditCard,
   LogOut,
   UserRound,
@@ -72,6 +73,7 @@ const gestion = [
 const finanzas = [
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
   { href: "/panel/caja", label: "Caja", icon: Banknote },
+  { href: "/panel/compras", label: "Compras", icon: ShoppingCart },
 ];
 
 const atencion = [

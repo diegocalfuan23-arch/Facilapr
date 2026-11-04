@@ -642,6 +642,83 @@ export const categoriasInsumo = pgTable(
   (table) => [uniqueIndex("CategoriaInsumo_aprId_nombre_key").on(table.aprId, table.nombre)]
 );
 
+/** A quién le compra el comité (cloro, cañerías, repuestos, servicios). */
+export const proveedores = pgTable(
+  "Proveedor",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    rut: text("rut"),
+    email: text("email"),
+    telefono: text("telefono"),
+    direccion: text("direccion"),
+    notas: text("notas"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Proveedor_aprId_idx").on(table.aprId)]
+);
+
+/**
+ * Una compra a un proveedor. El stock del inventario sube al REGISTRARLA (la mercadería ya
+ * llegó), sin esperar a que se pague. Una compra pendiente es una cuenta por pagar; al pagarla
+ * se crea su egreso en Caja (`movimientoId`), y al anularla se deshace el stock y el egreso.
+ */
+export const compras = pgTable(
+  "Compra",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** Correlativo por comité: C-1, C-2… */
+    numero: integer("numero").notNull(),
+    proveedorId: text("proveedorId").references(() => proveedores.id, { onDelete: "set null" }),
+    /** Se guarda el nombre aunque el proveedor se borre después. */
+    proveedorNombre: text("proveedorNombre"),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    /** Hasta cuándo hay que pagarla, si se sabe. */
+    vencimiento: date("vencimiento", { mode: "string" }),
+    /** PENDIENTE | PAGADA | ANULADA */
+    estado: text("estado").notNull().default("PENDIENTE"),
+    /** N.° de la factura o boleta del proveedor. */
+    folio: text("folio"),
+    notas: text("notas"),
+    subtotal: integer("subtotal").notNull().default(0),
+    impuesto: integer("impuesto").notNull().default(0),
+    total: integer("total").notNull().default(0),
+    /** El egreso que se creó en Caja al pagarla, para poder deshacerlo si se anula. */
+    movimientoId: text("movimientoId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("Compra_aprId_fecha_idx").on(table.aprId, table.fecha),
+    uniqueIndex("Compra_aprId_numero_key").on(table.aprId, table.numero),
+  ]
+);
+
+/** Una línea de una compra: del inventario (suma stock), un material nuevo (lo crea) o solo un gasto. */
+export const comprasItems = pgTable(
+  "CompraItem",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    compraId: text("compraId")
+      .notNull()
+      .references(() => compras.id, { onDelete: "cascade" }),
+    /** INVENTARIO | NUEVO | GASTO */
+    origen: text("origen").notNull(),
+    insumoId: text("insumoId").references(() => insumos.id, { onDelete: "set null" }),
+    descripcion: text("descripcion").notNull(),
+    cantidad: doublePrecision("cantidad").notNull().default(1),
+    /** Sin IVA, en pesos. */
+    costoUnitario: integer("costoUnitario").notNull().default(0),
+  },
+  (table) => [index("CompraItem_compraId_idx").on(table.compraId)]
+);
+
 /**
  * Pago automático del plan: la tarjeta del comité queda guardada en Flow y cada
  * período se le cobra el monto del día (la UF de ese día). Un comité, una fila.
