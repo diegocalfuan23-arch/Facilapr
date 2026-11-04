@@ -224,7 +224,12 @@ export function CajaVista({
               {cerrada ? "Caja cerrada" : "Cerrar caja"}
             </Button>
           )}
-          <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
+          <Button
+            className={cn(alto, "rounded-full px-5 text-[0.95rem]")}
+            onClick={() => setRegistrando(true)}
+            disabled={esDia && cerrada}
+            title={esDia && cerrada ? "La caja de este día está cerrada. Reábrela para anotar movimientos." : undefined}
+          >
             + Registrar movimiento
           </Button>
         </div>
@@ -361,7 +366,11 @@ export function CajaVista({
               ? "Los pagos de socios aparecerán aquí al registrarlos, y los ingresos y egresos manuales al anotarlos."
               : "Ningún movimiento coincide con la búsqueda o los filtros."}
           </p>
-          <Button className={cn(alto, "mt-5 rounded-full px-5 text-[0.95rem]")} onClick={() => setRegistrando(true)}>
+          <Button
+            className={cn(alto, "mt-5 rounded-full px-5 text-[0.95rem]")}
+            onClick={() => setRegistrando(true)}
+            disabled={esDia && cerrada}
+          >
             + Registrar movimiento
           </Button>
         </div>
@@ -423,7 +432,7 @@ export function CajaVista({
                         variant="ghost"
                         size="icon-sm"
                         aria-label="Borrar movimiento"
-                        disabled={borrando}
+                        disabled={borrando || (esDia && cerrada)}
                         onClick={() => borrar(l)}
                         className="text-muted-foreground"
                       >
