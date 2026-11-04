@@ -75,9 +75,9 @@ type Props = {
 };
 
 /**
- * La Caja del comité, por día o por mes: lo importante es cuánta plata hay (un solo
- * número grande); lo demás —de dónde vino y a dónde fue— va debajo, más tranquilo.
- * Los pagos de socios entran solos; el resto se anota a mano.
+ * La Caja del comité, por día o por mes, con los mismos cuatro números que la de
+ * MecánicoApp (disponible anterior, ingresos, egresos y disponible), una tabla limpia
+ * debajo y el cierre de caja. Los pagos de socios entran solos; el resto se anota a mano.
  */
 export function CajaVista({
   modo,
@@ -196,45 +196,49 @@ export function CajaVista({
         </div>
       </div>
 
-      {/* Lo principal: cuánta plata hay. Debajo, cómo se llega a ese número. */}
-      <section aria-label="Disponible" className="flex flex-col gap-2">
+      {/* Aviso corto si todavía no se sabe con cuánta plata se parte. */}
+      {resumen.disponibleAnterior === null && (
         <p className="text-[0.9rem] text-muted-foreground">
-          {esDia ? "Disponible al cierre del día" : `Disponible al cierre de ${etiqueta}`}
-          {cerrada && resumen.cierre?.cerradoPor ? ` · cerrada por ${resumen.cierre.cerradoPor}` : ""}
+          {saldoInicial ? (
+            <>El saldo inicial es del {fechaCorta(saldoInicial.fecha)}: de ese día en adelante se ve la plata disponible.</>
+          ) : (
+            <>
+              Define con cuánta plata partes para ver el disponible.{" "}
+              <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
+                Definir saldo inicial
+              </button>
+            </>
+          )}
         </p>
-        <p className="text-[2.5rem] leading-none font-bold tracking-tight tabular-nums">
-          {resumen.disponible === null ? "—" : clp.format(resumen.disponible)}
-        </p>
+      )}
 
-        {resumen.disponibleAnterior === null ? (
-          <p className="mt-2 text-[0.9rem] text-muted-foreground">
-            {saldoInicial ? (
-              <>El saldo inicial es del {fechaCorta(saldoInicial.fecha)}: de ese día en adelante se ve la plata disponible.</>
-            ) : (
-              <>
-                Define con cuánta plata partes para ver el disponible.{" "}
-                <button type="button" onClick={() => setDefiniendoSaldo(true)} className="text-primary hover:underline">
-                  Definir saldo inicial
-                </button>
-              </>
-            )}
+      {/* Los cuatro números de la caja, igual que en MecánicoApp. */}
+      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-[0.75rem] font-medium tracking-wide text-muted-foreground uppercase">Disponible anterior</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums">
+            {resumen.disponibleAnterior === null ? "—" : clp.format(resumen.disponibleAnterior)}
           </p>
-        ) : (
-          <p className="mt-2 flex flex-wrap items-baseline gap-x-6 gap-y-1 text-[0.9rem] text-muted-foreground">
-            <span>
-              Anterior <span className="text-foreground tabular-nums">{clp.format(resumen.disponibleAnterior)}</span>
-            </span>
-            <span>
-              Ingresos <span className="text-foreground tabular-nums">+{clp.format(resumen.ingresos)}</span>
-            </span>
-            <span>
-              Egresos <span className="text-foreground tabular-nums">−{clp.format(resumen.egresos)}</span>
-            </span>
-            <button type="button" onClick={() => setDefiniendoSaldo(true)} className="hover:text-foreground hover:underline">
-              Cambiar saldo inicial
-            </button>
+        </div>
+        <div className="rounded-xl border border-forest/30 bg-forest/10 p-4">
+          <p className="text-[0.75rem] font-medium tracking-wide text-forest uppercase">Total ingresos</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-forest">{clp.format(resumen.ingresos)}</p>
+        </div>
+        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4">
+          <p className="text-[0.75rem] font-medium tracking-wide text-destructive uppercase">Total egresos</p>
+          <p className="mt-2 text-2xl font-bold tabular-nums text-destructive">{clp.format(resumen.egresos)}</p>
+        </div>
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-[0.75rem] font-medium tracking-wide text-muted-foreground uppercase">
+            {esDia ? "Disponible del día" : "Disponible al cierre"}
           </p>
-        )}
+          <p className="mt-2 text-2xl font-bold tabular-nums">
+            {resumen.disponible === null ? "—" : clp.format(resumen.disponible)}
+          </p>
+          {cerrada && resumen.cierre?.cerradoPor && (
+            <p className="mt-1 text-[0.75rem] text-muted-foreground">Cerrada por {resumen.cierre.cerradoPor}</p>
+          )}
+        </div>
       </section>
 
       {/* En el mes, de dónde vino y a dónde fue la plata. */}

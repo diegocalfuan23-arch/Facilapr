@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
 import {
   diaValido,
+  hoyEnChile,
   diaVecino,
   libroDelDia,
   libroDelMes,
@@ -68,7 +69,7 @@ export default async function CajaPage({
         etiqueta={esDia ? dia : nombreMes(mes)}
         hrefAnterior={esDia ? `/panel/caja?vista=dia&dia=${diaVecino(dia, -1)}` : `/panel/caja?vista=mes&mes=${mesVecino(mes, -1)}`}
         hrefSiguiente={esDia ? `/panel/caja?vista=dia&dia=${diaVecino(dia, 1)}` : `/panel/caja?vista=mes&mes=${mesVecino(mes, 1)}`}
-        hrefDia={`/panel/caja?vista=dia&dia=${esDia ? dia : `${mes}-01`}`}
+        hrefDia={`/panel/caja?vista=dia&dia=${esDia ? dia : mes === hoyEnChile().slice(0, 7) ? hoyEnChile() : `${mes}-01`}`}
         hrefMes={`/panel/caja?vista=mes&mes=${esDia ? dia.slice(0, 7) : mes}`}
         resumen={resumen}
         lineas={lineas}
