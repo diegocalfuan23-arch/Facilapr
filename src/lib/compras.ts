@@ -1,6 +1,6 @@
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { compras, comprasItems, proveedores } from "@/lib/db/schema";
+import { compras, comprasItems, movimientos, proveedores } from "@/lib/db/schema";
 import type { CompraFila, EstadoCompra, ItemCompraFila, OrigenItem, ProveedorFila } from "@/lib/compras-comun";
 
 export * from "@/lib/compras-comun";
@@ -38,12 +38,14 @@ export async function listarCompras(aprId: string): Promise<CompraFila[]> {
         fecha: compras.fecha,
         vencimiento: compras.vencimiento,
         estado: compras.estado,
+        fechaPago: movimientos.fecha,
         subtotal: compras.subtotal,
         impuesto: compras.impuesto,
         total: compras.total,
         notas: compras.notas,
       })
       .from(compras)
+      .leftJoin(movimientos, eq(movimientos.id, compras.movimientoId))
       .where(eq(compras.aprId, aprId))
       .orderBy(desc(compras.fecha), desc(compras.numero))
       .limit(500);

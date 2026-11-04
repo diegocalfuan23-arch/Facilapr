@@ -50,6 +50,8 @@ export type CompraFila = {
   fecha: string;
   vencimiento: string | null;
   estado: EstadoCompra;
+  /** El día del egreso que dejó en Caja al pagarse; null si no está pagada o si el egreso no existe. */
+  fechaPago: string | null;
   subtotal: number;
   impuesto: number;
   total: number;

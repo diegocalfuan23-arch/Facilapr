@@ -391,3 +391,61 @@ export async function anularCompra(compraId: string): Promise<ResultadoCompras> 
   refrescar();
   return { ok: true };
 }
+
+/**
+ * Si una compra figura como pagada pero su egreso no está en Caja, lo anota (con la fecha de
+ * la compra). No hace nada si el egreso ya existe, para no contar dos veces la misma plata.
+ */
+export async function anotarEgresoCompra(compraId: string, medio: string): Promise<ResultadoCompras> {
+  const { user, apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
+  if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === medio)) return { ok: false, error: "El medio de pago no es válido." };
+
+  try {
+    const r = await db.transaction(async (tx) => {
+      const [c] = await tx
+        .select()
+        .from(compras)
+        .where(and(eq(compras.id, compraId), eq(compras.aprId, apr.id)))
+        .limit(1);
+      if (!c) return "NO_EXISTE" as const;
+      if (c.estado !== "PAGADA") return "ESTADO" as const;
+
+      if (c.movimientoId) {
+        const [ya] = await tx
+          .select({ id: movimientos.id })
+          .from(movimientos)
+          .where(and(eq(movimientos.id, c.movimientoId), eq(movimientos.aprId, apr.id)))
+          .limit(1);
+        if (ya) return "YA_TIENE" as const;
+      }
+
+      const [egreso] = await tx
+        .insert(movimientos)
+        .values({
+          aprId: apr.id,
+          tipo: "EGRESO",
+          fecha: c.fecha,
+          monto: c.total,
+          categoria: "COMPRAS",
+          concepto: `Compra C-${c.numero}`,
+          medio,
+          referencia: c.folio,
+          contraparte: c.proveedorNombre,
+          registradoPorId: user.id,
+        })
+        .returning({ id: movimientos.id });
+      await tx.update(compras).set({ movimientoId: egreso.id, updatedAt: new Date() }).where(eq(compras.id, c.id));
+      return "OK" as const;
+    });
+    if (r === "NO_EXISTE") return { ok: false, error: "No encontramos esa compra." };
+    if (r === "ESTADO") return { ok: false, error: "Esa compra no está pagada." };
+    if (r === "YA_TIENE") return { ok: false, error: "Esa compra ya tiene su egreso en Caja." };
+  } catch (e) {
+    console.error("Compras: no se pudo anotar el egreso de la compra:", e);
+    return { ok: false, error: "No pudimos anotar el egreso. Inténtalo de nuevo en un momento." };
+  }
+
+  refrescar();
+  return { ok: true };
+}

@@ -1,9 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { anularCompra, marcarPagada } from "@/app/panel/compras/actions";
+import { anotarEgresoCompra, anularCompra, marcarPagada } from "@/app/panel/compras/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
@@ -35,6 +36,19 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Compra pagada: el egreso quedó en Caja");
+      onCerrar();
+    });
+  }
+
+  function anotarEgreso() {
+    setError(null);
+    iniciar(async () => {
+      const r = await anotarEgresoCompra(compra.id, medio);
+      if (!r.ok) {
+        setError(r.error);
+        return;
+      }
+      toast.success("Egreso anotado en Caja");
       onCerrar();
     });
   }
@@ -119,6 +133,45 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         </dl>
 
         {compra.notas && <p className="rounded-lg bg-muted px-4 py-3 text-[0.9rem] text-muted-foreground">{compra.notas}</p>}
+
+        {/* Dónde quedó la plata en Caja: así se ve de inmediato si una compra pagada no dejó su egreso. */}
+        {compra.estado === "PAGADA" &&
+          (compra.fechaPago ? (
+            <p className="rounded-lg bg-muted px-4 py-3 text-[0.9rem]">
+              Egreso anotado en Caja el <strong className="font-semibold">{fechaCorta(compra.fechaPago)}</strong>.{" "}
+              <Link
+                href={`/panel/caja?vista=dia&dia=${compra.fechaPago}`}
+                className="text-primary hover:underline"
+              >
+                Ver ese día en Caja
+              </Link>
+            </p>
+          ) : (
+            <div className="flex flex-col gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-[0.9rem] text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-200">
+              <p>
+                <strong className="font-semibold">Esta compra figura como pagada, pero no tiene su egreso en Caja.</strong> Puedes
+                anotarlo ahora: quedará con la fecha de la compra ({fechaCorta(compra.fecha)}).
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <select
+                  value={medio}
+                  onChange={(e) => setMedio(e.target.value)}
+                  aria-label="Medio de pago del egreso"
+                  className="h-10 rounded-lg border border-input bg-background px-3 text-[0.95rem] text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  {MEDIOS_MOVIMIENTO.map((m) => (
+                    <option key={m.valor} value={m.valor}>
+                      {m.texto}
+                    </option>
+                  ))}
+                </select>
+                <Button className="h-10 rounded-full px-5 text-[0.95rem]" onClick={anotarEgreso} disabled={pendiente}>
+                  {pendiente && <Loader2 className="animate-spin" />}
+                  Anotar el egreso en Caja
+                </Button>
+              </div>
+            </div>
+          ))}
 
         {error && (
           <p className="text-[0.8rem] text-destructive" role="alert">
