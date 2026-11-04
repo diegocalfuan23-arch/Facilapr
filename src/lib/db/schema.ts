@@ -642,6 +642,25 @@ export const categoriasInsumo = pgTable(
   (table) => [uniqueIndex("CategoriaInsumo_aprId_nombre_key").on(table.aprId, table.nombre)]
 );
 
+/**
+ * Categorías de Caja que crea el propio comité, una lista para ingresos y otra para egresos.
+ * Un movimiento guarda la suya como «p:<id>» en Movimiento.categoria; vacío es «sin categoría».
+ */
+export const categoriasMovimiento = pgTable(
+  "CategoriaMovimiento",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** INGRESO | EGRESO */
+    tipo: text("tipo").notNull(),
+    nombre: text("nombre").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("CategoriaMovimiento_aprId_tipo_nombre_key").on(table.aprId, table.tipo, table.nombre)]
+);
+
 /** A quién le compra el comité (cloro, cañerías, repuestos, servicios). */
 export const proveedores = pgTable(
   "Proveedor",

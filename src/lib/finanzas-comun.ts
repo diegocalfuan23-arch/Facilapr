@@ -6,6 +6,11 @@ import { textoMedioPago } from "@/lib/pagos";
  * la conexión a la base (lib/finanzas.ts la trae y por eso solo se usa desde el servidor).
  */
 
+/**
+ * Las categorías antiguas, de cuando eran fijas. Ya no se ofrecen: cada comité crea las suyas.
+ * Solo se reconocen para que los movimientos que las tenían sigan mostrando su nombre, y
+ * COMPRAS la sigue poniendo el módulo de Compras en el egreso de cada compra pagada.
+ */
 export const CATEGORIAS_INGRESO = [
   { valor: "SUBSIDIO", texto: "Subsidio o aporte del Estado" },
   { valor: "APORTE", texto: "Aporte de socios o de un tercero" },
@@ -36,9 +41,38 @@ const TEXTO_CATEGORIA: Record<string, string> = Object.fromEntries(
   [...CATEGORIAS_INGRESO, ...CATEGORIAS_EGRESO].map((c) => [c.valor, c.texto])
 );
 
-export const textoCategoria = (categoria: string) => TEXTO_CATEGORIA[categoria] ?? "Otro";
-
 export type TipoMovimiento = "INGRESO" | "EGRESO";
+
+/** Una categoría de Caja creada por el comité. */
+export type CategoriaMovimientoPropia = { id: string; tipo: TipoMovimiento; nombre: string };
+
+/** Así se guarda en el movimiento la categoría que creó el comité: «p:<id>». Vacío es «sin categoría». */
+export const PREFIJO_CATEGORIA_MOV = "p:";
+
+/** En el formulario, la opción para crear una categoría nueva sin salir de él. */
+export const CATEGORIA_MOV_NUEVA = "__nueva";
+
+/**
+ * El nombre de la categoría de un movimiento. Las del comité se buscan por su id; las antiguas y
+ * las del sistema (Compras, y las de los pagos de socios) se reconocen por su código.
+ */
+export function textoCategoria(categoria: string, propias: CategoriaMovimientoPropia[] = []): string {
+  if (!categoria) return "Sin categoría";
+  if (categoria.startsWith(PREFIJO_CATEGORIA_MOV)) {
+    return propias.find((c) => `${PREFIJO_CATEGORIA_MOV}${c.id}` === categoria)?.nombre ?? "Sin categoría";
+  }
+  if (categoria === "BOLETAS") return "Boletas de agua";
+  if (categoria === "COBROS") return "Otros cobros a socios";
+  return TEXTO_CATEGORIA[categoria] ?? "Sin categoría";
+}
+
+/** Las categorías del comité para un tipo, por nombre: lo que se ofrece al anotar un movimiento. */
+export function opcionesCategoriaMov(propias: CategoriaMovimientoPropia[], tipo: TipoMovimiento) {
+  return propias
+    .filter((c) => c.tipo === tipo)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+    .map((c) => ({ valor: `${PREFIJO_CATEGORIA_MOV}${c.id}`, texto: c.nombre }));
+}
 
 /**
  * El saldo con que el comité parte en Facilapr (lo que había en caja y banco ese día).

@@ -13,6 +13,7 @@ import {
   nombreMes,
   resumenPeriodo,
   resumir,
+  listarCategoriasMovimiento,
   saldoInicialDe,
 } from "@/lib/finanzas";
 import { CajaVista } from "@/components/panel/caja-vista";
@@ -54,7 +55,11 @@ export default async function CajaPage({
   const hasta = esDia ? diaVecino(dia, 1) : `${mesVecino(mes, 1)}-01`;
 
   const lineas = await (esDia ? libroDelDia(apr.id, dia) : libroDelMes(apr.id, mes));
-  const [resumen, saldoInicial] = await Promise.all([resumenPeriodo(apr.id, desde, hasta, lineas), saldoInicialDe(apr.id)]);
+  const [resumen, saldoInicial, categoriasPropias] = await Promise.all([
+    resumenPeriodo(apr.id, desde, hasta, lineas),
+    saldoInicialDe(apr.id),
+    listarCategoriasMovimiento(apr.id),
+  ]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -77,7 +82,8 @@ export default async function CajaPage({
         hrefInforme={esDia ? null : `/informes/caja/${mes}`}
         resumen={resumen}
         lineas={lineas}
-        porCategoria={resumir(lineas).porCategoria}
+        porCategoria={resumir(lineas, categoriasPropias).porCategoria}
+        categoriasPropias={categoriasPropias}
         saldoInicial={saldoInicial}
       />
     </div>

@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { movimientos } from "@/lib/db/schema";
+import { categoriasMovimiento, movimientos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
-  CATEGORIAS_EGRESO,
-  CATEGORIAS_INGRESO,
+  CATEGORIA_MOV_NUEVA,
   MEDIOS_MOVIMIENTO,
+  PREFIJO_CATEGORIA_MOV,
   TIPO_CIERRE,
   TIPO_SALDO_INICIAL,
   diaValido,
@@ -25,7 +25,7 @@ const movimientoSchema = z.object({
   tipo: z.enum(["INGRESO", "EGRESO"]),
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
   monto: z.number().int("El monto debe ser un número entero.").min(1, "El monto debe ser mayor que 0.").max(2_000_000_000),
-  categoria: z.string().min(1, "Elige una categoría."),
+  categoria: z.string().max(60),
   concepto: z.string().trim().min(1, "Escribe qué fue.").max(200),
   medio: z.string(),
   referencia: z.string().trim().max(80).nullable(),
@@ -60,16 +60,37 @@ export async function crearMovimiento(
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const d = parsed.data;
-  const categorias = d.tipo === "INGRESO" ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
-  if (!categorias.some((c) => c.valor === d.categoria)) {
-    return { ok: false, error: "Esa categoría no corresponde." };
-  }
   if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === d.medio)) {
     return { ok: false, error: "El medio de pago no es válido." };
   }
 
+  // La categoría es ninguna, una del comité para este tipo de movimiento, o una nueva por crear.
+  let categoria = d.categoria;
+  if (categoria === CATEGORIA_MOV_NUEVA) {
+    const creada = await categoriaDe(apr.id, d.tipo, String(formData.get("categoriaNueva") ?? ""));
+    if (!creada.ok) return creada;
+    categoria = `${PREFIJO_CATEGORIA_MOV}${creada.id}`;
+  } else if (categoria !== "") {
+    const idCategoria = categoria.startsWith(PREFIJO_CATEGORIA_MOV) ? categoria.slice(PREFIJO_CATEGORIA_MOV.length) : "";
+    const [existe] = idCategoria
+      ? await db
+          .select({ id: categoriasMovimiento.id })
+          .from(categoriasMovimiento)
+          .where(
+            and(
+              eq(categoriasMovimiento.id, idCategoria),
+              eq(categoriasMovimiento.aprId, apr.id),
+              eq(categoriasMovimiento.tipo, d.tipo)
+            )
+          )
+          .limit(1)
+          .catch(() => [])
+      : [];
+    if (!existe) return { ok: false, error: "Esa categoría ya no existe. Elige otra." };
+  }
+
   try {
-    await db.insert(movimientos).values({ ...d, aprId: apr.id, registradoPorId: user.id });
+    await db.insert(movimientos).values({ ...d, categoria, aprId: apr.id, registradoPorId: user.id });
   } catch (e) {
     console.error("Finanzas: no se pudo guardar el movimiento:", e);
     return { ok: false, error: "No pudimos guardar el movimiento. Inténtalo de nuevo en un momento." };
@@ -177,6 +198,125 @@ export async function cerrarCaja(
   } catch (e) {
     console.error("Finanzas: no se pudo cerrar la caja:", e);
     return { ok: false, error: "No pudimos cerrar la caja. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/caja");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------- categorías de Caja
+
+type ResultadoCategoriaMov = { ok: true; id: string } | { ok: false; error: string };
+
+const mismoNombre = (a: string, b: string) => a.localeCompare(b, "es", { sensitivity: "base" }) === 0;
+
+function limpiarNombre(crudo: string) {
+  return String(crudo ?? "").trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Crea una categoría del comité para un tipo de movimiento, o devuelve la que ya tiene ese nombre
+ * (sin distinguir mayúsculas ni tildes). Así crearla desde el formulario nunca falla por repetida.
+ */
+async function categoriaDe(aprId: string, tipo: "INGRESO" | "EGRESO", nombreCrudo: string): Promise<ResultadoCategoriaMov> {
+  const nombre = limpiarNombre(nombreCrudo);
+  if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };
+  if (nombre.length > 40) return { ok: false, error: "El nombre de la categoría es muy largo (máximo 40 letras)." };
+
+  try {
+    const propias = await db
+      .select({ id: categoriasMovimiento.id, nombre: categoriasMovimiento.nombre })
+      .from(categoriasMovimiento)
+      .where(and(eq(categoriasMovimiento.aprId, aprId), eq(categoriasMovimiento.tipo, tipo)));
+    const repetida = propias.find((c) => mismoNombre(c.nombre, nombre));
+    if (repetida) return { ok: true, id: repetida.id };
+    if (propias.length >= 40) return { ok: false, error: "Llegaste al máximo de 40 categorías." };
+
+    const [creada] = await db
+      .insert(categoriasMovimiento)
+      .values({ aprId, tipo, nombre })
+      .returning({ id: categoriasMovimiento.id });
+    return { ok: true, id: creada.id };
+  } catch (e) {
+    console.error("Finanzas: no se pudo crear la categoría:", e);
+    return { ok: false, error: "No pudimos crear la categoría. Inténtalo de nuevo en un momento." };
+  }
+}
+
+/** Crea una categoría desde el modal de categorías. Avisa si ya existía una con ese nombre. */
+export async function crearCategoriaMov(tipo: "INGRESO" | "EGRESO", nombreCrudo: string): Promise<ResultadoFinanzas> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible en el plan Grande." };
+  if (tipo !== "INGRESO" && tipo !== "EGRESO") return { ok: false, error: "Tipo no válido." };
+
+  const nombre = limpiarNombre(nombreCrudo);
+  const antes = await db
+    .select({ nombre: categoriasMovimiento.nombre })
+    .from(categoriasMovimiento)
+    .where(and(eq(categoriasMovimiento.aprId, apr.id), eq(categoriasMovimiento.tipo, tipo)))
+    .catch(() => []);
+  if (antes.some((c) => mismoNombre(c.nombre, nombre))) return { ok: false, error: "Ya tienes una categoría con ese nombre." };
+
+  const r = await categoriaDe(apr.id, tipo, nombre);
+  if (!r.ok) return r;
+
+  revalidatePath("/panel/caja");
+  return { ok: true };
+}
+
+/** Cambia el nombre de una categoría. Los movimientos que la usan la siguen usando: guardan su id. */
+export async function renombrarCategoriaMov(id: string, nombreCrudo: string): Promise<ResultadoFinanzas> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible en el plan Grande." };
+
+  const nombre = limpiarNombre(nombreCrudo);
+  if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };
+  if (nombre.length > 40) return { ok: false, error: "El nombre de la categoría es muy largo (máximo 40 letras)." };
+
+  try {
+    const propias = await db
+      .select({ id: categoriasMovimiento.id, tipo: categoriasMovimiento.tipo, nombre: categoriasMovimiento.nombre })
+      .from(categoriasMovimiento)
+      .where(eq(categoriasMovimiento.aprId, apr.id));
+    const actual = propias.find((c) => c.id === id);
+    if (!actual) return { ok: false, error: "No encontramos esa categoría." };
+    if (propias.some((c) => c.id !== id && c.tipo === actual.tipo && mismoNombre(c.nombre, nombre))) {
+      return { ok: false, error: "Ya tienes otra categoría con ese nombre." };
+    }
+
+    await db
+      .update(categoriasMovimiento)
+      .set({ nombre })
+      .where(and(eq(categoriasMovimiento.id, id), eq(categoriasMovimiento.aprId, apr.id)));
+  } catch (e) {
+    console.error("Finanzas: no se pudo renombrar la categoría:", e);
+    return { ok: false, error: "No pudimos cambiar el nombre. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/caja");
+  return { ok: true };
+}
+
+/** Borra una categoría. Los movimientos que la usaban quedan sin categoría: no se pierde ninguno. */
+export async function eliminarCategoriaMov(id: string): Promise<ResultadoFinanzas> {
+  const { apr } = await requireAdmin();
+
+  try {
+    await db.transaction(async (tx) => {
+      const [borrada] = await tx
+        .delete(categoriasMovimiento)
+        .where(and(eq(categoriasMovimiento.id, id), eq(categoriasMovimiento.aprId, apr.id)))
+        .returning({ id: categoriasMovimiento.id });
+      if (!borrada) throw new Error("NO_EXISTE");
+      await tx
+        .update(movimientos)
+        .set({ categoria: "" })
+        .where(and(eq(movimientos.aprId, apr.id), eq(movimientos.categoria, `${PREFIJO_CATEGORIA_MOV}${id}`)));
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "NO_EXISTE") return { ok: false, error: "No encontramos esa categoría." };
+    console.error("Finanzas: no se pudo borrar la categoría:", e);
+    return { ok: false, error: "No pudimos borrar la categoría. Inténtalo de nuevo en un momento." };
   }
 
   revalidatePath("/panel/caja");

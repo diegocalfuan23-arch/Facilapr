@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
-  CATEGORIAS_EGRESO,
-  CATEGORIAS_INGRESO,
+  CATEGORIA_MOV_NUEVA,
   MEDIOS_MOVIMIENTO,
   hoyEnChile,
+  opcionesCategoriaMov,
+  type CategoriaMovimientoPropia,
   type TipoMovimiento,
 } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
@@ -28,9 +29,12 @@ const etiqueta = "mb-2 block text-[0.8rem] font-medium";
 export function NuevoMovimientoDialog({
   tipoInicial,
   fecha,
+  categoriasPropias,
   onCerrar,
 }: {
   tipoInicial: TipoMovimiento;
+  /** Las categorías que creó el comité, de ingresos y de egresos. */
+  categoriasPropias: CategoriaMovimientoPropia[];
   /** El día que se propone (AAAA-MM-DD); si falta, hoy. En la Caja, el día que se está mirando. */
   fecha?: string;
   onCerrar: () => void;
@@ -46,7 +50,13 @@ export function NuevoMovimientoDialog({
     }
   }, [estado, onCerrar]);
 
-  const categorias = tipo === "INGRESO" ? CATEGORIAS_INGRESO : CATEGORIAS_EGRESO;
+  // Cada tipo tiene sus propias categorías. Al cambiar de tipo, la elegida deja de valer y se vuelve a «sin categoría».
+  const categorias = opcionesCategoriaMov(categoriasPropias, tipo);
+  const [categoria, setCategoria] = useState("");
+  function cambiarTipo(nuevo: TipoMovimiento) {
+    setTipo(nuevo);
+    setCategoria("");
+  }
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -67,7 +77,7 @@ export function NuevoMovimientoDialog({
             <div className="grid grid-cols-2 gap-3" role="group" aria-label="Tipo de movimiento">
               <button
                 type="button"
-                onClick={() => setTipo("INGRESO")}
+                onClick={() => cambiarTipo("INGRESO")}
                 aria-pressed={tipo === "INGRESO"}
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-[0.9rem] font-medium transition-colors",
@@ -81,7 +91,7 @@ export function NuevoMovimientoDialog({
               </button>
               <button
                 type="button"
-                onClick={() => setTipo("EGRESO")}
+                onClick={() => cambiarTipo("EGRESO")}
                 aria-pressed={tipo === "EGRESO"}
                 className={cn(
                   "flex items-center justify-center gap-2 rounded-lg border border-border px-4 py-3 text-[0.9rem] font-medium transition-colors",
@@ -124,16 +134,20 @@ export function NuevoMovimientoDialog({
               <label htmlFor="mov-categoria" className={etiqueta}>
                 Categoría
               </label>
-              {/* La clave cambia con el tipo: así la lista se reinicia al pasar de egreso a ingreso. */}
-              <select key={tipo} id="mov-categoria" name="categoria" className={selectClase} defaultValue="" required>
-                <option value="" disabled>
-                  Elige una categoría
-                </option>
+              <select
+                id="mov-categoria"
+                name="categoria"
+                className={selectClase}
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value)}
+              >
+                <option value="">Sin categoría</option>
                 {categorias.map((c) => (
                   <option key={c.valor} value={c.valor}>
                     {c.texto}
                   </option>
                 ))}
+                <option value={CATEGORIA_MOV_NUEVA}>+ Crear categoría nueva…</option>
               </select>
             </div>
             <div>
@@ -149,6 +163,23 @@ export function NuevoMovimientoDialog({
               </select>
             </div>
           </div>
+
+          {categoria === CATEGORIA_MOV_NUEVA && (
+            <div className="mt-4">
+              <label htmlFor="mov-categoria-nueva" className={etiqueta}>
+                Nombre de la categoría nueva
+              </label>
+              <Input
+                id="mov-categoria-nueva"
+                name="categoriaNueva"
+                placeholder={tipo === "EGRESO" ? "Ej.: Luz, Reparaciones, Sueldos…" : "Ej.: Subsidio, Aportes, Cuotas…"}
+                maxLength={40}
+                className={campo}
+                autoFocus
+                required
+              />
+            </div>
+          )}
 
           <div className="mt-4">
             <label htmlFor="mov-concepto" className={etiqueta}>

@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, movimientos, pagos, socios } from "@/lib/db/schema";
+import { boletas, categoriasMovimiento, movimientos, pagos, socios } from "@/lib/db/schema";
 import { user as usuarios } from "@/lib/db/auth-schema";
 import { textoConcepto } from "@/lib/pagos";
 import {
@@ -8,6 +8,7 @@ import {
   TIPO_SALDO_INICIAL,
   diaVecino,
   textoCategoria,
+  type CategoriaMovimientoPropia,
   type LineaLibro,
   type ResumenPeriodo,
   type ResumenMes,
@@ -139,7 +140,21 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
 }
 
 
-export function resumir(lineas: LineaLibro[]): ResumenMes {
+/** Las categorías de Caja que creó el comité. Si la tabla todavía no existe en la base, devuelve vacío. */
+export async function listarCategoriasMovimiento(aprId: string): Promise<CategoriaMovimientoPropia[]> {
+  const filas = await db
+    .select({ id: categoriasMovimiento.id, tipo: categoriasMovimiento.tipo, nombre: categoriasMovimiento.nombre })
+    .from(categoriasMovimiento)
+    .where(eq(categoriasMovimiento.aprId, aprId))
+    .orderBy(asc(categoriasMovimiento.nombre))
+    .catch((e) => {
+      console.error("Finanzas: no se pudieron leer las categorías:", e);
+      return [];
+    });
+  return filas.map((f) => ({ ...f, tipo: f.tipo as TipoMovimiento }));
+}
+
+export function resumir(lineas: LineaLibro[], propias: CategoriaMovimientoPropia[] = []): ResumenMes {
   let ingresos = 0;
   let egresos = 0;
   const acumulado = new Map<string, { tipo: TipoMovimiento; categoria: string; total: number }>();
@@ -158,7 +173,7 @@ export function resumir(lineas: LineaLibro[]): ResumenMes {
     porCategoria: [...acumulado.values()]
       .map((c) => ({
         ...c,
-        texto: c.categoria === "BOLETAS" ? "Boletas de agua" : c.categoria === "COBROS" ? "Otros cobros a socios" : textoCategoria(c.categoria),
+        texto: textoCategoria(c.categoria, propias),
       }))
       .sort((a, b) => b.total - a.total),
   };

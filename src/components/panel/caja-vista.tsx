@@ -4,16 +4,18 @@ import Link from "next/link";
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Tag, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { CategoriasCajaDialog } from "@/components/panel/categorias-caja-dialog";
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
 import { SaldoInicialDialog } from "@/components/panel/saldo-inicial-dialog";
 import {
   textoCategoria,
   textoMedioLinea,
+  type CategoriaMovimientoPropia,
   type LineaLibro,
   type ResumenMes,
   type ResumenPeriodo,
@@ -23,14 +25,8 @@ import { cn } from "@/lib/utils";
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 
-function categoriaDe(l: LineaLibro) {
-  if (l.categoria === "BOLETAS") return "Boletas de agua";
-  if (l.categoria === "COBROS") return "Cobros a socios";
-  return textoCategoria(l.categoria);
-}
-
 /** Planilla con punto y coma, la que abre bien el Excel en español. */
-function descargarCsv(lineas: LineaLibro[], nombre: string) {
+function descargarCsv(lineas: LineaLibro[], nombre: string, propias: CategoriaMovimientoPropia[]) {
   const celda = (t: string | number | null) => `"${String(t ?? "").replace(/"/g, '""')}"`;
   const filas = [
     ["fecha", "tipo", "categoria", "concepto", "contraparte", "medio", "referencia", "ingreso", "egreso"],
@@ -39,7 +35,7 @@ function descargarCsv(lineas: LineaLibro[], nombre: string) {
       .map((l) => [
         l.fecha,
         l.tipo === "INGRESO" ? "Ingreso" : "Egreso",
-        categoriaDe(l),
+        textoCategoria(l.categoria, propias),
         l.concepto,
         l.contraparte,
         textoMedioLinea(l.medio),
@@ -107,6 +103,8 @@ type Props = {
   lineas: LineaLibro[];
   /** Cuánto fue a cada categoría; se muestra en el mes. */
   porCategoria: ResumenMes["porCategoria"];
+  /** Las categorías que creó el comité, de ingresos y de egresos. */
+  categoriasPropias: CategoriaMovimientoPropia[];
   saldoInicial: { monto: number; fecha: string } | null;
 };
 
@@ -127,6 +125,7 @@ export function CajaVista({
   resumen,
   lineas,
   porCategoria,
+  categoriasPropias,
   saldoInicial,
 }: Props) {
   const router = useRouter();
@@ -138,6 +137,8 @@ export function CajaVista({
   const [registrando, setRegistrando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [definiendoSaldo, setDefiniendoSaldo] = useState(false);
+  const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
+  const cerrarCategorias = useCallback(() => setGestionandoCategorias(false), []);
   const cerrarRegistro = useCallback(() => setRegistrando(false), []);
   const cerrarCierre = useCallback(() => setCerrando(false), []);
   const cerrarSaldo = useCallback(() => setDefiniendoSaldo(false), []);
@@ -298,6 +299,14 @@ export function CajaVista({
             <option value="pago">Pago de socio</option>
             <option value="manual">Manual</option>
           </Selector>
+          <Button
+            variant="outline"
+            className={cn(alto, "rounded-xl px-4 text-[0.95rem]")}
+            onClick={() => setGestionandoCategorias(true)}
+          >
+            <Tag />
+            Categorías
+          </Button>
           {hrefInforme && (
             <Link
               href={hrefInforme}
@@ -312,7 +321,7 @@ export function CajaVista({
             variant="outline"
             size="icon"
             className={cn(alto, "w-10 rounded-xl")}
-            onClick={() => descargarCsv(lineas, desde)}
+            onClick={() => descargarCsv(lineas, desde, categoriasPropias)}
             disabled={lineas.length === 0}
             aria-label="Descargar en Excel"
             title="Descargar en Excel"
@@ -408,8 +417,14 @@ export function CajaVista({
       )}
 
       {registrando && (
-        <NuevoMovimientoDialog tipoInicial="EGRESO" fecha={esDia ? desde : undefined} onCerrar={cerrarRegistro} />
+        <NuevoMovimientoDialog
+          tipoInicial="EGRESO"
+          fecha={esDia ? desde : undefined}
+          categoriasPropias={categoriasPropias}
+          onCerrar={cerrarRegistro}
+        />
       )}
+      {gestionandoCategorias && <CategoriasCajaDialog propias={categoriasPropias} onCerrar={cerrarCategorias} />}
       {cerrando && <CerrarCajaDialog resumen={resumen} movimientos={lineas.length} onCerrar={cerrarCierre} />}
       {definiendoSaldo && <SaldoInicialDialog actual={saldoInicial} onCerrar={cerrarSaldo} />}
     </div>

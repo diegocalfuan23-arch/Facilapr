@@ -6,6 +6,7 @@ import { puede, type Plan } from "@/lib/planes";
 import { formatearRut } from "@/lib/formato";
 import {
   libroDelMes,
+  listarCategoriasMovimiento,
   mesVecino,
   nombreMes,
   resumenPeriodo,
@@ -93,7 +94,7 @@ export default async function InformeCajaPage({ params }: Props) {
 
   const lineas = await libroDelMes(apr.id, mes);
   const resumen = await resumenPeriodo(apr.id, `${mes}-01`, `${mesVecino(mes, 1)}-01`, lineas);
-  const { porCategoria } = resumir(lineas);
+  const { porCategoria } = resumir(lineas, await listarCategoriasMovimiento(apr.id));
 
   const ingresos = porCategoria.filter((c) => c.tipo === "INGRESO");
   const egresos = porCategoria.filter((c) => c.tipo === "EGRESO");
