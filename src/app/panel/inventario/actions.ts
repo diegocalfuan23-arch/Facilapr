@@ -185,6 +185,38 @@ export async function crearCategoria(nombreCrudo: string): Promise<ResultadoInve
   return { ok: true };
 }
 
+/** Cambia el nombre de una categoría propia. Los materiales que la usan la siguen usando: guardan su id, no el nombre. */
+export async function renombrarCategoria(id: string, nombreCrudo: string): Promise<ResultadoInventario> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
+
+  const nombre = String(nombreCrudo ?? "").trim().replace(/\s+/g, " ");
+  if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };
+  if (nombre.length > 40) return { ok: false, error: "El nombre de la categoría es muy largo (máximo 40 letras)." };
+
+  try {
+    const propias = await db
+      .select({ id: categoriasInsumo.id, nombre: categoriasInsumo.nombre })
+      .from(categoriasInsumo)
+      .where(eq(categoriasInsumo.aprId, apr.id));
+    if (!propias.some((c) => c.id === id)) return { ok: false, error: "No encontramos esa categoría." };
+    if (propias.some((c) => c.id !== id && c.nombre.localeCompare(nombre, "es", { sensitivity: "base" }) === 0)) {
+      return { ok: false, error: "Ya tienes otra categoría con ese nombre." };
+    }
+
+    await db
+      .update(categoriasInsumo)
+      .set({ nombre })
+      .where(and(eq(categoriasInsumo.id, id), eq(categoriasInsumo.aprId, apr.id)));
+  } catch (e) {
+    console.error("Inventario: no se pudo renombrar la categoría:", e);
+    return { ok: false, error: "No pudimos cambiar el nombre. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/inventario");
+  return { ok: true };
+}
+
 /** Borra una categoría propia. Los materiales que la usaban quedan sin categoría: no se pierde ninguno. */
 export async function eliminarCategoria(id: string): Promise<ResultadoInventario> {
   const { apr } = await requireAdmin();
