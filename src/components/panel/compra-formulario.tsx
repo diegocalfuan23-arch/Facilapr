@@ -240,6 +240,7 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
   }
 
   return (
+    <>
     <form onSubmit={guardar} className="flex flex-col gap-10">
       <section className="flex flex-col gap-5">
         <h2 className={tituloSeccion}>Datos generales</h2>
@@ -499,7 +500,14 @@ export function CompraFormulario({ proveedores, insumos }: { proveedores: Provee
         </Button>
       </div>
 
-      {creandoProveedor && <ProveedorDialog proveedor={null} onCerrar={cerrarNuevoProveedor} />}
     </form>
+
+    {/*
+      El modal va FUERA del formulario de la compra. Aunque se dibuja encima, para React un hijo es
+      parte de su padre: dentro del formulario, el envío del proveedor subía hasta el de la compra,
+      que lo interceptaba y no dejaba guardar al proveedor.
+    */}
+    {creandoProveedor && <ProveedorDialog proveedor={null} onCerrar={cerrarNuevoProveedor} />}
+    </>
   );
 }
