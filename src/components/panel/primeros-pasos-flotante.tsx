@@ -15,6 +15,13 @@ import { cn } from "@/lib/utils";
 const RADIO = 22;
 const CIRCUNFERENCIA = 2 * Math.PI * RADIO;
 
+/** Su lugar de siempre: abajo a la derecha (20 px de cada borde). */
+const POSICION_INICIAL = { derecha: 20, abajo: 20 };
+const MARGEN = 8;
+/** Cuánto hay que mover el puntero para que cuente como arrastre y no como clic. */
+const UMBRAL_ARRASTRE = 6;
+const CLAVE_POSICION = "facilapr-ayuda-posicion";
+
 /**
  * Ayuda flotante del panel, abajo a la derecha, en todas las pantallas.
  *
@@ -31,6 +38,79 @@ export function PrimerosPasosFlotante() {
   const [abierto, setAbierto] = useState(false);
   const [vistas, setVistas] = useState<Set<string>>(new Set());
   const caja = useRef<HTMLDivElement>(null);
+
+  // Dónde está el botón: distancia en píxeles al borde derecho y al inferior de la pantalla.
+  const [pos, setPos] = useState(POSICION_INICIAL);
+  const arrastre = useRef<{ x0: number; y0: number; derecha0: number; abajo0: number; movido: boolean } | null>(null);
+  // Soltar el botón después de arrastrarlo genera un clic: este indicador evita que abra el panel.
+  const ignorarClic = useRef(false);
+
+  /** Mantiene el botón dentro de la pantalla, con un margen. */
+  function limitar(p: { derecha: number; abajo: number }) {
+    const r = caja.current?.getBoundingClientRect();
+    const ancho = r?.width ?? 56;
+    const alto = r?.height ?? 56;
+    return {
+      derecha: Math.min(Math.max(MARGEN, p.derecha), Math.max(MARGEN, window.innerWidth - ancho - MARGEN)),
+      abajo: Math.min(Math.max(MARGEN, p.abajo), Math.max(MARGEN, window.innerHeight - alto - MARGEN)),
+    };
+  }
+
+  function empezarArrastre(e: React.PointerEvent<HTMLElement>) {
+    if (e.button !== 0) return;
+    arrastre.current = { x0: e.clientX, y0: e.clientY, derecha0: pos.derecha, abajo0: pos.abajo, movido: false };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  }
+
+  function moverArrastre(e: React.PointerEvent<HTMLElement>) {
+    const a = arrastre.current;
+    if (!a) return;
+    const dx = e.clientX - a.x0;
+    const dy = e.clientY - a.y0;
+    // Un temblor del dedo o del mouse no cuenta como arrastre: sigue siendo un clic.
+    if (!a.movido && Math.hypot(dx, dy) < UMBRAL_ARRASTRE) return;
+    a.movido = true;
+    setPos(limitar({ derecha: a.derecha0 - dx, abajo: a.abajo0 - dy }));
+  }
+
+  function terminarArrastre() {
+    const a = arrastre.current;
+    arrastre.current = null;
+    if (!a?.movido) return;
+    ignorarClic.current = true;
+    setTimeout(() => (ignorarClic.current = false), 0);
+    try {
+      localStorage.setItem(CLAVE_POSICION, JSON.stringify(pos));
+    } catch {
+      // Sin almacenamiento, vuelve a su lugar al recargar: no es grave.
+    }
+  }
+
+  const agarre = {
+    onPointerDown: empezarArrastre,
+    onPointerMove: moverArrastre,
+    onPointerUp: terminarArrastre,
+    onPointerCancel: terminarArrastre,
+  };
+
+  // Recuerda dónde lo dejaste, y lo vuelve a meter en pantalla si la ventana se achica.
+  useEffect(() => {
+    try {
+      const guardada = localStorage.getItem(CLAVE_POSICION);
+      if (guardada) {
+        const p = JSON.parse(guardada) as { derecha: number; abajo: number };
+        if (Number.isFinite(p.derecha) && Number.isFinite(p.abajo)) {
+          // eslint-disable-next-line react-hooks/set-state-in-effect
+          setPos(limitar(p));
+        }
+      }
+    } catch {
+      // Sin almacenamiento, queda en su lugar de siempre.
+    }
+    const alCambiarTamano = () => setPos((p) => limitar(p));
+    window.addEventListener("resize", alCambiarTamano);
+    return () => window.removeEventListener("resize", alCambiarTamano);
+  }, [cargado]);
 
   // El avance se vuelve a leer al cambiar de pantalla: hacer un paso lo marca.
   useEffect(() => {
@@ -104,15 +184,22 @@ export function PrimerosPasosFlotante() {
   // «?» de cada pantalla. El recorrido del menú se repite desde Ayuda.
   if (!datos && !recorridoDePantalla) return null;
 
+  // El panel se abre hacia donde hay lugar: arriba del botón si está en la mitad de abajo de la
+  // pantalla (y al revés), y hacia el lado que tenga espacio.
+  const panelArriba = typeof window === "undefined" || pos.abajo + 28 < window.innerHeight / 2;
+  const panelHaciaDerecha = typeof window !== "undefined" && pos.derecha + 28 > window.innerWidth / 2;
+
   return (
-    <div
-      ref={caja}
-      className="fixed right-5 bottom-5 z-40 flex flex-col items-end gap-3"
-    >
+    <div ref={caja} style={{ right: pos.derecha, bottom: pos.abajo }} className="fixed z-40">
+      <div className="relative flex items-center gap-3">
       {datos && abierto && (
         <section
           aria-label="Ayuda del panel"
-          className="w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl border border-border bg-card p-4 shadow-xl"
+          className={cn(
+            "absolute w-[min(22rem,calc(100vw-2.5rem))] rounded-2xl border border-border bg-card p-4 shadow-xl",
+            panelArriba ? "bottom-full mb-3" : "top-full mt-3",
+            panelHaciaDerecha ? "left-0" : "right-0"
+          )}
         >
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-start gap-2.5">
@@ -250,15 +337,18 @@ export function PrimerosPasosFlotante() {
         </section>
       )}
 
-      <div className="flex items-center gap-3">
         {recorridoDePantalla && (
           <button
             type="button"
             data-tour="ayuda-pantalla"
-            onClick={explicarPantalla}
+            {...agarre}
+            onClick={() => {
+              if (ignorarClic.current) return;
+              explicarPantalla();
+            }}
             aria-label={`Explicar esta pantalla: ${recorridoDePantalla.titulo}`}
-            title="Explicar esta pantalla"
-            className="relative flex size-11 items-center justify-center rounded-full border border-border bg-card text-[1.15rem] font-semibold text-primary shadow-lg ring-4 ring-background transition-transform hover:scale-105"
+            title="Explicar esta pantalla (puedes arrastrarlo)"
+            className="relative flex size-11 cursor-grab touch-none items-center justify-center rounded-full border border-border bg-card text-[1.15rem] font-semibold text-primary shadow-lg ring-4 ring-background transition-transform select-none hover:scale-105 active:cursor-grabbing"
           >
             ?
             {nuevaAqui && (
@@ -274,14 +364,19 @@ export function PrimerosPasosFlotante() {
         <button
           type="button"
           data-tour="primeros-pasos"
-          onClick={() => setAbierto((v) => !v)}
+          {...agarre}
+          onClick={() => {
+            if (ignorarClic.current) return;
+            setAbierto((v) => !v);
+          }}
+          title="Puedes arrastrarlo adonde quieras"
           aria-label={
             datos
               ? `Primeros pasos: ${hechos} de ${total} listos`
               : "Ayuda: conocer el menú"
           }
           aria-expanded={abierto}
-          className="relative flex size-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform hover:scale-105"
+          className="relative flex size-14 cursor-grab touch-none items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background transition-transform select-none hover:scale-105 active:cursor-grabbing"
         >
           {datos ? (
             <>
