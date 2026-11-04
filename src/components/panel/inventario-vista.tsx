@@ -7,13 +7,16 @@ import { ajustarStock, eliminarInsumo } from "@/app/panel/inventario/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CategoriasDialog } from "@/components/panel/categorias-dialog";
 import { InsumoDialog } from "@/components/panel/insumo-dialog";
 import {
-  CATEGORIAS_INSUMO,
   estaBajo,
   formatoCantidad,
+  opcionesDeCategoria,
+  PREFIJO_CATEGORIA_PROPIA,
   textoCategoriaInsumo,
   unidadCorta,
+  type CategoriaPropia,
   type Insumo,
 } from "@/lib/inventario-comun";
 import { cn } from "@/lib/utils";
@@ -164,7 +167,7 @@ function EliminarDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => 
  * arriba, pestañas, la tabla en una tarjeta y los formularios en modales. Cada material
  * dice cuánto hay y avisa cuando está por acabarse.
  */
-export function InventarioVista({ insumos }: { insumos: Insumo[] }) {
+export function InventarioVista({ insumos, categoriasPropias }: { insumos: Insumo[]; categoriasPropias: CategoriaPropia[] }) {
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<"todos" | "bajo">("todos");
   const [categoria, setCategoria] = useState("todas");
@@ -172,12 +175,24 @@ export function InventarioVista({ insumos }: { insumos: Insumo[] }) {
   const [editando, setEditando] = useState<Insumo | null>(null);
   const [ajustando, setAjustando] = useState<Insumo | null>(null);
   const [eliminando, setEliminando] = useState<Insumo | null>(null);
+  const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const cerrarForm = useCallback(() => {
     setCreando(false);
     setEditando(null);
   }, []);
   const cerrarAjuste = useCallback(() => setAjustando(null), []);
   const cerrarEliminar = useCallback(() => setEliminando(null), []);
+  const cerrarCategorias = useCallback(() => setGestionandoCategorias(false), []);
+
+  const categorias = opcionesDeCategoria(categoriasPropias);
+  // Cuántos materiales usa cada categoría propia, para avisar antes de borrarla.
+  const usos: Record<string, number> = {};
+  for (const i of insumos) {
+    if (i.categoria.startsWith(PREFIJO_CATEGORIA_PROPIA)) {
+      const id = i.categoria.slice(PREFIJO_CATEGORIA_PROPIA.length);
+      usos[id] = (usos[id] ?? 0) + 1;
+    }
+  }
 
   const bajos = insumos.filter(estaBajo);
   const valor = insumos.reduce((s, i) => s + i.stock * i.costo, 0);
@@ -229,7 +244,7 @@ export function InventarioVista({ insumos }: { insumos: Insumo[] }) {
               )}
             >
               <option value="todas">Todas las categorías</option>
-              {CATEGORIAS_INSUMO.map((c) => (
+              {categorias.map((c) => (
                 <option key={c.valor} value={c.valor}>
                   {c.texto}
                 </option>
@@ -237,6 +252,9 @@ export function InventarioVista({ insumos }: { insumos: Insumo[] }) {
             </select>
             <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
           </div>
+          <Button variant="outline" className={cn(alto, "rounded-xl px-4 text-[0.95rem]")} onClick={() => setGestionandoCategorias(true)}>
+            Categorías
+          </Button>
           <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
             + Nuevo material
           </Button>
@@ -308,7 +326,7 @@ export function InventarioVista({ insumos }: { insumos: Insumo[] }) {
                       <div className="font-medium">{i.nombre}</div>
                       {i.codigo && <div className="text-[0.8rem] text-muted-foreground">{i.codigo}</div>}
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoCategoriaInsumo(i.categoria)}</td>
+                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoCategoriaInsumo(i.categoria, categorias)}</td>
                     <td className="px-5 py-4 whitespace-nowrap">
                       <span className={cn("font-medium tabular-nums", bajo ? ROJO_TXT : VERDE_TXT)}>
                         {formatoCantidad(i.stock)} {unidadCorta(i.unidad)}
@@ -347,9 +365,10 @@ export function InventarioVista({ insumos }: { insumos: Insumo[] }) {
         </div>
       )}
 
-      {(creando || editando) && <InsumoDialog key={editando?.id ?? "nuevo"} insumo={editando} onCerrar={cerrarForm} />}
+      {(creando || editando) && <InsumoDialog key={editando?.id ?? "nuevo"} insumo={editando} categorias={categorias} onCerrar={cerrarForm} />}
       {ajustando && <AjusteDialog insumo={ajustando} onCerrar={cerrarAjuste} />}
       {eliminando && <EliminarDialog insumo={eliminando} onCerrar={cerrarEliminar} />}
+      {gestionandoCategorias && <CategoriasDialog propias={categoriasPropias} usos={usos} onCerrar={cerrarCategorias} />}
     </div>
   );
 }

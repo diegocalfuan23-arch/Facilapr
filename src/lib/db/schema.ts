@@ -626,6 +626,23 @@ export const insumos = pgTable(
 );
 
 /**
+ * Categorías de inventario que crea el propio comité, además de las predeterminadas
+ * (cloro, cañerías, medidores…). Un material guarda la suya como «p:<id>» en Insumo.categoria.
+ */
+export const categoriasInsumo = pgTable(
+  "CategoriaInsumo",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("CategoriaInsumo_aprId_nombre_key").on(table.aprId, table.nombre)]
+);
+
+/**
  * Pago automático del plan: la tarjeta del comité queda guardada en Flow y cada
  * período se le cobra el monto del día (la UF de ese día). Un comité, una fila.
  */

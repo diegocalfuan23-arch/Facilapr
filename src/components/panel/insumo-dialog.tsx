@@ -7,7 +7,7 @@ import { guardarInsumo, type ResultadoInventario } from "@/app/panel/inventario/
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { CATEGORIAS_INSUMO, UNIDADES_INSUMO, type Insumo } from "@/lib/inventario-comun";
+import { UNIDADES_INSUMO, type Insumo, type OpcionCategoria } from "@/lib/inventario-comun";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const selectClase =
@@ -15,7 +15,16 @@ const selectClase =
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
 
 /** Crear un material de bodega, o corregir uno que ya existe. */
-export function InsumoDialog({ insumo, onCerrar }: { insumo: Insumo | null; onCerrar: () => void }) {
+export function InsumoDialog({
+  insumo,
+  categorias,
+  onCerrar,
+}: {
+  insumo: Insumo | null;
+  /** Las predeterminadas y las que creó el comité. */
+  categorias: OpcionCategoria[];
+  onCerrar: () => void;
+}) {
   const [estado, enviar, pendiente] = useActionState<ResultadoInventario | null, FormData>(guardarInsumo, null);
   const editando = insumo !== null;
 
@@ -73,7 +82,7 @@ export function InsumoDialog({ insumo, onCerrar }: { insumo: Insumo | null; onCe
                 Categoría
               </label>
               <select id="ins-categoria" name="categoria" className={selectClase} defaultValue={insumo?.categoria ?? "OTROS"}>
-                {CATEGORIAS_INSUMO.map((c) => (
+                {categorias.map((c) => (
                   <option key={c.valor} value={c.valor}>
                     {c.texto}
                   </option>

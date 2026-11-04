@@ -34,7 +34,27 @@ export type Insumo = {
   costo: number;
 };
 
-export const textoCategoriaInsumo = (c: string) => CATEGORIAS_INSUMO.find((x) => x.valor === c)?.texto ?? "Otros";
+/** Una categoría creada por el comité. */
+export type CategoriaPropia = { id: string; nombre: string };
+
+/** Una opción para elegir en el formulario y el filtro: las predeterminadas y las propias. */
+export type OpcionCategoria = { valor: string; texto: string; propia: boolean };
+
+/** Así se guarda en el material la categoría que creó el comité: «p:<id>». */
+export const PREFIJO_CATEGORIA_PROPIA = "p:";
+
+/** Las categorías predeterminadas seguidas de las del comité, ordenadas por nombre. */
+export function opcionesDeCategoria(propias: CategoriaPropia[]): OpcionCategoria[] {
+  return [
+    ...CATEGORIAS_INSUMO.map((c) => ({ valor: c.valor as string, texto: c.texto as string, propia: false })),
+    ...[...propias]
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+      .map((c) => ({ valor: `${PREFIJO_CATEGORIA_PROPIA}${c.id}`, texto: c.nombre, propia: true })),
+  ];
+}
+
+export const textoCategoriaInsumo = (c: string, opciones: OpcionCategoria[]) =>
+  opciones.find((x) => x.valor === c)?.texto ?? "Otros";
 export const unidadCorta = (u: string) => UNIDADES_INSUMO.find((x) => x.valor === u)?.corta ?? "un.";
 
 /** Una cantidad con hasta dos decimales y sin ceros de sobra: 1,5 · 12 · 0,25. */

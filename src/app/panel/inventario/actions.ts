@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { insumos } from "@/lib/db/schema";
+import { categoriasInsumo, insumos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { CATEGORIAS_INSUMO, UNIDADES_INSUMO } from "@/lib/inventario-comun";
+import { CATEGORIAS_INSUMO, PREFIJO_CATEGORIA_PROPIA, UNIDADES_INSUMO } from "@/lib/inventario-comun";
 
 export type ResultadoInventario = { ok: true } | { ok: false; error: string };
 
@@ -22,7 +22,7 @@ function aCantidad(v: FormDataEntryValue | null) {
 const insumoSchema = z.object({
   nombre: z.string().trim().min(1, "Escribe el nombre del material.").max(120),
   codigo: z.string().trim().max(60).nullable(),
-  categoria: z.enum(CATEGORIAS_INSUMO.map((c) => c.valor) as [string, ...string[]], { message: "Elige una categoría." }),
+  categoria: z.string().min(1, "Elige una categoría.").max(60),
   unidad: z.enum(UNIDADES_INSUMO.map((u) => u.valor) as [string, ...string[]], { message: "Elige una unidad." }),
   stock: z.number({ message: "El stock no es un número." }).min(0, "El stock no puede ser negativo.").max(1_000_000_000),
   stockMinimo: z.number({ message: "El aviso no es un número." }).min(0, "El aviso no puede ser negativo.").max(1_000_000_000),
@@ -47,6 +47,22 @@ export async function guardarInsumo(
     costo: Number(String(formData.get("costo") ?? "").replace(/\D/g, "")) || 0,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  // La categoría es una de las predeterminadas o una propia de ESTE comité.
+  if (!CATEGORIAS_INSUMO.some((c) => c.valor === parsed.data.categoria)) {
+    const idCategoria = parsed.data.categoria.startsWith(PREFIJO_CATEGORIA_PROPIA)
+      ? parsed.data.categoria.slice(PREFIJO_CATEGORIA_PROPIA.length)
+      : "";
+    const [existe] = idCategoria
+      ? await db
+          .select({ id: categoriasInsumo.id })
+          .from(categoriasInsumo)
+          .where(and(eq(categoriasInsumo.id, idCategoria), eq(categoriasInsumo.aprId, apr.id)))
+          .limit(1)
+          .catch(() => [])
+      : [];
+    if (!existe) return { ok: false, error: "Esa categoría ya no existe. Elige otra." };
+  }
 
   const id = String(formData.get("id") ?? "");
   try {
@@ -106,6 +122,64 @@ export async function eliminarInsumo(id: string): Promise<ResultadoInventario> {
     .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id)))
     .returning({ id: insumos.id });
   if (borrados.length === 0) return { ok: false, error: "No encontramos ese material." };
+
+  revalidatePath("/panel/inventario");
+  return { ok: true };
+}
+
+/** Crea una categoría propia del comité. No puede repetir el nombre de otra ni de una predeterminada. */
+export async function crearCategoria(nombreCrudo: string): Promise<ResultadoInventario> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
+
+  const nombre = String(nombreCrudo ?? "").trim().replace(/\s+/g, " ");
+  if (nombre.length < 2) return { ok: false, error: "Escribe el nombre de la categoría." };
+  if (nombre.length > 40) return { ok: false, error: "El nombre es muy largo (máximo 40 letras)." };
+
+  const igual = (a: string, b: string) => a.localeCompare(b, "es", { sensitivity: "base" }) === 0;
+  if (CATEGORIAS_INSUMO.some((c) => igual(c.texto, nombre))) {
+    return { ok: false, error: "Ya existe una categoría con ese nombre." };
+  }
+
+  try {
+    const propias = await db
+      .select({ nombre: categoriasInsumo.nombre })
+      .from(categoriasInsumo)
+      .where(eq(categoriasInsumo.aprId, apr.id));
+    if (propias.some((c) => igual(c.nombre, nombre))) return { ok: false, error: "Ya existe una categoría con ese nombre." };
+    if (propias.length >= 40) return { ok: false, error: "Llegaste al máximo de 40 categorías propias." };
+
+    await db.insert(categoriasInsumo).values({ aprId: apr.id, nombre });
+  } catch (e) {
+    console.error("Inventario: no se pudo crear la categoría:", e);
+    return { ok: false, error: "No pudimos crear la categoría. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/inventario");
+  return { ok: true };
+}
+
+/** Borra una categoría propia. Los materiales que la usaban pasan a «Otros»: no se pierde ninguno. */
+export async function eliminarCategoria(id: string): Promise<ResultadoInventario> {
+  const { apr } = await requireAdmin();
+
+  try {
+    await db.transaction(async (tx) => {
+      const [borrada] = await tx
+        .delete(categoriasInsumo)
+        .where(and(eq(categoriasInsumo.id, id), eq(categoriasInsumo.aprId, apr.id)))
+        .returning({ id: categoriasInsumo.id });
+      if (!borrada) throw new Error("NO_EXISTE");
+      await tx
+        .update(insumos)
+        .set({ categoria: "OTROS", updatedAt: new Date() })
+        .where(and(eq(insumos.aprId, apr.id), eq(insumos.categoria, `${PREFIJO_CATEGORIA_PROPIA}${id}`)));
+    });
+  } catch (e) {
+    if (e instanceof Error && e.message === "NO_EXISTE") return { ok: false, error: "No encontramos esa categoría." };
+    console.error("Inventario: no se pudo borrar la categoría:", e);
+    return { ok: false, error: "No pudimos borrar la categoría. Inténtalo de nuevo en un momento." };
+  }
 
   revalidatePath("/panel/inventario");
   return { ok: true };
