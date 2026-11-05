@@ -176,3 +176,29 @@ export async function eliminarIncidente(id: string): Promise<ResultadoIncidentes
     return { ok: false, error: "No pudimos borrar el incidente. Inténtalo de nuevo en un momento." };
   }
 }
+
+/** Mueve un incidente a otro estado (desde el tablero). Al resolverlo anota la fecha de hoy; al reabrirlo, la quita. */
+export async function cambiarEstadoIncidente(id: string, estado: "ABIERTO" | "EN_REPARACION" | "RESUELTO"): Promise<ResultadoIncidentes> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "incidentes")) return { ok: false, error: SIN_PLAN };
+  if (!["ABIERTO", "EN_REPARACION", "RESUELTO"].includes(estado)) return { ok: false, error: "El estado no es válido." };
+
+  const [actual] = await db
+    .select({ estado: incidentes.estado, fechaResolucion: incidentes.fechaResolucion })
+    .from(incidentes)
+    .where(and(eq(incidentes.id, id), eq(incidentes.aprId, apr.id)))
+    .limit(1);
+  if (!actual) return { ok: false, error: "No encontramos ese incidente." };
+
+  await db
+    .update(incidentes)
+    .set({
+      estado,
+      fechaResolucion: estado === "RESUELTO" ? (actual.fechaResolucion ?? hoyEnChile()) : null,
+      updatedAt: new Date(),
+    })
+    .where(and(eq(incidentes.id, id), eq(incidentes.aprId, apr.id)));
+
+  refrescar();
+  return { ok: true };
+}
