@@ -4,10 +4,12 @@ import { revalidatePath } from "next/cache";
 import { and, eq, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { aprs, avisos } from "@/lib/db/schema";
+import { aprs, avisos, sitioTema } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, slugDisponible, type Plan } from "@/lib/planes";
 import { generarSitio, type SitioGenerado } from "@/lib/ia";
+import { colorUsable, MENSAJE_COLOR_CLARO } from "@/lib/sitio-tema-comun";
+import { mensajeError } from "@/lib/db-errores";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
 
@@ -95,6 +97,10 @@ export async function guardarSitio(
     return { ok: false, error: "Esa dirección ya está tomada por otro comité." };
   }
 
+  // El color del sitio: vacío es el de Facilapr. Se valida antes de guardar nada.
+  const color = String(formData.get("sitioColor") ?? "").trim().toLowerCase();
+  if (color && !colorUsable(color)) return { ok: false, error: MENSAJE_COLOR_CLARO };
+
   await db
     .update(aprs)
     .set({
@@ -114,6 +120,21 @@ export async function guardarSitio(
       updatedAt: new Date(),
     })
     .where(eq(aprs.id, apr.id));
+
+  try {
+    if (color) {
+      await db
+        .insert(sitioTema)
+        .values({ aprId: apr.id, color })
+        .onConflictDoUpdate({ target: sitioTema.aprId, set: { color, updatedAt: new Date() } });
+    } else {
+      await db.delete(sitioTema).where(eq(sitioTema.aprId, apr.id));
+    }
+  } catch (e) {
+    console.error("Sitio: no se pudo guardar el color:", e);
+    // Sin la tabla, el resto ya quedó guardado: solo se avisa del color.
+    if (color) return { ok: false, error: mensajeError(e, "Se guardó todo, menos el color. Inténtalo de nuevo.") };
+  }
 
   revalidatePath("/panel/sitio");
   revalidatePath(`/sitio/${datos.slug}`);

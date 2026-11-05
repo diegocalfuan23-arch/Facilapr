@@ -97,6 +97,7 @@ export function SitioApr({
   dominio,
   imagenes = SIN_IMAGENES,
   secciones = [],
+  color = null,
   vistaPrevia = false,
 }: {
   apr: DatosSitio;
@@ -106,6 +107,8 @@ export function SitioApr({
   imagenes?: ImagenesDelSitio;
   /** Las secciones que armó el comité (solo las visibles), en orden. */
   secciones?: SeccionSitio[];
+  /** Color de acento elegido por el comité (#rrggbb); sin él, el de Facilapr. */
+  color?: string | null;
   /** En la vista previa del panel: sin el asistente flotante y sin que los enlaces saquen de la pantalla. */
   vistaPrevia?: boolean;
 }) {
@@ -116,7 +119,10 @@ export function SitioApr({
   const corteActivo = avisos.find((a) => a.tipo === "CORTE");
 
   return (
-    <div className={vistaPrevia ? "bg-background" : "min-h-screen bg-background"}>
+    <div
+      className={`${vistaPrevia ? "bg-background" : "min-h-screen bg-background"}${color ? " tema-sitio" : ""}`}
+      style={color ? ({ "--tema": color } as React.CSSProperties) : undefined}
+    >
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-[1180px] items-center gap-3 px-7 py-4">
           {imagenes.logo ? (

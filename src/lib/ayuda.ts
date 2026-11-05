@@ -1271,6 +1271,11 @@ export const ARTICULOS: Articulo[] = [
         texto: "Completa la descripción, el horario de atención, las tarifas (cargo fijo y valor del m³) y cómo y dónde pagar. Si te cuesta redactar, pulsa «Redactar con IA», cuéntale tu comité en un par de frases y revisa lo que propone antes de guardar.",
       },
       {
+        titulo: "Elige el color",
+        texto: "En «Color del sitio» escoge uno de la paleta, o «Otro color» para uno propio. Cambia los botones, las etiquetas y los íconos de tu página, y la vista previa lo muestra al instante. Pulsa Guardar cambios para dejarlo.",
+        nota: "Si el color es muy claro, el sistema te avisa: los textos no se leerían bien sobre fondo blanco.",
+      },
+      {
         titulo: "Publícalo",
         texto: "Arriba a la derecha, pulsa Publicar sitio. Mientras esté sin publicar, solo tú lo ves. Con Despublicar lo escondes cuando quieras.",
       },

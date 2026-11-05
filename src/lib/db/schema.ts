@@ -272,6 +272,19 @@ export const sitioSecciones = pgTable(
   (table) => [index("SitioSeccion_aprId_orden_idx").on(table.aprId, table.orden)]
 );
 
+/**
+ * El color con que el comité personaliza su sitio público. Va en una tabla aparte (y no como columna de
+ * Apr) para que, si falta en la base, solo se pierda el color y no se rompa el resto del panel.
+ */
+export const sitioTema = pgTable("SitioTema", {
+  aprId: text("aprId")
+    .primaryKey()
+    .references(() => aprs.id, { onDelete: "cascade" }),
+  /** Color de acento, #rrggbb. */
+  color: text("color").notNull(),
+  updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+});
+
 export const socios = pgTable(
   "Socio",
   {

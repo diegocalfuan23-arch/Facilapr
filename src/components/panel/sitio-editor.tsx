@@ -11,6 +11,7 @@ import { SitioVistaPrevia } from "@/components/panel/sitio-vista-previa";
 import type { AvisoSitio, DatosSitio } from "@/components/sitio/sitio-apr";
 import type { ImagenesDelSitio } from "@/lib/sitio-imagenes-comun";
 import type { SeccionSitio } from "@/lib/sitio-secciones-comun";
+import { colorUsable, contrasteConBlanco, esColorHex, MENSAJE_COLOR_CLARO, PALETA_SITIO } from "@/lib/sitio-tema-comun";
 import { cn } from "@/lib/utils";
 
 export type DatosEditor = {
@@ -53,6 +54,7 @@ export function SitioEditor({
   avisos,
   imagenes,
   secciones,
+  color: colorGuardado,
   dominioRaiz,
   sugerenciaSlug,
 }: {
@@ -62,6 +64,8 @@ export function SitioEditor({
   avisos: AvisoSitio[];
   imagenes: ImagenesDelSitio;
   secciones: SeccionSitio[];
+  /** El color elegido y guardado (#rrggbb), o null si usa el de Facilapr. */
+  color: string | null;
   dominioRaiz: string;
   sugerenciaSlug: string;
 }) {
@@ -85,6 +89,8 @@ export function SitioEditor({
   );
   const [infoPago, setInfoPago] = useState(datos.infoPago ?? "");
 
+  const [color, setColor] = useState<string | null>(colorGuardado);
+  const colorClaro = color !== null && esColorHex(color) && !colorUsable(color);
   const [iaAbierta, setIaAbierta] = useState(false);
   const [textoIA, setTextoIA] = useState("");
   const [generandoIA, iniciarGenerarIA] = useTransition();
@@ -317,6 +323,56 @@ export function SitioEditor({
           </div>
 
           <div className="flex flex-col gap-4 border-t border-border/60 p-6">
+            <div>
+              <h2 className="text-[0.95rem] font-semibold">Color del sitio</h2>
+              <p className="mt-1 text-[0.8rem] text-muted-foreground">Cambia el color de los botones, las etiquetas y los íconos. Lo ves al lado, al instante.</p>
+            </div>
+            <input type="hidden" name="sitioColor" value={color ?? ""} />
+            <div className="flex flex-wrap items-center gap-2">
+              {PALETA_SITIO.map((p) => {
+                const elegido = (p.hex ?? null) === (color ?? null);
+                return (
+                  <button
+                    key={p.nombre}
+                    type="button"
+                    title={p.nombre}
+                    aria-label={`Color ${p.nombre}`}
+                    aria-pressed={elegido}
+                    onClick={() => setColor(p.hex)}
+                    className={cn(
+                      "flex size-9 items-center justify-center rounded-full border-2 transition-transform hover:scale-105",
+                      elegido ? "border-foreground" : "border-transparent"
+                    )}
+                    style={{ background: p.hex ?? "oklch(0.454 0.289 272)" }}
+                  >
+                    {elegido && <Check className="size-4 text-white" />}
+                  </button>
+                );
+              })}
+              <label
+                className={cn(
+                  "ml-2 inline-flex h-9 cursor-pointer items-center gap-2 rounded-full border px-3 text-[0.85rem] font-medium transition-colors hover:bg-muted",
+                  color && !PALETA_SITIO.some((p) => p.hex === color) ? "border-foreground" : "border-border"
+                )}
+              >
+                <input
+                  type="color"
+                  value={color && esColorHex(color) ? color : "#4f46e5"}
+                  onChange={(e) => setColor(e.target.value.toLowerCase())}
+                  className="size-5 cursor-pointer rounded border-0 bg-transparent p-0"
+                  aria-label="Elegir otro color"
+                />
+                Otro color
+              </label>
+            </div>
+            {colorClaro && (
+              <p className="text-[0.8rem] text-destructive" role="alert">
+                {MENSAJE_COLOR_CLARO} (contraste {contrasteConBlanco(color).toFixed(1)}, mínimo 3)
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-4 border-t border-border/60 p-6">
             <h2 className="text-[0.95rem] font-semibold">Tarifas y pago</h2>
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo id="tarifaCargoFijo" etiqueta="Cargo fijo">
@@ -392,6 +448,7 @@ export function SitioEditor({
           avisos={avisos}
           imagenes={imagenes}
           secciones={secciones}
+          color={color && colorUsable(color) ? color : null}
         />
       </div>
     </>

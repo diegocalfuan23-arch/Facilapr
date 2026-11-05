@@ -10,7 +10,7 @@ import type { SeccionSitio } from "@/lib/sitio-secciones-comun";
 const ANCHO_SITIO = 1180;
 
 /** El sitio público dibujado en chico, con lo que se va escribiendo. No es interactivo. */
-export function SitioVistaPrevia({ apr, avisos, imagenes, secciones }: { apr: DatosSitio; avisos: AvisoSitio[]; imagenes: ImagenesDelSitio; secciones: SeccionSitio[] }) {
+export function SitioVistaPrevia({ apr, avisos, imagenes, secciones, color }: { apr: DatosSitio; avisos: AvisoSitio[]; imagenes: ImagenesDelSitio; secciones: SeccionSitio[]; color: string | null }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const contenido = useRef<HTMLDivElement>(null);
   const [escala, setEscala] = useState(0.4);
@@ -45,7 +45,7 @@ export function SitioVistaPrevia({ apr, avisos, imagenes, secciones }: { apr: Da
             aria-hidden
             style={{ width: ANCHO_SITIO, transform: `scale(${escala})`, transformOrigin: "top left" }}
           >
-            <SitioApr apr={apr} avisos={avisos} imagenes={imagenes} secciones={secciones} vistaPrevia />
+            <SitioApr apr={apr} avisos={avisos} imagenes={imagenes} secciones={secciones} color={color} vistaPrevia />
           </div>
         </div>
       </div>

@@ -30,5 +30,5 @@ export default async function SitioPage({ params }: Props) {
   const datos = await cargarSitio({ slug });
   if (!datos) notFound();
 
-  return <SitioApr apr={datos.apr} avisos={datos.avisos} slug={slug} imagenes={datos.imagenes} secciones={datos.secciones} />;
+  return <SitioApr apr={datos.apr} avisos={datos.avisos} slug={slug} imagenes={datos.imagenes} secciones={datos.secciones} color={datos.color} />;
 }
