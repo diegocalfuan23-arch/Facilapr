@@ -369,7 +369,15 @@ export function LecturaForm({
                     setSaltados([]);
                     setUltimo(null);
                   }}
-                  className="absolute inset-0 w-full opacity-0"
+                  // En el computador, tocar el campo invisible no abre el calendario solo: se abre a mano.
+                  onClick={(e) => {
+                    try {
+                      e.currentTarget.showPicker();
+                    } catch {
+                      /* el navegador lo abre por su cuenta */
+                    }
+                  }}
+                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
                 />
               </div>
             </div>
