@@ -6,27 +6,15 @@ import { toast } from "sonner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { marcarAsistencia } from "@/app/panel/asistencia/actions";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  ESTADOS_ASISTENCIA_MANUAL,
-  TEXTO_ESTADO_ASISTENCIA,
-  type AsistenciaDia,
-  type EstadoAsistencia,
-} from "@/lib/rrhh-comun";
+import { hoyEnChile } from "@/lib/finanzas-comun";
+import { ESTADOS_ASISTENCIA_MANUAL, TEXTO_ESTADO_ASISTENCIA, type AsistenciaDia, type EstadoAsistencia } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
 
 const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
+const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
-const COLOR_ACTIVO: Record<EstadoAsistencia, string> = {
-  PRESENTE: "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
-  ATRASO: "border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300",
-  AUSENTE: "border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
-  PERMISO: "border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300",
-  VACACIONES: "border-border bg-muted text-muted-foreground",
-  LICENCIA: "border-border bg-muted text-muted-foreground",
-};
-
-const COLOR_CELDA: Record<EstadoAsistencia, string> = {
+/** Los colores de cada estado: el punto de la agenda y el botón activo del panel. */
+const PUNTO: Record<EstadoAsistencia, string> = {
   PRESENTE: "bg-emerald-500",
   ATRASO: "bg-amber-400",
   AUSENTE: "bg-red-500",
@@ -35,22 +23,34 @@ const COLOR_CELDA: Record<EstadoAsistencia, string> = {
   LICENCIA: "bg-slate-400",
 };
 
-const LEYENDA: { estado: EstadoAsistencia; color: string }[] = (["PRESENTE", "ATRASO", "AUSENTE", "PERMISO", "VACACIONES", "LICENCIA"] as EstadoAsistencia[]).map((estado) => ({
-  estado,
-  color: COLOR_CELDA[estado],
-}));
+const BOTON_ACTIVO: Record<EstadoAsistencia, string> = {
+  PRESENTE: "border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400",
+  ATRASO: "border-amber-500 bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300",
+  AUSENTE: "border-red-500 bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+  PERMISO: "border-sky-500 bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300",
+  VACACIONES: "border-border bg-muted text-muted-foreground",
+  LICENCIA: "border-border bg-muted text-muted-foreground",
+};
+
+const LEYENDA: EstadoAsistencia[] = ["PRESENTE", "ATRASO", "AUSENTE", "PERMISO", "VACACIONES", "LICENCIA"];
 
 const primeraMayuscula = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
-const LETRAS = ["D", "L", "M", "M", "J", "V", "S"];
+const primerNombre = (n: string) => n.trim().split(/\s+/)[0] ?? n;
+
+/** El primer día (AAAA-MM-01) del mes a `delta` meses de `mes` (AAAA-MM). */
+function mesVecino(mes: string, delta: number) {
+  const [a, m] = mes.split("-").map(Number);
+  const d = new Date(Date.UTC(a, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
 
 /**
- * La asistencia de un día: cada persona activa con sus botones Presente / Atraso / Ausente / Permiso.
- * Quien está de vacaciones o con licencia aprobada aparece solo con ese estado. Abajo, el resumen del mes.
+ * La asistencia como agenda: el calendario del mes, con quién faltó, estuvo de vacaciones o con licencia
+ * en cada día, y a un lado el día elegido para marcar a cada persona. Las vacaciones y licencias
+ * aprobadas se pintan solas.
  */
 export function AsistenciaVista({
   dia,
-  anterior,
-  siguiente,
   filas,
   grilla,
   mes,
@@ -67,36 +67,52 @@ export function AsistenciaVista({
 }) {
   const router = useRouter();
   const [, iniciar] = useTransition();
-  // Las marcas se muestran al instante y se confirman con el servidor; si falla, se vuelve atrás.
+  // Las marcas se ven al instante y se confirman con el servidor; si falla, se vuelve atrás.
   const [marcas, setMarcas] = useState<Record<string, EstadoAsistencia | null>>({});
+  const hoy = hoyEnChile();
 
-    const conId = filas.map((f) => ({ ...f, id: f.trabajadorId }));
+  const estadoDelDia = (f: AsistenciaDia) => (f.trabajadorId in marcas ? marcas[f.trabajadorId] : f.estado);
+  const ir = (d: string) => router.push(`/panel/asistencia?dia=${d}`);
 
-  function marcar(f: { trabajadorId: string; id: string; estado: EstadoAsistencia | null }, nuevo: EstadoAsistencia) {
-    const actual = f.id in marcas ? marcas[f.id] : f.estado;
+  function marcar(f: AsistenciaDia, nuevo: EstadoAsistencia) {
+    const actual = estadoDelDia(f);
     const destino = actual === nuevo ? null : nuevo; // tocar de nuevo el mismo estado quita la marca
-    setMarcas((m) => ({ ...m, [f.id]: destino }));
+    setMarcas((m) => ({ ...m, [f.trabajadorId]: destino }));
     iniciar(async () => {
       const r = await marcarAsistencia(f.trabajadorId, dia, destino);
       if (!r.ok) {
         toast.error(r.error);
-        setMarcas((m) => ({ ...m, [f.id]: actual }));
+        setMarcas((m) => ({ ...m, [f.trabajadorId]: actual }));
       }
     });
   }
 
-  const cuenta = (e: EstadoAsistencia) => conId.filter((f) => (f.id in marcas ? marcas[f.id] : f.estado) === e).length;
-  const sinMarcar = conId.filter((f) => (f.id in marcas ? marcas[f.id] : f.estado) === null).length;
+  const cuenta = (e: EstadoAsistencia) => filas.filter((f) => estadoDelDia(f) === e).length;
+  const sinMarcar = filas.filter((f) => estadoDelDia(f) === null).length;
+
+  // El calendario: semanas de lunes a domingo; los huecos antes y después del mes quedan en gris.
+  const [am, mm] = mes.split("-").map(Number);
+  const primero = new Date(Date.UTC(am, mm - 1, 1));
+  const desfase = (primero.getUTCDay() + 6) % 7; // lunes = 0
+  const totalDias = new Date(Date.UTC(am, mm, 0)).getUTCDate();
+  const celdas: ({ numero: number; dia: string } | null)[] = [
+    ...Array.from({ length: desfase }, () => null),
+    ...Array.from({ length: totalDias }, (_, i) => ({ numero: i + 1, dia: `${mes}-${String(i + 1).padStart(2, "0")}` })),
+  ];
+  while (celdas.length % 7 !== 0) celdas.push(null);
+
+  /** Lo que pasó ese día con cada persona (las marcas del panel pisan a las de la agenda en el día abierto). */
+  function delDia(d: string) {
+    const lista: { nombre: string; estado: EstadoAsistencia }[] = [];
+    for (const f of filas) {
+      const estado = d === dia ? estadoDelDia(f) : (grilla[f.trabajadorId]?.[d] ?? null);
+      if (estado) lista.push({ nombre: f.nombre, estado });
+    }
+    return lista;
+  }
+
   const [a, m, d] = dia.split("-").map(Number);
   const textoDia = primeraMayuscula(new Intl.DateTimeFormat("es-CL", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(a, m - 1, d))));
-
-  const [am, mm] = mes.split("-").map(Number);
-  const totalDias = new Date(Date.UTC(am, mm, 0)).getUTCDate();
-  const diasDelMes = Array.from({ length: totalDias }, (_, i) => {
-    const numero = i + 1;
-    const semana = new Date(Date.UTC(am, mm - 1, numero)).getUTCDay();
-    return { numero, dia: `${mes}-${String(numero).padStart(2, "0")}`, letra: LETRAS[semana], finDeSemana: semana === 0 || semana === 6 };
-  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -119,120 +135,140 @@ export function AsistenciaVista({
         </div>
       </section>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Button variant="outline" size="icon" aria-label="Día anterior" className="size-10 rounded-full" onClick={() => router.push(`/panel/asistencia?dia=${anterior}`)}>
-          <ChevronLeft />
-        </Button>
-        <Input type="date" value={dia} onChange={(e) => e.target.value && router.push(`/panel/asistencia?dia=${e.target.value}`)} className="h-10 w-44 rounded-full px-4 text-[0.95rem]" aria-label="Día" />
-        <Button variant="outline" size="icon" aria-label="Día siguiente" className="size-10 rounded-full" onClick={() => router.push(`/panel/asistencia?dia=${siguiente}`)}>
-          <ChevronRight />
-        </Button>
-        <span className="ml-2 text-[0.95rem] font-medium">{textoDia}</span>
-      </div>
-
-      {conId.length === 0 ? (
+      {filas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-20 text-center">
           <p className="text-[1.05rem] font-medium">Sin personas activas</p>
           <p className="mx-auto mt-2 max-w-xl px-4 text-[0.95rem] text-muted-foreground">Agrega a las personas en Personal para llevar su asistencia.</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-border">
-          {conId.map((f) => {
-            const estado = f.id in marcas ? marcas[f.id] : f.estado;
-            return (
-              <div key={f.id} className="flex flex-col gap-3 border-b border-border px-5 py-4 last:border-0 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <div className="font-medium">{f.nombre}</div>
-                  <div className="text-[0.8rem] text-muted-foreground">{f.cargo}</div>
-                </div>
-                {f.automatico && estado ? (
-                  <span className={cn("w-fit rounded-full border px-4 py-1.5 text-[0.85rem] font-medium", COLOR_ACTIVO[estado])}>
-                    {TEXTO_ESTADO_ASISTENCIA[estado]} (aprobada)
-                  </span>
-                ) : (
-                  <div className="flex flex-wrap gap-2" role="group" aria-label={`Asistencia de ${f.nombre}`}>
-                    {ESTADOS_ASISTENCIA_MANUAL.map((e) => (
-                      <button
-                        key={e}
-                        type="button"
-                        aria-pressed={estado === e}
-                        onClick={() => marcar(f, e)}
-                        className={cn(
-                          "rounded-full border px-4 py-1.5 text-[0.85rem] font-medium transition-colors",
-                          estado === e ? COLOR_ACTIVO[e] : "border-border text-muted-foreground hover:text-foreground"
-                        )}
-                      >
-                        {TEXTO_ESTADO_ASISTENCIA[e]}
-                      </button>
-                    ))}
-                  </div>
-                )}
+        <div className="grid items-start gap-6 lg:grid-cols-3">
+          {/* La agenda del mes */}
+          <section aria-label="Agenda del mes" className="overflow-hidden rounded-xl border border-border bg-card lg:col-span-2">
+            <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-3">
+              <h2 className="text-[1.05rem] font-semibold">{primeraMayuscula(mesTexto)}</h2>
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" className="h-9 rounded-full px-4 text-[0.85rem]" onClick={() => ir(hoy)}>
+                  Hoy
+                </Button>
+                <Button variant="outline" size="icon" aria-label="Mes anterior" className="size-9 rounded-full" onClick={() => ir(mesVecino(mes, -1))}>
+                  <ChevronLeft />
+                </Button>
+                <Button variant="outline" size="icon" aria-label="Mes siguiente" className="size-9 rounded-full" onClick={() => ir(mesVecino(mes, 1))}>
+                  <ChevronRight />
+                </Button>
               </div>
-            );
-          })}
-        </div>
-      )}
+            </header>
 
-      {conId.length > 0 && (
-        <section aria-label="Planilla del mes">
-          <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="text-[0.95rem] font-semibold">{primeraMayuscula(mesTexto)}</h2>
-            <div className="flex flex-wrap gap-x-4 gap-y-1 text-[0.75rem] text-muted-foreground">
-              {LEYENDA.map((l) => (
-                <span key={l.estado} className="flex items-center gap-1.5">
-                  <span className={cn("size-3 rounded-[4px]", l.color)} />
-                  {TEXTO_ESTADO_ASISTENCIA[l.estado]}
-                </span>
+            <div className="grid grid-cols-7 border-b border-border text-center text-[0.75rem] font-medium text-muted-foreground">
+              {DIAS_SEMANA.map((x, i) => (
+                <div key={x} className={cn("py-2", i >= 5 && "text-muted-foreground/60")}>
+                  {x}
+                </div>
               ))}
             </div>
-          </div>
-          <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
-            <table className="border-collapse text-[0.8rem]">
-              <thead>
-                <tr className="border-b border-border bg-card">
-                  <th className="sticky left-0 z-10 min-w-40 bg-card px-4 py-2 text-left font-medium text-muted-foreground">Persona</th>
-                  {diasDelMes.map((x) => (
-                    <th key={x.dia} className={cn("w-8 min-w-8 px-0.5 py-2 text-center font-medium", x.finDeSemana ? "text-muted-foreground/60" : "text-muted-foreground", x.dia === dia && "text-primary")}>
-                      <div className="text-[0.65rem] leading-none">{x.letra}</div>
-                      <div className="mt-0.5 tabular-nums">{x.numero}</div>
-                    </th>
-                  ))}
-                  <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-muted-foreground">Asistió</th>
-                  <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-muted-foreground">Faltó</th>
-                </tr>
-              </thead>
-              <tbody>
-                {conId.map((f) => {
-                  const dias = grilla[f.trabajadorId] ?? {};
-                  const asistio = Object.values(dias).filter((e) => e === "PRESENTE" || e === "ATRASO").length;
-                  const falto = Object.values(dias).filter((e) => e === "AUSENTE").length;
-                  return (
-                    <tr key={f.id} className="border-b border-border last:border-0">
-                      <td className="sticky left-0 z-10 bg-card px-4 py-2 font-medium whitespace-nowrap">{f.nombre}</td>
-                      {diasDelMes.map((x) => {
-                        const e = dias[x.dia];
-                        return (
-                          <td key={x.dia} className={cn("p-0.5 text-center", x.finDeSemana && "bg-muted/40", x.dia === dia && "bg-primary/5")}>
-                            <button
-                              type="button"
-                              onClick={() => router.push(`/panel/asistencia?dia=${x.dia}`)}
-                              title={`${f.nombre} · ${x.numero}: ${e ? TEXTO_ESTADO_ASISTENCIA[e] : "sin marca"}`}
-                              aria-label={`${f.nombre}, día ${x.numero}: ${e ? TEXTO_ESTADO_ASISTENCIA[e] : "sin marca"}`}
-                              className={cn("block size-7 rounded-md transition-opacity hover:opacity-70", e ? COLOR_CELDA[e] : "border border-dashed border-border/70")}
-                            />
-                          </td>
-                        );
-                      })}
-                      <td className="px-3 py-2 text-right font-medium text-emerald-700 tabular-nums dark:text-emerald-400">{asistio}</td>
-                      <td className={cn("px-3 py-2 text-right tabular-nums", falto > 0 ? "font-medium text-red-600 dark:text-red-400" : "text-muted-foreground")}>{falto}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-2 text-[0.75rem] text-muted-foreground">Toca un día para marcarlo. Las vacaciones y licencias aprobadas aparecen solas.</p>
-        </section>
+
+            <div className="grid grid-cols-7">
+              {celdas.map((c, i) => {
+                if (!c) return <div key={`v${i}`} className="min-h-16 border-r border-b border-border/60 bg-muted/30 sm:min-h-24" />;
+                const lista = delDia(c.dia);
+                const finDeSemana = i % 7 >= 5;
+                const abierto = c.dia === dia;
+                const esHoy = c.dia === hoy;
+                return (
+                  <button
+                    key={c.dia}
+                    type="button"
+                    onClick={() => ir(c.dia)}
+                    aria-label={`${c.numero} de ${mesTexto.split(" ")[0]}${lista.length ? ": " + lista.map((x) => `${x.nombre} ${TEXTO_ESTADO_ASISTENCIA[x.estado].toLowerCase()}`).join(", ") : ""}`}
+                    aria-current={abierto ? "date" : undefined}
+                    className={cn(
+                      "flex min-h-16 flex-col items-start gap-1 border-r border-b border-border/60 p-1.5 text-left transition-colors hover:bg-muted/50 sm:min-h-24 sm:p-2",
+                      finDeSemana && "bg-muted/30",
+                      abierto && "bg-primary/10 ring-2 ring-primary ring-inset"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "flex size-6 items-center justify-center rounded-full text-[0.8rem] tabular-nums",
+                        esHoy ? "bg-primary font-semibold text-primary-foreground" : finDeSemana ? "text-muted-foreground" : "font-medium"
+                      )}
+                    >
+                      {c.numero}
+                    </span>
+
+                    {/* En pantallas chicas solo los puntos; en grandes, el nombre de cada uno. */}
+                    <div className="flex flex-wrap gap-1 sm:hidden">
+                      {lista.slice(0, 4).map((x) => (
+                        <span key={x.nombre} className={cn("size-2 rounded-full", PUNTO[x.estado])} />
+                      ))}
+                    </div>
+                    <div className="hidden w-full flex-col gap-0.5 sm:flex">
+                      {lista.slice(0, 3).map((x) => (
+                        <span key={x.nombre} className="flex items-center gap-1.5 text-[0.7rem] leading-tight">
+                          <span className={cn("size-2 shrink-0 rounded-full", PUNTO[x.estado])} />
+                          <span className="truncate">{primerNombre(x.nombre)}</span>
+                        </span>
+                      ))}
+                      {lista.length > 3 && <span className="text-[0.7rem] text-muted-foreground">+{lista.length - 3} más</span>}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <footer className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-3 text-[0.75rem] text-muted-foreground">
+              {LEYENDA.map((e) => (
+                <span key={e} className="flex items-center gap-1.5">
+                  <span className={cn("size-2.5 rounded-full", PUNTO[e])} />
+                  {TEXTO_ESTADO_ASISTENCIA[e]}
+                </span>
+              ))}
+            </footer>
+          </section>
+
+          {/* El día elegido: marcar a cada persona */}
+          <section aria-label="Día elegido" className="rounded-xl border border-border bg-card">
+            <header className="border-b border-border px-4 py-3">
+              <p className="text-[0.75rem] text-muted-foreground">Día elegido</p>
+              <h2 className="text-[1.05rem] font-semibold">{textoDia}</h2>
+            </header>
+            <div className="flex flex-col">
+              {filas.map((f) => {
+                const estado = estadoDelDia(f);
+                return (
+                  <div key={f.trabajadorId} className="flex flex-col gap-2.5 border-b border-border px-4 py-3.5 last:border-0">
+                    <div>
+                      <div className="text-[0.95rem] font-medium">{f.nombre}</div>
+                      <div className="text-[0.75rem] text-muted-foreground">{f.cargo}</div>
+                    </div>
+                    {f.automatico && estado ? (
+                      <span className={cn("w-fit rounded-full border px-3.5 py-1 text-[0.8rem] font-medium", BOTON_ACTIVO[estado])}>
+                        {TEXTO_ESTADO_ASISTENCIA[estado]} (aprobada)
+                      </span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`Asistencia de ${f.nombre}`}>
+                        {ESTADOS_ASISTENCIA_MANUAL.map((e) => (
+                          <button
+                            key={e}
+                            type="button"
+                            aria-pressed={estado === e}
+                            onClick={() => marcar(f, e)}
+                            className={cn(
+                              "rounded-full border px-3.5 py-1 text-[0.8rem] font-medium transition-colors",
+                              estado === e ? BOTON_ACTIVO[e] : "border-border text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {TEXTO_ESTADO_ASISTENCIA[e]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
