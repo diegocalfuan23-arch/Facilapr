@@ -81,7 +81,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
     });
 
   // La fecha del pago lleva hora: se pasa al día de Chile para que un pago de las 23:30 no caiga en otro mes.
-  const diaChile = sql<string>`to_char(${pagos.fecha} AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
   const deSocios = await db
     .select({
       id: pagos.id,
@@ -206,7 +206,7 @@ async function netoEntre(aprId: string, desde: string, hasta: string) {
     .from(movimientos)
     .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${desde}`, sql`${movimientos.fecha} < ${hasta}`));
 
-  const diaChile = sql<string>`to_char(${pagos.fecha} AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
   const [deSocios] = await db
     .select({ total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
     .from(pagos)

@@ -51,8 +51,8 @@ export async function resumenAnual(aprId: string, anio: number): Promise<Resumen
       return [];
     });
 
-  const diaChile = sql<string>`to_char(${pagos.fecha} AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
-  const mesChile = sql<string>`to_char(${pagos.fecha} AT TIME ZONE 'America/Santiago', 'YYYY-MM')`;
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const mesChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM')`;
   const deSocios = await db
     .select({ mes: mesChile, concepto: pagos.concepto, total: sql<number>`sum(${pagos.monto})::int` })
     .from(pagos)
