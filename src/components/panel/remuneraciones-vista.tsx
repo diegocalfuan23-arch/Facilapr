@@ -3,7 +3,7 @@
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, FileText, Loader2 } from "lucide-react";
 import {
   deshacerPago,
   eliminarRemuneracion,
@@ -391,6 +391,62 @@ function PagarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: () 
  * Las remuneraciones de un mes: se arma la liquidación de cada persona (base, bonos, descuentos),
  * y al pagarla queda como egreso en la Caja.
  */
+/** El libro de remuneraciones del mes en una planilla con punto y coma, la que abre bien el Excel en español. */
+function descargarLibro(filas: RemuneracionFila[], periodo: string) {
+  const celda = (t: string | number | null) => `"${String(t ?? "").replace(/"/g, '""')}"`;
+  const encabezado = [
+    "persona",
+    "cargo",
+    "forma_de_pago",
+    "sueldo_base",
+    "dias_no_pagados",
+    "horas_no_pagadas",
+    "descuento_por_ausencias",
+    "horas_extras",
+    "monto_horas_extras",
+    "bonos",
+    "afp",
+    "salud",
+    "seguro_cesantia",
+    "retencion_honorarios",
+    "otros_descuentos",
+    "total_descuentos",
+    "liquido",
+    "estado",
+    "fecha_pago",
+    "medio_de_pago",
+  ];
+  const cuerpo = filas.map((f) => [
+    f.trabajador,
+    f.cargo,
+    f.contrato === "HONORARIO" ? "Honorarios" : "Sueldo",
+    f.sueldoBase,
+    f.diasDescontados,
+    f.horasDescontadas,
+    f.descAusencias,
+    f.horasExtra,
+    f.montoHorasExtra,
+    f.bonos,
+    f.descAfp,
+    f.descSalud,
+    f.descCesantia,
+    f.retencion,
+    f.otrosDescuentos,
+    f.descuentos,
+    f.liquido,
+    f.estado === "PAGADA" ? "Pagada" : "Por pagar",
+    f.fechaPago ?? "",
+    f.medio ?? "",
+  ]);
+  const csv = "\uFEFF" + [encabezado, ...cuerpo].map((fila) => fila.map(celda).join(";")).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `remuneraciones-${periodo}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function RemuneracionesVista({
   filas,
   periodo,
@@ -468,10 +524,18 @@ export function RemuneracionesVista({
             <ChevronRight />
           </Button>
         </div>
-        <Button className="h-10 rounded-full px-5 text-[0.95rem]" onClick={armar} disabled={ocupado}>
-          {ocupado && <Loader2 className="animate-spin" />}
-          {filas.length === 0 ? "Armar el mes" : "Agregar a quienes falten"}
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          {filas.length > 0 && (
+            <Button variant="outline" className="h-10 rounded-full px-4 text-[0.9rem]" onClick={() => descargarLibro(filas, periodo)} title="Planilla del mes para tu contador o la directiva">
+              <Download />
+              Libro del mes
+            </Button>
+          )}
+          <Button className="h-10 rounded-full px-5 text-[0.95rem]" onClick={armar} disabled={ocupado}>
+            {ocupado && <Loader2 className="animate-spin" />}
+            {filas.length === 0 ? "Armar el mes" : "Agregar a quienes falten"}
+          </Button>
+        </div>
       </div>
 
       {filas.length === 0 ? (
@@ -520,6 +584,18 @@ export function RemuneracionesVista({
                       </span>
                     </td>
                     <td className="px-3 py-3 text-right whitespace-nowrap">
+                      <span className="flex items-center justify-end gap-1">
+                      <a
+                        href={`/panel/remuneraciones/liquidacion/${f.id}`}
+                        target="_blank"
+                        rel="noopener"
+                        aria-label={`Liquidación de ${f.trabajador} en PDF`}
+                        title="Liquidación en PDF, para imprimir y firmar"
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                      >
+                        <FileText className="size-4" />
+                      </a>
                       {pagada ? (
                         <Button variant="ghost" className="h-9 px-3 text-[0.85rem] text-muted-foreground" disabled={ocupado} onClick={() => deshacer(f)}>
                           Deshacer pago
@@ -549,6 +625,7 @@ export function RemuneracionesVista({
                           </Button>
                         </span>
                       )}
+                      </span>
                     </td>
                   </tr>
                 );
