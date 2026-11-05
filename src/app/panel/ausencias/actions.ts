@@ -92,3 +92,20 @@ export async function eliminarAusencia(id: string): Promise<ResultadoAusencias> 
   refrescar();
   return { ok: true };
 }
+
+/** Cambia el estado de una solicitud (desde el tablero): aprobarla, rechazarla o dejarla de nuevo como solicitada. */
+export async function cambiarEstadoAusencia(id: string, estado: "SOLICITADA" | "APROBADA" | "RECHAZADA"): Promise<ResultadoAusencias> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible desde el plan Estándar." };
+  if (!["SOLICITADA", "APROBADA", "RECHAZADA"].includes(estado)) return { ok: false, error: "El estado no es válido." };
+
+  const [editada] = await db
+    .update(ausencias)
+    .set({ estado })
+    .where(and(eq(ausencias.id, id), eq(ausencias.aprId, apr.id)))
+    .returning({ id: ausencias.id });
+  if (!editada) return { ok: false, error: "No encontramos ese registro." };
+
+  refrescar();
+  return { ok: true };
+}
