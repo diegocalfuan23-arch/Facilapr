@@ -1336,7 +1336,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Programa su hora y que avance sola",
-        texto: "Ponle una «Hora de inicio» y, si quieres, cuándo «Termina». Cuando llega la hora de inicio, la labor pasa sola a En curso; y cuando llega la hora de término, pasa sola a Hecha y descuenta los materiales. Para posponerla, cámbiale la fecha u hora (no se puede devolver a Programada si su hora ya pasó).",
+        texto: "Ponle una «Hora de inicio» y, si quieres, cuánto dura (en horas, días, semanas, meses o años): el término se calcula solo y lo puedes ajustar. Cuando llega la hora de inicio, la labor pasa sola a En curso; y cuando llega la hora de término, pasa sola a Hecha y descuenta los materiales. Para posponerla, cámbiale la fecha u hora (no se puede devolver a Programada si su hora ya pasó).",
         nota: "El cambio se aplica cuando alguien abre Labores o Inventario, no justo a la hora. Si al terminar no alcanza el stock de un material, la labor queda En curso con el aviso «Ya debía terminar».",
       },
       {

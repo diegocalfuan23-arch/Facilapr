@@ -28,6 +28,50 @@ const ESTADOS: { valor: EstadoLabor; nombre: string; icono: LucideIcon; banda: s
 
 type Linea = { clave: number; insumoId: string; cantidad: string };
 
+type UnidadDuracion = "HORAS" | "DIAS" | "SEMANAS" | "MESES" | "ANIOS";
+const UNIDADES: { valor: UnidadDuracion; texto: string }[] = [
+  { valor: "HORAS", texto: "horas" },
+  { valor: "DIAS", texto: "días" },
+  { valor: "SEMANAS", texto: "semanas" },
+  { valor: "MESES", texto: "meses" },
+  { valor: "ANIOS", texto: "años" },
+];
+
+const dos = (n: number) => String(n).padStart(2, "0");
+
+/** Una fecha AAAA-MM-DD más (o menos) unos días. */
+function sumarDias(iso: string, n: number) {
+  const [a, m, d] = iso.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, d + n)).toISOString().slice(0, 10);
+}
+
+/** Una fecha más unos meses; si el mes de llegada no tiene ese día, cae en su último día (31 de enero + 1 mes = 28 o 29 de febrero). */
+function sumarMeses(iso: string, n: number) {
+  const [a, m, d] = iso.split("-").map(Number);
+  const destino = new Date(Date.UTC(a, m - 1 + n, 1));
+  const ultimo = new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth() + 1, 0)).getUTCDate();
+  return new Date(Date.UTC(destino.getUTCFullYear(), destino.getUTCMonth(), Math.min(d, ultimo))).toISOString().slice(0, 10);
+}
+
+/**
+ * Cuándo termina una labor que parte en `fecha` (y `hora`) y dura `n` de una unidad. Con hora de inicio, termina
+ * exactamente esa duración después. Sin hora de inicio, el último día cuenta entero: una labor de 2 días que parte el
+ * 5 termina el 6. Devuelve null si falta algún dato (por ejemplo, la hora para contar horas).
+ */
+function calcularFin(fecha: string, hora: string, n: number, unidad: UnidadDuracion): { fecha: string; hora: string } | null {
+  if (!fecha || !(n > 0)) return null;
+  if (unidad === "HORAS") {
+    if (!hora) return null;
+    const [h, mi] = hora.split(":").map(Number);
+    const total = h * 60 + mi + Math.round(n * 60);
+    const resto = total % 1440;
+    return { fecha: sumarDias(fecha, Math.floor(total / 1440)), hora: `${dos(Math.floor(resto / 60))}:${dos(resto % 60)}` };
+  }
+  const entero = Math.max(1, Math.round(n));
+  const fin = unidad === "DIAS" ? sumarDias(fecha, entero) : unidad === "SEMANAS" ? sumarDias(fecha, entero * 7) : unidad === "MESES" ? sumarMeses(fecha, entero) : sumarMeses(fecha, entero * 12);
+  return hora ? { fecha: fin, hora } : { fecha: sumarDias(fin, -1), hora: "" };
+}
+
 function Campo({ id, label, opcional, className, children }: { id: string; label: string; opcional?: boolean; className?: string; children: React.ReactNode }) {
   return (
     <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
@@ -52,6 +96,25 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
     (labor?.materiales ?? []).filter((m) => m.insumoId).map((m, i) => ({ clave: i, insumoId: m.insumoId as string, cantidad: String(m.cantidad) }))
   );
   const [siguiente, setSiguiente] = useState(100);
+  // Inicio y término, y cuánto dura: al escribir la duración, el término se calcula solo.
+  const [fecha, setFecha] = useState(labor?.fecha ?? hoyEnChile());
+  const [hora, setHora] = useState(labor?.hora ?? "");
+  const [fin, setFin] = useState(labor?.fechaTermino ?? "");
+  const [horaFin, setHoraFin] = useState(labor?.horaFin ?? "");
+  const [durN, setDurN] = useState("");
+  const [durU, setDurU] = useState<UnidadDuracion>("DIAS");
+
+  function recalcular(nuevo: { fecha?: string; hora?: string; durN?: string; durU?: UnidadDuracion }) {
+    const f = nuevo.fecha ?? fecha;
+    const h = nuevo.hora ?? hora;
+    const n = nuevo.durN ?? durN;
+    const u = nuevo.durU ?? durU;
+    const r = calcularFin(f, h, Number(n.replace(",", ".")), u);
+    if (r) {
+      setFin(r.fecha);
+      setHoraFin(r.hora);
+    }
+  }
   const actual = ESTADOS.find((e) => e.valor === estado) ?? ESTADOS[0];
 
   useEffect(() => {
@@ -161,25 +224,99 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
                 </select>
               </Campo>
               <Campo id="lab-fecha" label="Fecha de inicio">
-                <Input id="lab-fecha" name="fecha" type="date" defaultValue={labor?.fecha ?? hoyEnChile()} className={campo} required />
+                <Input
+                  id="lab-fecha"
+                  name="fecha"
+                  type="date"
+                  value={fecha}
+                  onChange={(e) => {
+                    setFecha(e.target.value);
+                    recalcular({ fecha: e.target.value });
+                  }}
+                  className={campo}
+                  required
+                />
               </Campo>
               <Campo id="lab-hora" label="Hora de inicio" opcional>
-                <Input id="lab-hora" name="hora" type="time" defaultValue={labor?.hora ?? ""} className={campo} />
+                <Input
+                  id="lab-hora"
+                  name="hora"
+                  type="time"
+                  value={hora}
+                  onChange={(e) => {
+                    setHora(e.target.value);
+                    recalcular({ hora: e.target.value });
+                  }}
+                  className={campo}
+                />
               </Campo>
               {estado === "HECHA" ? (
                 <Campo id="lab-termino" label="Fecha en que se terminó" className="sm:col-span-2">
-                  <Input id="lab-termino" name="fechaTermino" type="date" defaultValue={labor?.fechaTermino ?? hoyEnChile()} className={campo} />
+                  <Input id="lab-termino" name="fechaTermino" type="date" value={fin || hoyEnChile()} onChange={(e) => setFin(e.target.value)} className={campo} />
                 </Campo>
               ) : (
                 <>
+                  <Campo id="lab-dura" label="Cuánto dura" opcional className="sm:col-span-2">
+                    <div className="flex gap-2">
+                      <Input
+                        id="lab-dura"
+                        value={durN}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/[^\d,.]/g, "").slice(0, 5);
+                          setDurN(v);
+                          recalcular({ durN: v });
+                        }}
+                        inputMode="decimal"
+                        placeholder="Ej.: 3"
+                        className={cn(campo, "w-28")}
+                      />
+                      <select
+                        aria-label="Unidad de la duración"
+                        value={durU}
+                        onChange={(e) => {
+                          const u = e.target.value as UnidadDuracion;
+                          setDurU(u);
+                          recalcular({ durU: u });
+                        }}
+                        className={cn(selectClase, "flex-1")}
+                      >
+                        {UNIDADES.map((u) => (
+                          <option key={u.valor} value={u.valor}>
+                            {u.texto}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    {durU === "HORAS" && !hora && durN !== "" && <span className="text-[0.75rem] text-amber-700 dark:text-amber-300">Para contar horas, indica la hora de inicio.</span>}
+                  </Campo>
                   <Campo id="lab-termino" label="Termina el" opcional>
-                    <Input id="lab-termino" name="fechaTermino" type="date" defaultValue={labor?.fechaTermino ?? ""} className={campo} />
+                    <Input
+                      id="lab-termino"
+                      name="fechaTermino"
+                      type="date"
+                      value={fin}
+                      onChange={(e) => {
+                        setFin(e.target.value);
+                        setDurN("");
+                      }}
+                      className={campo}
+                    />
                   </Campo>
                   <Campo id="lab-horafin" label="A las" opcional>
-                    <Input id="lab-horafin" name="horaFin" type="time" defaultValue={labor?.horaFin ?? ""} className={campo} />
+                    <Input
+                      id="lab-horafin"
+                      name="horaFin"
+                      type="time"
+                      value={horaFin}
+                      onChange={(e) => {
+                        setHoraFin(e.target.value);
+                        setDurN("");
+                      }}
+                      className={campo}
+                    />
                   </Campo>
                   <p className="-mt-2 text-[0.75rem] text-muted-foreground sm:col-span-2">
-                    Pasa sola a «En curso» cuando llega su hora de inicio y, si indicas cuándo termina, a «Hecha» a esa hora, descontando los materiales del inventario.
+                    Escribe cuánto dura y el término se calcula solo (lo puedes ajustar). Sin hora de inicio, el último día cuenta entero. La labor pasa sola a «En curso» al llegar su inicio y a «Hecha» al llegar su término, descontando los materiales del inventario.
                   </p>
                 </>
               )}
