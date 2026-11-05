@@ -31,6 +31,8 @@ export type TrabajadorFila = {
   email: string | null;
   contrato: Contrato;
   sueldo: number;
+  /** Lo que vale un día de esta persona; null = el sueldo dividido en 30. */
+  valorDia: number | null;
   fechaIngreso: string | null;
   afp: string | null;
   /** Centésimas de %: 1058 = 10,58 %. */

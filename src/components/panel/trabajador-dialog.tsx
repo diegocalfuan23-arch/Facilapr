@@ -59,6 +59,7 @@ export function TrabajadorDialog({
   const [borrando, iniciarBorrado] = useTransition();
   const editando = persona !== null;
   const [sueldo, setSueldo] = useState(persona?.sueldo ? String(persona.sueldo) : "");
+  const [valorDia, setValorDia] = useState(persona?.valorDia ? String(persona.valorDia) : "");
   const [contrato, setContrato] = useState<Contrato>(persona?.contrato ?? "SUELDO");
   const [afp, setAfp] = useState(persona?.afp ?? "");
   const [afpTasaTexto, setAfpTasaTexto] = useState(persona ? aTextoTasa(persona.afpTasa) : "");
@@ -107,6 +108,7 @@ export function TrabajadorDialog({
         <form action={enviar} className="mt-2 flex flex-col gap-4">
           {editando && <input type="hidden" name="id" value={persona.id} />}
           <input type="hidden" name="sueldo" value={sueldo} />
+          <input type="hidden" name="valorDia" value={valorDia} />
           <input type="hidden" name="afp" value={afp} />
           <input type="hidden" name="afpTasa" value={afpTasaTexto} />
           <input type="hidden" name="saludTasa" value={saludTexto} />
@@ -179,6 +181,20 @@ export function TrabajadorDialog({
                 inputMode="numeric"
                 className={campo}
               />
+            </div>
+            <div>
+              <label htmlFor="per-valordia" className={etiqueta}>
+                Valor del día (opcional)
+              </label>
+              <Input
+                id="per-valordia"
+                value={valorDia ? `$${Number(valorDia).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setValorDia(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder={`$${Math.round((Number(sueldo) || 0) / 30).toLocaleString("es-CL")} (sueldo ÷ 30)`}
+                inputMode="numeric"
+                className={campo}
+              />
+              <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Es lo que se descuenta por cada día que no trabaje. Si lo dejas vacío, se usa el sueldo dividido en 30.</p>
             </div>
 
             {contrato === "SUELDO" ? (

@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { MEDIOS_MOVIMIENTO, hoyEnChile, textoMedioLinea } from "@/lib/finanzas-comun";
 import { descuentosLegales } from "@/lib/personal-comun";
-import { descuentoPorDias, type RemuneracionFila } from "@/lib/rrhh-comun";
+import { descuentoPorDias, valorDelDia, type RemuneracionFila } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
 
@@ -50,6 +50,10 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [bonos, setBonos] = useState(fila.bonos ? String(fila.bonos) : "");
   const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
   const [dias, setDias] = useState(String(fila.diasDescontados));
+  // El valor del día con que quedó esta liquidación (si ya tenía días descontados), el de la ficha, o el sueldo ÷ 30.
+  const [valorDia, setValorDia] = useState(
+    String(fila.diasDescontados > 0 && fila.descAusencias > 0 ? Math.round(fila.descAusencias / fila.diasDescontados) : valorDelDia(fila.sueldoBase, fila.valorDiaFicha))
+  );
 
   useEffect(() => {
     if (estado?.ok) {
@@ -58,7 +62,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
     }
   }, [estado, onCerrar]);
 
-  const descAusencias = descuentoPorDias(Number(base) || 0, Number(dias) || 0);
+  const descAusencias = descuentoPorDias(Number(base) || 0, Number(dias) || 0, Number(valorDia) || null);
   const imponible = Math.max(0, (Number(base) || 0) - descAusencias) + (Number(bonos) || 0);
   const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
   const totalDescuentos = legales.total + (Number(otros) || 0);
@@ -77,6 +81,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <input type="hidden" name="bonos" value={bonos} />
           <input type="hidden" name="otrosDescuentos" value={otros} />
           <input type="hidden" name="diasDescontados" value={dias} />
+          <input type="hidden" name="valorDia" value={valorDia} />
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="rem-base" className={etiqueta}>
@@ -100,17 +105,27 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <p className="text-[0.75rem] text-muted-foreground">
             La AFP, la salud y el seguro de cesantía se calculan solos con la ficha de la persona. En «otros» van anticipos, préstamos y similares.
           </p>
-          <div>
-            <label htmlFor="rem-dias" className={etiqueta}>
-              Días que no se pagan
-            </label>
-            <Input
-              id="rem-dias"
-              value={dias}
-              onChange={(e) => setDias(e.target.value.replace(/\D/g, "").slice(0, 2))}
-              inputMode="numeric"
-              className={cn(campo, "sm:w-32")}
-            />
+          <div className="flex flex-wrap gap-4">
+            <div>
+              <label htmlFor="rem-dias" className={etiqueta}>
+                Días que no se pagan
+              </label>
+              <Input
+                id="rem-dias"
+                value={dias}
+                onChange={(e) => setDias(e.target.value.replace(/\D/g, "").slice(0, 2))}
+                inputMode="numeric"
+                className={cn(campo, "sm:w-32")}
+              />
+            </div>
+            <div>
+              <label htmlFor="rem-valordia" className={etiqueta}>
+                Valor del día
+              </label>
+              <MontoInput id="rem-valordia" valor={valorDia} onCambio={setValorDia} />
+            </div>
+          </div>
+          <div className="-mt-2">
             <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
               Este mes: {fila.ausenciasMes.faltas} {fila.ausenciasMes.faltas === 1 ? "falta" : "faltas"}, {fila.ausenciasMes.licencia} de licencia, {fila.ausenciasMes.permisoSinGoce} de permiso sin goce.
               {fila.ausenciasMes.vacaciones > 0 && ` Tuvo ${fila.ausenciasMes.vacaciones} de vacaciones, que se pagan.`}

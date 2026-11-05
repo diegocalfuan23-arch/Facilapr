@@ -36,6 +36,7 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
         otrosDescuentos: remuneraciones.otrosDescuentos,
         descuentos: remuneraciones.descuentos,
         liquido: remuneraciones.liquido,
+        valorDiaFicha: trabajadores.valorDia,
         contrato: trabajadores.contrato,
         afpTasa: trabajadores.afpTasa,
         saludTasa: trabajadores.saludTasa,

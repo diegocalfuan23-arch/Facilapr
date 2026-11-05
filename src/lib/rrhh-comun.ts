@@ -15,8 +15,12 @@ export type ResumenAusenciasMes = {
 
 export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0 };
 
-/** Lo que se descuenta del sueldo por días no pagados: un treintavo del sueldo por cada día. */
-export const descuentoPorDias = (sueldo: number, dias: number) => Math.round((sueldo / 30) * Math.min(Math.max(dias, 0), 30));
+/** Lo que vale un día de una persona: el valor fijado en su ficha o, si no hay, un treintavo del sueldo. */
+export const valorDelDia = (sueldo: number, valorDia: number | null | undefined) => (valorDia && valorDia > 0 ? valorDia : Math.round(sueldo / 30));
+
+/** Lo que se descuenta por días no pagados: el valor del día por cada día (hasta 30). */
+export const descuentoPorDias = (sueldo: number, dias: number, valorDia?: number | null) =>
+  Math.round(valorDelDia(sueldo, valorDia) * Math.min(Math.max(dias, 0), 30));
 
 export type RemuneracionFila = {
   id: string;
@@ -25,6 +29,8 @@ export type RemuneracionFila = {
   cargo: string;
   periodo: string;
   sueldoBase: number;
+  /** Lo fijado en la ficha de la persona; null si usa el sueldo dividido en 30. */
+  valorDiaFicha: number | null;
   diasDescontados: number;
   descAusencias: number;
   /** Lo registrado este mes en asistencia y ausencias, para sugerir los días a descontar. */
