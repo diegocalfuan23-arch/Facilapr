@@ -8,8 +8,10 @@ import type {
   EstadoAusencia,
   EstadoRemuneracion,
   RemuneracionFila,
+  ResumenAusenciasMes,
   TipoAusencia,
 } from "@/lib/rrhh-comun";
+import { SIN_AUSENCIAS } from "@/lib/rrhh-comun";
 
 export * from "@/lib/rrhh-comun";
 
@@ -24,6 +26,8 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
         cargo: trabajadores.cargo,
         periodo: remuneraciones.periodo,
         sueldoBase: remuneraciones.sueldoBase,
+        diasDescontados: remuneraciones.diasDescontados,
+        descAusencias: remuneraciones.descAusencias,
         bonos: remuneraciones.bonos,
         descAfp: remuneraciones.descAfp,
         descSalud: remuneraciones.descSalud,
@@ -45,7 +49,13 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
       .innerJoin(trabajadores, eq(trabajadores.id, remuneraciones.trabajadorId))
       .where(and(eq(remuneraciones.aprId, aprId), eq(remuneraciones.periodo, periodo)))
       .orderBy(asc(trabajadores.nombre));
-    return filas.map((f) => ({ ...f, estado: f.estado as EstadoRemuneracion, contrato: f.contrato as "SUELDO" | "HONORARIO" }));
+    const resumen = await resumenAusenciasMes(aprId, periodo);
+    return filas.map((f) => ({
+      ...f,
+      estado: f.estado as EstadoRemuneracion,
+      contrato: f.contrato as "SUELDO" | "HONORARIO",
+      ausenciasMes: resumen[f.trabajadorId] ?? SIN_AUSENCIAS,
+    }));
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer las remuneraciones:", e);
     return [];
@@ -66,6 +76,7 @@ export async function listarAusencias(aprId: string, tipos: TipoAusencia[]): Pro
         dias: ausencias.dias,
         estado: ausencias.estado,
         detalle: ausencias.detalle,
+        sinGoce: ausencias.sinGoce,
         nota: ausencias.nota,
       })
       .from(ausencias)
@@ -202,4 +213,61 @@ export async function asistenciaMes(aprId: string, mes: string): Promise<Record<
     console.error("RR.HH.: no se pudo leer la planilla del mes:", e);
   }
   return grilla;
+}
+
+/**
+ * Los días que cada persona no trabajó en un mes (AAAA-MM), según la asistencia y las ausencias
+ * aprobadas: faltas marcadas, días de licencia y permisos sin goce no se pagan; las vacaciones sí.
+ */
+export async function resumenAusenciasMes(aprId: string, mes: string): Promise<Record<string, ResumenAusenciasMes>> {
+  const grilla = await asistenciaMes(aprId, mes);
+  const [a, m] = mes.split("-").map(Number);
+  const primero = Date.UTC(a, m - 1, 1);
+  const ultimo = Date.UTC(a, m, 0);
+  const desde = ymd(primero);
+  const hasta = ymd(ultimo);
+
+  const salida: Record<string, ResumenAusenciasMes> = {};
+  for (const [id, dias] of Object.entries(grilla)) {
+    const estados = Object.values(dias);
+    salida[id] = {
+      faltas: estados.filter((e) => e === "AUSENTE").length,
+      licencia: estados.filter((e) => e === "LICENCIA").length,
+      vacaciones: estados.filter((e) => e === "VACACIONES").length,
+      permisoSinGoce: 0,
+      descontables: 0,
+    };
+  }
+
+  try {
+    const permisos = await db
+      .select({ trabajadorId: ausencias.trabajadorId, desde: ausencias.desde, hasta: ausencias.hasta })
+      .from(ausencias)
+      .where(
+        and(
+          eq(ausencias.aprId, aprId),
+          eq(ausencias.tipo, "PERMISO"),
+          eq(ausencias.estado, "APROBADA"),
+          eq(ausencias.sinGoce, true),
+          lte(ausencias.desde, hasta),
+          gte(ausencias.hasta, desde)
+        )
+      );
+    for (const x of permisos) {
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0 });
+      const ini = Math.max(Date.parse(x.desde), primero);
+      const fin = Math.min(Date.parse(x.hasta), ultimo);
+      for (let t = ini; t <= fin; t += 86_400_000) {
+        const diaSemana = new Date(t).getUTCDay();
+        const estado = grilla[x.trabajadorId]?.[ymd(t)];
+        // Un día de fin de semana, o que ya cuenta como licencia o vacaciones, no se suma dos veces.
+        if (diaSemana !== 0 && diaSemana !== 6 && estado !== "LICENCIA" && estado !== "VACACIONES") r.permisoSinGoce++;
+      }
+    }
+  } catch (e) {
+    console.error("RR.HH.: no se pudieron leer los permisos sin goce:", e);
+  }
+
+  for (const r of Object.values(salida)) r.descontables = Math.min(30, r.faltas + r.licencia + r.permisoSinGoce);
+  return salida;
 }

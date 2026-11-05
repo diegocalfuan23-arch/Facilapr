@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { MEDIOS_MOVIMIENTO, hoyEnChile, textoMedioLinea } from "@/lib/finanzas-comun";
 import { descuentosLegales } from "@/lib/personal-comun";
-import type { RemuneracionFila } from "@/lib/rrhh-comun";
+import { descuentoPorDias, type RemuneracionFila } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -48,6 +48,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [base, setBase] = useState(String(fila.sueldoBase));
   const [bonos, setBonos] = useState(fila.bonos ? String(fila.bonos) : "");
   const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
+  const [dias, setDias] = useState(String(fila.diasDescontados));
 
   useEffect(() => {
     if (estado?.ok) {
@@ -56,7 +57,8 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
     }
   }, [estado, onCerrar]);
 
-  const imponible = (Number(base) || 0) + (Number(bonos) || 0);
+  const descAusencias = descuentoPorDias(Number(base) || 0, Number(dias) || 0);
+  const imponible = Math.max(0, (Number(base) || 0) - descAusencias) + (Number(bonos) || 0);
   const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
   const totalDescuentos = legales.total + (Number(otros) || 0);
   const liquido = Math.max(0, imponible - totalDescuentos);
@@ -73,6 +75,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <input type="hidden" name="sueldoBase" value={base} />
           <input type="hidden" name="bonos" value={bonos} />
           <input type="hidden" name="otrosDescuentos" value={otros} />
+          <input type="hidden" name="diasDescontados" value={dias} />
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="rem-base" className={etiqueta}>
@@ -96,8 +99,48 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <p className="text-[0.75rem] text-muted-foreground">
             La AFP, la salud y el seguro de cesantía se calculan solos con la ficha de la persona. En «otros» van anticipos, préstamos y similares.
           </p>
+          <div>
+            <label htmlFor="rem-dias" className={etiqueta}>
+              Días que no se pagan
+            </label>
+            <Input
+              id="rem-dias"
+              value={dias}
+              onChange={(e) => setDias(e.target.value.replace(/\D/g, "").slice(0, 2))}
+              inputMode="numeric"
+              className={cn(campo, "sm:w-32")}
+            />
+            <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
+              Este mes: {fila.ausenciasMes.faltas} {fila.ausenciasMes.faltas === 1 ? "falta" : "faltas"}, {fila.ausenciasMes.licencia} de licencia, {fila.ausenciasMes.permisoSinGoce} de permiso sin goce.
+              {fila.ausenciasMes.vacaciones > 0 && ` Tuvo ${fila.ausenciasMes.vacaciones} de vacaciones, que se pagan.`}
+              {Number(dias) !== fila.ausenciasMes.descontables && (
+                <>
+                  {" "}
+                  <button type="button" className="font-medium text-primary hover:underline" onClick={() => setDias(String(fila.ausenciasMes.descontables))}>
+                    Usar {fila.ausenciasMes.descontables}
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
           <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">
             <div className="flex justify-between">
+              <span className="text-muted-foreground">Sueldo bruto</span>
+              <span className="tabular-nums">{clp.format(Number(base) || 0)}</span>
+            </div>
+            {descAusencias > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Días no pagados ({dias})</span>
+                <span className="tabular-nums">-{clp.format(descAusencias)}</span>
+              </div>
+            )}
+            {(Number(bonos) || 0) > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Bonos y extras</span>
+                <span className="tabular-nums">+{clp.format(Number(bonos))}</span>
+              </div>
+            )}
+            <div className="mt-1 flex justify-between border-t border-border pt-1">
               <span className="text-muted-foreground">Total haberes</span>
               <span className="tabular-nums">{clp.format(imponible)}</span>
             </div>
@@ -336,7 +379,10 @@ export function RemuneracionesVista({
                       <div className="font-medium">{f.trabajador}</div>
                       <div className="text-[0.8rem] text-muted-foreground">{f.cargo}</div>
                     </td>
-                    <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(f.sueldoBase)}</td>
+                    <td className="px-5 py-4 whitespace-nowrap tabular-nums">
+                      {clp.format(f.sueldoBase)}
+                      {f.diasDescontados > 0 && <div className="text-[0.75rem] text-red-600 dark:text-red-400">-{f.diasDescontados} {f.diasDescontados === 1 ? "día" : "días"} no pagados</div>}
+                    </td>
                     <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{f.bonos ? `+${clp.format(f.bonos)}` : "—"}</td>
                     <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{f.descuentos ? `-${clp.format(f.descuentos)}` : "—"}</td>
                     <td className="px-5 py-4 font-medium whitespace-nowrap tabular-nums">{clp.format(f.liquido)}</td>

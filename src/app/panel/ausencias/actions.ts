@@ -22,6 +22,7 @@ const ausenciaSchema = z.object({
   hasta: fecha,
   estado: z.enum(["SOLICITADA", "APROBADA", "RECHAZADA"]),
   detalle: z.string().trim().max(200).nullable(),
+  sinGoce: z.boolean(),
   nota: z.string().trim().max(500).nullable(),
 });
 
@@ -43,6 +44,7 @@ export async function guardarAusencia(_prev: ResultadoAusencias | null, formData
     hasta: formData.get("hasta"),
     estado: formData.get("estado"),
     detalle: aTexto(formData.get("detalle")),
+    sinGoce: formData.get("tipo") === "PERMISO" && formData.get("sinGoce") === "si",
     nota: aTexto(formData.get("nota")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };

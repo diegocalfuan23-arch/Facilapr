@@ -10,7 +10,8 @@ import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
-import { PREFIJO_CONCEPTO_REMUNERACION } from "@/lib/rrhh-comun";
+import { PREFIJO_CONCEPTO_REMUNERACION, descuentoPorDias } from "@/lib/rrhh-comun";
+import { resumenAusenciasMes } from "@/lib/rrhh";
 import { descuentosLegales } from "@/lib/personal-comun";
 import type { Contrato } from "@/lib/personal-comun";
 
@@ -46,22 +47,29 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
       .where(and(eq(trabajadores.aprId, apr.id), eq(trabajadores.activo, true)));
     if (personas.length === 0) return { ok: false, error: "Primero agrega a las personas en Personal." };
 
+    // Los días de falta, licencia y permiso sin goce del mes se descuentan solos; las vacaciones se pagan.
+    const ausenciasMes = await resumenAusenciasMes(apr.id, periodo);
+
     await db
       .insert(remuneraciones)
       .values(
         personas.map((p) => {
-          const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, p.sueldo);
+          const dias = ausenciasMes[p.id]?.descontables ?? 0;
+          const descAus = descuentoPorDias(p.sueldo, dias);
+          const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, p.sueldo - descAus);
           return {
             aprId: apr.id,
             trabajadorId: p.id,
             periodo,
             sueldoBase: p.sueldo,
+            diasDescontados: dias,
+            descAusencias: descAus,
             descAfp: d.afp,
             descSalud: d.salud,
             descCesantia: d.cesantia,
             retencion: d.retencion,
             descuentos: d.total,
-            liquido: p.sueldo - d.total,
+            liquido: p.sueldo - descAus - d.total,
           };
         })
       )
@@ -78,6 +86,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
 const liquidacionSchema = z.object({
   sueldoBase: z.number().int().min(0).max(100_000_000),
   bonos: z.number().int().min(0).max(100_000_000),
+  diasDescontados: z.number().int().min(0).max(30, "Los días descontados no pueden pasar de 30."),
   otrosDescuentos: z.number().int().min(0).max(100_000_000),
   nota: z.string().trim().max(200).nullable(),
 });
@@ -93,6 +102,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
   const parsed = liquidacionSchema.safeParse({
     sueldoBase: aEntero(formData.get("sueldoBase")),
     bonos: aEntero(formData.get("bonos")),
+    diasDescontados: aEntero(formData.get("diasDescontados")),
     otrosDescuentos: aEntero(formData.get("otrosDescuentos")),
     nota: aTexto(formData.get("nota")),
   });
@@ -115,7 +125,9 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
   if (!actual) return { ok: false, error: "No encontramos esa liquidación." };
   if (actual.estado === "PAGADA") return { ok: false, error: "Ya está pagada. Deshaz el pago para corregirla." };
 
-  const imponible = d.sueldoBase + d.bonos;
+  // Lo que no se trabajó se descuenta del sueldo, y sobre lo que queda se calculan la AFP, la salud y lo demás.
+  const descAus = descuentoPorDias(d.sueldoBase, d.diasDescontados);
+  const imponible = Math.max(0, d.sueldoBase - descAus) + d.bonos;
   const legales = descuentosLegales({ ...actual, contrato: actual.contrato as Contrato }, imponible);
   const descuentos = legales.total + d.otrosDescuentos;
   if (descuentos > imponible) return { ok: false, error: "Los descuentos no pueden ser mayores que lo que se gana." };
@@ -124,6 +136,8 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
     .update(remuneraciones)
     .set({
       sueldoBase: d.sueldoBase,
+      diasDescontados: d.diasDescontados,
+      descAusencias: descAus,
       bonos: d.bonos,
       descAfp: legales.afp,
       descSalud: legales.salud,

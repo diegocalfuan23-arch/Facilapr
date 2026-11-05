@@ -1297,6 +1297,10 @@ export const remuneraciones = pgTable(
     /** El mes, AAAA-MM. */
     periodo: text("periodo").notNull(),
     sueldoBase: integer("sueldoBase").notNull().default(0),
+    /** Días del mes que no se pagan (faltas, licencias, permisos sin goce). Las vacaciones sí se pagan. */
+    diasDescontados: integer("diasDescontados").notNull().default(0),
+    /** Lo que se descuenta del sueldo por esos días: base / 30 por cada día. */
+    descAusencias: integer("descAusencias").notNull().default(0),
     bonos: integer("bonos").notNull().default(0),
     /** El desglose de lo que se descuenta; `descuentos` es la suma de todo. */
     descAfp: integer("descAfp").notNull().default(0),
@@ -1340,6 +1344,8 @@ export const ausencias = pgTable(
     estado: text("estado").notNull().default("APROBADA"),
     /** En una licencia: el motivo o el N.° de folio. */
     detalle: text("detalle"),
+    /** Solo en un permiso: true si no se paga ese día (sin goce de sueldo). */
+    sinGoce: boolean("sinGoce").notNull().default(false),
     nota: text("nota"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },

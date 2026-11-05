@@ -2,6 +2,22 @@
 
 export type EstadoRemuneracion = "PENDIENTE" | "PAGADA";
 
+/** Lo que pasó en el mes con una persona, según la asistencia y sus ausencias aprobadas. */
+export type ResumenAusenciasMes = {
+  faltas: number;
+  licencia: number;
+  permisoSinGoce: number;
+  /** Las vacaciones se pagan: se muestran, pero no se descuentan. */
+  vacaciones: number;
+  /** Los días que no se pagan: faltas, licencia y permiso sin goce (máximo 30). */
+  descontables: number;
+};
+
+export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0 };
+
+/** Lo que se descuenta del sueldo por días no pagados: un treintavo del sueldo por cada día. */
+export const descuentoPorDias = (sueldo: number, dias: number) => Math.round((sueldo / 30) * Math.min(Math.max(dias, 0), 30));
+
 export type RemuneracionFila = {
   id: string;
   trabajadorId: string;
@@ -9,6 +25,10 @@ export type RemuneracionFila = {
   cargo: string;
   periodo: string;
   sueldoBase: number;
+  diasDescontados: number;
+  descAusencias: number;
+  /** Lo registrado este mes en asistencia y ausencias, para sugerir los días a descontar. */
+  ausenciasMes: ResumenAusenciasMes;
   bonos: number;
   descAfp: number;
   descSalud: number;
@@ -60,6 +80,8 @@ export type AusenciaFila = {
   dias: number;
   estado: EstadoAusencia;
   detalle: string | null;
+  /** Solo en un permiso: sin goce de sueldo. */
+  sinGoce: boolean;
   nota: string | null;
 };
 

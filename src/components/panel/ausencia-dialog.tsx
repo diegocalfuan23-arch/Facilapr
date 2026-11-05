@@ -138,6 +138,12 @@ export function AusenciaDialog({
               </label>
               <Input id="aus-detalle" name="detalle" defaultValue={ausencia?.detalle ?? ""} maxLength={200} className={campo} />
             </div>
+            {tipoActual === "PERMISO" && (
+              <label className="flex items-center gap-2 text-[0.9rem] sm:col-span-2">
+                <input type="checkbox" name="sinGoce" value="si" defaultChecked={ausencia?.sinGoce ?? false} className="size-4" />
+                Sin goce de sueldo (esos días se descuentan de la remuneración)
+              </label>
+            )}
             <div className="sm:col-span-2">
               <label htmlFor="aus-nota" className={etiqueta}>
                 Nota (opcional)
