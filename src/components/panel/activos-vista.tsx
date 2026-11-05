@@ -48,7 +48,7 @@ function Kpi({ label, valor, icono: Icono, tono, nota, resaltado }: { label: str
   return (
     <div
       className={cn(
-        "flex items-center gap-4 rounded-2xl border p-4 lg:p-5",
+        "flex items-center gap-4 rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 lg:p-5 shadow-md shadow-primary/10",
         resaltado === "verde" && "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10",
         resaltado === "ambar" && "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10",
         !resaltado && "border-border bg-card"
@@ -185,12 +185,12 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
         </div>
       ) : (
         <>
-          <div className="scroll-fino hidden overflow-x-auto rounded-2xl border border-border md:block">
+          <div className="scroll-fino hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-lg shadow-primary/10 md:block">
             <table className="w-full min-w-200 border-collapse text-[0.95rem]">
               <thead>
-                <tr className="border-b border-border bg-card">
+                <tr className="bg-gradient-to-r from-primary to-primary/70 text-primary-foreground">
                   {["Bien", "Categoría", "Adquirido", "Costo", "Valor actual", "Estado"].map((c) => (
-                    <th key={c} className="px-5 py-4 text-left text-[0.85rem] font-medium whitespace-nowrap text-muted-foreground">
+                    <th key={c} className="px-5 py-3 text-left text-[0.85rem] font-semibold whitespace-nowrap">
                       {c}
                     </th>
                   ))}
@@ -198,7 +198,7 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
               </thead>
               <tbody>
                 {filtrados.map((a) => (
-                  <tr key={a.id} onClick={() => setEditando(a)} className={cn("cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-muted/50", a.estado === "BAJA" && "opacity-60")}>
+                  <tr key={a.id} onClick={() => setEditando(a)} className={cn("cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-primary/5", a.estado === "BAJA" && "opacity-60")}>
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-4">
                         <IconoBien categoria={a.categoria} />
@@ -229,34 +229,36 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
                 key={a.id}
                 type="button"
                 onClick={() => setEditando(a)}
-                className={cn("rounded-2xl border border-border bg-card p-4 text-left transition-colors hover:bg-muted/50", a.estado === "BAJA" && "opacity-60")}
+                className={cn("overflow-hidden rounded-2xl border border-border bg-card text-left shadow-lg shadow-primary/10", a.estado === "BAJA" && "opacity-60")}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <IconoBien categoria={a.categoria} />
-                    <div className="min-w-0">
-                      <p className="leading-tight font-semibold">{a.nombre}</p>
-                      <p className="text-[0.8rem] text-muted-foreground">{textoCategoriaActivo(a.categoria)}</p>
+                <div className={cn("flex items-center justify-between gap-3 bg-gradient-to-r px-4 py-3 text-white", categoriaDe(a.categoria).tono)}>
+                  <div className="min-w-0">
+                    <p className="leading-tight font-bold">{a.nombre}</p>
+                    <p className="text-[0.8rem] text-white/90">{a.codigo || textoCategoriaActivo(a.categoria)}</p>
+                  </div>
+                  <span className="shrink-0 rounded-full bg-white px-3 py-1 text-[0.75rem] font-bold text-emerald-800">{TEXTO_ESTADO_ACTIVO[a.estado]}</span>
+                </div>
+                <div className="p-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-xl bg-muted/60 px-3 py-2">
+                      <p className="text-[0.75rem] text-muted-foreground">Categoría</p>
+                      <p className="mt-1 text-sm font-semibold">{textoCategoriaActivo(a.categoria)}</p>
+                    </div>
+                    <div className="rounded-xl bg-muted/60 px-3 py-2">
+                      <p className="flex items-center gap-1 text-[0.75rem] text-muted-foreground">
+                        <CalendarDays className="size-3.5" aria-hidden />
+                        Adquirido
+                      </p>
+                      <p className="mt-1 text-sm font-semibold tabular-nums">{fechaCorta(a.fechaAdquisicion)}</p>
                     </div>
                   </div>
-                  <EstadoInsignia estado={a.estado} />
-                </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <div className="rounded-xl bg-muted/60 px-3 py-2">
-                    <p className="text-[0.75rem] text-muted-foreground">Costo</p>
-                    <p className="mt-1 text-sm font-semibold tabular-nums">{clp.format(a.costo)}</p>
+                  <div className="mt-4 flex items-end justify-between gap-4 border-t border-border pt-4">
+                    <div>
+                      <p className="text-[0.75rem] text-muted-foreground">Costo</p>
+                      <p className="text-sm font-semibold tabular-nums">{clp.format(a.costo)}</p>
+                    </div>
+                    <ValorHoy a={a} hoy={hoy} />
                   </div>
-                  <div className="rounded-xl bg-muted/60 px-3 py-2">
-                    <p className="flex items-center gap-1 text-[0.75rem] text-muted-foreground">
-                      <CalendarDays className="size-3.5" aria-hidden />
-                      Adquirido
-                    </p>
-                    <p className="mt-1 text-sm font-semibold tabular-nums">{fechaCorta(a.fechaAdquisicion)}</p>
-                  </div>
-                </div>
-                <div className="mt-4 border-t border-border pt-4">
-                  <p className="mb-1 text-[0.75rem] text-muted-foreground">Valor actual</p>
-                  <ValorHoy a={a} hoy={hoy} />
                 </div>
               </button>
             ))}
