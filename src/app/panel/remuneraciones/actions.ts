@@ -11,6 +11,7 @@ import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 import { PREFIJO_CONCEPTO_REMUNERACION, descuentoPorDias } from "@/lib/rrhh-comun";
+import { horasPorDia, valorDeHoraExtra } from "@/lib/personal-comun";
 import { resumenAusenciasMes } from "@/lib/rrhh";
 import { descuentosLegales } from "@/lib/personal-comun";
 import type { Contrato } from "@/lib/personal-comun";
@@ -40,6 +41,8 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
         sueldo: trabajadores.sueldo,
         valorDia: trabajadores.valorDia,
         porDia: trabajadores.porDia,
+        jornadaSemanal: trabajadores.jornadaSemanal,
+        diasSemana: trabajadores.diasSemana,
         contrato: trabajadores.contrato,
         afpTasa: trabajadores.afpTasa,
         saludTasa: trabajadores.saludTasa,
@@ -60,7 +63,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
           const base = p.porDia ? (ausenciasMes[p.id]?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
           const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
           const horas = ausenciasMes[p.id]?.horasPermisoSinGoce ?? 0;
-          const descAus = descuentoPorDias(base, dias, p.valorDia, horas);
+          const descAus = descuentoPorDias(base, dias, p.valorDia, horas, horasPorDia(p));
           const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus);
           return {
             aprId: apr.id,
@@ -97,6 +100,8 @@ const liquidacionSchema = z.object({
   nota: z.string().trim().max(200).nullable(),
   /** Horas de permiso sin goce que se descuentan además de los días. */
   horasDescontadas: z.number().min(0).max(240),
+  /** Horas extras del mes. */
+  horasExtra: z.number().min(0).max(300),
   /** El valor del día de esta liquidación; 0 = el de la ficha o el sueldo dividido en 30. */
   valorDia: z.number().int().min(0).max(100_000_000),
 });
@@ -117,6 +122,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
     nota: aTexto(formData.get("nota")),
     valorDia: aEntero(formData.get("valorDia")),
     horasDescontadas: Number(String(formData.get("horasDescontadas") ?? "").replace(",", ".")) || 0,
+    horasExtra: Number(String(formData.get("horasExtra") ?? "").replace(",", ".")) || 0,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -126,6 +132,10 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
     .select({
       estado: remuneraciones.estado,
       valorDiaFicha: trabajadores.valorDia,
+      porDia: trabajadores.porDia,
+      jornadaSemanal: trabajadores.jornadaSemanal,
+      diasSemana: trabajadores.diasSemana,
+      valorHoraExtra: trabajadores.valorHoraExtra,
       contrato: trabajadores.contrato,
       afpTasa: trabajadores.afpTasa,
       saludTasa: trabajadores.saludTasa,
@@ -139,8 +149,14 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
   if (actual.estado === "PAGADA") return { ok: false, error: "Ya está pagada. Deshaz el pago para corregirla." };
 
   // Lo que no se trabajó se descuenta del sueldo, y sobre lo que queda se calculan la AFP, la salud y lo demás.
-  const descAus = descuentoPorDias(d.sueldoBase, d.diasDescontados, d.valorDia || actual.valorDiaFicha, d.horasDescontadas);
-  const imponible = Math.max(0, d.sueldoBase - descAus) + d.bonos;
+  const valorDia = d.valorDia || actual.valorDiaFicha;
+  const descAus = descuentoPorDias(d.sueldoBase, d.diasDescontados, valorDia, d.horasDescontadas, horasPorDia(actual));
+  // Las horas extras: lo fijado en la ficha o la hora ordinaria con recargo. Cuentan como parte de lo que se gana.
+  const montoExtra = Math.round(
+    d.horasExtra *
+      valorDeHoraExtra({ sueldo: d.sueldoBase, valorDia, porDia: actual.porDia, jornadaSemanal: actual.jornadaSemanal, diasSemana: actual.diasSemana, valorHoraExtra: actual.valorHoraExtra })
+  );
+  const imponible = Math.max(0, d.sueldoBase - descAus) + d.bonos + montoExtra;
   const legales = descuentosLegales({ ...actual, contrato: actual.contrato as Contrato }, imponible);
   const descuentos = legales.total + d.otrosDescuentos;
   if (descuentos > imponible) return { ok: false, error: "Los descuentos no pueden ser mayores que lo que se gana." };
@@ -152,6 +168,8 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
       diasDescontados: d.diasDescontados,
       descAusencias: descAus,
       horasDescontadas: d.horasDescontadas,
+      horasExtra: d.horasExtra,
+      montoHorasExtra: montoExtra,
       bonos: d.bonos,
       descAfp: legales.afp,
       descSalud: legales.salud,

@@ -18,7 +18,12 @@ import {
   descuentosLegales,
   tasaAfp,
   textoTasa,
+  JORNADA_SEMANAL_LEGAL,
+  RECARGO_HORA_EXTRA,
   TEXTO_ACCESO,
+  horasPorDia,
+  valorDeHoraExtra,
+  valorHoraOrdinaria,
   type AccesoPanel,
   type Contrato,
   type TrabajadorFila,
@@ -61,6 +66,17 @@ export function TrabajadorDialog({
   const [sueldo, setSueldo] = useState(persona?.sueldo ? String(persona.sueldo) : "");
   const [valorDia, setValorDia] = useState(persona?.valorDia ? String(persona.valorDia) : "");
   const [porDia, setPorDia] = useState(persona?.porDia ?? false);
+  const [jornada, setJornada] = useState(String(persona?.jornadaSemanal ?? JORNADA_SEMANAL_LEGAL).replace(".", ","));
+  const [diasSemana, setDiasSemana] = useState(String(persona?.diasSemana ?? 5));
+  const [valorExtra, setValorExtra] = useState(persona?.valorHoraExtra ? String(persona.valorHoraExtra) : "");
+  const datosJornada = {
+    sueldo: Number(sueldo) || 0,
+    valorDia: Number(valorDia) || null,
+    porDia,
+    jornadaSemanal: Number(jornada.replace(",", ".")) || 0,
+    diasSemana: Number(diasSemana) || 5,
+    valorHoraExtra: Number(valorExtra) || null,
+  };
   const [contrato, setContrato] = useState<Contrato>(persona?.contrato ?? "SUELDO");
   const [afp, setAfp] = useState(persona?.afp ?? "");
   const [afpTasaTexto, setAfpTasaTexto] = useState(persona ? aTextoTasa(persona.afpTasa) : "");
@@ -111,6 +127,9 @@ export function TrabajadorDialog({
           <input type="hidden" name="sueldo" value={sueldo} />
           <input type="hidden" name="valorDia" value={valorDia} />
           <input type="hidden" name="porDia" value={porDia ? "si" : "no"} />
+          <input type="hidden" name="jornadaSemanal" value={jornada} />
+          <input type="hidden" name="diasSemana" value={diasSemana} />
+          <input type="hidden" name="valorHoraExtra" value={valorExtra} />
           <input type="hidden" name="afp" value={afp} />
           <input type="hidden" name="afpTasa" value={afpTasaTexto} />
           <input type="hidden" name="saludTasa" value={saludTexto} />
@@ -227,6 +246,43 @@ export function TrabajadorDialog({
 
               </>
             )}
+
+            <div>
+              <label htmlFor="per-jornada" className={etiqueta}>
+                Jornada (horas por semana)
+              </label>
+              <Input id="per-jornada" value={jornada} onChange={(e) => setJornada(e.target.value.replace(/[^\d,.]/g, "").slice(0, 5))} inputMode="decimal" className={campo} />
+              <p className="mt-1.5 text-[0.75rem] text-muted-foreground">{JORNADA_SEMANAL_LEGAL} horas desde el 26-04-2026 (Ley 21.561). En una jornada parcial, las que corresponda.</p>
+            </div>
+            <div>
+              <label htmlFor="per-diassem" className={etiqueta}>
+                Días a la semana
+              </label>
+              <select id="per-diassem" value={diasSemana} onChange={(e) => setDiasSemana(e.target.value)} className={selectClase}>
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Su día dura {String(Math.round(horasPorDia(datosJornada) * 10) / 10).replace(".", ",")} horas.</p>
+            </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="per-extra" className={etiqueta}>
+                Valor de la hora extra (opcional)
+              </label>
+              <Input
+                id="per-extra"
+                value={valorExtra ? `$${Number(valorExtra).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setValorExtra(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder={`$${valorDeHoraExtra({ ...datosJornada, valorHoraExtra: null }).toLocaleString("es-CL")} (legal)`}
+                inputMode="numeric"
+                className={campo}
+              />
+              <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
+                Hora ordinaria ${Math.round(valorHoraOrdinaria(datosJornada)).toLocaleString("es-CL")}; la extra lleva un recargo del {RECARGO_HORA_EXTRA * 100} % por ley. Si el comité paga otro valor, escríbelo aquí; vacío, se usa el legal.
+              </p>
+            </div>
 
             {contrato === "SUELDO" ? (
               <>

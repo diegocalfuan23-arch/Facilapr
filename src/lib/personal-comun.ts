@@ -35,6 +35,12 @@ export type TrabajadorFila = {
   valorDia: number | null;
   /** Cobra por los días que trabaja, no un sueldo mensual. */
   porDia: boolean;
+  /** Horas de la jornada por semana. */
+  jornadaSemanal: number;
+  /** Días que trabaja a la semana. */
+  diasSemana: number;
+  /** Lo que se le paga por hora extra; null = la hora ordinaria más el recargo legal. */
+  valorHoraExtra: number | null;
   fechaIngreso: string | null;
   afp: string | null;
   /** Centésimas de %: 1058 = 10,58 %. */
@@ -89,3 +95,29 @@ export function descuentosLegales(
 
 /** El texto de un porcentaje guardado en centésimas: 1058 → «10,58 %». */
 export const textoTasa = (centesimas: number) => `${(centesimas / 100).toLocaleString("es-CL", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} %`;
+
+/** La jornada semanal que se propone: 42 horas desde el 26 de abril de 2026 (Ley 21.561); 44 antes. */
+export const JORNADA_SEMANAL_LEGAL = 42;
+
+/** El recargo legal de la hora extra: 50 % sobre la hora ordinaria. */
+export const RECARGO_HORA_EXTRA = 0.5;
+
+export type DatosJornada = Pick<TrabajadorFila, "sueldo" | "valorDia" | "porDia" | "jornadaSemanal" | "diasSemana" | "valorHoraExtra">;
+
+/** Cuántas horas dura el día de trabajo de una persona: la jornada de la semana repartida en sus días. */
+export const horasPorDia = (j: Pick<DatosJornada, "jornadaSemanal" | "diasSemana">) => (j.jornadaSemanal > 0 && j.diasSemana > 0 ? j.jornadaSemanal / j.diasSemana : 8);
+
+/**
+ * Lo que vale una hora ordinaria. Con sueldo mensual se usa la fórmula de la Dirección del Trabajo: el sueldo
+ * diario (mensual ÷ 30) por 7 días, repartido en las horas de la semana. A quien cobra por día, su valor del día
+ * repartido en las horas de su día.
+ */
+export function valorHoraOrdinaria(j: DatosJornada): number {
+  if (j.porDia) return horasPorDia(j) > 0 ? (j.valorDia ?? 0) / horasPorDia(j) : 0;
+  return j.jornadaSemanal > 0 ? (j.sueldo * 7) / (30 * j.jornadaSemanal) : 0;
+}
+
+/** Lo que se paga por una hora extra: el valor fijado en la ficha o, si no hay, la hora ordinaria con el 50 % de recargo. */
+export function valorDeHoraExtra(j: DatosJornada): number {
+  return j.valorHoraExtra && j.valorHoraExtra > 0 ? j.valorHoraExtra : Math.round(valorHoraOrdinaria(j) * (1 + RECARGO_HORA_EXTRA));
+}

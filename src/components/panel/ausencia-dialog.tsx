@@ -145,7 +145,7 @@ export function AusenciaDialog({
 
           {modoHoras ? (
             <p className="rounded-xl border border-border bg-card px-4 py-3 text-[0.85rem] text-muted-foreground">
-              Una jornada son 8 horas. Si es sin goce, cada hora descuenta un octavo del valor del día en la liquidación del mes. No gasta días de vacaciones.
+              Si es sin goce, las horas se descuentan en la liquidación del mes según la jornada de la persona (su día dura las horas de su ficha dividido en sus días a la semana). No gasta días de vacaciones.
             </p>
           ) : (
             <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">

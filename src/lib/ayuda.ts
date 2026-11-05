@@ -1093,6 +1093,11 @@ export const ARTICULOS: Articulo[] = [
         nota: "Lo que ves en la ficha es una estimación para que cuadre con su liquidación. El cálculo real de cada mes se hace en Remuneraciones.",
       },
       {
+        titulo: "Define su jornada y la hora extra",
+        texto: "En «Jornada (horas por semana)» queda 42, la jornada legal desde el 26 de abril de 2026; cámbiala si trabaja menos. Con «Días a la semana» el sistema calcula cuánto dura su día, y eso sirve para descontar los permisos por horas. En «Valor de la hora extra» puedes fijar lo que el comité paga; vacío, se usa la hora ordinaria con el recargo legal del 50 %.",
+        nota: "La hora ordinaria se calcula con la fórmula de la Dirección del Trabajo: sueldo mensual × 7 ÷ (30 × horas de la semana). Conviene que tu contador confirme el valor con el contrato de cada persona.",
+      },
+      {
         titulo: "Si se le paga por día trabajado",
         texto: "En «Cómo se le paga» elige «Por día trabajado» y escribe cuánto se le paga por día. No lleva sueldo mensual: cada mes se le paga según los días que trabajó, tomados de la asistencia. Si en cambio tiene sueldo mensual, el «Valor del día» opcional define cuánto se le descuenta por cada día que no trabaje; vacío, se usa el sueldo dividido en 30.",
       },
@@ -1126,6 +1131,10 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Revisa los días que no se pagan",
         texto: "El sistema busca solo las faltas marcadas en Asistencia, los días de licencia y los permisos sin goce de ese mes. Las vacaciones sí se pagan. Cada día no pagado descuenta el sueldo dividido en 30. Al abrir una liquidación, el botón «Usar N» carga ese número de días.",
         nota: "Puedes cambiar los días a mano si algo no calza.",
+      },
+      {
+        titulo: "Anota las horas extras",
+        texto: "En «Horas extras» escribe las del mes. Cada hora vale lo fijado en la ficha de la persona o, si no hay, su hora ordinaria con el 50 % de recargo; el monto se suma a lo que gana y sobre eso se calculan la AFP, la salud y lo demás. Las horas extras no se toman solas de la asistencia: se anotan aquí.",
       },
       {
         titulo: "Mira los días y horas que se pagan",

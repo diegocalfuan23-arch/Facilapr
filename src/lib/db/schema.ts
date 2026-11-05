@@ -1131,6 +1131,12 @@ export const trabajadores = pgTable(
     valorDia: integer("valorDia"),
     /** Se le paga por los días que trabaja (valorDia por día), no un sueldo mensual fijo. */
     porDia: boolean("porDia").notNull().default(false),
+    /** Horas de la jornada por semana (42 desde el 26-04-2026, Ley 21.561). */
+    jornadaSemanal: doublePrecision("jornadaSemanal").notNull().default(42),
+    /** Cuántos días a la semana trabaja (5 o 6): con eso se saca cuántas horas dura su día. */
+    diasSemana: integer("diasSemana").notNull().default(5),
+    /** Lo que se le paga por cada hora extra. Null = la hora ordinaria con el recargo legal del 50 %. */
+    valorHoraExtra: integer("valorHoraExtra"),
     fechaIngreso: date("fechaIngreso", { mode: "string" }),
     /** La AFP en que cotiza (solo informativa). */
     afp: text("afp"),
@@ -1313,6 +1319,9 @@ export const remuneraciones = pgTable(
     descAusencias: integer("descAusencias").notNull().default(0),
     /** Horas de permiso sin goce que se descontaron (además de los días). */
     horasDescontadas: doublePrecision("horasDescontadas").notNull().default(0),
+    /** Horas extras del mes y lo que se paga por ellas. */
+    horasExtra: doublePrecision("horasExtra").notNull().default(0),
+    montoHorasExtra: integer("montoHorasExtra").notNull().default(0),
     bonos: integer("bonos").notNull().default(0),
     /** El desglose de lo que se descuenta; `descuentos` es la suma de todo. */
     descAfp: integer("descAfp").notNull().default(0),

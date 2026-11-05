@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { MEDIOS_MOVIMIENTO, hoyEnChile, textoMedioLinea } from "@/lib/finanzas-comun";
 import { descuentosLegales } from "@/lib/personal-comun";
 import { descuentoPorDias, valorDelDia, type RemuneracionFila } from "@/lib/rrhh-comun";
+import { horasPorDia, valorDeHoraExtra, valorHoraOrdinaria } from "@/lib/personal-comun";
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
 
@@ -51,6 +52,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
   const [dias, setDias] = useState(String(fila.diasDescontados));
   // A quien cobra por día: los días trabajados salen del sueldo base guardado y del valor del día.
+  const [horasExtra, setHorasExtra] = useState(fila.horasExtra ? String(fila.horasExtra).replace(".", ",") : "");
   const [horas, setHoras] = useState(fila.horasDescontadas ? String(fila.horasDescontadas).replace(".", ",") : "");
   const [diasTrab, setDiasTrab] = useState(String(fila.porDia && fila.valorDiaFicha ? Math.round(fila.sueldoBase / fila.valorDiaFicha) : 0));
   // El valor del día con que quedó esta liquidación (si ya tenía días descontados), el de la ficha, o el sueldo ÷ 30.
@@ -68,11 +70,17 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const baseNum = fila.porDia ? (Number(diasTrab) || 0) * (Number(valorDia) || 0) : Number(base) || 0;
   const horasNum = Number(horas.replace(",", ".")) || 0;
   const diasNoPagados = fila.porDia ? 0 : Number(dias) || 0;
-  const descAusencias = descuentoPorDias(baseNum, diasNoPagados, Number(valorDia) || null, horasNum);
+  const horasDia = horasPorDia(fila);
+  const descAusencias = descuentoPorDias(baseNum, diasNoPagados, Number(valorDia) || null, horasNum, horasDia);
+  // Las horas extras: el valor fijado en la ficha o la hora ordinaria con recargo.
+  const jornada = { sueldo: baseNum, valorDia: Number(valorDia) || fila.valorDiaFicha, porDia: fila.porDia, jornadaSemanal: fila.jornadaSemanal, diasSemana: fila.diasSemana, valorHoraExtra: fila.valorHoraExtraFicha };
+  const horasExtraNum = Number(horasExtra.replace(",", ".")) || 0;
+  const valorExtra = valorDeHoraExtra(jornada);
+  const montoExtra = Math.round(horasExtraNum * valorExtra);
   const formatoNumero = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
   const detalleNoPagado = [diasNoPagados > 0 ? `${diasNoPagados} ${diasNoPagados === 1 ? "día" : "días"}` : null, horasNum > 0 ? `${formatoNumero(horasNum)} h` : null].filter(Boolean).join(" + ");
-  const diasPagados = Math.max(0, 30 - diasNoPagados - horasNum / 8);
-  const imponible = Math.max(0, baseNum - descAusencias) + (Number(bonos) || 0);
+  const diasPagados = Math.max(0, 30 - diasNoPagados - horasNum / horasDia);
+  const imponible = Math.max(0, baseNum - descAusencias) + (Number(bonos) || 0) + montoExtra;
   const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
   const totalDescuentos = legales.total + (Number(otros) || 0);
   const liquido = Math.max(0, imponible - totalDescuentos);
@@ -92,6 +100,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <input type="hidden" name="diasDescontados" value={fila.porDia ? 0 : dias} />
           <input type="hidden" name="valorDia" value={valorDia} />
           <input type="hidden" name="horasDescontadas" value={horasNum} />
+          <input type="hidden" name="horasExtra" value={horasExtraNum} />
           <div className="grid gap-4 sm:grid-cols-3">
             {fila.porDia ? (
               <div>
@@ -195,7 +204,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
               className={cn(campo, "sm:w-32")}
             />
             <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
-              Una jornada son 8 horas: cada hora descuenta un octavo del valor del día.
+              El día de esta persona dura {formatoNumero(horasDia)} horas: cada hora descuenta esa parte del valor del día.
               {fila.ausenciasMes.horasPermisoSinGoce > 0 && horasNum !== fila.ausenciasMes.horasPermisoSinGoce && (
                 <>
                   {" "}
@@ -205,6 +214,23 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
                   </button>
                 </>
               )}
+            </p>
+          </div>
+          <div>
+            <label htmlFor="rem-extra" className={etiqueta}>
+              Horas extras
+            </label>
+            <Input
+              id="rem-extra"
+              value={horasExtra}
+              onChange={(e) => setHorasExtra(e.target.value.replace(/[^\d,.]/g, "").slice(0, 5))}
+              inputMode="decimal"
+              placeholder="0"
+              className={cn(campo, "sm:w-32")}
+            />
+            <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
+              Cada hora extra vale {clp.format(valorExtra)}
+              {fila.valorHoraExtraFicha ? " (fijado en su ficha)" : ` (hora ordinaria ${clp.format(Math.round(valorHoraOrdinaria(jornada)))} más 50 % de recargo)`}. Cuentan como parte de lo que gana.
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">
@@ -222,6 +248,12 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
               <div className="flex justify-between text-muted-foreground">
                 <span>No pagado ({detalleNoPagado})</span>
                 <span className="tabular-nums">-{clp.format(descAusencias)}</span>
+              </div>
+            )}
+            {montoExtra > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Horas extras ({formatoNumero(horasExtraNum)} h)</span>
+                <span className="tabular-nums">+{clp.format(montoExtra)}</span>
               </div>
             )}
             {(Number(bonos) || 0) > 0 && (

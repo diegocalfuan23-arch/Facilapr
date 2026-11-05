@@ -22,12 +22,12 @@ export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, perm
 /** Lo que vale un día de una persona: el valor fijado en su ficha o, si no hay, un treintavo del sueldo. */
 export const valorDelDia = (sueldo: number, valorDia: number | null | undefined) => (valorDia && valorDia > 0 ? valorDia : Math.round(sueldo / 30));
 
-/** Cuántas horas tiene una jornada: un permiso de 4 horas es medio día. */
+/** Las horas de un día si no se sabe la jornada de la persona. */
 export const JORNADA_HORAS = 8;
 
 /** Lo que se descuenta por días y horas no pagados: el valor del día por cada día, y una parte de él por cada hora (hasta 30 días). */
-export const descuentoPorDias = (sueldo: number, dias: number, valorDia?: number | null, horas = 0) =>
-  Math.round(valorDelDia(sueldo, valorDia) * Math.min(Math.max(dias, 0) + Math.max(horas, 0) / JORNADA_HORAS, 30));
+export const descuentoPorDias = (sueldo: number, dias: number, valorDia?: number | null, horas = 0, horasDia = JORNADA_HORAS) =>
+  Math.round(valorDelDia(sueldo, valorDia) * Math.min(Math.max(dias, 0) + Math.max(horas, 0) / (horasDia > 0 ? horasDia : JORNADA_HORAS), 30));
 
 export type RemuneracionFila = {
   id: string;
@@ -40,10 +40,17 @@ export type RemuneracionFila = {
   valorDiaFicha: number | null;
   /** Se le paga por día trabajado: el sueldo base del mes sale de los días por el valor del día. */
   porDia: boolean;
+  /** La jornada de la persona: sirve para calcular el valor de la hora y de la hora extra. */
+  jornadaSemanal: number;
+  diasSemana: number;
+  valorHoraExtraFicha: number | null;
   diasDescontados: number;
   descAusencias: number;
   /** Horas de permiso sin goce descontadas en esta liquidación. */
   horasDescontadas: number;
+  /** Horas extras del mes y lo que se paga por ellas. */
+  horasExtra: number;
+  montoHorasExtra: number;
   /** Lo registrado este mes en asistencia y ausencias, para sugerir los días a descontar. */
   ausenciasMes: ResumenAusenciasMes;
   bonos: number;
