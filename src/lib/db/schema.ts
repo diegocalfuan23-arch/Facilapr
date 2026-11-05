@@ -244,6 +244,34 @@ export const sitioImagenes = pgTable(
   (table) => [index("SitioImagen_aprId_tipo_idx").on(table.aprId, table.tipo)]
 );
 
+/**
+ * Secciones que el comité agrega a su sitio público: un texto, una imagen con texto, un llamado con
+ * botón o unos cuadros (tarjetas). Se muestran en orden, entre la galería y el contacto.
+ */
+export const sitioSecciones = pgTable(
+  "SitioSeccion",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** TEXTO | IMAGEN | BOTON | TARJETAS */
+    tipo: text("tipo").notNull(),
+    titulo: text("titulo"),
+    texto: text("texto"),
+    /** Una fila de SitioImagen (tipo SECCION), en las secciones con imagen. */
+    imagenId: text("imagenId"),
+    botonTexto: text("botonTexto"),
+    botonUrl: text("botonUrl"),
+    /** Los cuadros de una sección TARJETAS, como JSON: [{ titulo, texto }]. */
+    tarjetas: text("tarjetas"),
+    visible: boolean("visible").notNull().default(true),
+    orden: integer("orden").notNull().default(0),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("SitioSeccion_aprId_orden_idx").on(table.aprId, table.orden)]
+);
+
 export const socios = pgTable(
   "Socio",
   {

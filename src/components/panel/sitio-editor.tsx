@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SitioVistaPrevia } from "@/components/panel/sitio-vista-previa";
 import type { AvisoSitio, DatosSitio } from "@/components/sitio/sitio-apr";
 import type { ImagenesDelSitio } from "@/lib/sitio-imagenes-comun";
+import type { SeccionSitio } from "@/lib/sitio-secciones-comun";
 import { cn } from "@/lib/utils";
 
 export type DatosEditor = {
@@ -51,6 +52,7 @@ export function SitioEditor({
   sitio,
   avisos,
   imagenes,
+  secciones,
   dominioRaiz,
   sugerenciaSlug,
 }: {
@@ -59,6 +61,7 @@ export function SitioEditor({
   sitio: DatosSitio;
   avisos: AvisoSitio[];
   imagenes: ImagenesDelSitio;
+  secciones: SeccionSitio[];
   dominioRaiz: string;
   sugerenciaSlug: string;
 }) {
@@ -388,6 +391,7 @@ export function SitioEditor({
           }}
           avisos={avisos}
           imagenes={imagenes}
+          secciones={secciones}
         />
       </div>
     </>

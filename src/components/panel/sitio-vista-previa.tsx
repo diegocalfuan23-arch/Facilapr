@@ -4,12 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import { Eye } from "lucide-react";
 import { SitioApr, type AvisoSitio, type DatosSitio } from "@/components/sitio/sitio-apr";
 import type { ImagenesDelSitio } from "@/lib/sitio-imagenes-comun";
+import type { SeccionSitio } from "@/lib/sitio-secciones-comun";
 
 /** El ancho con que se dibuja el sitio antes de achicarlo: el de un computador. */
 const ANCHO_SITIO = 1180;
 
 /** El sitio público dibujado en chico, con lo que se va escribiendo. No es interactivo. */
-export function SitioVistaPrevia({ apr, avisos, imagenes }: { apr: DatosSitio; avisos: AvisoSitio[]; imagenes: ImagenesDelSitio }) {
+export function SitioVistaPrevia({ apr, avisos, imagenes, secciones }: { apr: DatosSitio; avisos: AvisoSitio[]; imagenes: ImagenesDelSitio; secciones: SeccionSitio[] }) {
   const contenedor = useRef<HTMLDivElement>(null);
   const contenido = useRef<HTMLDivElement>(null);
   const [escala, setEscala] = useState(0.4);
@@ -44,7 +45,7 @@ export function SitioVistaPrevia({ apr, avisos, imagenes }: { apr: DatosSitio; a
             aria-hidden
             style={{ width: ANCHO_SITIO, transform: `scale(${escala})`, transformOrigin: "top left" }}
           >
-            <SitioApr apr={apr} avisos={avisos} imagenes={imagenes} vistaPrevia />
+            <SitioApr apr={apr} avisos={avisos} imagenes={imagenes} secciones={secciones} vistaPrevia />
           </div>
         </div>
       </div>

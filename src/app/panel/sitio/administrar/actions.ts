@@ -41,7 +41,8 @@ export async function subirImagen(formData: FormData): Promise<ResultadoImagen> 
 
   const tipo = String(formData.get("tipo") ?? "") as TipoImagenSitio;
   const regla = REGLAS_IMAGEN[tipo];
-  if (!regla) return { ok: false, error: "Tipo de imagen no válido." };
+  // Las imágenes de las secciones se suben junto con la sección (secciones-actions), no por aquí.
+  if (!regla || tipo === "SECCION") return { ok: false, error: "Tipo de imagen no válido." };
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, error: "Elige una imagen." };

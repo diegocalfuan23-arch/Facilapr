@@ -7,6 +7,7 @@ import { avisos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { NOMBRE_PLAN, planMinimoPara, puede, type Plan } from "@/lib/planes";
 import { imagenesDelSitio } from "@/lib/sitio-imagenes";
+import { listarSecciones } from "@/lib/sitio-secciones";
 import { SitioAdministrar } from "@/components/panel/sitio-administrar";
 
 export const metadata: Metadata = { title: "Administrar sitio" };
@@ -25,13 +26,14 @@ export default async function AdministrarSitioPage() {
     );
   }
 
-  const [listado, imagenes] = await Promise.all([
+  const [listado, imagenes, secciones] = await Promise.all([
     db.query.avisos.findMany({
       where: eq(avisos.aprId, apr.id),
       orderBy: [desc(avisos.createdAt)],
       columns: { id: true, tipo: true, titulo: true, cuerpo: true, sectores: true, inicia: true, termina: true, publicado: true },
     }),
     imagenesDelSitio(apr.id),
+    listarSecciones(apr.id),
   ]);
 
   const url = apr.slug && apr.sitioPublicado ? `https://${apr.slug}.${DOMINIO_RAIZ}` : null;
@@ -56,7 +58,7 @@ export default async function AdministrarSitioPage() {
         </div>
       </div>
 
-      <SitioAdministrar imagenes={imagenes} avisos={listado} />
+      <SitioAdministrar imagenes={imagenes} avisos={listado} secciones={secciones} />
     </>
   );
 }

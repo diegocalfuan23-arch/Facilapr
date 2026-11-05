@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import { formatearTelefono } from "@/lib/formato";
 import { AsistenteComite } from "@/components/sitio/asistente-comite";
+import { SeccionesSitio } from "@/components/sitio/secciones-sitio";
+import type { SeccionSitio } from "@/lib/sitio-secciones-comun";
 import { SIN_IMAGENES, urlImagenSitio, type ImagenesDelSitio } from "@/lib/sitio-imagenes-comun";
 
 /*
@@ -94,6 +96,7 @@ export function SitioApr({
   slug,
   dominio,
   imagenes = SIN_IMAGENES,
+  secciones = [],
   vistaPrevia = false,
 }: {
   apr: DatosSitio;
@@ -101,6 +104,8 @@ export function SitioApr({
   slug?: string;
   dominio?: string;
   imagenes?: ImagenesDelSitio;
+  /** Las secciones que armó el comité (solo las visibles), en orden. */
+  secciones?: SeccionSitio[];
   /** En la vista previa del panel: sin el asistente flotante y sin que los enlaces saquen de la pantalla. */
   vistaPrevia?: boolean;
 }) {
@@ -307,6 +312,8 @@ export function SitioApr({
           </div>
         </section>
       )}
+
+      <SeccionesSitio secciones={secciones} />
 
       {hayContacto && (
         <section className="border-t border-border bg-muted/40 py-16">

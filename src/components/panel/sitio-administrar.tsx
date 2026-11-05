@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { cambiarPieImagen, eliminarImagen, subirImagen } from "@/app/panel/sitio/administrar/actions";
 import { AvisosSeccion, type AvisoEditor } from "@/components/panel/avisos-sitio";
+import { SeccionesAdmin } from "@/components/panel/secciones-admin";
+import type { SeccionSitio } from "@/lib/sitio-secciones-comun";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { comprimirImagen } from "@/lib/comprimir-imagen";
@@ -118,7 +120,7 @@ function PieFoto({ foto }: { foto: ImagenSitio }) {
   );
 }
 
-export function SitioAdministrar({ imagenes, avisos }: { imagenes: ImagenesDelSitio; avisos: AvisoEditor[] }) {
+export function SitioAdministrar({ imagenes, avisos, secciones }: { imagenes: ImagenesDelSitio; avisos: AvisoEditor[]; secciones: SeccionSitio[] }) {
   const { logo, portada, galeria } = imagenes;
 
   return (
@@ -181,6 +183,8 @@ export function SitioAdministrar({ imagenes, avisos }: { imagenes: ImagenesDelSi
           </div>
         )}
       </Tarjeta>
+
+      <SeccionesAdmin secciones={secciones} />
 
       <AvisosSeccion avisos={avisos} />
     </div>

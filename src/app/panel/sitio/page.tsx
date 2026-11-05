@@ -13,6 +13,7 @@ import {
 } from "@/lib/planes";
 import { SitioEditor } from "@/components/panel/sitio-editor";
 import { imagenesDelSitio } from "@/lib/sitio-imagenes";
+import { listarSecciones } from "@/lib/sitio-secciones";
 
 export const metadata: Metadata = {
   title: "Sitio público",
@@ -80,7 +81,7 @@ export default async function SitioPage() {
     },
   });
 
-  const imagenes = await imagenesDelSitio(apr.id);
+  const [imagenes, secciones] = await Promise.all([imagenesDelSitio(apr.id), listarSecciones(apr.id, true)]);
 
   return (
     <SitioEditor
@@ -109,6 +110,7 @@ export default async function SitioPage() {
       }}
       avisos={listado}
       imagenes={imagenes}
+      secciones={secciones}
       dominioRaiz={DOMINIO_RAIZ}
       sugerenciaSlug={generarSlug(apr.nombre)}
     />
