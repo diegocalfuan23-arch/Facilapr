@@ -240,6 +240,15 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
             <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
               Cada hora extra vale {clp.format(valorExtra)}
               {fila.valorHoraExtraFicha ? " (fijado en su ficha)" : ` (hora ordinaria ${clp.format(Math.round(valorHoraOrdinaria(jornada)))} más 50 % de recargo)`}. Cuentan como parte de lo que gana.
+              {fila.ausenciasMes.horasExtra > 0 && horasExtraNum !== fila.ausenciasMes.horasExtra && (
+                <>
+                  {" "}
+                  En Asistencia hay {formatoNumero(fila.ausenciasMes.horasExtra)} h este mes.{" "}
+                  <button type="button" className="font-medium text-primary hover:underline" onClick={() => setHorasExtra(String(fila.ausenciasMes.horasExtra).replace(".", ","))}>
+                    Usar {formatoNumero(fila.ausenciasMes.horasExtra)}
+                  </button>
+                </>
+              )}
             </p>
           </div>
           <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">

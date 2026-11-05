@@ -1138,7 +1138,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Anota las horas extras",
-        texto: "En «Horas extras» escribe las del mes. Cada hora vale lo fijado en la ficha de la persona o, si no hay, su hora ordinaria con el 50 % de recargo; el monto se suma a lo que gana y sobre eso se calculan la AFP, la salud y lo demás. Las horas extras no se toman solas de la asistencia: se anotan aquí.",
+        texto: "En «Horas extras» escribe las del mes. Cada hora vale lo fijado en la ficha de la persona o, si no hay, su hora ordinaria con el 50 % de recargo; el monto se suma a lo que gana y sobre eso se calculan la AFP, la salud y lo demás. Si las anotaste día a día en Asistencia, se cargan solas al armar el mes y aparece el botón «Usar» con el total. Si no, las escribes aquí.",
       },
       {
         titulo: "Mira los días y horas que se pagan",
@@ -1245,6 +1245,10 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Marca a cada persona",
         texto: "Pulsa el botón que corresponda. Se guarda al tiro. Las vacaciones y licencias aprobadas aparecen solas, sin botones.",
+      },
+      {
+        titulo: "Anota las horas extras del día",
+        texto: "Bajo los botones de cada persona está «Horas extras»: escribe cuántas hizo ese día (por ejemplo, 2,5) y se guardan al salir del campo. Al armar el mes en Remuneraciones se suman solas y se pagan con el valor de la hora extra de su ficha.",
       },
       {
         titulo: "Las faltas llegan al sueldo",

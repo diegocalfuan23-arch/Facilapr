@@ -44,6 +44,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
         jornadaSemanal: trabajadores.jornadaSemanal,
         diasSemana: trabajadores.diasSemana,
         noImponible: trabajadores.noImponible,
+        valorHoraExtra: trabajadores.valorHoraExtra,
         contrato: trabajadores.contrato,
         afpTasa: trabajadores.afpTasa,
         saludTasa: trabajadores.saludTasa,
@@ -84,10 +85,13 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
         const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
         const horas = ausenciasMes[p.id]?.horasPermisoSinGoce ?? 0;
         const descAus = descuentoPorDias(base, dias, p.valorDia, horas, horasPorDia(p));
-        const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus);
+        // Las horas extras registradas en Asistencia se pagan con la hora extra de la persona.
+        const horasExtra = ausenciasMes[p.id]?.horasExtra ?? 0;
+        const montoExtra = Math.round(horasExtra * valorDeHoraExtra({ sueldo: base, valorDia: p.valorDia, porDia: p.porDia, jornadaSemanal: p.jornadaSemanal, diasSemana: p.diasSemana, valorHoraExtra: p.valorHoraExtra }));
+        const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus + montoExtra);
 
         // Nunca se descuenta más de lo que la persona gana: lo que no alcanza queda para el mes siguiente.
-        let capacidad = Math.max(0, base - descAus - d.total);
+        let capacidad = Math.max(0, base - descAus + montoExtra - d.total);
         let cuotasPrestamos = 0;
         const aplicadas: { prestamoId: string; monto: number }[] = [];
         for (const v of vigentes.filter((x) => x.trabajadorId === p.id && !yaEsteMes.has(x.id))) {
@@ -109,6 +113,8 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
           diasDescontados: dias,
           descAusencias: descAus,
           horasDescontadas: horas,
+          horasExtra,
+          montoHorasExtra: montoExtra,
           descAfp: d.afp,
           descSalud: d.salud,
           descCesantia: d.cesantia,
@@ -116,7 +122,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
           otrosDescuentos: cuotasPrestamos,
           noImponible: p.noImponible,
           descuentos,
-          liquido: base - descAus - descuentos + p.noImponible,
+          liquido: base - descAus + montoExtra - descuentos + p.noImponible,
         };
       });
 

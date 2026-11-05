@@ -4,8 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { marcarAsistencia } from "@/app/panel/asistencia/actions";
+import { guardarHorasExtra, marcarAsistencia } from "@/app/panel/asistencia/actions";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { ESTADOS_ASISTENCIA_MANUAL, TEXTO_ESTADO_ASISTENCIA, type AsistenciaDia, type EstadoAsistencia } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
@@ -263,6 +264,7 @@ export function AsistenciaVista({
                         ))}
                       </div>
                     )}
+                    {!f.automatico && <HorasExtraDia key={`${f.trabajadorId}-${dia}`} trabajadorId={f.trabajadorId} dia={dia} inicial={f.horasExtra} />}
                   </div>
                 );
               })}
@@ -271,5 +273,37 @@ export function AsistenciaVista({
         </div>
       )}
     </div>
+  );
+}
+
+/** Las horas extras de una persona en el día elegido: se guardan al salir del campo y se suman solas a su liquidación del mes. */
+function HorasExtraDia({ trabajadorId, dia, inicial }: { trabajadorId: string; dia: string; inicial: number }) {
+  const [valor, setValor] = useState(inicial > 0 ? String(inicial).replace(".", ",") : "");
+  const [, iniciar] = useTransition();
+
+  function guardar() {
+    const horas = Number(valor.replace(",", ".")) || 0;
+    if (horas === inicial) return;
+    iniciar(async () => {
+      const r = await guardarHorasExtra(trabajadorId, dia, horas);
+      if (!r.ok) toast.error(r.error);
+      else toast.success(horas > 0 ? "Horas extras anotadas" : "Horas extras quitadas");
+    });
+  }
+
+  return (
+    <label className="flex items-center gap-2 text-[0.8rem] text-muted-foreground">
+      Horas extras
+      <Input
+        value={valor}
+        onChange={(e) => setValor(e.target.value.replace(/[^\d,.]/g, "").slice(0, 4))}
+        onBlur={guardar}
+        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        inputMode="decimal"
+        placeholder="0"
+        aria-label="Horas extras"
+        className="h-8 w-16 px-2 text-center text-[0.85rem]"
+      />
+    </label>
   );
 }

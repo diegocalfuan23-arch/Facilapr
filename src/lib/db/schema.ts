@@ -1429,6 +1429,24 @@ export const prestamoDescuentos = pgTable(
   (table) => [uniqueIndex("PrestamoDescuento_prestamo_periodo_key").on(table.prestamoId, table.periodo)]
 );
 
+/** Las horas extras que trabajó una persona en un día. Se suman solas al armar la liquidación del mes. */
+export const horasExtras = pgTable(
+  "HoraExtra",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    horas: doublePrecision("horas").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("HoraExtra_trabajador_fecha_key").on(table.trabajadorId, table.fecha), index("HoraExtra_aprId_fecha_idx").on(table.aprId, table.fecha)]
+);
+
 /** El registro diario de asistencia: un estado por persona y por día. */
 export const asistencias = pgTable(
   "Asistencia",

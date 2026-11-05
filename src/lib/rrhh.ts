@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asistencias, ausencias, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { asistencias, ausencias, horasExtras, remuneraciones, trabajadores } from "@/lib/db/schema";
 import type {
   AsistenciaDia,
   AusenciaFila,
@@ -123,7 +123,7 @@ export async function vacacionesTomadas(aprId: string): Promise<Record<string, n
  */
 export async function asistenciaDelDia(aprId: string, dia: string): Promise<AsistenciaDia[]> {
   try {
-    const [personas, marcas, cubiertas] = await Promise.all([
+    const [personas, marcas, cubiertas, extras] = await Promise.all([
       db
         .select({ id: trabajadores.id, nombre: trabajadores.nombre, cargo: trabajadores.cargo })
         .from(trabajadores)
@@ -137,13 +137,20 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
         .select({ trabajadorId: ausencias.trabajadorId, tipo: ausencias.tipo })
         .from(ausencias)
         .where(and(eq(ausencias.aprId, aprId), eq(ausencias.estado, "APROBADA"), lte(ausencias.desde, dia), gte(ausencias.hasta, dia))),
+      // Si la tabla de horas extras aún no existe, el día se ve igual, sin ellas.
+      db
+        .select({ trabajadorId: horasExtras.trabajadorId, horas: horasExtras.horas })
+        .from(horasExtras)
+        .where(and(eq(horasExtras.aprId, aprId), eq(horasExtras.fecha, dia)))
+        .catch(() => [] as { trabajadorId: string; horas: number }[]),
     ]);
+    const extraDe = new Map(extras.map((x) => [x.trabajadorId, x.horas]));
     const marcaDe = new Map(marcas.map((m) => [m.trabajadorId, m]));
     const cubiertaDe = new Map(cubiertas.map((c) => [c.trabajadorId, c.tipo]));
     return personas.map((p) => {
       const cubierta = cubiertaDe.get(p.id);
       if (cubierta === "VACACIONES" || cubierta === "LICENCIA") {
-        return { trabajadorId: p.id, nombre: p.nombre, cargo: p.cargo, estado: cubierta as EstadoAsistencia, automatico: true, nota: null };
+        return { trabajadorId: p.id, nombre: p.nombre, cargo: p.cargo, estado: cubierta as EstadoAsistencia, automatico: true, nota: null, horasExtra: 0 };
       }
       const marca = marcaDe.get(p.id);
       return {
@@ -153,6 +160,7 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
         estado: (marca?.estado ?? (cubierta === "PERMISO" ? "PERMISO" : null)) as EstadoAsistencia | null,
         automatico: false,
         nota: marca?.nota ?? null,
+        horasExtra: extraDe.get(p.id) ?? 0,
       };
     });
   } catch (e) {
@@ -250,6 +258,7 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
       descontables: 0,
       trabajados: estados.filter((e) => e === "PRESENTE" || e === "ATRASO").length,
       horasPermisoSinGoce: 0,
+      horasExtra: 0,
     };
   }
 
@@ -269,7 +278,7 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
         )
       );
     for (const x of permisos) {
-      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0 });
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0, horasExtra: 0 });
       const ini = Math.max(Date.parse(x.desde), primero);
       const fin = Math.min(Date.parse(x.hasta), ultimo);
       for (let t = ini; t <= fin; t += 86_400_000) {
@@ -296,8 +305,18 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
         )
       );
     for (const x of porHoras) {
-      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0 });
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0, horasExtra: 0 });
       r.horasPermisoSinGoce += x.horas ?? 0;
+    }
+
+    // Las horas extras registradas en Asistencia durante el mes.
+    const extras = await db
+      .select({ trabajadorId: horasExtras.trabajadorId, horas: horasExtras.horas })
+      .from(horasExtras)
+      .where(and(eq(horasExtras.aprId, aprId), gte(horasExtras.fecha, desde), lte(horasExtras.fecha, hasta)));
+    for (const x of extras) {
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0, horasExtra: 0 });
+      r.horasExtra += x.horas;
     }
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer los permisos sin goce:", e);

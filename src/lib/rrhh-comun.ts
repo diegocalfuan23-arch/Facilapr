@@ -16,9 +16,11 @@ export type ResumenAusenciasMes = {
   trabajados: number;
   /** Las horas de permisos por horas sin goce, aprobados este mes. Se descuentan como parte de un día. */
   horasPermisoSinGoce: number;
+  /** Las horas extras que se registraron en Asistencia este mes. */
+  horasExtra: number;
 };
 
-export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0 };
+export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0, horasExtra: 0 };
 
 /** Lo que vale un día de una persona: el valor fijado en su ficha o, si no hay, un treintavo del sueldo. */
 export const valorDelDia = (sueldo: number, valorDia: number | null | undefined) => (valorDia && valorDia > 0 ? valorDia : Math.round(sueldo / 30));
@@ -136,6 +138,8 @@ export type AsistenciaDia = {
   /** true si el estado viene de una vacación o licencia aprobada, no de una marca manual. */
   automatico: boolean;
   nota: string | null;
+  /** Las horas extras de ese día (0 si no hubo). */
+  horasExtra: number;
 };
 
 const aFecha = (iso: string) => {
