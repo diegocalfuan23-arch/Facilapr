@@ -17,6 +17,7 @@ import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-
 import { LinkPagoDialog } from "@/components/panel/link-pago-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 import type { DatosComiteWhatsApp } from "@/lib/whatsapp";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 export type PagoFila = {
   id: string;
@@ -96,6 +97,7 @@ export function PagosTabla({
   estadoMp?: React.ReactNode;
   mpModo?: "prueba" | "produccion";
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
   const [registrando, setRegistrando] = useState(false);
   const [corrigiendo, setCorrigiendo] = useState<PagoFila | null>(null);
@@ -126,7 +128,7 @@ export function PagosTabla({
 
   async function borrar(p: PagoFila) {
     const aviso = p.periodo ? "La boleta volverá a deber ese monto." : "Se quita también de la Caja.";
-    if (!window.confirm(`¿Eliminar el pago de ${clp.format(p.monto)} de ${p.socioNombre}? ${aviso}`)) return;
+    if (!(await confirmar({ titulo: `¿Eliminar el pago de ${clp.format(p.monto)}?`, descripcion: `${p.socioNombre}. ${aviso}`, boton: "Eliminar" }))) return;
     const r = await eliminarPago(p.id);
     if (r.ok) {
       toast.success("Pago eliminado");
@@ -419,6 +421,7 @@ export function PagosTabla({
         <LinkPagoDialog socios={socios} boletas={boletasPendientes} comite={comite} modo={mpModo} onCerrar={() => setConLink(false)} />
       )}
 
+      {dialogo}
       {corrigiendo && <EditarPagoDialog key={corrigiendo.id} pago={corrigiendo} onCerrar={() => setCorrigiendo(null)} />}
 
       {registrando && (

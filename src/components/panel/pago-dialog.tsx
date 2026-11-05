@@ -23,6 +23,7 @@ import {
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { MEDIOS_PAGO, textoMedioPago } from "@/lib/pagos";
 import { normalizarTelefono } from "@/lib/formato";
+import { useConfirmar } from "@/components/ui/confirmar";
 import {
   enlaceWhatsApp,
   mensajeComprobantePago,
@@ -59,6 +60,7 @@ export function PagoDialog({
   comite: DatosComiteWhatsApp;
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const hoy = new Date().toISOString().slice(0, 10);
   const [monto, setMonto] = useState(
     String(saldo(boleta.montoTotal, boleta.montoPagado) || "")
@@ -304,8 +306,8 @@ export function PagoDialog({
                     aria-label="Eliminar pago"
                     title="Eliminar este pago"
                     className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                    onClick={() => {
-                      if (!window.confirm("¿Eliminar este pago? La boleta volverá a deber ese monto.")) return;
+                    onClick={async () => {
+                      if (!(await confirmar({ titulo: "¿Eliminar este pago?", descripcion: "La boleta volverá a deber ese monto.", boton: "Eliminar" }))) return;
                       iniciar(async () => {
                         const r = await eliminarPago(h.id);
                         if (r.ok) {
@@ -366,6 +368,7 @@ export function PagoDialog({
             </Button>
           )}
         </DialogFooter>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

@@ -21,6 +21,7 @@ import {
   type ResumenPeriodo,
 } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
@@ -139,6 +140,7 @@ export function CajaVista({
   categoriasPropias,
   saldoInicial,
 }: Props) {
+  const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
   const [, navegar] = useTransition();
   const [borrando, iniciar] = useTransition();
@@ -154,8 +156,8 @@ export function CajaVista({
   const cerrarCierre = useCallback(() => setCerrando(false), []);
   const cerrarSaldo = useCallback(() => setDefiniendoSaldo(false), []);
 
-  function borrar(l: LineaLibro) {
-    if (!window.confirm(`¿Borrar «${l.concepto}»? No se puede deshacer.`)) return;
+  async function borrar(l: LineaLibro) {
+    if (!(await confirmar({ titulo: `¿Borrar «${l.concepto}»?`, descripcion: "No se puede deshacer.", boton: "Borrar" }))) return;
     iniciar(async () => {
       const r = await eliminarMovimiento(l.id.replace("mov:", ""));
       if (r.ok) toast.success("Movimiento borrado");
@@ -468,6 +470,7 @@ export function CajaVista({
           onCerrar={cerrarRegistro}
         />
       )}
+      {dialogo}
       {gestionandoCategorias && <CategoriasCajaDialog propias={categoriasPropias} onCerrar={cerrarCategorias} />}
       {cerrando && (
         <CerrarCajaDialog

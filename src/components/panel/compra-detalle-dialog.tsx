@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { TEXTO_ESTADO_COMPRA, TEXTO_ORIGEN_ITEM, type CompraFila } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const cantidadFmt = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
@@ -23,6 +24,7 @@ export const COLOR_ESTADO_COMPRA: Record<string, string> = {
 
 /** El detalle de una compra: sus líneas y totales, y desde aquí se paga o se anula. */
 export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; onCerrar: () => void }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [medio, setMedio] = useState("TRANSFERENCIA");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
@@ -53,9 +55,9 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
     });
   }
 
-  function anular() {
+  async function anular() {
     const aviso = compra.estado === "PAGADA" ? " Se borra también su egreso de Caja." : "";
-    if (!window.confirm(`¿Anular la compra C-${compra.numero}? El stock que sumó vuelve a lo que era.${aviso}`)) return;
+    if (!(await confirmar({ titulo: `¿Anular la compra C-${compra.numero}?`, descripcion: `El stock que sumó vuelve a lo que era.${aviso}`, boton: "Anular compra" }))) return;
     setError(null);
     iniciar(async () => {
       const r = await anularCompra(compra.id);
@@ -213,6 +215,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
             </Button>
           </div>
         </div>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

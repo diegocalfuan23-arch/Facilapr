@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirmar } from "@/components/ui/confirmar";
 import {
   AFPS,
   CARGOS_SUGERIDOS,
@@ -53,6 +54,7 @@ export function TrabajadorDialog({
   puedeTesorero?: boolean;
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoPersonal | null, FormData>(guardarTrabajador, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = persona !== null;
@@ -76,9 +78,9 @@ export function TrabajadorDialog({
     if (a) setAfpTasaTexto(aTextoTasa(tasaAfp(a.comision)));
   }
 
-  function borrar() {
+  async function borrar() {
     if (!persona) return;
-    if (!window.confirm(`¿Borrar a «${persona.nombre}»?`)) return;
+    if (!(await confirmar({ titulo: `¿Borrar a «${persona.nombre}»?`, descripcion: "No se puede deshacer.", boton: "Borrar" }))) return;
     iniciarBorrado(async () => {
       const r = await eliminarTrabajador(persona.id);
       if (r.ok) {
@@ -302,6 +304,7 @@ export function TrabajadorDialog({
             </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

@@ -9,12 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import type { ProveedorFila } from "@/lib/compras-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
 
 /** Crear un proveedor, o corregir uno que ya existe (y borrarlo, si no se necesita más). */
 export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorFila | null; onCerrar: () => void }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoCompras | null, FormData>(guardarProveedor, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = proveedor !== null;
@@ -26,9 +28,9 @@ export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorF
     }
   }, [estado, editando, onCerrar]);
 
-  function borrar() {
+  async function borrar() {
     if (!proveedor) return;
-    if (!window.confirm(`¿Borrar a «${proveedor.nombre}»? Sus compras se quedan con su nombre.`)) return;
+    if (!(await confirmar({ titulo: `¿Borrar a «${proveedor.nombre}»?`, descripcion: "Sus compras se quedan con su nombre.", boton: "Borrar" }))) return;
     iniciarBorrado(async () => {
       const r = await eliminarProveedor(proveedor.id);
       if (r.ok) {
@@ -116,6 +118,7 @@ export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorF
             </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

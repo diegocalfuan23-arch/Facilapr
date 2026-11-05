@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { diasDe, TEXTO_TIPO_AUSENCIA, type AusenciaFila, type TipoAusencia } from "@/lib/rrhh-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
@@ -29,6 +30,7 @@ export function AusenciaDialog({
   personas: { id: string; nombre: string }[];
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoAusencias | null, FormData>(guardarAusencia, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = ausencia !== null;
@@ -45,9 +47,9 @@ export function AusenciaDialog({
     }
   }, [estado, editando, onCerrar]);
 
-  function borrar() {
+  async function borrar() {
     if (!ausencia) return;
-    if (!window.confirm("¿Borrar este registro?")) return;
+    if (!(await confirmar({ titulo: "¿Borrar este registro?", descripcion: "No se puede deshacer.", boton: "Borrar" }))) return;
     iniciarBorrado(async () => {
       const r = await eliminarAusencia(ausencia.id);
       if (r.ok) {
@@ -178,6 +180,7 @@ export function AusenciaDialog({
             </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

@@ -24,6 +24,7 @@ import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscad
 import { MEDIOS_PAGO } from "@/lib/pagos";
 import { normalizarTelefono } from "@/lib/formato";
 import { calendarioCuotas, seguimientoRepactacion } from "@/lib/repactaciones";
+import { useConfirmar } from "@/components/ui/confirmar";
 import {
   enlaceWhatsApp,
   mensajeComprobanteCuota,
@@ -65,6 +66,7 @@ export function RepactacionesPanel({
   sociosConDeuda: SocioConDeuda[];
   comite: DatosComiteWhatsApp;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [creando, setCreando] = useState(false);
   const [pagando, setPagando] = useState<RepactacionFila | null>(null);
   const [verTerminadas, setVerTerminadas] = useState(false);
@@ -99,8 +101,8 @@ export function RepactacionesPanel({
               key={r.id}
               r={r}
               onCuota={() => setPagando(r)}
-              onCancelar={() => {
-                if (!window.confirm(`¿Cancelar el acuerdo de ${r.socioNombre}? Los pagos que ya hizo se mantienen.`)) return;
+              onCancelar={async () => {
+                if (!(await confirmar({ titulo: `¿Cancelar el acuerdo de ${r.socioNombre}?`, descripcion: "Los pagos que ya hizo se mantienen.", boton: "Cancelar acuerdo" }))) return;
                 iniciar(async () => {
                   const res = await cancelarRepactacion(r.id);
                   if (res.ok) toast.success("Acuerdo cancelado");
@@ -139,6 +141,7 @@ export function RepactacionesPanel({
         </div>
       )}
 
+      {dialogo}
       {creando && <NuevaRepactacionDialog socios={sociosConDeuda} onCerrar={() => setCreando(false)} />}
       {pagando && <CuotaDialog r={pagando} comite={comite} onCerrar={() => setPagando(null)} />}
     </section>

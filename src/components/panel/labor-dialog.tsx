@@ -12,6 +12,7 @@ import { hoyEnChile } from "@/lib/finanzas-comun";
 import { formatoCantidad, unidadCorta, type Insumo } from "@/lib/inventario-comun";
 import { TIPOS_LABOR, type EstadoLabor, type LaborFila } from "@/lib/labores-comun";
 import { cn } from "@/lib/utils";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
@@ -22,6 +23,7 @@ type Linea = { clave: number; insumoId: string; cantidad: string };
 
 /** Registrar una labor del comité y los materiales del inventario que usa. */
 export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; onCerrar: () => void }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [resultado, enviar, pendiente] = useActionState<ResultadoLabores | null, FormData>(guardarLabor, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = labor !== null;
@@ -50,9 +52,9 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
     lineas.filter((l) => l.insumoId && Number(l.cantidad.replace(",", ".")) > 0).map((l) => ({ insumoId: l.insumoId, cantidad: Number(l.cantidad.replace(",", ".")) }))
   );
 
-  function borrar() {
+  async function borrar() {
     if (!labor) return;
-    if (!window.confirm(`¿Borrar la labor L-${labor.numero}?${labor.descontada ? " Los materiales que descontó vuelven al inventario." : ""}`)) return;
+    if (!(await confirmar({ titulo: `¿Borrar la labor L-${labor.numero}?`, descripcion: labor.descontada ? "Los materiales que descontó vuelven al inventario." : "No se puede deshacer.", boton: "Borrar" }))) return;
     iniciarBorrado(async () => {
       const r = await eliminarLabor(labor.id);
       if (r.ok) {
@@ -241,6 +243,7 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
             </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

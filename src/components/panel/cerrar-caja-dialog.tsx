@@ -7,6 +7,7 @@ import { cerrarCaja, reabrirCaja, type ResultadoFinanzas } from "@/app/panel/fin
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import type { ResumenPeriodo } from "@/lib/finanzas-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
@@ -31,12 +32,13 @@ export function CerrarCajaDialog({
   onDefinirSaldo: () => void;
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoFinanzas | null, FormData>(cerrarCaja, null);
   const [reabriendo, iniciarReapertura] = useTransition();
   const cerrada = resumen.cierre !== null;
 
-  function reabrir() {
-    if (!window.confirm(`¿Reabrir la caja del ${fechaCorta(resumen.desde)}? Se borra la constancia del cierre y el día vuelve a admitir cambios.`)) return;
+  async function reabrir() {
+    if (!(await confirmar({ titulo: `¿Reabrir la caja del ${fechaCorta(resumen.desde)}?`, descripcion: "Se borra la constancia del cierre y el día vuelve a admitir cambios.", boton: "Reabrir", destructivo: false }))) return;
     iniciarReapertura(async () => {
       const r = await reabrirCaja(resumen.desde);
       if (r.ok) {
@@ -183,6 +185,7 @@ export function CerrarCajaDialog({
             </>
           )}
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

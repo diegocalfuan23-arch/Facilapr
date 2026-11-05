@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import type { CategoriaPropia } from "@/lib/inventario-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 /**
  * Las categorías del inventario: las crea el propio comité, según lo que guarda en bodega.
@@ -23,6 +24,7 @@ export function CategoriasDialog({
   usos: Record<string, number>;
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [nombre, setNombre] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
@@ -74,10 +76,10 @@ export function CategoriasDialog({
     });
   }
 
-  function borrar(c: CategoriaPropia) {
+  async function borrar(c: CategoriaPropia) {
     const n = usos[c.id] ?? 0;
     const aviso = n > 0 ? ` ${n === 1 ? "Su material queda" : `Sus ${n} materiales quedan`} sin categoría.` : "";
-    if (!window.confirm(`¿Borrar la categoría «${c.nombre}»?${aviso}`)) return;
+    if (!(await confirmar({ titulo: `¿Borrar la categoría «${c.nombre}»?`, descripcion: aviso.trim() || "No se puede deshacer.", boton: "Borrar" }))) return;
     setBorrandoId(c.id);
     iniciar(async () => {
       const r = await eliminarCategoria(c.id);
@@ -220,6 +222,7 @@ export function CategoriasDialog({
             Listo
           </Button>
         </div>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

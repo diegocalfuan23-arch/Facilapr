@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { CATEGORIAS_ACTIVO, type ActivoFila } from "@/lib/activos-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
@@ -18,6 +19,7 @@ const selectClase =
 
 /** Registrar un bien del comité, o corregir su ficha, su estado y su vida útil. */
 export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; onCerrar: () => void }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoActivos | null, FormData>(guardarActivo, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = activo !== null;
@@ -38,9 +40,9 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
     if (!editando) setVida(String(CATEGORIAS_ACTIVO.find((c) => c.valor === valor)?.vida ?? 5));
   }
 
-  function borrar() {
+  async function borrar() {
     if (!activo) return;
-    if (!window.confirm(`¿Borrar «${activo.nombre}»?${activo.costoEnCaja ? " También se quita su costo de la Caja." : ""} Si el bien ya no está, es mejor marcarlo como dado de baja.`)) return;
+    if (!(await confirmar({ titulo: `¿Borrar «${activo.nombre}»?`, descripcion: `${activo.costoEnCaja ? "También se quita su costo de la Caja. " : ""}Si el bien ya no está, es mejor marcarlo como dado de baja.`, boton: "Borrar" }))) return;
     iniciarBorrado(async () => {
       const r = await eliminarActivo(activo.id);
       if (r.ok) {
@@ -188,6 +190,7 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
             </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

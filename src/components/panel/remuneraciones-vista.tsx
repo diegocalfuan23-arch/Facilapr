@@ -19,6 +19,7 @@ import { MEDIOS_MOVIMIENTO, hoyEnChile, textoMedioLinea } from "@/lib/finanzas-c
 import { descuentosLegales } from "@/lib/personal-comun";
 import { descuentoPorDias, type RemuneracionFila } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
@@ -282,6 +283,7 @@ export function RemuneracionesVista({
   siguiente: string;
   mesTexto: string;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
   const [ocupado, iniciar] = useTransition();
   const [editando, setEditando] = useState<RemuneracionFila | null>(null);
@@ -300,16 +302,16 @@ export function RemuneracionesVista({
       else toast.error(r.error);
     });
   }
-  function deshacer(f: RemuneracionFila) {
-    if (!window.confirm(`¿Deshacer el pago a ${f.trabajador}? También se quita de la Caja.`)) return;
+  async function deshacer(f: RemuneracionFila) {
+    if (!(await confirmar({ titulo: `¿Deshacer el pago a ${f.trabajador}?`, descripcion: "También se quita de la Caja.", boton: "Deshacer pago" }))) return;
     iniciar(async () => {
       const r = await deshacerPago(f.id);
       if (r.ok) toast.success("Pago deshecho");
       else toast.error(r.error);
     });
   }
-  function borrar(f: RemuneracionFila) {
-    if (!window.confirm(`¿Quitar la liquidación de ${f.trabajador} de este mes?`)) return;
+  async function borrar(f: RemuneracionFila) {
+    if (!(await confirmar({ titulo: `¿Quitar la liquidación de ${f.trabajador}?`, descripcion: "Se quita solo de este mes.", boton: "Quitar" }))) return;
     iniciar(async () => {
       const r = await eliminarRemuneracion(f.id);
       if (r.ok) toast.success("Liquidación quitada");
@@ -435,6 +437,7 @@ export function RemuneracionesVista({
         </div>
       )}
 
+      {dialogo}
       {editando && <EditarDialog key={editando.id} fila={editando} onCerrar={cerrarEdicion} />}
       {pagando && <PagarDialog key={pagando.id} fila={pagando} onCerrar={cerrarPago} />}
     </div>

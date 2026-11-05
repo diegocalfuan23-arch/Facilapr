@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import type { CategoriaMovimientoPropia, TipoMovimiento } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 /**
  * Las categorías de Caja: las crea el propio comité, una lista para egresos y otra para ingresos.
@@ -21,6 +22,7 @@ export function CategoriasCajaDialog({
   propias: CategoriaMovimientoPropia[];
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [tipo, setTipo] = useState<TipoMovimiento>("EGRESO");
   const [nombre, setNombre] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -80,8 +82,8 @@ export function CategoriasCajaDialog({
     });
   }
 
-  function borrar(c: CategoriaMovimientoPropia) {
-    if (!window.confirm(`¿Borrar la categoría «${c.nombre}»? Los movimientos que la usan quedan sin categoría.`)) return;
+  async function borrar(c: CategoriaMovimientoPropia) {
+    if (!(await confirmar({ titulo: `¿Borrar la categoría «${c.nombre}»?`, descripcion: "Los movimientos que la usan quedan sin categoría.", boton: "Borrar" }))) return;
     setBorrandoId(c.id);
     iniciar(async () => {
       const r = await eliminarCategoriaMov(c.id);
@@ -244,6 +246,7 @@ export function CategoriasCajaDialog({
             Listo
           </Button>
         </div>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );

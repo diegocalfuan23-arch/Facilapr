@@ -43,6 +43,7 @@ import { SituacionSocioDialog } from "@/components/panel/situacion-socio-dialog"
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
+import { useConfirmar } from "@/components/ui/confirmar";
 import {
   RepactacionesPanel,
   type RepactacionFila,
@@ -100,6 +101,7 @@ export function CortesPanel({
   diasGracia: number;
   comite: DatosComiteWhatsApp & { diasAviso: number; costoReconexion: number | null };
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [pestana, setPestana] = useState<Pestana>(morosos.length > 0 ? "morosos" : "tramite");
   const [creando, setCreando] = useState(false);
   const [ejecutando, setEjecutando] = useState<OrdenFila | null>(null);
@@ -240,10 +242,10 @@ export function CortesPanel({
                     size="sm"
                     variant="outline"
                     disabled={pendiente}
-                    onClick={() => {
+                    onClick={async () => {
                       // No se prohíbe cortar sin plazo cumplido (decide la directiva), pero se pide confirmar.
                       const advertencia = avisoPendiente(m.diasDesdeAviso, comite.diasAviso);
-                      if (advertencia && !window.confirm(`${advertencia} ¿Ordenar el corte igual?`)) return;
+                      if (advertencia && !(await confirmar({ titulo: "¿Ordenar el corte igual?", descripcion: advertencia, boton: "Ordenar corte" }))) return;
                       ejecutar(() => ordenarCorte(m.socioId, `Deuda de ${clp.format(m.deuda)}, vencida hace ${m.diasVencida} días.`), "Corte ordenado");
                     }}
                   >
@@ -425,6 +427,8 @@ export function CortesPanel({
           onCerrar={() => setViendo(null)}
         />
       )}
+
+      {dialogo}
 
       {resolviendo && (
         <ResolverDialog

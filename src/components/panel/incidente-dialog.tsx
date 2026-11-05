@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { TIPOS_INCIDENTE, type EstadoIncidente, type IncidenteFila } from "@/lib/incidentes-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
@@ -18,6 +19,7 @@ const selectClase =
 
 /** Registrar un incidente del sistema de agua, o actualizar cómo va (y cuánto costó repararlo). */
 export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteFila | null; onCerrar: () => void }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoIncidentes | null, FormData>(guardarIncidente, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = incidente !== null;
@@ -31,9 +33,9 @@ export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteF
     }
   }, [estado, editando, onCerrar]);
 
-  function borrar() {
+  async function borrar() {
     if (!incidente) return;
-    if (!window.confirm(`¿Borrar el incidente I-${incidente.numero}?${incidente.costoEnCaja ? " También se quita su costo de la Caja." : ""}`)) return;
+    if (!(await confirmar({ titulo: `¿Borrar el incidente I-${incidente.numero}?`, descripcion: incidente.costoEnCaja ? "También se quita su costo de la Caja." : "No se puede deshacer.", boton: "Borrar" }))) return;
     iniciarBorrado(async () => {
       const r = await eliminarIncidente(incidente.id);
       if (r.ok) {
@@ -194,6 +196,7 @@ export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteF
             </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );
