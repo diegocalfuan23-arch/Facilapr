@@ -1,15 +1,21 @@
-import { and, asc, desc, eq, notInArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, categoriasMovimiento, movimientos, pagos, socios } from "@/lib/db/schema";
 import { user as usuarios } from "@/lib/db/auth-schema";
 import { textoConcepto } from "@/lib/pagos";
 import {
   TIPO_CIERRE,
+  TIPO_DEPOSITO,
+  TIPO_GIRO,
+  TIPO_SALDO_BANCO,
   TIPO_SALDO_INICIAL,
   diaVecino,
+  esMedioBanco,
   textoCategoria,
+  type Bolsillos,
   type CategoriaMovimientoPropia,
   type LineaLibro,
+  type TraspasoFila,
   type ResumenPeriodo,
   type ResumenMes,
   type TipoMovimiento,
@@ -69,7 +75,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
       and(
         eq(movimientos.aprId, aprId),
         // El saldo inicial y los cierres de caja son marcas, no ingresos ni egresos.
-        notInArray(movimientos.tipo, [TIPO_SALDO_INICIAL, TIPO_CIERRE]),
+        notInArray(movimientos.tipo, [TIPO_SALDO_INICIAL, TIPO_CIERRE, TIPO_GIRO, TIPO_DEPOSITO, TIPO_SALDO_BANCO]),
         sql`${movimientos.fecha} >= ${desde}`,
         sql`${movimientos.fecha} < ${hasta}`
       )
@@ -217,6 +223,96 @@ async function netoEntre(aprId: string, desde: string, hasta: string) {
   return { ingresos: (movs[0]?.ingresos ?? 0) + (deSocios?.total ?? 0), egresos: movs[0]?.egresos ?? 0 };
 }
 
+/** Cuánto del saldo inicial estaba en el banco. 0 si no se dijo (todo se cuenta como efectivo). */
+export async function saldoBancoDe(aprId: string): Promise<number> {
+  const [f] = await db
+    .select({ monto: movimientos.monto })
+    .from(movimientos)
+    .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_SALDO_BANCO)))
+    .orderBy(desc(movimientos.createdAt))
+    .limit(1)
+    .catch(() => []);
+  return f?.monto ?? 0;
+}
+
+/** Lo que cambió en efectivo y en banco de `desde` (incluido) a `hasta` (excluido): ingresos, egresos, giros y depósitos. */
+async function netoBolsillos(aprId: string, desde: string, hasta: string): Promise<Bolsillos> {
+  const neto: Bolsillos = { efectivo: 0, banco: 0 };
+  const sumar = (medio: string, monto: number) => {
+    if (esMedioBanco(medio)) neto.banco += monto;
+    else neto.efectivo += monto;
+  };
+
+  const movs = await db
+    .select({ tipo: movimientos.tipo, medio: movimientos.medio, total: sql<number>`coalesce(sum(${movimientos.monto}), 0)::int` })
+    .from(movimientos)
+    .where(
+      and(
+        eq(movimientos.aprId, aprId),
+        inArray(movimientos.tipo, ["INGRESO", "EGRESO", TIPO_GIRO, TIPO_DEPOSITO]),
+        sql`${movimientos.fecha} >= ${desde}`,
+        sql`${movimientos.fecha} < ${hasta}`
+      )
+    )
+    .groupBy(movimientos.tipo, movimientos.medio);
+  for (const m of movs) {
+    if (m.tipo === "INGRESO") sumar(m.medio, m.total);
+    else if (m.tipo === "EGRESO") sumar(m.medio, -m.total);
+    else if (m.tipo === TIPO_GIRO) {
+      neto.banco -= m.total;
+      neto.efectivo += m.total;
+    } else if (m.tipo === TIPO_DEPOSITO) {
+      neto.efectivo -= m.total;
+      neto.banco += m.total;
+    }
+  }
+
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const deSocios = await db
+    .select({ medio: pagos.medio, total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
+    .from(pagos)
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`))
+    .groupBy(pagos.medio);
+  for (const p of deSocios) sumar(p.medio, p.total);
+
+  return neto;
+}
+
+/**
+ * Cuánta plata hay en efectivo y en el banco antes del día `dia` (AAAA-MM-DD, sin incluirlo). Null si no hay
+ * saldo inicial o si éste es posterior: no se sabe con cuánta se partía.
+ */
+export async function bolsillosAl(aprId: string, dia: string): Promise<Bolsillos | null> {
+  const base = await saldoInicialDe(aprId);
+  if (!base || base.fecha > dia) return null;
+  const banco0 = Math.min(await saldoBancoDe(aprId), base.monto);
+  const neto = base.fecha < dia ? await netoBolsillos(aprId, base.fecha, dia) : { efectivo: 0, banco: 0 };
+  return { efectivo: base.monto - banco0 + neto.efectivo, banco: banco0 + neto.banco };
+}
+
+/** Los giros y depósitos de un período, del más reciente al más antiguo. Si algo falla, devuelve vacío. */
+export async function traspasosEntre(aprId: string, desde: string, hasta: string): Promise<TraspasoFila[]> {
+  const filas = await db
+    .select({ id: movimientos.id, tipo: movimientos.tipo, fecha: movimientos.fecha, monto: movimientos.monto, referencia: movimientos.referencia })
+    .from(movimientos)
+    .where(
+      and(
+        eq(movimientos.aprId, aprId),
+        inArray(movimientos.tipo, [TIPO_GIRO, TIPO_DEPOSITO]),
+        sql`${movimientos.fecha} >= ${desde}`,
+        sql`${movimientos.fecha} < ${hasta}`
+      )
+    )
+    .orderBy(desc(movimientos.fecha), desc(movimientos.createdAt))
+    .catch((e) => {
+      console.error("Finanzas: no se pudieron leer los traspasos:", e);
+      return [];
+    });
+  return filas.map((f) => ({ ...f, tipo: f.tipo as "GIRO" | "DEPOSITO" }));
+}
+
 /**
  * La Caja de un período: con cuánta plata se empezó (el saldo inicial más todo lo anterior),
  * lo que entró y salió, y con cuánta se termina. Si el saldo inicial cae dentro del período,
@@ -238,6 +334,10 @@ export async function resumenPeriodo(
     const previo = base.fecha < inicio ? await netoEntre(aprId, base.fecha, inicio) : { ingresos: 0, egresos: 0 };
     disponibleAnterior = base.monto + previo.ingresos - previo.egresos;
   }
+
+  // Cuánta plata hay en efectivo y en el banco al empezar y al terminar el período.
+  const bolsillosAnterior = base ? await bolsillosAl(aprId, inicio).catch(() => null) : null;
+  const bolsillos = base ? await bolsillosAl(aprId, hasta).catch(() => null) : null;
 
   const contables = base ? lineas.filter((l) => l.fecha >= inicio) : lineas;
   const ingresos = contables.filter((l) => l.tipo === "INGRESO").reduce((s, l) => s + l.monto, 0);
@@ -262,6 +362,8 @@ export async function resumenPeriodo(
     ingresos,
     egresos,
     disponible: disponibleAnterior === null ? null : disponibleAnterior + ingresos - egresos,
+    bolsillosAnterior,
+    bolsillos,
     cierre: cierre
       ? {
           cerradoPor: cierre.cerradoPor,

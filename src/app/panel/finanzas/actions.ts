@@ -12,9 +12,15 @@ import {
   MEDIOS_MOVIMIENTO,
   PREFIJO_CATEGORIA_MOV,
   TIPO_CIERRE,
+  TIPO_DEPOSITO,
+  TIPO_GIRO,
+  TIPO_SALDO_BANCO,
   TIPO_SALDO_INICIAL,
+  bolsillosAl,
   diaCerrado,
   diaValido,
+  hoyEnChile,
+  textoTraspaso,
   diaVecino,
   libroDelDia,
   mensajeDiaCerrado,
@@ -120,12 +126,15 @@ export async function guardarSaldoInicial(
     .object({
       fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
       monto: z.number().int("El monto debe ser un número entero.").min(0, "El saldo no puede ser negativo.").max(2_000_000_000),
+      banco: z.number().int().min(0).max(2_000_000_000),
     })
     .safeParse({
       fecha: formData.get("fecha"),
       monto: Number(String(formData.get("monto") ?? "").replace(/[^\d]/g, "")),
+      banco: Number(String(formData.get("banco") ?? "").replace(/[^\d]/g, "")),
     });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  if (parsed.data.banco > parsed.data.monto) return { ok: false, error: "Lo que hay en el banco no puede ser más que el saldo total." };
 
   try {
     await db.transaction(async (tx) => {
@@ -141,6 +150,19 @@ export async function guardarSaldoInicial(
         concepto: "Saldo inicial",
         registradoPorId: user.id,
       });
+      // Cuánto de ese saldo estaba en el banco; el resto se cuenta como efectivo.
+      await tx.delete(movimientos).where(and(eq(movimientos.aprId, apr.id), eq(movimientos.tipo, TIPO_SALDO_BANCO)));
+      if (parsed.data.banco > 0) {
+        await tx.insert(movimientos).values({
+          aprId: apr.id,
+          tipo: TIPO_SALDO_BANCO,
+          fecha: parsed.data.fecha,
+          monto: parsed.data.banco,
+          categoria: TIPO_SALDO_BANCO,
+          concepto: "Saldo inicial en el banco",
+          registradoPorId: user.id,
+        });
+      }
     });
   } catch (e) {
     console.error("Finanzas: no se pudo guardar el saldo inicial:", e);
@@ -151,7 +173,7 @@ export async function guardarSaldoInicial(
   return { ok: true };
 }
 
-/** Borra un movimiento anotado a mano. Los pagos de socios no se borran desde aquí. */
+/** Borra un movimiento anotado a mano (o un giro o depósito). Los pagos de socios no se borran desde aquí. */
 export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas> {
   const { apr } = await requireFinanzas();
 
@@ -161,7 +183,7 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
     .from(movimientos)
     .where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)))
     .limit(1);
-  if (!m || (m.tipo !== "INGRESO" && m.tipo !== "EGRESO")) return { ok: false, error: "No encontramos ese movimiento." };
+  if (!m || !["INGRESO", "EGRESO", TIPO_GIRO, TIPO_DEPOSITO].includes(m.tipo)) return { ok: false, error: "No encontramos ese movimiento." };
   if (await diaCerrado(db, apr.id, m.fecha)) return { ok: false, error: mensajeDiaCerrado(m.fecha) };
 
   // El egreso de una compra, de un pago a personal o de un incidente se maneja desde su módulo: si se borrara aquí, quedaría pagado sin egreso.
@@ -354,6 +376,65 @@ export async function eliminarCategoriaMov(id: string): Promise<ResultadoFinanza
     if (e instanceof Error && e.message === "NO_EXISTE") return { ok: false, error: "No encontramos esa categoría." };
     console.error("Finanzas: no se pudo borrar la categoría:", e);
     return { ok: false, error: "No pudimos borrar la categoría. Inténtalo de nuevo en un momento." };
+  }
+
+  revalidatePath("/panel/caja");
+  return { ok: true };
+}
+
+/**
+ * Anota un giro (sacar plata del banco a efectivo) o un depósito (llevar efectivo al banco). La plata solo
+ * cambia de lugar: no es ingreso ni egreso. No deja mover más de lo que hay en el lugar de origen.
+ */
+export async function crearTraspaso(_prev: ResultadoFinanzas | null, formData: FormData): Promise<ResultadoFinanzas> {
+  const { user, apr } = await requireFinanzas();
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
+
+  const parsed = z
+    .object({
+      tipo: z.enum([TIPO_GIRO, TIPO_DEPOSITO]),
+      fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
+      monto: z.number().int("El monto debe ser un número entero.").min(1, "Escribe cuánto es.").max(2_000_000_000),
+      referencia: z.string().trim().max(80).nullable(),
+    })
+    .safeParse({
+      tipo: formData.get("tipo"),
+      fecha: formData.get("fecha"),
+      monto: Number(String(formData.get("monto") ?? "").replace(/[^\d]/g, "")),
+      referencia: aTexto(formData.get("referencia")),
+    });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  const d = parsed.data;
+
+  if (d.fecha > hoyEnChile()) return { ok: false, error: "La fecha no puede ser futura." };
+  if (await diaCerrado(db, apr.id, d.fecha)) return { ok: false, error: mensajeDiaCerrado(d.fecha) };
+
+  // Hay que saber con cuánta plata se parte, y que en el lugar de origen alcance.
+  const hay = await bolsillosAl(apr.id, diaVecino(d.fecha, 1));
+  if (!hay) return { ok: false, error: "Primero define el saldo inicial (con la fecha en que partes) para poder mover plata entre efectivo y banco." };
+  const origen = d.tipo === TIPO_GIRO ? hay.banco : hay.efectivo;
+  if (d.monto > origen) {
+    return {
+      ok: false,
+      error: `${d.tipo === TIPO_GIRO ? "En el banco" : "En efectivo"} hay ${origen.toLocaleString("es-CL")}: no alcanza para mover ${d.monto.toLocaleString("es-CL")}.${d.tipo === TIPO_GIRO ? " Si tu saldo inicial incluía plata del banco, indícalo en «Saldo inicial»." : ""}`,
+    };
+  }
+
+  try {
+    await db.insert(movimientos).values({
+      aprId: apr.id,
+      tipo: d.tipo,
+      fecha: d.fecha,
+      monto: d.monto,
+      categoria: d.tipo,
+      concepto: textoTraspaso(d.tipo),
+      medio: d.tipo === TIPO_GIRO ? "TRANSFERENCIA" : "EFECTIVO",
+      referencia: d.referencia,
+      registradoPorId: user.id,
+    });
+  } catch (e) {
+    console.error("Finanzas: no se pudo guardar el traspaso:", e);
+    return { ok: false, error: "No pudimos guardar el movimiento. Inténtalo de nuevo en un momento." };
   }
 
   revalidatePath("/panel/caja");

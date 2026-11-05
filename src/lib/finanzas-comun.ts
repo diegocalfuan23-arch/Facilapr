@@ -82,6 +82,35 @@ export function opcionesCategoriaMov(propias: CategoriaMovimientoPropia[], tipo:
  */
 export const TIPO_SALDO_INICIAL = "SALDO_INICIAL";
 
+/**
+ * La plata del comité está en dos lugares: en EFECTIVO (la caja) y en el BANCO (la cuenta). Un pago o un
+ * movimiento va a uno u otro según cómo se pagó: transferencia, cheque, Mercado Pago, Flow y Caja Vecina
+ * entran y salen del banco; lo demás, del efectivo.
+ */
+const MEDIOS_BANCO = ["TRANSFERENCIA", "CHEQUE", "MERCADO_PAGO", "FLOW", "CAJA_VECINA"];
+export const esMedioBanco = (medio: string) => MEDIOS_BANCO.includes(medio);
+
+/** Un giro es sacar plata del banco a efectivo; un depósito, llevar efectivo al banco. Ninguno es ingreso ni egreso: la plata solo cambia de lugar. */
+export const TIPO_GIRO = "GIRO";
+export const TIPO_DEPOSITO = "DEPOSITO";
+
+/** Cuánto del saldo inicial estaba en el banco (el resto estaba en efectivo). Es una marca, no plata que se mueve. */
+export const TIPO_SALDO_BANCO = "SALDO_BANCO";
+
+export type Bolsillos = { efectivo: number; banco: number };
+
+/** Un giro o un depósito. */
+export type TraspasoFila = {
+  id: string;
+  tipo: "GIRO" | "DEPOSITO";
+  /** AAAA-MM-DD */
+  fecha: string;
+  monto: number;
+  referencia: string | null;
+};
+
+export const textoTraspaso = (tipo: "GIRO" | "DEPOSITO") => (tipo === "GIRO" ? "Giro del banco a efectivo" : "Depósito de efectivo al banco");
+
 /** Una línea del libro, venga de un pago de socio o de un movimiento anotado a mano. */
 export type LineaLibro = {
   /** "pago:<id>" o "mov:<id>": solo los movimientos se pueden borrar. */
@@ -128,6 +157,9 @@ export type ResumenPeriodo = {
   ingresos: number;
   egresos: number;
   disponible: number | null;
+  /** Cuánta plata hay en efectivo y en el banco al empezar el período y al terminarlo; null si no hay saldo inicial. */
+  bolsillosAnterior: Bolsillos | null;
+  bolsillos: Bolsillos | null;
   /** Solo en un día: si ya se cerró la caja, quién y con qué comentario. */
   cierre: { cerradoPor: string | null; comentario: string | null; disponible: number } | null;
 };

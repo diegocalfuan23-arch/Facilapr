@@ -23,12 +23,13 @@ export function SaldoInicialDialog({
   actual,
   onCerrar,
 }: {
-  actual: { monto: number; fecha: string } | null;
+  actual: { monto: number; fecha: string; banco: number } | null;
   onCerrar: () => void;
 }) {
   const [estado, enviar, pendiente] = useActionState<ResultadoFinanzas | null, FormData>(guardarSaldoInicial, null);
   // Solo los dígitos; el formato de dinero se arma al mostrarlo.
   const [monto, setMonto] = useState(actual ? String(actual.monto) : "");
+  const [banco, setBanco] = useState(actual && actual.banco > 0 ? String(actual.banco) : "");
 
   useEffect(() => {
     if (!estado) return;
@@ -45,7 +46,7 @@ export function SaldoInicialDialog({
       <DialogContent className="sm:max-w-[420px]">
         <DialogHeader>
           <DialogTitle>Saldo inicial</DialogTitle>
-          <DialogDescription>Con cuánta plata partes: caja y banco juntos.</DialogDescription>
+          <DialogDescription>Con cuánta plata partes: efectivo y banco juntos.</DialogDescription>
         </DialogHeader>
 
         <form action={enviar} className="flex flex-col gap-4">
@@ -66,6 +67,19 @@ export function SaldoInicialDialog({
               autoComplete="off"
               required
             />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="saldo-banco">De ese saldo, ¿cuánto estaba en el banco? (opcional)</Label>
+            <input type="hidden" name="banco" value={banco} />
+            <Input
+              id="saldo-banco"
+              value={banco === "" ? "" : `$${Number(banco).toLocaleString("es-CL")}`}
+              onChange={(e) => setBanco(e.target.value.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 10))}
+              inputMode="numeric"
+              placeholder="$0"
+              autoComplete="off"
+            />
+            <p className="text-[0.75rem] text-muted-foreground">El resto se cuenta como efectivo. Así la Caja muestra cuánto hay en cada lugar y puedes anotar giros y depósitos.</p>
           </div>
           <Button type="submit" disabled={pendiente}>
             {pendiente && <Loader2 className="animate-spin" />}

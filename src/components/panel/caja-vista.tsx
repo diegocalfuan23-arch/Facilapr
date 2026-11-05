@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useCallback, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ChevronDown, ChevronLeft, ChevronRight, Download, FileText, PiggyBank, Tag, Trash2 } from "lucide-react";
+import { ArrowLeftRight, Banknote, ChevronDown, ChevronLeft, ChevronRight, Download, FileText, Landmark, PiggyBank, Tag, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,13 @@ import { CategoriasCajaDialog } from "@/components/panel/categorias-caja-dialog"
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
 import { SaldoInicialDialog } from "@/components/panel/saldo-inicial-dialog";
+import { TraspasoDialog } from "@/components/panel/traspaso-dialog";
 import {
   textoCategoria,
   textoMedioLinea,
+  textoTraspaso,
   type CategoriaMovimientoPropia,
+  type TraspasoFila,
   type LineaLibro,
   type ResumenMes,
   type ResumenPeriodo,
@@ -106,7 +109,9 @@ type Props = {
   porCategoria: ResumenMes["porCategoria"];
   /** Las categorías que creó el comité, de ingresos y de egresos. */
   categoriasPropias: CategoriaMovimientoPropia[];
-  saldoInicial: { monto: number; fecha: string } | null;
+  saldoInicial: { monto: number; fecha: string; banco: number } | null;
+  /** Los giros y depósitos del período. */
+  traspasos: TraspasoFila[];
 };
 
 /**
@@ -139,6 +144,7 @@ export function CajaVista({
   porCategoria,
   categoriasPropias,
   saldoInicial,
+  traspasos,
 }: Props) {
   const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
@@ -150,6 +156,8 @@ export function CajaVista({
   const [registrando, setRegistrando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [definiendoSaldo, setDefiniendoSaldo] = useState(false);
+  const [moviendo, setMoviendo] = useState(false);
+  const cerrarTraspaso = useCallback(() => setMoviendo(false), []);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const cerrarCategorias = useCallback(() => setGestionandoCategorias(false), []);
   const cerrarRegistro = useCallback(() => setRegistrando(false), []);
@@ -161,6 +169,15 @@ export function CajaVista({
     iniciar(async () => {
       const r = await eliminarMovimiento(l.id.replace("mov:", ""));
       if (r.ok) toast.success("Movimiento borrado");
+      else toast.error(r.error);
+    });
+  }
+
+  async function borrarTraspaso(t: TraspasoFila) {
+    if (!(await confirmar({ titulo: `¿Borrar este ${t.tipo === "GIRO" ? "giro" : "depósito"} de ${clp.format(t.monto)}?`, descripcion: "La plata vuelve al lugar de donde salió.", boton: "Borrar" }))) return;
+    iniciar(async () => {
+      const r = await eliminarMovimiento(t.id);
+      if (r.ok) toast.success("Borrado");
       else toast.error(r.error);
     });
   }
@@ -233,6 +250,12 @@ export function CajaVista({
               "Definir saldo inicial"
             )}
           </Button>
+          {resumen.bolsillos && (
+            <Button variant="outline" className={cn(alto, "rounded-xl px-3 text-[0.9rem]")} onClick={() => setMoviendo(true)} title="Sacar plata del banco o depositar efectivo">
+              <ArrowLeftRight />
+              <span className="hidden sm:inline">Giro o depósito</span>
+            </Button>
+          )}
           {esDia && (
             <Button variant="outline" className={cn(alto, "px-4 text-[0.95rem]")} onClick={() => setCerrando(true)}>
               {cerrada ? "Caja cerrada" : "Cerrar caja"}
@@ -295,6 +318,64 @@ export function CajaVista({
           )}
         </div>
       </section>
+
+      {/* Dónde está la plata: en efectivo o en el banco. Los giros y depósitos la mueven de uno a otro. */}
+      {resumen.bolsillos && (
+        <section aria-label="Efectivo y banco" className="grid gap-4 sm:grid-cols-2">
+          {[
+            { titulo: "En efectivo", icono: Banknote, valor: resumen.bolsillos.efectivo, antes: resumen.bolsillosAnterior?.efectivo ?? null },
+            { titulo: "En el banco", icono: Landmark, valor: resumen.bolsillos.banco, antes: resumen.bolsillosAnterior?.banco ?? null },
+          ].map((b) => (
+            <div key={b.titulo} className="flex items-center gap-4 rounded-xl border border-border bg-card px-5 py-4">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+                <b.icono className="size-5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-[0.8rem] text-muted-foreground">{b.titulo}</p>
+                <p className="text-[1.5rem] leading-none font-bold tabular-nums">{clp.format(b.valor)}</p>
+              </div>
+              {b.antes !== null && b.antes !== b.valor && (
+                <p className="ml-auto text-right text-[0.75rem] text-muted-foreground tabular-nums">Antes: {clp.format(b.antes)}</p>
+              )}
+            </div>
+          ))}
+        </section>
+      )}
+
+      {resumen.bolsillos && (resumen.bolsillos.efectivo < 0 || resumen.bolsillos.banco < 0) && (
+        <p className="-mt-2 text-[0.8rem] text-amber-700 dark:text-amber-300">
+          Uno de los dos saldos sale negativo. Suele pasar cuando el saldo inicial no dice cuánto estaba en el banco: ábrelo (arriba) e indícalo.
+        </p>
+      )}
+
+      {traspasos.length > 0 && (
+        <section aria-label="Giros y depósitos" className="rounded-xl border border-border bg-card p-5">
+          <h2 className={cn(etiquetaKpi, "text-muted-foreground")}>Giros y depósitos</h2>
+          <ul className="mt-3 flex flex-col divide-y divide-border/60">
+            {traspasos.map((t) => (
+              <li key={t.id} className="flex items-center gap-3 py-2.5 text-[0.9rem]">
+                <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0 flex-1 truncate">
+                  {textoTraspaso(t.tipo)}
+                  {t.referencia && <span className="text-muted-foreground"> · {t.referencia}</span>}
+                </span>
+                <span className="shrink-0 text-[0.8rem] text-muted-foreground tabular-nums">{fechaCorta(t.fecha)}</span>
+                <span className="shrink-0 font-medium tabular-nums">{clp.format(t.monto)}</span>
+                <button
+                  type="button"
+                  aria-label="Borrar"
+                  title="Borrar"
+                  disabled={borrando}
+                  onClick={() => void borrarTraspaso(t)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {!esDia && (ingresos.length > 0 || egresos.length > 0) && (
         <section className="grid gap-6 sm:grid-cols-2">
@@ -484,6 +565,7 @@ export function CajaVista({
           onCerrar={cerrarCierre}
         />
       )}
+      {moviendo && <TraspasoDialog fecha={esDia ? desde : undefined} bolsillos={resumen.bolsillos} onCerrar={cerrarTraspaso} />}
       {definiendoSaldo && <SaldoInicialDialog actual={saldoInicial} onCerrar={cerrarSaldo} />}
     </div>
   );
