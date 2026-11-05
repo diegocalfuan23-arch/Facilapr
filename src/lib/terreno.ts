@@ -1,4 +1,4 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { lecturas, socios } from "@/lib/db/schema";
 import { anterioresDelComite } from "@/lib/lectura-anterior";
@@ -38,7 +38,18 @@ export async function datosTerreno(userId: string, aprId: string) {
     with: { socio: { columns: { nombre: true } } },
   });
 
+  // Quién ya tiene lectura en los últimos meses (la registre quien la registre): arma la «ruta» del mes.
+  const hoy = new Date();
+  const desde = new Date(hoy.getFullYear(), hoy.getMonth() - 5, 1);
+  const desdePeriodo = `${desde.getFullYear()}-${String(desde.getMonth() + 1).padStart(2, "0")}`;
+  const delComite = await db
+    .select({ socioId: lecturas.socioId, periodo: lecturas.periodo, estado: lecturas.estado })
+    .from(lecturas)
+    .innerJoin(socios, eq(socios.id, lecturas.socioId))
+    .where(and(eq(socios.aprId, aprId), gte(lecturas.periodo, desdePeriodo), inArray(lecturas.estado, ["PENDIENTE", "APROBADA"])));
+
   return {
+    leidas: delComite.map((l) => ({ socioId: l.socioId, periodo: l.periodo, estado: l.estado as "PENDIENTE" | "APROBADA" })),
     socios: listaSocios.map((s) => {
       const a = anteriorPorSocio.get(s.id);
       return {
