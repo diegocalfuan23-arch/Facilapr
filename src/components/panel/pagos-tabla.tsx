@@ -1,7 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, FileDown, Link2, Plus, Search, Wallet } from "lucide-react";
+import { CheckCircle2, FileDown, Link2, Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { eliminarPago } from "@/app/panel/boletas/actions";
+import { EditarPagoDialog } from "@/components/panel/editar-pago-dialog";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -92,7 +96,9 @@ export function PagosTabla({
   estadoMp?: React.ReactNode;
   mpModo?: "prueba" | "produccion";
 }) {
+  const router = useRouter();
   const [registrando, setRegistrando] = useState(false);
+  const [corrigiendo, setCorrigiendo] = useState<PagoFila | null>(null);
   const [conLink, setConLink] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [medio, setMedio] = useState<string>("todos");
@@ -117,6 +123,42 @@ export function PagosTabla({
   }, [pagos, busqueda, medio]);
 
   const totalFiltrado = filtrados.reduce((acc, p) => acc + p.monto, 0);
+
+  async function borrar(p: PagoFila) {
+    const aviso = p.periodo ? "La boleta volverá a deber ese monto." : "Se quita también de la Caja.";
+    if (!window.confirm(`¿Eliminar el pago de ${clp.format(p.monto)} de ${p.socioNombre}? ${aviso}`)) return;
+    const r = await eliminarPago(p.id);
+    if (r.ok) {
+      toast.success("Pago eliminado");
+      router.refresh();
+    } else {
+      toast.error(r.error);
+    }
+  }
+
+  /** Corregir y eliminar, junto al comprobante. */
+  const acciones = (p: PagoFila) => (
+    <>
+      <button
+        type="button"
+        aria-label={`Corregir el pago de ${p.socioNombre}`}
+        title="Corregir este pago"
+        onClick={() => setCorrigiendo(p)}
+        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <Pencil className="size-4" />
+      </button>
+      <button
+        type="button"
+        aria-label={`Eliminar el pago de ${p.socioNombre}`}
+        title="Eliminar este pago"
+        onClick={() => void borrar(p)}
+        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+      >
+        <Trash2 className="size-4" />
+      </button>
+    </>
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -271,6 +313,7 @@ export function PagosTabla({
                       >
                         <FileDown className="size-4" />
                       </a>
+                      {acciones(p)}
                     </div>
                   </div>
                 ))}
@@ -288,8 +331,8 @@ export function PagosTabla({
                       <TableHead className="h-11 px-4">Registró</TableHead>
                       <TableHead className="h-11 px-4">N.º op.</TableHead>
                       <TableHead className="h-11 px-4 text-right">Monto</TableHead>
-                      <TableHead className="h-11 w-12 px-4">
-                        <span className="sr-only">Comprobante</span>
+                      <TableHead className="h-11 w-36 px-4">
+                        <span className="sr-only">Comprobante y acciones</span>
                       </TableHead>
                     </TableRow>
                   </TableHeader>
@@ -331,7 +374,7 @@ export function PagosTabla({
                         <TableCell className="px-4 text-right font-mono font-semibold text-forest tabular-nums">
                           {clp.format(p.monto)}
                         </TableCell>
-                        <TableCell className="px-4">
+                        <TableCell className="px-4 whitespace-nowrap">
                           <a
                             href={p.comprobanteUrl}
                             target="_blank"
@@ -342,6 +385,7 @@ export function PagosTabla({
                           >
                             <FileDown className="size-4" />
                           </a>
+                          {acciones(p)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -374,6 +418,8 @@ export function PagosTabla({
       {conLink && (
         <LinkPagoDialog socios={socios} boletas={boletasPendientes} comite={comite} modo={mpModo} onCerrar={() => setConLink(false)} />
       )}
+
+      {corrigiendo && <EditarPagoDialog key={corrigiendo.id} pago={corrigiendo} onCerrar={() => setCorrigiendo(null)} />}
 
       {registrando && (
         <NuevoPagoDialog

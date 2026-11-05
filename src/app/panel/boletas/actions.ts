@@ -14,6 +14,7 @@ import { registrarMensaje } from "@/lib/whatsapp-mensajes";
 import { credencialesDelComite } from "@/lib/whatsapp-conexion";
 import { enviarComprobanteAuto } from "@/lib/whatsapp-comprobante";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
+import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 import { requireAdmin, requireFinanzas } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
 import {
@@ -491,6 +492,102 @@ export async function pagosDeBoleta(boletaId: string): Promise<PagoRegistrado[]>
     pagadoPorTelefono: f.pagadoPorTelefono,
     comprobanteUrl: urlComprobante(f.id),
   }));
+}
+
+/** El día (AAAA-MM-DD) en hora de Chile de un instante. */
+function diaEnChile(f: Date) {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit" }).format(f);
+}
+
+/**
+ * Corrige un pago ya registrado: la fecha, el monto, el medio, quién pagó, el número de operación o el
+ * detalle de un cobro. El comprobante se arma con los datos del pago cada vez que se abre, así que el mismo
+ * enlace pasa a mostrar la versión corregida (una copia que ya se haya descargado o enviado no cambia).
+ *
+ * El monto de un pago ligado a un acuerdo de pago no se cambia aquí: se elimina y se vuelve a registrar.
+ * Si el día del pago, el de antes o el nuevo, ya tiene la caja cerrada, hay que reabrirla primero.
+ */
+export async function editarPago(
+  pagoId: string,
+  datos: { monto: number; fecha: string; medio: string; referencia?: string; pagadoPor?: string; descripcion?: string }
+): Promise<ResultadoAccion & { comprobanteUrl?: string }> {
+  const { apr } = await requireFinanzas();
+
+  const parsed = pagoSchema.pick({ monto: true, medio: true, referencia: true, pagadoPor: true }).safeParse({
+    monto: Math.round(datos.monto),
+    medio: datos.medio,
+    referencia: datos.referencia || undefined,
+    pagadoPor: datos.pagadoPor || undefined,
+  });
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datos.fecha)) return { ok: false, error: "La fecha no es válida." };
+  const fechaNueva = new Date(`${datos.fecha}T12:00:00`);
+  if (Number.isNaN(fechaNueva.getTime())) return { ok: false, error: "La fecha no es válida." };
+  if (fechaNueva.getTime() > Date.now() + 24 * 3600 * 1000) return { ok: false, error: "La fecha del pago no puede ser futura." };
+
+  const propio = await pagoDelComite(apr.id, pagoId);
+  if (!propio) return { ok: false, error: "No encontramos ese pago." };
+
+  const [actual] = await db
+    .select({ monto: pagos.monto, fecha: pagos.fecha, concepto: pagos.concepto, boletaId: pagos.boletaId, repactacionId: pagos.repactacionId })
+    .from(pagos)
+    .where(eq(pagos.id, pagoId))
+    .limit(1);
+  if (!actual) return { ok: false, error: "No encontramos ese pago." };
+
+  const cambiaMonto = parsed.data.monto !== actual.monto;
+  if (cambiaMonto && actual.repactacionId) {
+    return { ok: false, error: "Este pago es parte de un acuerdo de pago: para cambiar el monto, elimínalo y regístralo de nuevo." };
+  }
+
+  // Si el día no cambió, se conserva la hora original del pago.
+  const diaAntes = diaEnChile(actual.fecha);
+  const cambiaDia = datos.fecha !== diaAntes;
+  const fechaFinal = cambiaDia ? fechaNueva : actual.fecha;
+
+  // Mover o cambiar el monto de un pago altera la caja de ese día: si está cerrada, no se toca.
+  if (cambiaDia || cambiaMonto) {
+    for (const dia of new Set([diaAntes, datos.fecha])) {
+      if (await diaCerrado(db, apr.id, dia)) return { ok: false, error: mensajeDiaCerrado(dia) };
+    }
+  }
+
+  // En un pago de boleta, el nuevo monto no puede dejar la boleta pagada de más.
+  if (cambiaMonto && actual.boletaId) {
+    const [b] = await db
+      .select({ montoTotal: boletas.montoTotal, montoPagado: boletas.montoPagado, estado: boletas.estado })
+      .from(boletas)
+      .where(eq(boletas.id, actual.boletaId))
+      .limit(1);
+    if (b) {
+      if (b.estado === "ANULADA") return { ok: false, error: "La boleta está anulada: no se puede cambiar el monto." };
+      const quedaria = b.montoPagado - actual.monto + parsed.data.monto;
+      if (quedaria > b.montoTotal) {
+        return { ok: false, error: `El monto supera lo que falta por pagar de la boleta (máximo ${(b.montoTotal - b.montoPagado + actual.monto).toLocaleString("es-CL")}).` };
+      }
+    }
+  }
+
+  await db
+    .update(pagos)
+    .set({
+      monto: parsed.data.monto,
+      fecha: fechaFinal,
+      medio: parsed.data.medio,
+      referencia: parsed.data.referencia ?? null,
+      pagadoPor: parsed.data.pagadoPor ?? null,
+      // El detalle solo existe en los cobros que no son una boleta.
+      ...(actual.concepto !== "BOLETA" ? { descripcion: datos.descripcion?.trim().slice(0, 200) || null } : {}),
+    })
+    .where(eq(pagos.id, pagoId));
+
+  if (actual.boletaId) await recalcularBoleta(actual.boletaId);
+
+  revalidatePath("/panel/boletas");
+  revalidatePath("/panel/pagos");
+  revalidatePath("/panel/caja");
+  revalidatePath("/panel");
+  return { ok: true, comprobanteUrl: urlComprobante(pagoId) };
 }
 
 /** Quita un pago registrado por error; la boleta vuelve a deber ese monto. */
