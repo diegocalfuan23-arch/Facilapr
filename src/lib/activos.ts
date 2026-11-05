@@ -26,6 +26,7 @@ export async function listarActivos(aprId: string): Promise<ActivoFila[]> {
       estado: f.estado as EstadoActivo,
       responsable: f.responsable,
       notas: f.notas,
+      costoEnCaja: f.movimientoId !== null,
     }));
   } catch (e) {
     console.error("Activos: no se pudieron leer:", e);

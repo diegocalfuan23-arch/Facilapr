@@ -25,6 +25,7 @@ export const CATEGORIAS_EGRESO = [
   { valor: "INSUMOS", texto: "Insumos (cloro, repuestos, medidores)" },
   { valor: "REMUNERACIONES", texto: "Sueldos y honorarios" },
   { valor: "ANALISIS", texto: "Análisis de agua" },
+  { valor: "ACTIVOS", texto: "Activos fijos" },
   { valor: "ADMINISTRATIVO", texto: "Gastos administrativos" },
   { valor: "IMPUESTOS", texto: "Impuestos y cotizaciones" },
   { valor: "OTRO_EGRESO", texto: "Otro egreso" },

@@ -120,6 +120,7 @@ function moduloDe(l: { automatico: boolean; categoria: string; concepto: string 
   if (l.categoria === "COMPRAS" && /^Compra C-\d+/.test(l.concepto)) return "Compra";
   if (l.categoria === "REMUNERACIONES" && l.concepto.startsWith("Remuneración · ")) return "Remuneración";
   if (l.categoria === "REPARACIONES" && l.concepto.startsWith("Incidente I-")) return "Incidente";
+  if (l.categoria === "ACTIVOS" && l.concepto.startsWith("Activo fijo · ")) return "Activo fijo";
   return null;
 }
 const deCompra = (l: { automatico: boolean; categoria: string; concepto: string }) => moduloDe(l) !== null;

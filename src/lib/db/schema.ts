@@ -1278,6 +1278,8 @@ export const activosFijos = pgTable(
     estado: text("estado").notNull().default("OPERATIVO"),
     responsable: text("responsable"),
     notas: text("notas"),
+    /** El egreso de Caja con el costo de adquisición, si se anotó al registrarlo. */
+    movimientoId: text("movimientoId"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [index("ActivoFijo_aprId_idx").on(table.aprId)]

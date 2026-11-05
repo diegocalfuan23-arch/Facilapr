@@ -35,7 +35,12 @@ export type ActivoFila = {
   estado: EstadoActivo;
   responsable: string | null;
   notas: string | null;
+  /** true si el costo ya quedó como egreso en la Caja. */
+  costoEnCaja: boolean;
 };
+
+/** El concepto con que la compra de un bien queda en Caja: así se reconoce que viene de Activos fijos. */
+export const PREFIJO_CONCEPTO_ACTIVO = "Activo fijo · ";
 
 /**
  * Cuánto vale hoy un activo: depreciación lineal por meses completos desde la compra, hasta agotar

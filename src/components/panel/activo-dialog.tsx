@@ -40,7 +40,7 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
 
   function borrar() {
     if (!activo) return;
-    if (!window.confirm(`¿Borrar «${activo.nombre}»? Si el bien ya no está, es mejor marcarlo como dado de baja.`)) return;
+    if (!window.confirm(`¿Borrar «${activo.nombre}»?${activo.costoEnCaja ? " También se quita su costo de la Caja." : ""} Si el bien ya no está, es mejor marcarlo como dado de baja.`)) return;
     iniciarBorrado(async () => {
       const r = await eliminarActivo(activo.id);
       if (r.ok) {
@@ -144,6 +144,16 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
               </label>
               <Input id="act-responsable" name="responsable" defaultValue={activo?.responsable ?? ""} maxLength={120} className={campo} />
             </div>
+            {costo && !activo?.costoEnCaja && (
+              <label className="flex items-start gap-2 text-[0.9rem] sm:col-span-2">
+                <input type="checkbox" name="registrarCosto" value="si" className="mt-0.5 size-4" />
+                <span>
+                  Anotar el costo como egreso en la Caja
+                  <span className="mt-0.5 block text-[0.75rem] text-muted-foreground">Márcalo si lo compraste con la plata del comité y aún no lo registras. En un bien antiguo, déjalo sin marcar.</span>
+                </span>
+              </label>
+            )}
+            {activo?.costoEnCaja && <p className="text-[0.85rem] text-muted-foreground sm:col-span-2">El costo de este bien ya está en la Caja: si cambias el monto o la fecha, se ajusta allá.</p>}
             <div className="sm:col-span-2">
               <label htmlFor="act-notas" className={etiqueta}>
                 Notas (opcional)
