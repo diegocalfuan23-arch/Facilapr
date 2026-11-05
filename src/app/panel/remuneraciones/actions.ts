@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { movimientos, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
