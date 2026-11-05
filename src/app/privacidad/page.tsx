@@ -123,16 +123,6 @@ export default function PrivacidadPage() {
             </p>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5">
               <li>
-                El sitio público de un comité <strong>nunca</strong> muestra
-                deudas, nombres ni datos de socios: solo tarifas generales,
-                avisos y datos de contacto.
-              </li>
-              <li>
-                El asistente del sitio web está expresamente impedido de
-                responder consultas sobre deudas, aunque le entreguen un RUT o
-                un nombre. Deriva siempre al panel de socios.
-              </li>
-              <li>
                 En el panel de socios solo respondemos sobre la deuda del
                 socio que inició sesión con su RUT y clave, y previa
                 aprobación de su directiva.
@@ -152,10 +142,6 @@ export default function PrivacidadPage() {
               <li>
                 Responder, en el panel de cada socio, sus consultas sobre su
                 propia cuenta.
-              </li>
-              <li>
-                Publicar avisos de corte, tarifas y datos de contacto en el
-                sitio del comité.
               </li>
               <li>Mantener el servicio funcionando y darle soporte al comité.</li>
             </ul>

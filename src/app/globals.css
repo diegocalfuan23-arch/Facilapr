@@ -257,16 +257,3 @@ body {
     background-clip: padding-box;
   }
 }
-
-/* Color propio del sitio público de un comité: el sitio fija --tema (#rrggbb) y aquí se deriva el acento. */
-.tema-sitio {
-  --primary: var(--tema);
-  --primary-foreground: #ffffff;
-  --ring: var(--tema);
-}
-.dark .tema-sitio {
-  /* En modo oscuro se aclara, para que el acento se siga viendo sobre el fondo oscuro. */
-  --primary: color-mix(in oklab, var(--tema) 60%, white);
-  --primary-foreground: #0b0b0f;
-  --ring: color-mix(in oklab, var(--tema) 60%, white);
-}

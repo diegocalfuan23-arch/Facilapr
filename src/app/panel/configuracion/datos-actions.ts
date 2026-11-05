@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { aprs, avisos, boletas, lecturas, socios } from "@/lib/db/schema";
+import { aprs, boletas, lecturas, socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 
 /**
@@ -37,7 +37,7 @@ export async function exportarDatos(): Promise<ResultadoExportar> {
 
     // inArray con lista vacía genera SQL inválido: un comité recién creado
     // no tiene socios todavía.
-    const [listaBoletas, listaLecturas, listaAvisos] = await Promise.all([
+    const [listaBoletas, listaLecturas] = await Promise.all([
       idsSocios.length
         ? db.query.boletas.findMany({
             where: inArray(boletas.socioId, idsSocios),
@@ -48,7 +48,6 @@ export async function exportarDatos(): Promise<ResultadoExportar> {
             where: inArray(lecturas.socioId, idsSocios),
           })
         : Promise.resolve([]),
-      db.query.avisos.findMany({ where: eq(avisos.aprId, apr.id) }),
     ]);
 
     const contenido = JSON.stringify(
@@ -58,7 +57,6 @@ export async function exportarDatos(): Promise<ResultadoExportar> {
         socios: listaSocios,
         boletas: listaBoletas,
         lecturas: listaLecturas,
-        avisos: listaAvisos,
       },
       null,
       2

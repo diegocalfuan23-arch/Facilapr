@@ -32,6 +32,7 @@ const comiteSchema = z.object({
   telefono: z.string().trim().max(30).nullable(),
   email: z.string().trim().email("El correo no es válido.").nullable(),
   sitioWeb: z.string().trim().max(200).nullable(),
+  horarioAtencion: z.string().trim().max(300).nullable(),
 });
 
 export async function guardarComite(
@@ -50,6 +51,7 @@ export async function guardarComite(
     telefono: aTexto(formData.get("telefono")),
     email: aTexto(formData.get("email")),
     sitioWeb: aTexto(formData.get("sitioWeb")),
+    horarioAtencion: aTexto(formData.get("horarioAtencion")),
   });
 
   if (!parsed.success) {
@@ -232,7 +234,7 @@ export async function guardarCortes(
   return { ok: true };
 }
 
-/** La dirección del comité (slug): portal de socios y sitio público. */
+/** La dirección del comité (slug): la de su portal de socios. */
 export async function guardarDireccion(
   _prev: ResultadoAccion | null,
   formData: FormData
@@ -243,7 +245,6 @@ export async function guardarDireccion(
   if (!resultado.ok) return resultado;
 
   revalidatePath("/panel/configuracion");
-  revalidatePath("/panel/sitio");
   return { ok: true };
 }
 

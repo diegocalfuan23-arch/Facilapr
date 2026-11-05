@@ -10,7 +10,7 @@ import { requireAdmin } from "@/lib/apr-session";
 export async function cambiarApareceEnBuscador(aparece: boolean): Promise<{ ok: true } | { ok: false; error: string }> {
   const { apr } = await requireAdmin();
   if (aparece && !apr.slug) {
-    return { ok: false, error: "Primero elige la dirección de tu comité en Mi sitio." };
+    return { ok: false, error: "Primero elige la dirección de tu comité en Configuración." };
   }
   await db.update(aprs).set({ apareceEnBuscador: aparece, updatedAt: new Date() }).where(eq(aprs.id, apr.id));
   revalidatePath("/panel/configuracion");

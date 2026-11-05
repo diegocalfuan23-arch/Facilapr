@@ -78,7 +78,7 @@ export async function requireApr() {
 
 /**
  * Igual que requireApr(), pero además exige rol ADMIN. Úsala en cualquier
- * página que un OPERADOR no deba ver: socios, boletas, configuración, sitio
+ * página que un OPERADOR no deba ver: socios, boletas, configuración
  * público y la aprobación de lecturas. Un operador que intente entrar por
  * URL directa queda igual bloqueado, no solo oculto en el menú.
  */

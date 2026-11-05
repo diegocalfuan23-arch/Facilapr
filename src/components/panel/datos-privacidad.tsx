@@ -107,7 +107,7 @@ export function DatosPrivacidad({
 
       <Bloque
         titulo="Exportar todos mis datos"
-        descripcion="Descarga un archivo con el comité, sus socios, boletas, lecturas y avisos. Sirve para guardar un respaldo o llevarlo a otro sistema."
+        descripcion="Descarga un archivo con el comité, sus socios, boletas y lecturas. Sirve para guardar un respaldo o llevarlo a otro sistema."
       >
         <Button type="button" variant="outline" disabled={exportando} onClick={descargar}>
           {exportando ? <Loader2 className="animate-spin" /> : <Download />}

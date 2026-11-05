@@ -46,7 +46,7 @@ export type DatosConfiguracion = {
   iaChatInstrucciones: string | null;
   /** Cómo y dónde pagar: sale en cada recibo. */
   infoPago: string | null;
-  /** La dirección del comité: portal de socios y sitio. */
+  /** La dirección del comité: la de su portal de socios. */
   slug: string | null;
   nombre: string;
   razonSocial: string | null;
@@ -57,6 +57,8 @@ export type DatosConfiguracion = {
   telefono: string | null;
   email: string | null;
   sitioWeb: string | null;
+  /** Horario de atención de la oficina: lo usa la IA del chat para responder a los socios. */
+  horarioAtencion: string | null;
   /** El logo del comité (PNG incrustado): sale en recibos y comprobantes. */
   logoUrl: string | null;
   /** Tarifa única del comité: cargo fijo + valor por m³ (CLP). */
@@ -311,7 +313,7 @@ export function ConfiguracionForm({
         <Bloque
           titulo="Datos del comité"
           ancla="cfg-datos"
-          descripcion="Aparecen en las boletas y en tu sitio público."
+          descripcion="Aparecen en las boletas."
           accion={guardarComite}
         >
           <LogoComite logoUrl={datos.logoUrl} />
@@ -389,6 +391,22 @@ export function ConfiguracionForm({
                 placeholder="https://…"
               />
             </Campo>
+            <div className="sm:col-span-2">
+              <Campo
+                id="horarioAtencion"
+                label="Horario de atención"
+                ayuda="Lo usa la IA del chat cuando un socio pregunta cuándo atienden."
+              >
+                <Textarea
+                  id="horarioAtencion"
+                  name="horarioAtencion"
+                  rows={2}
+                  maxLength={300}
+                  defaultValue={datos.horarioAtencion ?? ""}
+                  placeholder={"Lunes a viernes, 9:00 a 14:00"}
+                />
+              </Campo>
+            </div>
           </div>
 
           <AjustesComite
@@ -406,7 +424,7 @@ export function ConfiguracionForm({
         <Bloque
           titulo="Tu enlace en Facilapr"
           ancla="cfg-enlace"
-          descripcion="El nombre que va en el enlace de tu portal de socios y de tu sitio dentro de Facilapr. No es tu domicilio ni tu página web."
+          descripcion="El nombre que va en el enlace de tu portal de socios dentro de Facilapr. No es tu domicilio ni tu página web."
           accion={guardarDireccion}
         >
           <Campo

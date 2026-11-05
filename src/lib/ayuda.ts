@@ -22,7 +22,6 @@ export type Categoria =
   | "Finanzas"
   | "RR.HH."
   | "Operación"
-  | "Sitio público"
   | "Tu plan";
 
 export type Articulo = {
@@ -76,10 +75,6 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   {
     nombre: "Operación",
     descripcion: "Incidentes, activos fijos y labores con materiales del inventario. Desde el plan Estándar.",
-  },
-  {
-    nombre: "Sitio público",
-    descripcion: "La página web de tu comité: dirección, fotos, avisos y secciones propias.",
   },
   {
     nombre: "Tu plan",
@@ -1246,77 +1241,6 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Si te equivocas",
         texto: "Si sacas la labor de Hechas o la borras, los materiales vuelven al inventario. Si cambias los materiales de una labor ya hecha, primero se devuelve lo anterior y luego se descuenta lo nuevo.",
-      },
-    ],
-  },
-  {
-    slug: "sitio-publico-comite-apr",
-    titulo: "Publicar el sitio web de tu comité",
-    resumen: "Elige la dirección, escribe la presentación y las tarifas, y publica tu página con una vista previa en vivo.",
-    categoria: "Sitio público",
-    para: "Administrador",
-    minutos: 4,
-    pasos: [
-      {
-        titulo: "Abre Sitio público",
-        texto: "En el grupo Atención del menú, entra a Sitio público. Está en los planes Estándar y Grande. A la izquierda editas y a la derecha ves cómo queda tu página, al instante.",
-      },
-      {
-        titulo: "Elige la dirección",
-        texto: "Escribe el nombre de tu comité en «Dirección web»: será algo como micomite.facilapr.cl. Pulsa Guardar cambios para que la dirección exista.",
-        nota: "Si cambias la dirección y no guardas, el botón Ver sitio sigue llevando a la anterior.",
-      },
-      {
-        titulo: "Escribe la presentación",
-        texto: "Completa la descripción, el horario de atención, las tarifas (cargo fijo y valor del m³) y cómo y dónde pagar. Si te cuesta redactar, pulsa «Redactar con IA», cuéntale tu comité en un par de frases y revisa lo que propone antes de guardar.",
-      },
-      {
-        titulo: "Elige el color",
-        texto: "En «Color del sitio» escoge uno de la paleta, o «Otro color» para uno propio. Cambia los botones, las etiquetas y los íconos de tu página, y la vista previa lo muestra al instante. Pulsa Guardar cambios para dejarlo.",
-        nota: "Si el color es muy claro, el sistema te avisa: los textos no se leerían bien sobre fondo blanco.",
-      },
-      {
-        titulo: "Publícalo",
-        texto: "Arriba a la derecha, pulsa Publicar sitio. Mientras esté sin publicar, solo tú lo ves. Con Despublicar lo escondes cuando quieras.",
-      },
-      {
-        titulo: "Sigue con Administrar",
-        texto: "Para sumar fotos, anuncios y secciones propias, entra a Administrar, justo debajo en el menú.",
-      },
-    ],
-  },
-  {
-    slug: "administrar-sitio-fotos-secciones-apr",
-    titulo: "Agregar fotos, anuncios y secciones a tu sitio",
-    resumen: "Sube el logo, la portada y la galería, publica avisos y arma secciones con texto, imágenes, botones o cuadros.",
-    categoria: "Sitio público",
-    para: "Administrador",
-    minutos: 5,
-    pasos: [
-      {
-        titulo: "Abre Administrar",
-        texto: "En Atención → Administrar cambias lo que se ve en tu sitio público. Los cambios aparecen enseguida en tu página.",
-      },
-      {
-        titulo: "Sube el logo, la portada y la galería",
-        texto: "El logo reemplaza la gota de Facilapr arriba a la izquierda. La portada es una foto ancha bajo el título. La galería admite hasta 8 fotos con un texto corto cada una. Puedes subir la foto del celular tal cual: se achica sola.",
-      },
-      {
-        titulo: "Publica anuncios y avisos",
-        texto: "En «Anuncios y avisos» pulsa Nuevo aviso para un corte, una mantención o una noticia. Con el ojito lo ocultas del sitio sin borrarlo.",
-      },
-      {
-        titulo: "Agrega una sección propia",
-        texto: "En «Secciones de tu sitio» pulsa Agregar sección y elige: Texto, Imagen con texto, Botón o Cuadros (de 2 a 6 con título y texto). Puedes tener hasta 12.",
-      },
-      {
-        titulo: "Ponle un botón",
-        texto: "En una sección Botón escribe lo que dice y a dónde lleva: una página web, un correo o un número de teléfono. Si pones un número, el botón abre WhatsApp.",
-        nota: "Los botones solo aceptan enlaces web, correo o teléfono, por seguridad.",
-      },
-      {
-        titulo: "Ordénalas",
-        texto: "Con las flechas subes o bajas cada sección; el ojito la oculta sin borrarla. Se muestran en ese orden, después de la galería y antes del contacto.",
       },
     ],
   },

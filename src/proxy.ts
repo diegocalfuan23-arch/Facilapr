@@ -2,27 +2,20 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Mapea el subdominio de cada comité a su landing y a su panel de socios.
+ * Mapea el subdominio de cada comité a su portal de socios.
  *
- *   pitrelahue.facilapr.cl/             → /sitio/pitrelahue
- *   pitrelahue.facilapr.cl/avisos       → /sitio/pitrelahue/avisos
+ *   pitrelahue.facilapr.cl/              → /cuenta/entrar (la entrada al portal)
  *   pitrelahue.facilapr.cl/cuenta/entrar → /socio/pitrelahue/entrar
  *   pitrelahue.facilapr.cl/cuenta        → /socio/pitrelahue/panel
  *   facilapr.cl/pitrelahue/cuenta/entrar → /socio/pitrelahue/entrar
  *   (/socio/... sigue funcionando en el subdominio por los enlaces ya enviados)
  *
- * /socio/* tiene su propia rama de reescritura (no cuelga de /sitio/[slug])
- * porque es una app distinta con su propia sesión (rol SOCIO): mezclarla
- * bajo /sitio confundiría el layout público del comité con el panel privado.
- *
- * El dominio raíz y www siguen sirviendo la app normal. Los dominios propios
- * (plan Premium) se resuelven en la página por el host completo, porque aquí
- * no podemos consultar la base de datos: el proxy corre en el edge.
+ * El dominio raíz y www siguen sirviendo la app normal.
  */
 
 const DOMINIO_RAIZ = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
 
-/** Hosts que sirven la app, no una landing de comité. */
+/** Hosts que sirven la app, no el portal de un comité. */
 const HOSTS_APP = new Set([
   DOMINIO_RAIZ,
   `www.${DOMINIO_RAIZ}`,
@@ -75,12 +68,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  const url = request.nextUrl.clone();
-
   if (host.endsWith(`.${DOMINIO_RAIZ}`)) {
     const slug = host.slice(0, -(DOMINIO_RAIZ.length + 1));
     // Solo el primer nivel: "a.b.facilapr.cl" no es un comité válido.
     if (!slug || slug.includes(".")) return NextResponse.next();
+
+    const url = request.nextUrl.clone();
 
     if (url.pathname === "/cuenta" || url.pathname.startsWith("/cuenta/")) {
       url.pathname = rutaDeCuenta(slug, url.pathname.slice("/cuenta".length));
@@ -92,15 +85,14 @@ export function proxy(request: NextRequest) {
       return NextResponse.rewrite(url);
     }
 
-    url.pathname = `/sitio/${slug}${url.pathname === "/" ? "" : url.pathname}`;
-    return NextResponse.rewrite(url);
+    // La portada de un comité es la entrada a su portal de socios.
+    if (url.pathname === "/") {
+      url.pathname = "/cuenta/entrar";
+      return NextResponse.redirect(url);
+    }
   }
 
-  // Dominio propio: pasamos el host y la página resuelve el comité.
-  url.pathname = `/sitio/dominio/${host}${
-    url.pathname === "/" ? "" : url.pathname
-  }`;
-  return NextResponse.rewrite(url);
+  return NextResponse.next();
 }
 
 export const config = {

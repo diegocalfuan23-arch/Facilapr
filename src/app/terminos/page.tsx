@@ -40,8 +40,7 @@ export default function TerminosPage() {
             <p className="mt-3">
               Facilapr es un servicio de software para comités de Agua Potable
               Rural (APR/SSR) de Chile. Permite administrar el padrón de socios,
-              emitir boletas, registrar lecturas y pagos, publicar un sitio
-              público del comité y dar a cada socio un panel propio para
+              emitir boletas, registrar lecturas y pagos y dar a cada socio un panel propio para
               consultar su cuenta.
             </p>
             <p className="mt-3">
@@ -112,7 +111,7 @@ export default function TerminosPage() {
             </h2>
             <p className="mt-3">
               La inteligencia artificial del chat con el comité (planes Estándar y
-              Grande) y el asistente del sitio público generan sus respuestas con inteligencia artificial, a partir de los
+              Grande) genera sus respuestas con inteligencia artificial, a partir de los
               datos que el comité tiene cargados.
             </p>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5">
@@ -122,10 +121,8 @@ export default function TerminosPage() {
                 cobro: la boleta emitida es la que vale.
               </li>
               <li>
-                El asistente del sitio público no entrega información sobre
-                deudas ni datos personales de ningún socio, por diseño. Solo
-                la IA del chat de un socio con sesión iniciada responde sobre
-                su propia cuenta, y únicamente la suya.
+                Solo la IA del chat de un socio con sesión iniciada responde
+                sobre su propia cuenta, y únicamente la suya.
               </li>
               <li>
                 El servicio depende de proveedores externos de IA; si están

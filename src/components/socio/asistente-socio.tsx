@@ -11,8 +11,7 @@ type Mensaje = { rol: "user" | "assistant"; texto: string };
 const SUGERENCIAS = ["¿Cuánto debo?", "¿Cuándo vence mi próxima boleta?"];
 
 /**
- * Widget del panel de socio. A diferencia de AsistenteComite (el del sitio
- * público, que nunca habla de deudas), este SÍ puede: hay sesión de socio
+ * Widget del panel de socio. Hay sesión de socio
  * verificada, así que /api/socio/asistente responde con sus datos reales.
  * No necesita fallback a WhatsApp: ese canal ya no existe en el producto.
  */

@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
  * queda aquí, en Facilapr, igual que crear comité o cambiar el slug. Protegido
  * por el secreto compartido (SUPERADMIN_API_SECRET).
  *
- * Bajar de plan no borra nada: el sitio público y el chat dejan de estar
+ * Bajar de plan no borra nada: el chat y la gestión dejan de estar
  * disponibles (lo deciden planes.ts y sus consultas), y el comité conserva sus
  * datos por si vuelve a subir.
  */

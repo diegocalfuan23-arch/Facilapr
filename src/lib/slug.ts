@@ -50,7 +50,7 @@ export function slugBase(nombre: string): string {
 /**
  * Un slug libre a partir del nombre. Si "quema" ya lo tiene otro comité, prueba
  * "quema-2", "quema-3"... El slug es la dirección del comité: portal de socios
- * y, si el plan lo incluye, su sitio público.
+ * y su portal de socios.
  *
  * `ocupados` permite probar sin base de datos (ver scripts de revisión).
  */

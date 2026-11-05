@@ -23,8 +23,8 @@ export const estadoBoletaEnum = pgEnum("EstadoBoleta", [
 /**
  * Plan contratado. Define qué puede hacer el comité:
  * BASICO   → panel
- * ESTANDAR → + landing pública en subdominio
- * PREMIUM  → + dominio propio
+ * ESTANDAR → + chat, finanzas y gestión
+ * PREMIUM  → + más capacidad
  */
 export const planEnum = pgEnum("Plan", ["BASICO", "ESTANDAR", "PREMIUM"]);
 
@@ -32,12 +32,6 @@ export const frecuenciaLecturaEnum = pgEnum("FrecuenciaLectura", [
   "MENSUAL",
   "BIMENSUAL",
   "TRIMESTRAL",
-]);
-
-export const tipoAvisoEnum = pgEnum("TipoAviso", [
-  "CORTE",
-  "MANTENCION",
-  "NOTICIA",
 ]);
 
 export const estadoLecturaEnum = pgEnum("EstadoLectura", [
@@ -65,15 +59,9 @@ export const aprs = pgTable(
 
     plan: planEnum("plan").notNull().default("BASICO"),
 
-    // --- Landing pública (planes ESTANDAR y PREMIUM) ---
-    /** Subdominio: pitrelahue → pitrelahue.facilapr.cl */
+    /** La dirección del comité en Facilapr: pitrelahue → su portal de socios en pitrelahue.facilapr.cl */
     slug: text("slug"),
-    /** Dominio propio, solo PREMIUM. Null hasta que se verifique. */
-    dominioPropio: text("dominioPropio"),
-    /** El comité decide cuándo publicarla; se genera antes de estar visible. */
-    sitioPublicado: boolean("sitioPublicado").notNull().default(false),
-    /** Texto libre de presentación. Si va vacío usamos uno por defecto. */
-    sitioDescripcion: text("sitioDescripcion"),
+    /** Horario de atención de la oficina, en texto libre. Lo usa la IA del chat con los socios. */
     horarioAtencion: text("horarioAtencion"),
     /** Tarifas en CLP. Enteros: en Chile no se usan decimales. */
     tarifaCargoFijo: integer("tarifaCargoFijo"),
@@ -167,123 +155,16 @@ export const aprs = pgTable(
   },
   (table) => [
     uniqueIndex("Apr_rut_key").on(table.rut),
-    // Parciales: varios comités pueden tener slug/dominio en null sin chocar.
+    // Parcial: varios comités pueden tener slug en null sin chocar.
     uniqueIndex("Apr_slug_key")
       .on(table.slug)
       .where(sql`${table.slug} IS NOT NULL`),
-    uniqueIndex("Apr_dominioPropio_key")
-      .on(table.dominioPropio)
-      .where(sql`${table.dominioPropio} IS NOT NULL`),
   ]
 );
 
 export const aprsRelations = relations(aprs, ({ many }) => ({
   socios: many(socios),
-  avisos: many(avisos),
 }));
-
-/**
- * Avisos de corte, mantención y noticias. Se publican en la landing y son
- * la misma fuente que responde el bot cuando preguntan por un corte.
- */
-export const avisos = pgTable(
-  "Aviso",
-  {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
-    aprId: text("aprId")
-      .notNull()
-      .references(() => aprs.id, { onDelete: "cascade" }),
-    tipo: tipoAvisoEnum("tipo").notNull().default("CORTE"),
-    titulo: text("titulo").notNull(),
-    cuerpo: text("cuerpo"),
-    /** Sectores afectados, en texto libre. */
-    sectores: text("sectores"),
-    /** Null en noticias: solo los cortes tienen ventana horaria. */
-    inicia: timestamp("inicia", { precision: 3 }),
-    termina: timestamp("termina", { precision: 3 }),
-    publicado: boolean("publicado").notNull().default(true),
-    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
-    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
-  },
-  (table) => [
-    index("Aviso_aprId_idx").on(table.aprId),
-    index("Aviso_aprId_publicado_idx").on(table.aprId, table.publicado),
-  ]
-);
-
-export const avisosRelations = relations(avisos, ({ one }) => ({
-  apr: one(aprs, {
-    fields: [avisos.aprId],
-    references: [aprs.id],
-  }),
-}));
-
-/**
- * Imágenes del sitio público del comité: logo, foto de portada y galería. Se
- * guardan ya comprimidas (el navegador las reduce antes de subirlas) como base64
- * en la misma base, para no depender de un servicio de archivos aparte.
- */
-export const sitioImagenes = pgTable(
-  "SitioImagen",
-  {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
-    aprId: text("aprId")
-      .notNull()
-      .references(() => aprs.id, { onDelete: "cascade" }),
-    /** LOGO | PORTADA | GALERIA */
-    tipo: text("tipo").notNull(),
-    /** image/webp, image/jpeg o image/png. */
-    mime: text("mime").notNull(),
-    /** El archivo en base64. */
-    datos: text("datos").notNull(),
-    bytes: integer("bytes").notNull(),
-    pie: text("pie"),
-    orden: integer("orden").notNull().default(0),
-    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
-  },
-  (table) => [index("SitioImagen_aprId_tipo_idx").on(table.aprId, table.tipo)]
-);
-
-/**
- * Secciones que el comité agrega a su sitio público: un texto, una imagen con texto, un llamado con
- * botón o unos cuadros (tarjetas). Se muestran en orden, entre la galería y el contacto.
- */
-export const sitioSecciones = pgTable(
-  "SitioSeccion",
-  {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
-    aprId: text("aprId")
-      .notNull()
-      .references(() => aprs.id, { onDelete: "cascade" }),
-    /** TEXTO | IMAGEN | BOTON | TARJETAS */
-    tipo: text("tipo").notNull(),
-    titulo: text("titulo"),
-    texto: text("texto"),
-    /** Una fila de SitioImagen (tipo SECCION), en las secciones con imagen. */
-    imagenId: text("imagenId"),
-    botonTexto: text("botonTexto"),
-    botonUrl: text("botonUrl"),
-    /** Los cuadros de una sección TARJETAS, como JSON: [{ titulo, texto }]. */
-    tarjetas: text("tarjetas"),
-    visible: boolean("visible").notNull().default(true),
-    orden: integer("orden").notNull().default(0),
-    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
-  },
-  (table) => [index("SitioSeccion_aprId_orden_idx").on(table.aprId, table.orden)]
-);
-
-/**
- * El color con que el comité personaliza su sitio público. Va en una tabla aparte (y no como columna de
- * Apr) para que, si falta en la base, solo se pierda el color y no se rompa el resto del panel.
- */
-export const sitioTema = pgTable("SitioTema", {
-  aprId: text("aprId")
-    .primaryKey()
-    .references(() => aprs.id, { onDelete: "cascade" }),
-  /** Color de acento, #rrggbb. */
-  color: text("color").notNull(),
-  updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
-});
 
 export const socios = pgTable(
   "Socio",
@@ -1013,7 +894,7 @@ export const usosIa = pgTable(
   {
     id: text("id").primaryKey().$defaultFn(() => createId()),
     aprId: text("aprId").references(() => aprs.id, { onDelete: "set null" }),
-    /** Qué endpoint originó la llamada: asistente-landing, asistente-sitio, generar-sitio. */
+    /** Qué endpoint originó la llamada: asistente-landing o el asistente del panel de socio. */
     origen: text("origen").notNull(),
     proveedor: proveedorIaEnum("proveedor").notNull(),
     modelo: text("modelo").notNull(),

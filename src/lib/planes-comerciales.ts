@@ -55,7 +55,6 @@ export const PLANES_COMERCIALES: {
       "Incidentes del sistema (fugas, fallas y cuánto costó repararlas) y activos fijos con su valor actual",
       "Hasta 800 socios cargados",
       "Hasta 3 operadores en terreno",
-      "Sitio público con avisos de corte",
       "Te cargamos tu padrón y dejamos todo configurado",
     ],
     cta: "Elegir plan",
@@ -71,7 +70,7 @@ export const PLANES_COMERCIALES: {
     lista: [
       "Socios y operadores sin tope",
       "IA del chat con más capacidad: 10 millones de tokens al mes (unas 5.000 respuestas) y packs adicionales",
-      "Dominio propio y varios administradores con roles",
+      "Varios administradores con roles",
       { texto: "Conciliación de pagos con la cartola del banco", pronto: true },
       "Múltiples sedes o comités",
       "Soporte prioritario",

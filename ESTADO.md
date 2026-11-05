@@ -25,8 +25,7 @@ un comité de verdad.
 
 ## Qué está construido
 
-- Panel: socios, boletas, lecturas, configuración, sitio del comité
-- Sitio público por comité, con dominio propio o subdominio
+- Panel: socios, boletas, lecturas, configuración (el sitio público por comité se quitó el 05-11-2026: no aportaba al cobro)
 - Registro, login e invitaciones por código
 - Términos y política de privacidad según ley 21.719, con los derechos
   implementados (no solo prometidos)

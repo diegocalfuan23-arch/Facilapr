@@ -1,6 +1,6 @@
 import { and, eq, inArray, isNotNull, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { aprs, avisos, boletas, invitaciones, lecturas, socios } from "@/lib/db/schema";
+import { aprs, boletas, invitaciones, lecturas, socios } from "@/lib/db/schema";
 import { user } from "@/lib/db/auth-schema";
 import { DIAS_HASTA_BORRADO } from "@/lib/retencion";
 
@@ -56,7 +56,6 @@ async function ejecutar(request: Request) {
       await db.delete(boletas).where(inArray(boletas.socioId, idsSocios));
     }
 
-    await db.delete(avisos).where(eq(avisos.aprId, apr.id));
     await db.delete(invitaciones).where(eq(invitaciones.aprId, apr.id));
     // Las solicitudes de acceso de sus socios caen en cascada al borrar
     // socios: SolicitudAcceso.socioId tiene onDelete: "cascade".

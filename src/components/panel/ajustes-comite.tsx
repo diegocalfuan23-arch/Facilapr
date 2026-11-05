@@ -74,7 +74,7 @@ export function AjustesComite({
       <Interruptor
         titulo="Aparecer en el buscador de socios"
         ayuda="Tus socios te encuentran por nombre o comuna en facilapr.cl/socios y entran a su cuenta desde ahí. Solo se muestra el nombre y la comuna."
-        nota={!tieneSlug && !apareceEnBuscador ? "Para activarlo, tu comité necesita su dirección propia (Mi sitio)." : undefined}
+        nota={!tieneSlug && !apareceEnBuscador ? "Para activarlo, tu comité necesita su dirección propia (Configuración)." : undefined}
         inicial={apareceEnBuscador}
         deshabilitado={!tieneSlug && !apareceEnBuscador}
         guardar={cambiarApareceEnBuscador}

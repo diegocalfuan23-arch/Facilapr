@@ -17,9 +17,7 @@ import {
 } from "@/lib/ia-chat";
 
 /**
- * Asistente del panel de socio. A diferencia de /api/sitio/asistente (el
- * del sitio público, que nunca responde deudas porque ahí no hay forma de
- * saber quién escribe), aquí SÍ hay sesión de Better Auth con rol SOCIO: la
+ * Asistente del panel de socio. Aquí hay sesión de Better Auth con rol SOCIO: la
  * identidad ya está verificada, así que puede responder con sus propios
  * datos. Nunca los de otro socio — todo se resuelve desde la sesión, jamás
  * de un parámetro que mandara el cliente.
