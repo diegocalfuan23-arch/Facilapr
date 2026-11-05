@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { asistenciaDelDia, resumenAsistenciaMes } from "@/lib/rrhh";
+import { asistenciaDelDia, asistenciaMes } from "@/lib/rrhh";
 import { diaVecino, hoyEnChile, nombreMes } from "@/lib/finanzas";
 import { AsistenciaVista } from "@/components/panel/asistencia-vista";
 
@@ -19,7 +19,7 @@ export default async function AsistenciaPage({ searchParams }: { searchParams: P
   const { dia: diaParam } = await searchParams;
   const dia = diaParam && /^\d{4}-\d{2}-\d{2}$/.test(diaParam) ? diaParam : hoyEnChile();
   const mes = dia.slice(0, 7);
-  const [filas, resumen] = await Promise.all([asistenciaDelDia(apr.id, dia), resumenAsistenciaMes(apr.id, mes)]);
+  const [filas, grilla] = await Promise.all([asistenciaDelDia(apr.id, dia), asistenciaMes(apr.id, mes)]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -28,7 +28,7 @@ export default async function AsistenciaPage({ searchParams }: { searchParams: P
         <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Quién vino cada día. Las vacaciones y licencias aprobadas se marcan solas.</p>
       </div>
 
-      <AsistenciaVista dia={dia} anterior={diaVecino(dia, -1)} siguiente={diaVecino(dia, 1)} filas={filas} resumen={resumen} mesTexto={nombreMes(mes)} />
+      <AsistenciaVista dia={dia} anterior={diaVecino(dia, -1)} siguiente={diaVecino(dia, 1)} filas={filas} grilla={grilla} mes={mes} mesTexto={nombreMes(mes)} />
     </div>
   );
 }

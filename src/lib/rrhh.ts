@@ -155,3 +155,51 @@ export async function resumenAsistenciaMes(aprId: string, mes: string): Promise<
     return {};
   }
 }
+
+const ymd = (t: number) => new Date(t).toISOString().slice(0, 10);
+
+/**
+ * Lo que pasó cada día de un mes (AAAA-MM) con cada persona: sus marcas de asistencia, y las vacaciones
+ * y licencias aprobadas que cubren esos días (que mandan sobre una marca). Un permiso aprobado llena
+ * los días que no tengan marca. Es la base de la planilla del mes.
+ */
+export async function asistenciaMes(aprId: string, mes: string): Promise<Record<string, Record<string, EstadoAsistencia>>> {
+  const [a, m] = mes.split("-").map(Number);
+  const primero = Date.UTC(a, m - 1, 1);
+  const ultimo = Date.UTC(a, m, 0);
+  const desde = ymd(primero);
+  const hasta = ymd(ultimo);
+  const grilla: Record<string, Record<string, EstadoAsistencia>> = {};
+  const poner = (id: string, dia: string, estado: EstadoAsistencia) => ((grilla[id] ??= {})[dia] = estado);
+
+  try {
+    const [marcas, cubiertas] = await Promise.all([
+      db
+        .select({ trabajadorId: asistencias.trabajadorId, fecha: asistencias.fecha, estado: asistencias.estado })
+        .from(asistencias)
+        .where(and(eq(asistencias.aprId, aprId), gte(asistencias.fecha, desde), lte(asistencias.fecha, hasta))),
+      db
+        .select({ trabajadorId: ausencias.trabajadorId, tipo: ausencias.tipo, desde: ausencias.desde, hasta: ausencias.hasta })
+        .from(ausencias)
+        .where(and(eq(ausencias.aprId, aprId), eq(ausencias.estado, "APROBADA"), lte(ausencias.desde, hasta), gte(ausencias.hasta, desde))),
+    ]);
+
+    for (const x of marcas) poner(x.trabajadorId, x.fecha, x.estado as EstadoAsistencia);
+
+    for (const x of cubiertas) {
+      const ini = Math.max(Date.parse(x.desde), primero);
+      const fin = Math.min(Date.parse(x.hasta), ultimo);
+      for (let t = ini; t <= fin; t += 86_400_000) {
+        const diaSemana = new Date(t).getUTCDay();
+        const finDeSemana = diaSemana === 0 || diaSemana === 6;
+        const dia = ymd(t);
+        if (x.tipo === "LICENCIA") poner(x.trabajadorId, dia, "LICENCIA");
+        else if (!finDeSemana && x.tipo === "VACACIONES") poner(x.trabajadorId, dia, "VACACIONES");
+        else if (!finDeSemana && x.tipo === "PERMISO" && !grilla[x.trabajadorId]?.[dia]) poner(x.trabajadorId, dia, "PERMISO");
+      }
+    }
+  } catch (e) {
+    console.error("RR.HH.: no se pudo leer la planilla del mes:", e);
+  }
+  return grilla;
+}
