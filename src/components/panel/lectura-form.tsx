@@ -7,6 +7,8 @@ import {
   AlertTriangle,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Clock,
   Droplets,
@@ -179,6 +181,21 @@ export function LecturaForm({
     const q = sinTildes(busquedaLecturas.trim());
     return recientes.filter((l) => (vista === "todas" || l.estado === "PENDIENTE") && (!q || sinTildes(`${l.socio} ${l.periodo} ${formatearPeriodo(l.periodo)} ${ESTADO_META[l.estado].texto} ${l.valor}`).includes(q)));
   }, [recientes, busquedaLecturas, vista]);
+  // El carrusel de meses: el actual primero y, hacia la derecha, los anteriores que tengan lecturas.
+  const [mesVer, setMesVer] = useState(periodoActual);
+  const carrusel = useRef<HTMLDivElement>(null);
+  const meses = useMemo(() => {
+    const todos = new Set(recientes.map((l) => l.periodo));
+    todos.add(periodoActual());
+    return Array.from(todos).sort((a, b) => b.localeCompare(a));
+  }, [recientes]);
+  const buscandoLecturas = busquedaLecturas.trim() !== "";
+  // Buscando se mira en todos los meses; si no, solo el mes elegido en el carrusel.
+  const mostradas = buscandoLecturas ? recientesFiltradas : recientesFiltradas.filter((l) => l.periodo === mesVer);
+  function moverCarrusel(sentido: 1 | -1) {
+    const c = carrusel.current;
+    if (c) c.scrollBy({ left: sentido * c.clientWidth * 0.8, behavior: "smooth" });
+  }
   const nPorRevisar = recientes.filter((l) => l.estado === "PENDIENTE").length;
 
   function limpiar() {
@@ -566,22 +583,74 @@ export function LecturaForm({
                   </button>
                 ))}
               </div>
+              {!buscandoLecturas && (
+                <div className="relative">
+                  <div ref={carrusel} role="tablist" aria-label="Meses" className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth px-1 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {meses.map((m) => {
+                      const delMes = recientes.filter((l) => l.periodo === m);
+                      const porRevisar = delMes.filter((l) => l.estado === "PENDIENTE").length;
+                      const [anio, nro] = m.split("-");
+                      const nombre = formatearPeriodo(m).split(" ")[0];
+                      const activo = m === mesVer;
+                      return (
+                        <button
+                          key={m}
+                          type="button"
+                          role="tab"
+                          aria-selected={activo}
+                          onClick={() => setMesVer(m)}
+                          className={cn(
+                            "flex h-28 w-36 shrink-0 snap-start flex-col justify-between rounded-2xl border p-4 text-left transition-colors",
+                            activo ? "border-transparent bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/30" : "border-border bg-card shadow-sm shadow-primary/10 hover:bg-muted"
+                          )}
+                        >
+                          <span>
+                            <span className="block text-[1.15rem] leading-tight font-bold">{nombre}</span>
+                            <span className={cn("block text-[0.8rem]", activo ? "text-white/80" : "text-muted-foreground")}>{anio}</span>
+                          </span>
+                          <span className="flex items-end justify-between gap-2">
+                            <span className="text-[1.5rem] leading-none font-bold tabular-nums">{delMes.length}</span>
+                            <span className={cn("text-[0.75rem] font-medium", activo ? "text-white/85" : porRevisar > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground")}>
+                              {delMes.length === 0 ? `sin lecturas` : porRevisar > 0 ? `${porRevisar} por revisar` : delMes.length === 1 ? "lectura" : "lecturas"}
+                            </span>
+                          </span>
+                          <span className="sr-only">Mes {nro}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {meses.length > 2 && (
+                    <>
+                      <Button type="button" variant="outline" size="icon" aria-label="Meses anteriores a la izquierda" onClick={() => moverCarrusel(-1)} className="absolute top-1/2 -left-3 size-9 -translate-y-1/2 rounded-full bg-card shadow-md">
+                        <ChevronLeft />
+                      </Button>
+                      <Button type="button" variant="outline" size="icon" aria-label="Meses anteriores" onClick={() => moverCarrusel(1)} className="absolute top-1/2 -right-3 size-9 -translate-y-1/2 rounded-full bg-card shadow-md">
+                        <ChevronRight />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
           {recientes.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">Todavía no has cargado lecturas.</p>
-          ) : recientesFiltradas.length === 0 ? (
+          ) : mostradas.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
-              {vista === "PENDIENTE" && !busquedaLecturas.trim() ? "No tienes lecturas por revisar." : "Ninguna lectura coincide con la búsqueda."}
+              {buscandoLecturas
+                ? "Ninguna lectura coincide con la búsqueda."
+                : vista === "PENDIENTE"
+                  ? `No tienes lecturas por revisar en ${formatearPeriodo(mesVer)}.`
+                  : `No hay lecturas tuyas en ${formatearPeriodo(mesVer)}.`}
             </p>
           ) : (
-            Array.from(new Set(recientesFiltradas.map((l) => l.periodo))).map((p) => (
+            Array.from(new Set(mostradas.map((l) => l.periodo))).map((p) => (
               <div key={p}>
                 <h2 className="px-1 pb-2 text-sm font-bold">
-                  {formatearPeriodo(p)} <span className="font-medium text-muted-foreground">· {recientesFiltradas.filter((l) => l.periodo === p).length}</span>
+                  {formatearPeriodo(p)} <span className="font-medium text-muted-foreground">· {mostradas.filter((l) => l.periodo === p).length}</span>
                 </h2>
                 <div className="flex flex-col gap-2">
-                  {recientesFiltradas
+                  {mostradas
                     .filter((l) => l.periodo === p)
                     .map((l) => {
                       const meta = ESTADO_META[l.estado];
