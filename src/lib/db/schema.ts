@@ -1379,6 +1379,56 @@ export const ausencias = pgTable(
   (table) => [index("Ausencia_aprId_desde_idx").on(table.aprId, table.desde)]
 );
 
+/**
+ * Un anticipo o préstamo del comité a una persona del personal. Sus cuotas se descuentan solas al armar
+ * cada mes en Remuneraciones; cada descuento queda en PrestamoDescuento, y de ahí sale lo que falta.
+ */
+export const prestamos = pgTable(
+  "Prestamo",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    /** ANTICIPO | PRESTAMO */
+    tipo: text("tipo").notNull().default("PRESTAMO"),
+    monto: integer("monto").notNull(),
+    cuotas: integer("cuotas").notNull().default(1),
+    cuotaMonto: integer("cuotaMonto").notNull(),
+    /** AAAA-MM: el mes de la primera cuota. */
+    primerPeriodo: text("primerPeriodo").notNull(),
+    /** El día en que se entregó la plata. */
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    /** ACTIVO | CERRADO */
+    estado: text("estado").notNull().default("ACTIVO"),
+    nota: text("nota"),
+    /** El egreso de Caja con la entrega, si se anotó. */
+    movimientoId: text("movimientoId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Prestamo_aprId_idx").on(table.aprId), index("Prestamo_trabajadorId_idx").on(table.trabajadorId)]
+);
+
+/** Lo descontado de un préstamo en una liquidación. Si se borra la liquidación, el descuento se va con ella. */
+export const prestamoDescuentos = pgTable(
+  "PrestamoDescuento",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    prestamoId: text("prestamoId")
+      .notNull()
+      .references(() => prestamos.id, { onDelete: "cascade" }),
+    remuneracionId: text("remuneracionId")
+      .notNull()
+      .references(() => remuneraciones.id, { onDelete: "cascade" }),
+    periodo: text("periodo").notNull(),
+    monto: integer("monto").notNull(),
+  },
+  (table) => [uniqueIndex("PrestamoDescuento_prestamo_periodo_key").on(table.prestamoId, table.periodo)]
+);
+
 /** El registro diario de asistencia: un estado por persona y por día. */
 export const asistencias = pgTable(
   "Asistencia",

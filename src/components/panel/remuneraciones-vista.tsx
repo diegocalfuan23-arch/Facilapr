@@ -134,7 +134,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
             </div>
           </div>
           <p className="text-[0.75rem] text-muted-foreground">
-            La AFP, la salud y el seguro de cesantía se calculan solos con la ficha de la persona. En «otros» van anticipos, préstamos y similares.
+            La AFP, la salud y el seguro de cesantía se calculan solos con la ficha de la persona. En «otros» van otros descuentos; las cuotas de anticipos y préstamos se cargan solas al armar el mes.
           </p>
           {fila.porDia ? (
             <div className="flex flex-col gap-2">

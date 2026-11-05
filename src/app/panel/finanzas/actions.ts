@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { activosFijos, categoriasMovimiento, compras, incidentes, movimientos, remuneraciones } from "@/lib/db/schema";
+import { activosFijos, categoriasMovimiento, compras, incidentes, movimientos, prestamos, remuneraciones } from "@/lib/db/schema";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
@@ -195,6 +195,8 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
   if (deIncidente) return { ok: false, error: "Este egreso viene de un incidente. Se maneja desde Incidentes." };
   const [deActivo] = await db.select({ id: activosFijos.id }).from(activosFijos).where(and(eq(activosFijos.movimientoId, id), eq(activosFijos.aprId, apr.id))).limit(1).catch(() => []);
   if (deActivo) return { ok: false, error: "Este egreso viene de un activo fijo. Se maneja desde Activos fijos." };
+  const [dePrestamo] = await db.select({ id: prestamos.id }).from(prestamos).where(and(eq(prestamos.movimientoId, id), eq(prestamos.aprId, apr.id))).limit(1).catch(() => []);
+  if (dePrestamo) return { ok: false, error: "Este egreso viene de un anticipo o préstamo. Se maneja desde Préstamos." };
 
   await db.delete(movimientos).where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)));
 

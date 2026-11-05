@@ -1,10 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { movimientos, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { movimientos, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
@@ -56,35 +56,76 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
     // Los días de falta, licencia y permiso sin goce del mes se descuentan solos; las vacaciones se pagan.
     const ausenciasMes = await resumenAusenciasMes(apr.id, periodo);
 
-    await db
-      .insert(remuneraciones)
-      .values(
-        personas.map((p) => {
-          // A quien cobra por día se le paga lo que trabajó (según su asistencia); no hay días que descontar.
-          const base = p.porDia ? (ausenciasMes[p.id]?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
-          const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
-          const horas = ausenciasMes[p.id]?.horasPermisoSinGoce ?? 0;
-          const descAus = descuentoPorDias(base, dias, p.valorDia, horas, horasPorDia(p));
-          const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus);
-          return {
-            aprId: apr.id,
-            trabajadorId: p.id,
-            periodo,
-            sueldoBase: base,
-            diasDescontados: dias,
-            descAusencias: descAus,
-            horasDescontadas: horas,
-            descAfp: d.afp,
-            descSalud: d.salud,
-            descCesantia: d.cesantia,
-            retencion: d.retencion,
-            noImponible: p.noImponible,
-            descuentos: d.total,
-            liquido: base - descAus - d.total + p.noImponible,
-          };
-        })
-      )
-      .onConflictDoNothing();
+    await db.transaction(async (tx) => {
+      // Las cuotas de anticipos y préstamos vigentes que tocan este mes.
+      const vigentes = await tx
+        .select({ id: prestamos.id, trabajadorId: prestamos.trabajadorId, monto: prestamos.monto, cuotaMonto: prestamos.cuotaMonto })
+        .from(prestamos)
+        .where(and(eq(prestamos.aprId, apr.id), eq(prestamos.estado, "ACTIVO"), lte(prestamos.primerPeriodo, periodo)));
+      const ids = vigentes.map((v) => v.id);
+      const hechos = ids.length
+        ? await tx
+            .select({ prestamoId: prestamoDescuentos.prestamoId, periodo: prestamoDescuentos.periodo, monto: prestamoDescuentos.monto })
+            .from(prestamoDescuentos)
+            .where(inArray(prestamoDescuentos.prestamoId, ids))
+        : [];
+      const yaDescontado = new Map<string, number>();
+      const yaEsteMes = new Set<string>();
+      for (const h of hechos) {
+        yaDescontado.set(h.prestamoId, (yaDescontado.get(h.prestamoId) ?? 0) + h.monto);
+        if (h.periodo === periodo) yaEsteMes.add(h.prestamoId);
+      }
+
+      // Qué cuotas lleva cada persona este mes (se anotan después, con el id de su liquidación).
+      const cuotasDe = new Map<string, { prestamoId: string; monto: number }[]>();
+      const valores = personas.map((p) => {
+        // A quien cobra por día se le paga lo que trabajó (según su asistencia); no hay días que descontar.
+        const base = p.porDia ? (ausenciasMes[p.id]?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
+        const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
+        const horas = ausenciasMes[p.id]?.horasPermisoSinGoce ?? 0;
+        const descAus = descuentoPorDias(base, dias, p.valorDia, horas, horasPorDia(p));
+        const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus);
+
+        // Nunca se descuenta más de lo que la persona gana: lo que no alcanza queda para el mes siguiente.
+        let capacidad = Math.max(0, base - descAus - d.total);
+        let cuotasPrestamos = 0;
+        const aplicadas: { prestamoId: string; monto: number }[] = [];
+        for (const v of vigentes.filter((x) => x.trabajadorId === p.id && !yaEsteMes.has(x.id))) {
+          const saldo = v.monto - (yaDescontado.get(v.id) ?? 0);
+          const cuota = Math.min(v.cuotaMonto, saldo, capacidad);
+          if (cuota <= 0) continue;
+          aplicadas.push({ prestamoId: v.id, monto: cuota });
+          capacidad -= cuota;
+          cuotasPrestamos += cuota;
+        }
+        cuotasDe.set(p.id, aplicadas);
+
+        const descuentos = d.total + cuotasPrestamos;
+        return {
+          aprId: apr.id,
+          trabajadorId: p.id,
+          periodo,
+          sueldoBase: base,
+          diasDescontados: dias,
+          descAusencias: descAus,
+          horasDescontadas: horas,
+          descAfp: d.afp,
+          descSalud: d.salud,
+          descCesantia: d.cesantia,
+          retencion: d.retencion,
+          otrosDescuentos: cuotasPrestamos,
+          noImponible: p.noImponible,
+          descuentos,
+          liquido: base - descAus - descuentos + p.noImponible,
+        };
+      });
+
+      const creadas = await tx.insert(remuneraciones).values(valores).onConflictDoNothing().returning({ id: remuneraciones.id, trabajadorId: remuneraciones.trabajadorId });
+
+      // Las cuotas solo se anotan en las liquidaciones que se crearon ahora: las que ya existían no se tocan.
+      const filasCuotas = creadas.flatMap((r) => (cuotasDe.get(r.trabajadorId) ?? []).map((q) => ({ prestamoId: q.prestamoId, remuneracionId: r.id, periodo, monto: q.monto })));
+      if (filasCuotas.length > 0) await tx.insert(prestamoDescuentos).values(filasCuotas);
+    });
   } catch (e) {
     console.error("Remuneraciones: no se pudo generar el mes:", e);
     return { ok: false, error: mensajeError(e, "No pudimos armar el mes. Inténtalo de nuevo en un momento.") };

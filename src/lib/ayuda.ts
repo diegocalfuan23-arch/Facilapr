@@ -1133,6 +1133,10 @@ export const ARTICULOS: Articulo[] = [
         nota: "Puedes cambiar los días a mano si algo no calza.",
       },
       {
+        titulo: "Colación y movilización",
+        texto: "En la ficha de la persona puedes indicar su colación y movilización mensual. No son imponibles: se suman al líquido sin descontar AFP ni salud. Se cargan solas en cada liquidación, y las puedes cambiar mes a mes.",
+      },
+      {
         titulo: "Anota las horas extras",
         texto: "En «Horas extras» escribe las del mes. Cada hora vale lo fijado en la ficha de la persona o, si no hay, su hora ordinaria con el 50 % de recargo; el monto se suma a lo que gana y sobre eso se calculan la AFP, la salud y lo demás. Las horas extras no se toman solas de la asistencia: se anotan aquí.",
       },
@@ -1152,6 +1156,37 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Págala",
         texto: "Pulsa Pagar, elige la fecha y el medio de pago. El líquido sale como egreso en la Caja, con categoría Remuneraciones.",
         nota: "Si te equivocas, «Deshacer pago» también quita el egreso de la Caja. Si el día de la Caja ya está cerrado, primero hay que reabrirlo.",
+      },
+    ],
+  },
+  {
+    slug: "anticipos-prestamos-personal-apr",
+    titulo: "Dar un anticipo o préstamo al personal y descontarlo en cuotas",
+    resumen: "Registra lo que el comité adelanta a una persona y sus cuotas se descuentan solas del sueldo.",
+    categoria: "RR.HH.",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Préstamos",
+        texto: "En RR.HH. → Préstamos ves lo que falta por descontar, los que están vigentes y los ya saldados. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Registra el anticipo o el préstamo",
+        texto: "Pulsa «+ Nuevo anticipo o préstamo». Elige a la persona y el tipo: un anticipo se descuenta de una vez; un préstamo, en las cuotas que indiques. Escribe el monto, el mes de la primera cuota y la fecha de entrega.",
+      },
+      {
+        titulo: "Anótalo en la Caja",
+        texto: "Deja marcado «Anotar la entrega como egreso en la Caja» si la plata sale ahora del comité. Si ya salió antes de usar Facilapr, desmárcalo.",
+      },
+      {
+        titulo: "Las cuotas se descuentan solas",
+        texto: "Al armar cada mes en Remuneraciones, la cuota del mes aparece dentro de «Otros descuentos» de esa persona. Nunca se descuenta más de lo que la persona gana ese mes: lo que no alcance queda para el siguiente.",
+        nota: "Si borras una liquidación pendiente, su cuota vuelve al saldo del préstamo.",
+      },
+      {
+        titulo: "Cierra o borra",
+        texto: "«Cerrar» deja de descontar lo que falta (por ejemplo, si el comité lo condona); lo ya descontado se mantiene. «Borrar» solo se puede mientras no se haya descontado ninguna cuota, y también quita la entrega de la Caja.",
       },
     ],
   },
