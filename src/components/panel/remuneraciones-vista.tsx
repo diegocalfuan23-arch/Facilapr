@@ -26,7 +26,6 @@ const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP",
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
-const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
 const selectClase =
   "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
@@ -514,21 +513,34 @@ export function RemuneracionesVista({
     });
   }
 
+  const avance = total > 0 ? Math.round((pagado / total) * 100) : 0;
+  const acciones = (f: RemuneracionFila) => <AccionesFila f={f} ocupado={ocupado} onPagar={() => setPagando(f)} onQuitar={() => void borrar(f)} onDeshacer={() => void deshacer(f)} />;
+
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Total del mes</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{clp.format(total)}</p>
-          <p className="mt-2 text-[0.8rem] text-muted-foreground">{filas.length} {filas.length === 1 ? "liquidación" : "liquidaciones"}</p>
+      {/* Un solo recuadro con los tres números y cuánto va pagado: ocupa una fila, no tres tarjetas. */}
+      <section aria-label="Resumen" className="overflow-hidden rounded-xl border border-border bg-card">
+        <div className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="px-6 py-4">
+            <p className="text-[0.8rem] text-muted-foreground">Total del mes</p>
+            <p className="mt-1 text-[1.5rem] leading-none font-bold tabular-nums">{clp.format(total)}</p>
+            <p className="mt-2 text-[0.75rem] text-muted-foreground">
+              {filas.length} {filas.length === 1 ? "liquidación" : "liquidaciones"}
+            </p>
+          </div>
+          <div className="px-6 py-4">
+            <p className="text-[0.8rem] text-muted-foreground">Pagado</p>
+            <p className="mt-1 text-[1.5rem] leading-none font-bold text-emerald-700 tabular-nums dark:text-emerald-400">{clp.format(pagado)}</p>
+            <p className="mt-2 text-[0.75rem] text-muted-foreground">{avance} % del mes</p>
+          </div>
+          <div className="px-6 py-4">
+            <p className="text-[0.8rem] text-muted-foreground">Por pagar</p>
+            <p className={cn("mt-1 text-[1.5rem] leading-none font-bold tabular-nums", pendiente > 0 && "text-amber-700 dark:text-amber-300")}>{clp.format(pendiente)}</p>
+            <p className="mt-2 text-[0.75rem] text-muted-foreground">{filas.filter((f) => f.estado !== "PAGADA").length} pendientes</p>
+          </div>
         </div>
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-5 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-          <p className={cn(etiquetaKpi, "text-emerald-800 dark:text-emerald-300")}>Pagado</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold text-emerald-800 tabular-nums dark:text-emerald-300">{clp.format(pagado)}</p>
-        </div>
-        <div className={cn("rounded-xl border p-5", pendiente > 0 ? "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10" : "border-border bg-card")}>
-          <p className={cn(etiquetaKpi, pendiente > 0 ? "text-amber-800 dark:text-amber-300" : "text-muted-foreground")}>Por pagar</p>
-          <p className={cn("mt-3 text-[2rem] leading-none font-bold tabular-nums", pendiente > 0 && "text-amber-800 dark:text-amber-300")}>{clp.format(pendiente)}</p>
+        <div className="h-1 bg-muted" role="img" aria-label={`${avance} % del mes pagado`}>
+          <div className="h-full bg-emerald-600" style={{ width: `${avance}%` }} />
         </div>
       </section>
 
@@ -557,105 +569,163 @@ export function RemuneracionesVista({
       </div>
 
       {filas.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-20 text-center">
-          <p className="text-[1.05rem] font-medium">Este mes aún no tiene liquidaciones</p>
-          <p className="mx-auto mt-2 max-w-xl px-4 text-[0.95rem] text-muted-foreground">
-            Pulsa «Armar el mes» y se crea una liquidación por cada persona activa, con su sueldo base. Después ajustas bonos y descuentos y pagas.
+        <div className="rounded-xl border border-dashed border-border px-4 py-14 text-center">
+          <p className="text-[1rem] font-medium">Este mes aún no tiene liquidaciones</p>
+          <p className="mx-auto mt-2 max-w-xl text-[0.9rem] text-muted-foreground">
+            Pulsa «Armar el mes» y se crea una liquidación por cada persona activa, con su sueldo, los días y horas no pagados, las cuotas de préstamos y su colación. Después ajustas lo que haga falta y pagas.
           </p>
         </div>
       ) : (
-        <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-200 border-collapse text-[0.95rem]">
-            <thead>
-              <tr className="border-b border-border bg-card">
-                {["Persona", "Sueldo bruto", "Bonos", "Descuentos", "Líquido", "Estado", ""].map((c) => (
-                  <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                    {c}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filas.map((f) => {
-                const pagada = f.estado === "PAGADA";
-                return (
-                  <tr key={f.id} onClick={() => !pagada && setEditando(f)} className={cn("border-b border-border last:border-0 hover:bg-card/50", !pagada && "cursor-pointer")}>
-                    <td className="px-5 py-4">
-                      <div className="font-medium">{f.trabajador}</div>
-                      <div className="text-[0.8rem] text-muted-foreground">{f.cargo}</div>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap tabular-nums">
-                      {clp.format(f.sueldoBase)}
-                      {f.diasDescontados > 0 && <div className="text-[0.75rem] text-red-600 dark:text-red-400">-{f.diasDescontados} {f.diasDescontados === 1 ? "día" : "días"} no pagados</div>}
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{f.bonos ? `+${clp.format(f.bonos)}` : "—"}</td>
-                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{f.descuentos ? `-${clp.format(f.descuentos)}` : "—"}</td>
-                    <td className="px-5 py-4 font-medium whitespace-nowrap tabular-nums">{clp.format(f.liquido)}</td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <span
-                        className={cn(
-                          "rounded-full px-3 py-1 text-[0.8rem] font-medium",
-                          pagada ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+        <>
+          {/* Pantallas anchas: tabla. */}
+          <div className="hidden overflow-hidden rounded-xl border border-border bg-card md:block">
+            <table className="w-full border-collapse text-[0.92rem]">
+              <thead>
+                <tr className="border-b border-border text-left text-muted-foreground">
+                  {["Persona", "Haberes", "Descuentos", "Líquido", "Estado", ""].map((c, i) => (
+                    <th key={i} className={cn("px-5 py-3 font-medium whitespace-nowrap", c === "Líquido" && "text-right")}>
+                      {c}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filas.map((f) => {
+                  const pagada = f.estado === "PAGADA";
+                  const legales = f.descuentos - f.otrosDescuentos;
+                  return (
+                    <tr key={f.id} onClick={() => !pagada && setEditando(f)} className={cn("border-b border-border last:border-0", !pagada && "cursor-pointer hover:bg-muted/40")}>
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{f.trabajador}</span>
+                          {f.porDia && <span className="rounded-full bg-muted px-2 py-0.5 text-[0.7rem] font-medium text-muted-foreground">Por día</span>}
+                        </div>
+                        <div className="text-[0.8rem] text-muted-foreground">{f.cargo}</div>
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <div className="tabular-nums">{clp.format(f.sueldoBase)}</div>
+                        <Detalle f={f} />
+                      </td>
+                      <td className="px-5 py-3.5 whitespace-nowrap tabular-nums">
+                        {f.descuentos ? <span className="text-muted-foreground">-{clp.format(f.descuentos)}</span> : <span className="text-muted-foreground">—</span>}
+                        {f.otrosDescuentos > 0 && (
+                          <div className="text-[0.75rem] text-muted-foreground">
+                            legales {clp.format(legales)} · otros {clp.format(f.otrosDescuentos)}
+                          </div>
                         )}
-                      >
-                        {pagada ? `Pagada ${f.fechaPago ? fechaCorta(f.fechaPago) : ""} · ${textoMedioLinea(f.medio ?? "OTRO")}` : "Por pagar"}
-                      </span>
-                    </td>
-                    <td className="px-3 py-3 text-right whitespace-nowrap">
-                      <span className="flex items-center justify-end gap-1">
-                      <a
-                        href={`/panel/remuneraciones/liquidacion/${f.id}`}
-                        target="_blank"
-                        rel="noopener"
-                        aria-label={`Liquidación de ${f.trabajador} en PDF`}
-                        title="Liquidación en PDF, para imprimir y firmar"
-                        onClick={(e) => e.stopPropagation()}
-                        className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <FileText className="size-4" />
-                      </a>
-                      {pagada ? (
-                        <Button variant="ghost" className="h-9 px-3 text-[0.85rem] text-muted-foreground" disabled={ocupado} onClick={() => deshacer(f)}>
-                          Deshacer pago
-                        </Button>
-                      ) : (
-                        <span className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            className="h-9 px-3 text-[0.85rem] text-muted-foreground"
-                            disabled={ocupado}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              borrar(f);
-                            }}
-                          >
-                            Quitar
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="h-9 rounded-full px-4 text-[0.85rem]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setPagando(f);
-                            }}
-                          >
-                            Pagar
-                          </Button>
-                        </span>
-                      )}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-5 py-3.5 text-right text-[1rem] font-semibold whitespace-nowrap tabular-nums">{clp.format(f.liquido)}</td>
+                      <td className="px-5 py-3.5 whitespace-nowrap">
+                        <EstadoPago f={f} />
+                      </td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">{acciones(f)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Celular: una tarjeta por persona. */}
+          <ul className="flex flex-col gap-3 md:hidden">
+            {filas.map((f) => {
+              const pagada = f.estado === "PAGADA";
+              return (
+                <li key={f.id} onClick={() => !pagada && setEditando(f)} className={cn("rounded-xl border border-border bg-card p-4", !pagada && "cursor-pointer")}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{f.trabajador}</p>
+                      <p className="truncate text-[0.8rem] text-muted-foreground">{f.cargo}</p>
+                    </div>
+                    <p className="shrink-0 text-[1.15rem] font-bold tabular-nums">{clp.format(f.liquido)}</p>
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+                    <EstadoPago f={f} />
+                    <span className="text-[0.8rem] text-muted-foreground tabular-nums">
+                      {clp.format(f.sueldoBase)} · -{clp.format(f.descuentos)}
+                    </span>
+                  </div>
+                  <Detalle f={f} className="mt-2" />
+                  <div className="mt-2 flex justify-end border-t border-border pt-2">{acciones(f)}</div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
       )}
 
       {dialogo}
       {editando && <EditarDialog key={editando.id} fila={editando} onCerrar={cerrarEdicion} />}
       {pagando && <PagarDialog key={pagando.id} fila={pagando} onCerrar={cerrarPago} />}
     </div>
+  );
+}
+
+/** Lo que sube o baja el sueldo base de una liquidación, en líneas chicas: ausencias, horas extras, bonos y colación. */
+function Detalle({ f, className }: { f: RemuneracionFila; className?: string }) {
+  const lineas: { texto: string; tono: string }[] = [];
+  if (f.descAusencias > 0) {
+    const partes = [f.diasDescontados > 0 ? `${f.diasDescontados} ${f.diasDescontados === 1 ? "día" : "días"}` : null, f.horasDescontadas > 0 ? `${String(f.horasDescontadas).replace(".", ",")} h` : null].filter(Boolean).join(" + ");
+    lineas.push({ texto: `-${clp.format(f.descAusencias)} no pagado (${partes})`, tono: "text-red-600 dark:text-red-400" });
+  }
+  if (f.montoHorasExtra > 0) lineas.push({ texto: `+${clp.format(f.montoHorasExtra)} horas extras (${String(f.horasExtra).replace(".", ",")} h)`, tono: "text-muted-foreground" });
+  if (f.bonos > 0) lineas.push({ texto: `+${clp.format(f.bonos)} bonos`, tono: "text-muted-foreground" });
+  if (f.noImponible > 0) lineas.push({ texto: `+${clp.format(f.noImponible)} colación y movilización`, tono: "text-muted-foreground" });
+  if (lineas.length === 0) return null;
+  return (
+    <div className={cn("flex flex-col text-[0.75rem] tabular-nums", className)}>
+      {lineas.map((l) => (
+        <span key={l.texto} className={l.tono}>
+          {l.texto}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function EstadoPago({ f }: { f: RemuneracionFila }) {
+  const pagada = f.estado === "PAGADA";
+  return (
+    <span
+      className={cn(
+        "inline-flex rounded-full px-3 py-1 text-[0.78rem] font-medium whitespace-nowrap",
+        pagada ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" : "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300"
+      )}
+    >
+      {pagada ? `Pagada ${f.fechaPago ? fechaCorta(f.fechaPago) : ""} · ${textoMedioLinea(f.medio ?? "OTRO")}` : "Por pagar"}
+    </span>
+  );
+}
+
+/** El PDF de la liquidación y las acciones de una fila: pagar o quitar, o deshacer el pago. */
+function AccionesFila({ f, ocupado, onPagar, onQuitar, onDeshacer }: { f: RemuneracionFila; ocupado: boolean; onPagar: () => void; onQuitar: () => void; onDeshacer: () => void }) {
+  const pagada = f.estado === "PAGADA";
+  return (
+    <span className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+      <a
+        href={`/panel/remuneraciones/liquidacion/${f.id}`}
+        target="_blank"
+        rel="noopener"
+        aria-label={`Liquidación de ${f.trabajador} en PDF`}
+        title="Liquidación en PDF, para imprimir y firmar"
+        className="inline-flex size-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        <FileText className="size-4" />
+      </a>
+      {pagada ? (
+        <Button variant="ghost" className="h-9 px-3 text-[0.85rem] text-muted-foreground" disabled={ocupado} onClick={onDeshacer}>
+          Deshacer pago
+        </Button>
+      ) : (
+        <>
+          <Button variant="ghost" className="h-9 px-3 text-[0.85rem] text-muted-foreground" disabled={ocupado} onClick={onQuitar}>
+            Quitar
+          </Button>
+          <Button variant="outline" className="h-9 rounded-full px-4 text-[0.85rem]" onClick={onPagar}>
+            Pagar
+          </Button>
+        </>
+      )}
+    </span>
   );
 }
