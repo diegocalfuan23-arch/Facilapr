@@ -9,6 +9,19 @@ export const TEXTO_CONTRATO: Record<Contrato, string> = {
 
 export const CARGOS_SUGERIDOS = ["Operador", "Tesorero", "Administrativo", "Presidente", "Secretario", "Gasfíter", "Otro"];
 
+/** Con qué rol entra al panel quien tiene cuenta (o «DESACTIVADO» si la directiva le quitó el acceso). */
+export type AccesoPanel = "ADMIN" | "OPERADOR" | "TESORERO" | "DESACTIVADO";
+
+export const TEXTO_ACCESO: Record<AccesoPanel, string> = {
+  ADMIN: "Administrador",
+  OPERADOR: "Operador",
+  TESORERO: "Tesorero",
+  DESACTIVADO: "Acceso quitado",
+};
+
+/** Una persona con cuenta en el panel del comité. */
+export type CuentaPanel = { nombre: string; email: string; acceso: AccesoPanel };
+
 export type TrabajadorFila = {
   id: string;
   nombre: string;

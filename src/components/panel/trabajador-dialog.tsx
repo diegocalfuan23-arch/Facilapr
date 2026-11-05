@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Check, Copy, Loader2 } from "lucide-react";
+import { generarInvitacionOperador } from "@/app/panel/lecturas/actions";
 import { eliminarTrabajador, guardarTrabajador, type ResultadoPersonal } from "@/app/panel/personal/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -16,6 +17,8 @@ import {
   descuentosLegales,
   tasaAfp,
   textoTasa,
+  TEXTO_ACCESO,
+  type AccesoPanel,
   type Contrato,
   type TrabajadorFila,
 } from "@/lib/personal-comun";
@@ -34,7 +37,22 @@ const deTextoTasa = (t: string) => {
 };
 
 /** Agregar a una persona del comité, o corregir su ficha: sueldo bruto, descuentos legales y líquido. */
-export function TrabajadorDialog({ persona, onCerrar }: { persona: TrabajadorFila | null; onCerrar: () => void }) {
+export function TrabajadorDialog({
+  persona,
+  inicial = null,
+  acceso = null,
+  puedeTesorero = false,
+  onCerrar,
+}: {
+  persona: TrabajadorFila | null;
+  /** Datos con que parte una ficha nueva: se usa al crearla desde una cuenta del panel. */
+  inicial?: { nombre: string; email: string; cargo: string } | null;
+  /** El acceso al panel que ya tiene esta persona, si tiene cuenta con su mismo correo. */
+  acceso?: AccesoPanel | null;
+  /** El plan incluye Finanzas: solo entonces se puede invitar como tesorero. */
+  puedeTesorero?: boolean;
+  onCerrar: () => void;
+}) {
   const [estado, enviar, pendiente] = useActionState<ResultadoPersonal | null, FormData>(guardarTrabajador, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = persona !== null;
@@ -97,13 +115,13 @@ export function TrabajadorDialog({ persona, onCerrar }: { persona: TrabajadorFil
               <label htmlFor="per-nombre" className={etiqueta}>
                 Nombre
               </label>
-              <Input id="per-nombre" name="nombre" defaultValue={persona?.nombre} maxLength={120} className={campo} autoFocus required />
+              <Input id="per-nombre" name="nombre" defaultValue={persona?.nombre ?? inicial?.nombre} maxLength={120} className={campo} autoFocus required />
             </div>
             <div>
               <label htmlFor="per-cargo" className={etiqueta}>
                 Cargo
               </label>
-              <Input id="per-cargo" name="cargo" list="per-cargos" defaultValue={persona?.cargo} maxLength={60} className={campo} required />
+              <Input id="per-cargo" name="cargo" list="per-cargos" defaultValue={persona?.cargo ?? inicial?.cargo} maxLength={60} className={campo} required />
               <datalist id="per-cargos">
                 {CARGOS_SUGERIDOS.map((c) => (
                   <option key={c} value={c} />
@@ -132,7 +150,7 @@ export function TrabajadorDialog({ persona, onCerrar }: { persona: TrabajadorFil
               <label htmlFor="per-email" className={etiqueta}>
                 Correo (opcional)
               </label>
-              <Input id="per-email" name="email" type="email" defaultValue={persona?.email ?? ""} maxLength={120} className={campo} />
+              <Input id="per-email" name="email" type="email" defaultValue={persona?.email ?? inicial?.email ?? ""} maxLength={120} className={campo} />
             </div>
           </div>
 
@@ -238,6 +256,8 @@ export function TrabajadorDialog({ persona, onCerrar }: { persona: TrabajadorFil
             </div>
           )}
 
+          {editando && <AccesoAlPanel acceso={acceso} tieneCorreo={Boolean(persona.email)} puedeTesorero={puedeTesorero} />}
+
           <div>
             <label htmlFor="per-notas" className={etiqueta}>
               Notas (opcional)
@@ -284,5 +304,72 @@ export function TrabajadorDialog({ persona, onCerrar }: { persona: TrabajadorFil
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * El acceso de una persona al panel: si ya tiene cuenta lo dice; si no, genera la invitación (un enlace de un
+ * solo uso) para que cree la suya como operador o como tesorero. Son botones sueltos: no envían la ficha.
+ */
+function AccesoAlPanel({ acceso, tieneCorreo, puedeTesorero }: { acceso: AccesoPanel | null; tieneCorreo: boolean; puedeTesorero: boolean }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [copiado, setCopiado] = useState(false);
+  const [generando, iniciar] = useTransition();
+
+  function invitar(rol: "OPERADOR" | "TESORERO") {
+    setUrl(null);
+    iniciar(async () => {
+      const r = await generarInvitacionOperador(rol);
+      if (r.ok) setUrl(r.url);
+      else toast.error(r.error);
+    });
+  }
+
+  async function copiar() {
+    if (!url) return;
+    await navigator.clipboard.writeText(url);
+    setCopiado(true);
+    toast.success("Enlace de invitación copiado");
+    setTimeout(() => setCopiado(false), 2000);
+  }
+
+  return (
+    <div className="rounded-xl border border-border p-4">
+      <h3 className="text-[0.9rem] font-semibold">Acceso al panel</h3>
+      {acceso ? (
+        <p className="mt-1 text-[0.85rem] text-muted-foreground">
+          {acceso === "DESACTIVADO" ? "Tiene cuenta, pero se le quitó el acceso." : `Tiene cuenta como ${TEXTO_ACCESO[acceso].toLowerCase()}.`} Se administra en Equipo.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-[0.85rem] text-muted-foreground">
+            No tiene cuenta. Si necesita entrar al panel, invítala: se genera un enlace de un solo uso.
+            {!tieneCorreo && " Para que quede ligada a esta ficha, guarda antes su correo y usa ese mismo al crear la cuenta."}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" className="h-9 px-4 text-[0.85rem]" disabled={generando} onClick={() => invitar("OPERADOR")}>
+              {generando && <Loader2 className="animate-spin" />}
+              Invitar como operador
+            </Button>
+            {puedeTesorero && (
+              <Button type="button" variant="outline" className="h-9 px-4 text-[0.85rem]" disabled={generando} onClick={() => invitar("TESORERO")}>
+                Invitar como tesorero
+              </Button>
+            )}
+          </div>
+          {url && (
+            <div className="mt-3 flex min-w-0 items-center gap-2 rounded-lg border border-input bg-muted/40 px-3 py-2">
+              <span title={url} className="min-w-0 flex-1 truncate text-[0.85rem]">
+                {url}
+              </span>
+              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={copiar}>
+                {copiado ? <Check className="text-forest" /> : <Copy />}
+                {copiado ? "Copiado" : "Copiar"}
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
   );
 }

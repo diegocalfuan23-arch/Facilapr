@@ -378,8 +378,8 @@ export const ARTICULOS: Articulo[] = [
     minutos: 2,
     pasos: [
       {
-        titulo: "Abre Operadores",
-        texto: "En el menú de la izquierda entra a Operadores.",
+        titulo: "Abre Equipo",
+        texto: "En el menú de la izquierda entra a Equipo.",
       },
       {
         titulo: "Pulsa Invitar operador",
@@ -395,6 +395,33 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Desactívalo cuando ya no corresponda",
         texto:
           "Si alguien deja de trabajar con el comité, desactívalo desde la misma lista. Pierde el acceso al instante, sin borrar sus lecturas.",
+      },
+    ],
+  },
+  {
+    slug: "invitar-tesorero",
+    titulo: "Dar acceso a un tesorero para llevar las finanzas",
+    resumen: "El tesorero entra al panel solo a las finanzas: pagos, caja, compras, reportes e inventario.",
+    categoria: "Equipo",
+    para: "Administrador",
+    minutos: 2,
+    pasos: [
+      {
+        titulo: "Abre Equipo",
+        texto: "En Gestión → Equipo pulsa «Invitar tesorero». El botón aparece en los planes Estándar y Grande, que incluyen las finanzas.",
+      },
+      {
+        titulo: "Envía el enlace",
+        texto: "Se genera un enlace de un solo uso que vence en 7 días. Mándalo por WhatsApp o cópialo. La persona crea su propia clave.",
+      },
+      {
+        titulo: "Qué ve el tesorero",
+        texto: "Pagos, Caja, Compras, Reportes (con el informe para la asamblea) e Inventario. No ve Socios, Boletas, Configuración, Plan ni RR.HH.: los sueldos del personal quedan solo para el administrador.",
+        nota: "El tesorero puede registrar, corregir y anular pagos y movimientos de esas pantallas: es quien maneja la plata del comité.",
+      },
+      {
+        titulo: "Quítale el acceso cuando corresponda",
+        texto: "Desde la misma lista, «Desactivar» le cierra la sesión al instante. Al reactivarlo vuelve como tesorero.",
       },
     ],
   },
@@ -1059,6 +1086,10 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Anota el sueldo bruto y los descuentos",
         texto: "Escribe el sueldo bruto, elige su AFP (queda cargada la tasa) y su salud, y revisa la cesantía. Abajo ves en vivo cuánto le descuentan y cuánto queda líquido.",
         nota: "Lo que ves en la ficha es una estimación para que cuadre con su liquidación. El cálculo real de cada mes se hace en Remuneraciones.",
+      },
+      {
+        titulo: "Dale acceso al panel, si lo necesita",
+        texto: "Al abrir su ficha, la sección «Acceso al panel» te dice si ya tiene cuenta. Si no, puedes invitarla como operador o como tesorero con un enlace de un solo uso. La ficha y la cuenta se ligan por el correo, así que usa el mismo. Quien ya tiene acceso pero no tiene ficha aparece en un aviso arriba, con un botón para crearla.",
       },
       {
         titulo: "Si la persona se va",

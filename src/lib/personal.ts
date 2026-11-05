@@ -1,7 +1,8 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray, and } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { trabajadores } from "@/lib/db/schema";
-import type { Contrato, TrabajadorFila } from "@/lib/personal-comun";
+import { user as usuarios } from "@/lib/db/auth-schema";
+import type { AccesoPanel, Contrato, CuentaPanel, TrabajadorFila } from "@/lib/personal-comun";
 
 export * from "@/lib/personal-comun";
 
@@ -32,6 +33,24 @@ export async function listarTrabajadores(aprId: string): Promise<TrabajadorFila[
     return filas.map((f) => ({ ...f, contrato: f.contrato as Contrato }));
   } catch (e) {
     console.error("Personal: no se pudieron leer las personas:", e);
+    return [];
+  }
+}
+
+/** Las personas con cuenta en el panel del comité y con qué rol entran. Sirve para ligarlas a su ficha por el correo. */
+export async function cuentasDelPanel(aprId: string): Promise<CuentaPanel[]> {
+  try {
+    const filas = await db
+      .select({ nombre: usuarios.name, email: usuarios.email, rol: usuarios.rol })
+      .from(usuarios)
+      .where(and(eq(usuarios.aprId, aprId), inArray(usuarios.rol, ["ADMIN", "OPERADOR", "TESORERO", "DESACTIVADO", "DESACTIVADO_TESORERO"])));
+    return filas.map((f) => ({
+      nombre: f.nombre,
+      email: f.email.toLowerCase(),
+      acceso: (f.rol.startsWith("DESACTIVADO") ? "DESACTIVADO" : f.rol) as AccesoPanel,
+    }));
+  } catch (e) {
+    console.error("Personal: no se pudieron leer las cuentas del panel:", e);
     return [];
   }
 }

@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TrabajadorDialog } from "@/components/panel/trabajador-dialog";
-import { TEXTO_CONTRATO, descuentosLegales, type TrabajadorFila } from "@/lib/personal-comun";
+import { TEXTO_ACCESO, TEXTO_CONTRATO, descuentosLegales, type CuentaPanel, type TrabajadorFila } from "@/lib/personal-comun";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -13,14 +13,23 @@ const alto = "h-10";
 const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
 
 /** La ficha de las personas del comité. Sus sueldos se pagan en Remuneraciones. */
-export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
+export function PersonalVista({ personas, cuentas, puedeTesorero }: { personas: TrabajadorFila[]; cuentas: CuentaPanel[]; puedeTesorero: boolean }) {
   const [busqueda, setBusqueda] = useState("");
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<TrabajadorFila | null>(null);
+  // Una cuenta del panel sin ficha: al crearle la ficha se parte con sus datos.
+  const [desdeCuenta, setDesdeCuenta] = useState<CuentaPanel | null>(null);
   const cerrar = useCallback(() => {
     setCreando(false);
     setEditando(null);
+    setDesdeCuenta(null);
   }, []);
+
+  // Se liga la ficha con la cuenta por el correo.
+  const accesoDe = (p: TrabajadorFila) => cuentas.find((x) => p.email && x.email === p.email.toLowerCase())?.acceso ?? null;
+  const correosConFicha = new Set(personas.map((p) => p.email?.toLowerCase()).filter(Boolean));
+  // Operadores y tesoreros con acceso que aún no tienen ficha (los administradores no se piden).
+  const sinFicha = cuentas.filter((x) => (x.acceso === "OPERADOR" || x.acceso === "TESORERO") && !correosConFicha.has(x.email));
 
   const activas = personas.filter((p) => p.activo);
   const costoMensual = activas.reduce((s, p) => s + p.sueldo, 0);
@@ -46,6 +55,24 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
         </div>
       </section>
 
+      {sinFicha.length > 0 && (
+        <section aria-label="Con acceso y sin ficha" className="rounded-xl border border-amber-200 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
+          <p className="text-[0.9rem] font-medium text-amber-900 dark:text-amber-200">
+            {sinFicha.length === 1 ? "Una persona con acceso al panel no tiene ficha" : `${sinFicha.length} personas con acceso al panel no tienen ficha`}
+          </p>
+          <p className="mt-1 text-[0.8rem] text-amber-800/80 dark:text-amber-200/70">Créales su ficha para llevar sueldo, vacaciones y asistencia.</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {sinFicha.map((x) => (
+              <li key={x.email}>
+                <Button variant="outline" className="h-9 rounded-full bg-card px-4 text-[0.85rem]" onClick={() => setDesdeCuenta(x)}>
+                  {x.nombre} · {TEXTO_ACCESO[x.acceso]} · Crear ficha
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Input
           value={busqueda}
@@ -70,10 +97,10 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
         </div>
       ) : (
         <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-200 border-collapse text-[0.95rem]">
+          <table className="w-full min-w-240 border-collapse text-[0.95rem]">
             <thead>
               <tr className="border-b border-border bg-card">
-                {["Nombre", "Cargo", "Forma de pago", "Sueldo bruto", "Descuentos", "Líquido", "Ingreso"].map((c) => (
+                {["Nombre", "Cargo", "Acceso al panel", "Forma de pago", "Sueldo bruto", "Descuentos", "Líquido", "Ingreso"].map((c) => (
                   <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
                     {c}
                   </th>
@@ -88,6 +115,7 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
                     {!p.activo && <span className="ml-2 text-[0.8rem] font-normal text-muted-foreground">(inactiva)</span>}
                   </td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{p.cargo}</td>
+                  <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{accesoDe(p) ? TEXTO_ACCESO[accesoDe(p)!] : "—"}</td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{TEXTO_CONTRATO[p.contrato]}</td>
                   <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(p.sueldo)}</td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">-{clp.format(descuentosLegales(p, p.sueldo).total)}</td>
@@ -100,7 +128,16 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
         </div>
       )}
 
-      {(creando || editando) && <TrabajadorDialog key={editando?.id ?? "nueva"} persona={editando} onCerrar={cerrar} />}
+      {(creando || editando || desdeCuenta) && (
+        <TrabajadorDialog
+          key={editando?.id ?? desdeCuenta?.email ?? "nueva"}
+          persona={editando}
+          inicial={desdeCuenta ? { nombre: desdeCuenta.nombre, email: desdeCuenta.email, cargo: TEXTO_ACCESO[desdeCuenta.acceso] } : null}
+          acceso={editando ? accesoDe(editando) : null}
+          puedeTesorero={puedeTesorero}
+          onCerrar={cerrar}
+        />
+      )}
     </div>
   );
 }
