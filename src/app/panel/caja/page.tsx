@@ -16,7 +16,6 @@ import {
   listarCategoriasMovimiento,
   saldoBancoDe,
   saldoInicialDe,
-  traspasosEntre,
 } from "@/lib/finanzas";
 import { CajaVista } from "@/components/panel/caja-vista";
 
@@ -43,12 +42,11 @@ export default async function CajaPage({
   const hasta = esDia ? diaVecino(dia, 1) : `${mesVecino(mes, 1)}-01`;
 
   const lineas = await (esDia ? libroDelDia(apr.id, dia) : libroDelMes(apr.id, mes));
-  const [resumen, saldoInicialBase, categoriasPropias, saldoBanco, traspasos] = await Promise.all([
+  const [resumen, saldoInicialBase, categoriasPropias, saldoBanco] = await Promise.all([
     resumenPeriodo(apr.id, desde, hasta, lineas),
     saldoInicialDe(apr.id),
     listarCategoriasMovimiento(apr.id),
     saldoBancoDe(apr.id),
-    traspasosEntre(apr.id, desde, hasta),
   ]);
   const saldoInicial = saldoInicialBase ? { ...saldoInicialBase, banco: Math.min(saldoBanco, saldoInicialBase.monto) } : null;
 
@@ -76,7 +74,6 @@ export default async function CajaPage({
         porCategoria={resumir(lineas, categoriasPropias).porCategoria}
         categoriasPropias={categoriasPropias}
         saldoInicial={saldoInicial}
-        traspasos={traspasos}
       />
     </div>
   );

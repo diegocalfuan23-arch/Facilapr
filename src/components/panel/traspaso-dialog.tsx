@@ -14,9 +14,19 @@ import { cn } from "@/lib/utils";
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
 /** Sacar plata del banco a efectivo (giro) o llevar efectivo al banco (depósito). La plata solo cambia de lugar. */
-export function TraspasoDialog({ fecha, bolsillos, onCerrar }: { fecha?: string; bolsillos: Bolsillos | null; onCerrar: () => void }) {
+export function TraspasoDialog({
+  fecha,
+  bolsillos,
+  tipoInicial = TIPO_GIRO,
+  onCerrar,
+}: {
+  fecha?: string;
+  bolsillos: Bolsillos | null;
+  tipoInicial?: typeof TIPO_GIRO | typeof TIPO_DEPOSITO;
+  onCerrar: () => void;
+}) {
   const [estado, enviar, pendiente] = useActionState<ResultadoFinanzas | null, FormData>(crearTraspaso, null);
-  const [tipo, setTipo] = useState<typeof TIPO_GIRO | typeof TIPO_DEPOSITO>(TIPO_GIRO);
+  const [tipo, setTipo] = useState<typeof TIPO_GIRO | typeof TIPO_DEPOSITO>(tipoInicial);
   const [monto, setMonto] = useState("");
 
   useEffect(() => {

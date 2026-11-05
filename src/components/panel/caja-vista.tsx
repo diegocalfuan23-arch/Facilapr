@@ -12,13 +12,10 @@ import { CategoriasCajaDialog } from "@/components/panel/categorias-caja-dialog"
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
 import { SaldoInicialDialog } from "@/components/panel/saldo-inicial-dialog";
-import { TraspasoDialog } from "@/components/panel/traspaso-dialog";
 import {
   textoCategoria,
   textoMedioLinea,
-  textoTraspaso,
   type CategoriaMovimientoPropia,
-  type TraspasoFila,
   type LineaLibro,
   type ResumenMes,
   type ResumenPeriodo,
@@ -110,8 +107,6 @@ type Props = {
   /** Las categorías que creó el comité, de ingresos y de egresos. */
   categoriasPropias: CategoriaMovimientoPropia[];
   saldoInicial: { monto: number; fecha: string; banco: number } | null;
-  /** Los giros y depósitos del período. */
-  traspasos: TraspasoFila[];
 };
 
 /**
@@ -144,7 +139,6 @@ export function CajaVista({
   porCategoria,
   categoriasPropias,
   saldoInicial,
-  traspasos,
 }: Props) {
   const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
@@ -156,8 +150,6 @@ export function CajaVista({
   const [registrando, setRegistrando] = useState(false);
   const [cerrando, setCerrando] = useState(false);
   const [definiendoSaldo, setDefiniendoSaldo] = useState(false);
-  const [moviendo, setMoviendo] = useState(false);
-  const cerrarTraspaso = useCallback(() => setMoviendo(false), []);
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const cerrarCategorias = useCallback(() => setGestionandoCategorias(false), []);
   const cerrarRegistro = useCallback(() => setRegistrando(false), []);
@@ -169,15 +161,6 @@ export function CajaVista({
     iniciar(async () => {
       const r = await eliminarMovimiento(l.id.replace("mov:", ""));
       if (r.ok) toast.success("Movimiento borrado");
-      else toast.error(r.error);
-    });
-  }
-
-  async function borrarTraspaso(t: TraspasoFila) {
-    if (!(await confirmar({ titulo: `¿Borrar este ${t.tipo === "GIRO" ? "giro" : "depósito"} de ${clp.format(t.monto)}?`, descripcion: "La plata vuelve al lugar de donde salió.", boton: "Borrar" }))) return;
-    iniciar(async () => {
-      const r = await eliminarMovimiento(t.id);
-      if (r.ok) toast.success("Borrado");
       else toast.error(r.error);
     });
   }
@@ -251,10 +234,10 @@ export function CajaVista({
             )}
           </Button>
           {resumen.bolsillos && (
-            <Button variant="outline" className={cn(alto, "rounded-xl px-3 text-[0.9rem]")} onClick={() => setMoviendo(true)} title="Sacar plata del banco o depositar efectivo">
+            <Link href="/panel/giros" className={cn(buttonVariants({ variant: "outline" }), alto, "rounded-xl px-3 text-[0.9rem]")} title="Sacar plata del banco o depositar efectivo">
               <ArrowLeftRight />
-              <span className="hidden sm:inline">Giro o depósito</span>
-            </Button>
+              <span className="hidden sm:inline">Giros</span>
+            </Link>
           )}
           {esDia && (
             <Button variant="outline" className={cn(alto, "px-4 text-[0.95rem]")} onClick={() => setCerrando(true)}>
@@ -344,37 +327,8 @@ export function CajaVista({
 
       {resumen.bolsillos && (resumen.bolsillos.efectivo < 0 || resumen.bolsillos.banco < 0) && (
         <p className="-mt-2 text-[0.8rem] text-amber-700 dark:text-amber-300">
-          Uno de los dos saldos sale negativo. Suele pasar cuando el saldo inicial no dice cuánto estaba en el banco: ábrelo (arriba) e indícalo.
+          Uno de los dos saldos sale negativo: se pagó más en ese lugar de lo que había. Anota el giro o depósito que falta en Giros, o indica en «Saldo inicial» cuánto estaba en el banco.
         </p>
-      )}
-
-      {traspasos.length > 0 && (
-        <section aria-label="Giros y depósitos" className="rounded-xl border border-border bg-card p-5">
-          <h2 className={cn(etiquetaKpi, "text-muted-foreground")}>Giros y depósitos</h2>
-          <ul className="mt-3 flex flex-col divide-y divide-border/60">
-            {traspasos.map((t) => (
-              <li key={t.id} className="flex items-center gap-3 py-2.5 text-[0.9rem]">
-                <ArrowLeftRight className="size-4 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate">
-                  {textoTraspaso(t.tipo)}
-                  {t.referencia && <span className="text-muted-foreground"> · {t.referencia}</span>}
-                </span>
-                <span className="shrink-0 text-[0.8rem] text-muted-foreground tabular-nums">{fechaCorta(t.fecha)}</span>
-                <span className="shrink-0 font-medium tabular-nums">{clp.format(t.monto)}</span>
-                <button
-                  type="button"
-                  aria-label="Borrar"
-                  title="Borrar"
-                  disabled={borrando}
-                  onClick={() => void borrarTraspaso(t)}
-                  className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                >
-                  <Trash2 className="size-4" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
       )}
 
       {!esDia && (ingresos.length > 0 || egresos.length > 0) && (
@@ -565,7 +519,6 @@ export function CajaVista({
           onCerrar={cerrarCierre}
         />
       )}
-      {moviendo && <TraspasoDialog fecha={esDia ? desde : undefined} bolsillos={resumen.bolsillos} onCerrar={cerrarTraspaso} />}
       {definiendoSaldo && <SaldoInicialDialog actual={saldoInicial} onCerrar={cerrarSaldo} />}
     </div>
   );

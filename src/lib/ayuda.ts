@@ -966,7 +966,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Efectivo y banco: giros y depósitos",
-        texto: "En «Saldo inicial» indica cuánto de la plata estaba en el banco. Desde entonces la Caja muestra cuánto hay en efectivo y cuánto en el banco: lo que entra o sale por transferencia, cheque o pago en línea va al banco, y lo demás a efectivo. Cuando saques plata de la cuenta, pulsa «Giro o depósito» y anota un giro (del banco a efectivo); si llevas efectivo al banco, un depósito.",
+        texto: "En «Saldo inicial» indica cuánto de la plata estaba en el banco. Desde entonces la Caja muestra cuánto hay en efectivo y cuánto en el banco: lo que entra o sale por transferencia, cheque o pago en línea va al banco, y lo demás a efectivo. Cuando saques plata de la cuenta, entra a Finanzas → Giros y anota un giro (del banco a efectivo); si llevas efectivo al banco, un depósito. Ahí también ves el historial.",
         nota: "Un giro o un depósito no es ingreso ni egreso: la plata solo cambia de lugar y el total no cambia. No deja mover más de lo que hay en el lugar de origen.",
       },
       {

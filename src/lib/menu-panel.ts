@@ -6,6 +6,7 @@ import {
   Stethoscope,
   UsersRound,
   BarChart3,
+  ArrowLeftRight,
   Banknote,
   ClipboardList,
   CreditCard,
@@ -84,6 +85,7 @@ const rrhh: Enlace[] = [
 const finanzas: Enlace[] = [
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
   { href: "/panel/caja", label: "Caja", icon: Banknote },
+  { href: "/panel/giros", label: "Giros", icon: ArrowLeftRight },
   { href: "/panel/compras", label: "Compras", icon: ShoppingCart },
   { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
 ];
@@ -175,6 +177,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/vacaciones": "feriado dias libres permisos saldo descanso",
   "/panel/licencias": "licencia medica enfermedad reposo salud",
   "/panel/asistencia": "marcar presente ausente atraso horario llegada",
+  "/panel/giros": "banco retiro giro deposito efectivo cuenta cheque traspaso",
   "/panel/labores": "trabajos mantencion reparacion materiales insumos descuento stock cambio medidor limpieza cloracion",
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
   "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
