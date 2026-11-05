@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { ausencias, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { diasDe, type TipoAusencia } from "@/lib/rrhh-comun";
 
@@ -72,7 +73,7 @@ export async function guardarAusencia(_prev: ResultadoAusencias | null, formData
     }
   } catch (e) {
     console.error("RR.HH.: no se pudo guardar la ausencia:", e);
-    return { ok: false, error: "No pudimos guardar. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos guardar. Inténtalo de nuevo en un momento.") };
   }
 
   refrescar();

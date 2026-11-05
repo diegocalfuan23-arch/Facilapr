@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { activosFijos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { CATEGORIAS_ACTIVO } from "@/lib/activos-comun";
 
@@ -60,7 +61,7 @@ export async function guardarActivo(_prev: ResultadoActivos | null, formData: Fo
     }
   } catch (e) {
     console.error("Activos: no se pudo guardar:", e);
-    return { ok: false, error: "No pudimos guardar. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos guardar. Inténtalo de nuevo en un momento.") };
   }
 
   revalidatePath("/panel/activos");

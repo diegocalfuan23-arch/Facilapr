@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { incidentes, movimientos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
@@ -140,7 +141,7 @@ export async function guardarIncidente(_prev: ResultadoIncidentes | null, formDa
     return r;
   } catch (e) {
     console.error("Incidentes: no se pudo guardar:", e);
-    return { ok: false, error: "No pudimos guardar el incidente. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos guardar el incidente. Inténtalo de nuevo en un momento.") };
   }
 }
 
@@ -173,7 +174,7 @@ export async function eliminarIncidente(id: string): Promise<ResultadoIncidentes
     return r;
   } catch (e) {
     console.error("Incidentes: no se pudo borrar:", e);
-    return { ok: false, error: "No pudimos borrar el incidente. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos borrar el incidente. Inténtalo de nuevo en un momento.") };
   }
 }
 

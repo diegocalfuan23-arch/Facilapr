@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { movimientos, remuneraciones, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
@@ -67,7 +68,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
       .onConflictDoNothing();
   } catch (e) {
     console.error("Remuneraciones: no se pudo generar el mes:", e);
-    return { ok: false, error: "No pudimos armar el mes. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos armar el mes. Inténtalo de nuevo en un momento.") };
   }
 
   refrescar();
@@ -192,7 +193,7 @@ export async function pagarRemuneracion(_prev: ResultadoRemuneraciones | null, f
     return r;
   } catch (e) {
     console.error("Remuneraciones: no se pudo pagar:", e);
-    return { ok: false, error: "No pudimos registrar el pago. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos registrar el pago. Inténtalo de nuevo en un momento.") };
   }
 }
 
@@ -228,7 +229,7 @@ export async function deshacerPago(id: string): Promise<ResultadoRemuneraciones>
     return r;
   } catch (e) {
     console.error("Remuneraciones: no se pudo deshacer el pago:", e);
-    return { ok: false, error: "No pudimos deshacer el pago. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos deshacer el pago. Inténtalo de nuevo en un momento.") };
   }
 }
 

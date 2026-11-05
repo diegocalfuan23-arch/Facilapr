@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { remuneraciones, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 
 export type ResultadoPersonal = { ok: true } | { ok: false; error: string };
@@ -79,7 +80,7 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
     }
   } catch (e) {
     console.error("Personal: no se pudo guardar:", e);
-    return { ok: false, error: "No pudimos guardar. Inténtalo de nuevo en un momento." };
+    return { ok: false, error: mensajeError(e, "No pudimos guardar. Inténtalo de nuevo en un momento.") };
   }
 
   refrescar();

@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { asistencias, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
+import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { ESTADOS_ASISTENCIA_MANUAL, type EstadoAsistencia } from "@/lib/rrhh-comun";
 
@@ -41,7 +42,7 @@ export async function marcarAsistencia(
     }
   } catch (e) {
     console.error("RR.HH.: no se pudo marcar la asistencia:", e);
-    return { ok: false, error: "No pudimos guardar la marca. Inténtalo de nuevo." };
+    return { ok: false, error: mensajeError(e, "No pudimos guardar la marca. Inténtalo de nuevo.") };
   }
 
   revalidatePath("/panel/asistencia");
