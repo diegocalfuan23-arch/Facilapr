@@ -44,11 +44,14 @@ const fecha = new Intl.DateTimeFormat("es-CL", {
 export type Tecnico = {
   id: string;
   nombre: string;
-  correo: string;
-  desde: Date;
+  correo: string | null;
+  /** Su cargo en la ficha de Personal, si tiene ficha. */
+  cargo: string | null;
+  desde: Date | null;
   /** false = desactivado por la directiva: no puede entrar. */
   activo: boolean;
-  rol: RolEquipo;
+  /** null = tiene ficha en Personal pero no tiene cuenta: no entra al panel. */
+  rol: RolEquipo | null;
 };
 
 export type InvitacionPendiente = {
@@ -77,7 +80,7 @@ export function TecnicosPanel({
             Equipo
           </h1>
           <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-            Quienes tienen acceso al panel: los operadores cargan lecturas en terreno y el tesorero lleva las finanzas.
+            Las personas del comité y su acceso al panel. Quien no tiene cuenta no entra: tú decides a quién darle acceso. Los operadores cargan lecturas en terreno y el tesorero lleva las finanzas.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -87,16 +90,16 @@ export function TecnicosPanel({
       </div>
 
       <section>
-        <h2 className="mb-3 text-[0.95rem] font-semibold">Con acceso al panel</h2>
+        <h2 className="mb-3 text-[0.95rem] font-semibold">Personas</h2>
         {tecnicos.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
-            Todavía no tienes personas invitadas.
+            Todavía no hay personas. Registra al personal en Personal o invita a alguien.
           </p>
         ) : (
           <>
           <ul className="flex flex-col divide-y divide-border/60 rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] md:hidden">
             {tecnicos.map((t) => (
-              <TarjetaTecnico key={t.id} tecnico={t} />
+              <TarjetaTecnico key={t.id} tecnico={t} puedeTesorero={puedeTesorero} />
             ))}
           </ul>
           <div
@@ -116,7 +119,7 @@ export function TecnicosPanel({
               </TableHeader>
               <TableBody>
                 {tecnicos.map((t) => (
-                  <TecnicoFila key={t.id} tecnico={t} />
+                  <TecnicoFila key={t.id} tecnico={t} puedeTesorero={puedeTesorero} />
                 ))}
               </TableBody>
             </Table>
@@ -163,7 +166,19 @@ export function TecnicosPanel({
 }
 
 /** Desactivar / reactivar a un operador, con su confirmación. La usan la tabla y la tarjeta. */
-function AccionesTecnico({ tecnico: t }: { tecnico: Tecnico }) {
+function AccionesTecnico({ tecnico: t, puedeTesorero }: { tecnico: Tecnico; puedeTesorero: boolean }) {
+  if (t.rol === null) {
+    return (
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <InvitarTecnico rol="OPERADOR" chico />
+        {puedeTesorero && <InvitarTecnico rol="TESORERO" chico />}
+      </div>
+    );
+  }
+  return <AccionesCuenta tecnico={t} />;
+}
+
+function AccionesCuenta({ tecnico: t }: { tecnico: Tecnico }) {
   const router = useRouter();
   const [confirmando, setConfirmando] = useState(false);
   const [trabajando, iniciar] = useTransition();
@@ -241,7 +256,8 @@ function AccionesTecnico({ tecnico: t }: { tecnico: Tecnico }) {
   );
 }
 
-function RolEtiqueta({ rol }: { rol: RolEquipo }) {
+function RolEtiqueta({ rol }: { rol: RolEquipo | null }) {
+  if (rol === null) return <span className="text-muted-foreground">—</span>;
   return (
     <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap text-muted-foreground">
       {TEXTO_ROL[rol]}
@@ -249,7 +265,10 @@ function RolEtiqueta({ rol }: { rol: RolEquipo }) {
   );
 }
 
-function EstadoTecnico({ activo }: { activo: boolean }) {
+function EstadoTecnico({ activo, sinAcceso }: { activo: boolean; sinAcceso?: boolean }) {
+  if (sinAcceso) {
+    return <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap text-muted-foreground">Sin acceso</span>;
+  }
   return (
     <span
       className={cn(
@@ -262,7 +281,7 @@ function EstadoTecnico({ activo }: { activo: boolean }) {
   );
 }
 
-function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
+function TecnicoFila({ tecnico: t, puedeTesorero }: { tecnico: Tecnico; puedeTesorero: boolean }) {
   return (
     <TableRow>
       <TableCell className="px-4 py-3.5">
@@ -270,30 +289,33 @@ function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.7rem] font-semibold text-muted-foreground">
             {iniciales(t.nombre)}
           </span>
-          <span className="font-medium">{t.nombre}</span>
+          <div className="min-w-0">
+            <div className="font-medium">{t.nombre}</div>
+            {t.cargo && <div className="text-[0.8rem] text-muted-foreground">{t.cargo}</div>}
+          </div>
         </div>
       </TableCell>
       <TableCell className={cn("px-4 py-3.5", !t.activo && "opacity-60")}>
         <RolEtiqueta rol={t.rol} />
       </TableCell>
       <TableCell className={cn("px-4 py-3.5 text-muted-foreground", !t.activo && "opacity-60")}>
-        {t.correo}
+        {t.correo ?? "—"}
       </TableCell>
       <TableCell className="px-4 py-3.5 whitespace-nowrap text-muted-foreground">
-        {fecha.format(t.desde)}
+        {t.desde ? fecha.format(t.desde) : "—"}
       </TableCell>
       <TableCell className="px-4 py-3.5">
-        <EstadoTecnico activo={t.activo} />
+        <EstadoTecnico activo={t.activo} sinAcceso={t.rol === null} />
       </TableCell>
       <TableCell className="px-4 py-3.5">
-        <AccionesTecnico tecnico={t} />
+        <AccionesTecnico tecnico={t} puedeTesorero={puedeTesorero} />
       </TableCell>
     </TableRow>
   );
 }
 
 /** El mismo operador como tarjeta, para pantallas angostas. */
-function TarjetaTecnico({ tecnico: t }: { tecnico: Tecnico }) {
+function TarjetaTecnico({ tecnico: t, puedeTesorero }: { tecnico: Tecnico; puedeTesorero: boolean }) {
   return (
     <li className="flex flex-col gap-3 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -304,17 +326,17 @@ function TarjetaTecnico({ tecnico: t }: { tecnico: Tecnico }) {
           <div className="min-w-0">
             <div className="truncate font-medium">{t.nombre}</div>
             <div className="truncate text-[0.82rem] text-muted-foreground">
-              {TEXTO_ROL[t.rol]} · {t.correo}
+              {[t.rol ? TEXTO_ROL[t.rol] : t.cargo, t.correo].filter(Boolean).join(" · ") || "Sin correo"}
             </div>
           </div>
         </div>
-        <EstadoTecnico activo={t.activo} />
+        <EstadoTecnico activo={t.activo} sinAcceso={t.rol === null} />
       </div>
       <div className="flex items-center justify-between gap-3">
         <span className="text-[0.8rem] text-muted-foreground">
-          Desde {fecha.format(t.desde)}
+          {t.desde ? `Desde ${fecha.format(t.desde)}` : "Sin cuenta"}
         </span>
-        <AccionesTecnico tecnico={t} />
+        <AccionesTecnico tecnico={t} puedeTesorero={puedeTesorero} />
       </div>
     </li>
   );
@@ -408,7 +430,7 @@ function TarjetaInvitacion({ invitacion }: { invitacion: InvitacionPendiente }) 
   );
 }
 
-function InvitarTecnico({ rol }: { rol: RolEquipo }) {
+function InvitarTecnico({ rol, chico }: { rol: RolEquipo; chico?: boolean }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -459,9 +481,15 @@ function InvitarTecnico({ rol }: { rol: RolEquipo }) {
 
   return (
     <>
-      <Button type="button" variant={rol === "OPERADOR" ? "default" : "outline"} data-tour={rol === "OPERADOR" ? "tec-invitar" : undefined} onClick={abrir}>
+      <Button
+        type="button"
+        size={chico ? "sm" : "default"}
+        variant={rol === "OPERADOR" && !chico ? "default" : "outline"}
+        data-tour={rol === "OPERADOR" && !chico ? "tec-invitar" : undefined}
+        onClick={abrir}
+      >
         <UserPlus />
-        Invitar {TEXTO_ROL[rol].toLowerCase()}
+        {chico ? `Como ${TEXTO_ROL[rol].toLowerCase()}` : `Invitar ${TEXTO_ROL[rol].toLowerCase()}`}
       </Button>
 
       <Dialog
