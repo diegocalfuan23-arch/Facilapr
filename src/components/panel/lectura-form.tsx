@@ -349,8 +349,6 @@ export function LecturaForm({
           página no se alargue. */}
       <div className="mx-auto flex w-full max-w-[560px] flex-col gap-4 pb-20 md:grid md:max-w-[1080px] md:grid-cols-[minmax(0,540px)_minmax(0,1fr)] md:items-start md:gap-8 md:pb-0">
         <div className={cn("flex-col gap-4", pestana === "cargar" ? "flex" : "hidden md:flex")}>
-          <InstalarApp titulo="Lleva la app a terreno" descripcion="Instálala en tu celular: abre más rápido y puedes cargar lecturas aunque no haya señal." />
-
           {!enLinea && (
             <div className="flex items-start gap-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
               <WifiOff className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" />
@@ -541,6 +539,8 @@ export function LecturaForm({
               </ul>
             </section>
           )}
+
+          <InstalarApp compacto titulo="Lleva la app a terreno" descripcion="Carga lecturas en terreno, aunque no haya señal." />
 
           {rechazadas.length > 0 && (
             <section className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4">

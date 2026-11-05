@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Share, X } from "lucide-react";
+import { Share, Smartphone, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /** Evento de Chrome/Android que no está en los tipos del DOM. */
@@ -47,9 +47,12 @@ function fueDescartada() {
 export function InstalarApp({
   titulo = "Ten tu cuenta a mano",
   descripcion = "Instálala en tu celular y ábrela como cualquier app, sin buscar el link.",
+  compacto = false,
 }: {
   titulo?: string;
   descripcion?: string;
+  /** Una sola fila discreta (ícono, texto, botón), para ponerla bajo el contenido sin robar protagonismo. */
+  compacto?: boolean;
 }) {
   const montado = useMontado();
   const [evento, setEvento] = useState<BeforeInstallPromptEvent | null>(null);
@@ -85,6 +88,33 @@ export function InstalarApp({
     const { outcome } = await evento.userChoice;
     setEvento(null);
     if (outcome === "accepted") setCerrado(true);
+  }
+
+  if (compacto) {
+    return (
+      <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-3 shadow-sm shadow-primary/10">
+        <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Smartphone className="size-5" />
+        </span>
+        <p className="min-w-0 flex-1 text-[0.8rem] leading-snug font-medium text-muted-foreground">
+          {evento ? (
+            descripcion
+          ) : (
+            <>
+              Toca <Share className="inline size-4 align-text-bottom" /> <strong>Compartir</strong> y luego <strong>Añadir a pantalla de inicio</strong>.
+            </>
+          )}
+        </p>
+        {evento && (
+          <Button size="sm" className="h-9 shrink-0 rounded-full px-4 font-semibold" onClick={instalar}>
+            Instalar app
+          </Button>
+        )}
+        <button type="button" onClick={descartar} aria-label="Ocultar aviso" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-muted">
+          <X className="size-4" />
+        </button>
+      </div>
+    );
   }
 
   return (
