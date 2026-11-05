@@ -1,3 +1,4 @@
+import { esFeriado } from "@/lib/feriados";
 /** Lo de RR.HH. que también usa el navegador: tipos, textos y cálculos de días, vacaciones y líquido. */
 
 export type EstadoRemuneracion = "PENDIENTE" | "PAGADA";
@@ -142,13 +143,13 @@ const aFecha = (iso: string) => {
   return new Date(Date.UTC(a, m - 1, d));
 };
 
-/** Los días hábiles (lunes a viernes) entre dos fechas, ambas incluidas. No descuenta feriados. */
+/** Los días hábiles (lunes a viernes, sin feriados nacionales) entre dos fechas, ambas incluidas. */
 export function diasHabiles(desde: string, hasta: string): number {
   const fin = aFecha(hasta).getTime();
   let n = 0;
   for (let t = aFecha(desde).getTime(); t <= fin; t += 86_400_000) {
     const dia = new Date(t).getUTCDay();
-    if (dia !== 0 && dia !== 6) n++;
+    if (dia !== 0 && dia !== 6 && !esFeriado(new Date(t).toISOString().slice(0, 10))) n++;
   }
   return n;
 }

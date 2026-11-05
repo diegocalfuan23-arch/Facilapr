@@ -12,6 +12,7 @@ import type {
   TipoAusencia,
 } from "@/lib/rrhh-comun";
 import { SIN_AUSENCIAS } from "@/lib/rrhh-comun";
+import { esFeriado } from "@/lib/feriados";
 
 export * from "@/lib/rrhh-comun";
 
@@ -212,8 +213,9 @@ export async function asistenciaMes(aprId: string, mes: string): Promise<Record<
       const fin = Math.min(Date.parse(x.hasta), ultimo);
       for (let t = ini; t <= fin; t += 86_400_000) {
         const diaSemana = new Date(t).getUTCDay();
-        const finDeSemana = diaSemana === 0 || diaSemana === 6;
         const dia = ymd(t);
+        // Un feriado nacional cuenta como un día no laboral, igual que un fin de semana.
+        const finDeSemana = diaSemana === 0 || diaSemana === 6 || esFeriado(dia);
         if (x.tipo === "LICENCIA") poner(x.trabajadorId, dia, "LICENCIA");
         else if (!finDeSemana && x.tipo === "VACACIONES") poner(x.trabajadorId, dia, "VACACIONES");
         else if (!finDeSemana && x.tipo === "PERMISO" && !grilla[x.trabajadorId]?.[dia]) poner(x.trabajadorId, dia, "PERMISO");
@@ -274,7 +276,7 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
         const diaSemana = new Date(t).getUTCDay();
         const estado = grilla[x.trabajadorId]?.[ymd(t)];
         // Un día de fin de semana, o que ya cuenta como licencia o vacaciones, no se suma dos veces.
-        if (diaSemana !== 0 && diaSemana !== 6 && estado !== "LICENCIA" && estado !== "VACACIONES") r.permisoSinGoce++;
+        if (diaSemana !== 0 && diaSemana !== 6 && !esFeriado(ymd(t)) && estado !== "LICENCIA" && estado !== "VACACIONES") r.permisoSinGoce++;
       }
     }
 

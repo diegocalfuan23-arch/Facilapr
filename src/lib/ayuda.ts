@@ -1208,7 +1208,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Registra una solicitud",
-        texto: "Pulsa «+ Nuevas vacaciones o permiso» (o «+ Nueva licencia» en Licencias), elige a la persona y las fechas. Los días se cuentan solos, de lunes a viernes.",
+        texto: "Pulsa «+ Nuevas vacaciones o permiso» (o «+ Nueva licencia» en Licencias), elige a la persona y las fechas. Los días se cuentan solos, de lunes a viernes y sin los feriados nacionales (el sistema los conoce de 2026 y 2027; los feriados regionales no).",
       },
       {
         titulo: "Apruébala o recházala",
