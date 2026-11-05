@@ -13,7 +13,6 @@ import { cn } from "@/lib/utils";
 
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 const alto = "h-10";
-const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
 
 const COLUMNAS: { estado: EstadoAusencia; titulo: string; punto: string; vacio: string }[] = [
   { estado: "SOLICITADA", titulo: "Solicitadas", punto: "bg-amber-500", vacio: "Nada por aprobar" },
@@ -79,188 +78,194 @@ export function AusenciasVista({
   const q = busqueda.trim().toLowerCase();
   const filtradas = ausencias.filter((a) => !q || a.trabajador.toLowerCase().includes(q) || (a.detalle ?? "").toLowerCase().includes(q));
 
+  const conSaldos = !esLicencia && saldos && saldos.length > 0;
+
+  const kanban = (
+    <div className="grid items-start gap-4 md:grid-cols-3">
+      {COLUMNAS.map((col) => {
+        const tarjetas = filtradas.filter((a) => estadoDe(a) === col.estado);
+        const alReceptor = sobre === col.estado && arrastrando !== null;
+        return (
+          <section
+            key={col.estado}
+            aria-label={col.titulo}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setSobre(col.estado);
+            }}
+            onDragLeave={() => setSobre((s) => (s === col.estado ? null : s))}
+            onDrop={(e) => {
+              e.preventDefault();
+              const reg = ausencias.find((a) => a.id === arrastrando);
+              if (reg) mover(reg, col.estado);
+              setArrastrando(null);
+              setSobre(null);
+            }}
+            className={cn("flex min-h-40 flex-col gap-2 rounded-xl border bg-muted/30 p-2 transition-colors", alReceptor ? "border-foreground/40 bg-muted/60" : "border-border")}
+          >
+            <header className="flex items-center gap-2 px-2 pt-2 pb-1">
+              <span className={cn("size-2 rounded-full", col.punto)} />
+              <h2 className="text-[0.85rem] font-semibold">{col.titulo}</h2>
+              <span className="ml-auto text-[0.8rem] font-medium text-muted-foreground tabular-nums">{tarjetas.length}</span>
+            </header>
+
+            {tarjetas.length === 0 ? (
+              <p className="px-2 py-6 text-center text-[0.8rem] text-muted-foreground">{col.vacio}</p>
+            ) : (
+              tarjetas.map((a) => (
+                <article
+                  key={a.id}
+                  draggable
+                  onDragStart={() => setArrastrando(a.id)}
+                  onDragEnd={() => {
+                    setArrastrando(null);
+                    setSobre(null);
+                  }}
+                  onClick={() => setEditando(a)}
+                  className={cn(
+                    "cursor-grab rounded-lg border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-opacity hover:border-foreground/30 active:cursor-grabbing",
+                    arrastrando === a.id && "opacity-40",
+                    col.estado === "RECHAZADA" && "opacity-70"
+                  )}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <h3 className="text-[0.9rem] leading-snug font-medium">{a.trabajador}</h3>
+                    <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.7rem] font-medium text-muted-foreground">
+                      {TEXTO_TIPO_AUSENCIA[a.tipo as TipoAusencia]}
+                    </span>
+                  </div>
+                  <p className="mt-2 flex items-center gap-1 text-[0.8rem] text-muted-foreground tabular-nums">
+                    <CalendarDays className="size-3.5 shrink-0" />
+                    {fechaCorta(a.desde)} → {fechaCorta(a.hasta)}
+                  </p>
+                  <div className="mt-2 flex items-center justify-between gap-2 text-[0.8rem]">
+                    <span className="font-semibold tabular-nums">
+                      {a.dias} {a.dias === 1 ? "día" : "días"}
+                    </span>
+                    {a.detalle && <span className="truncate text-muted-foreground">{a.detalle}</span>}
+                  </div>
+
+                  {/* Los botones sirven donde no se puede arrastrar (celular). */}
+                  {col.estado === "SOLICITADA" && (
+                    <div className="mt-2 grid grid-cols-2 gap-2 lg:hidden">
+                      <Button
+                        variant="outline"
+                        className="h-8 rounded-full text-[0.8rem]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          mover(a, "RECHAZADA");
+                        }}
+                      >
+                        Rechazar
+                      </Button>
+                      <Button
+                        className="h-8 rounded-full text-[0.8rem]"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          mover(a, "APROBADA");
+                        }}
+                      >
+                        Aprobar
+                      </Button>
+                    </div>
+                  )}
+                </article>
+              ))
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>{esLicencia ? "Con licencia hoy" : "De vacaciones hoy"}</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{vigentes.length}</p>
+      {/* Un solo recuadro con los tres números: ocupa una fila, no tres tarjetas. */}
+      <section aria-label="Resumen" className="grid divide-y divide-border rounded-xl border border-border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        <div className="px-6 py-4">
+          <p className="text-[0.8rem] text-muted-foreground">{esLicencia ? "Con licencia hoy" : "De vacaciones hoy"}</p>
+          <p className="mt-1 text-[1.5rem] leading-none font-bold tabular-nums">{vigentes.length}</p>
           {vigentes.length > 0 && <p className="mt-2 truncate text-[0.8rem] text-muted-foreground">{vigentes.map((v) => v.trabajador).join(", ")}</p>}
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>{esLicencia ? "Días de licencia este año" : "Días tomados este año"}</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{diasAnio}</p>
+        <div className="px-6 py-4">
+          <p className="text-[0.8rem] text-muted-foreground">{esLicencia ? "Días de licencia este año" : "Días tomados este año"}</p>
+          <p className="mt-1 text-[1.5rem] leading-none font-bold tabular-nums">{diasAnio}</p>
         </div>
-        <div className={cn("rounded-xl border p-5", solicitadas > 0 ? "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10" : "border-border bg-card")}>
-          <p className={cn(etiquetaKpi, solicitadas > 0 ? "text-amber-800 dark:text-amber-300" : "text-muted-foreground")}>Por aprobar</p>
-          <p className={cn("mt-3 text-[2rem] leading-none font-bold tabular-nums", solicitadas > 0 && "text-amber-800 dark:text-amber-300")}>{solicitadas}</p>
+        <div className="px-6 py-4">
+          <p className="text-[0.8rem] text-muted-foreground">Por aprobar</p>
+          <p className={cn("mt-1 text-[1.5rem] leading-none font-bold tabular-nums", solicitadas > 0 && "text-amber-700 dark:text-amber-300")}>{solicitadas}</p>
         </div>
       </section>
 
-      {!esLicencia && saldos && saldos.length > 0 && (
-        <section aria-label="Saldo de vacaciones">
-          <div className="mb-3 flex items-baseline justify-between gap-3">
-            <h2 className="text-[0.95rem] font-semibold">Saldo de vacaciones</h2>
-            <p className="text-[0.75rem] text-muted-foreground">1,25 días hábiles por mes trabajado (15 al año)</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {saldos.map((p) => {
-              const sinFecha = p.saldo === null;
-              const sinAcumular = !sinFecha && (p.ganados ?? 0) === 0;
-              const uso = p.ganados && p.ganados > 0 ? Math.min(100, Math.round((p.tomados / p.ganados) * 100)) : 0;
-              const negativo = p.saldo !== null && p.saldo < 0;
-              return (
-                <div key={p.id} className="rounded-xl border border-border bg-card p-5">
-                  <p className="truncate text-[0.95rem] font-medium">{p.nombre}</p>
-                  {sinFecha ? (
-                    <p className="mt-3 text-[0.85rem] text-muted-foreground">Agrega su fecha de ingreso en Personal para calcular sus días.</p>
-                  ) : sinAcumular ? (
-                    <p className="mt-3 text-[0.85rem] text-muted-foreground">Aún no acumula días: lleva menos de un mes en el comité.</p>
-                  ) : (
-                    <>
-                      <p className={cn("mt-3 text-[2rem] leading-none font-bold tabular-nums", negativo && "text-red-600 dark:text-red-400")}>
-                        {p.saldo}
-                        <span className="ml-1.5 text-[0.85rem] font-normal text-muted-foreground">días disponibles</span>
-                      </p>
-                      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${uso} % de los días ganados ya se tomó`}>
-                        <div className={cn("h-full rounded-full", negativo ? "bg-red-500" : "bg-primary")} style={{ width: `${uso}%` }} />
-                      </div>
-                      <p className="mt-2 text-[0.75rem] text-muted-foreground tabular-nums">
-                        {p.tomados} tomados de {p.ganados} ganados
-                      </p>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por persona o detalle…"
-          className={cn(alto, "rounded-full px-5 text-[0.95rem] sm:w-96")}
-          aria-label="Buscar"
-        />
-        <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)} disabled={personas.length === 0}>
-          {esLicencia ? "+ Nueva licencia" : "+ Nuevas vacaciones o permiso"}
-        </Button>
-      </div>
-
       {personas.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-20 text-center">
-          <p className="text-[1.05rem] font-medium">Primero agrega personas en Personal</p>
-        </div>
-      ) : ausencias.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-16 text-center">
-          <p className="text-[1.05rem] font-medium">{esLicencia ? "Aún no hay licencias registradas" : "Aún no hay vacaciones ni permisos"}</p>
-          <p className="mx-auto mt-2 max-w-md px-4 text-[0.95rem] text-muted-foreground">
-            {esLicencia
-              ? "Cuando alguien presente una licencia médica, regístrala aquí con su folio y sus fechas."
-              : "Registra las vacaciones o permisos de tu equipo y arrástralos entre Solicitadas, Aprobadas y Rechazadas."}
-          </p>
-          <Button className="mt-5 h-10 rounded-full px-5 text-[0.95rem]" onClick={() => setCreando(true)}>
-            {esLicencia ? "+ Nueva licencia" : "+ Nuevas vacaciones o permiso"}
-          </Button>
+          <p className="text-[1rem] font-medium">Primero agrega personas en Personal</p>
         </div>
       ) : (
-        <div className="grid items-start gap-4 lg:grid-cols-3">
-          {COLUMNAS.map((col) => {
-            const tarjetas = filtradas.filter((a) => estadoDe(a) === col.estado);
-            const alReceptor = sobre === col.estado && arrastrando !== null;
-            return (
-              <section
-                key={col.estado}
-                aria-label={col.titulo}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setSobre(col.estado);
-                }}
-                onDragLeave={() => setSobre((s) => (s === col.estado ? null : s))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  const reg = ausencias.find((a) => a.id === arrastrando);
-                  if (reg) mover(reg, col.estado);
-                  setArrastrando(null);
-                  setSobre(null);
-                }}
-                className={cn("flex min-h-48 flex-col gap-3 rounded-xl border bg-card/40 p-3 transition-colors", alReceptor ? "border-primary bg-primary/5" : "border-border")}
-              >
-                <header className="flex items-center gap-2 px-1.5 pt-1">
-                  <span className={cn("size-2.5 rounded-full", col.punto)} />
-                  <h2 className="text-[0.95rem] font-semibold">{col.titulo}</h2>
-                  <span className="ml-auto rounded-full bg-muted px-2.5 py-0.5 text-[0.8rem] font-medium text-muted-foreground tabular-nums">{tarjetas.length}</span>
-                </header>
+        <div className={cn("grid items-start gap-6", conSaldos && "xl:grid-cols-[minmax(0,1fr)_320px]")}>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por persona o detalle…"
+                className={cn(alto, "rounded-full px-4 text-[0.9rem] sm:w-80")}
+                aria-label="Buscar"
+              />
+              <Button className={cn(alto, "rounded-full px-4 text-[0.9rem]")} onClick={() => setCreando(true)}>
+                {esLicencia ? "+ Nueva licencia" : "+ Vacaciones o permiso"}
+              </Button>
+            </div>
+            {ausencias.length === 0 && (
+              <p className="text-[0.85rem] text-muted-foreground">
+                {esLicencia
+                  ? "Cuando alguien presente una licencia médica, regístrala con su folio y sus fechas."
+                  : "Registra las vacaciones o permisos y arrástralos entre Solicitadas, Aprobadas y Rechazadas."}
+              </p>
+            )}
+            {kanban}
+          </div>
 
-                {tarjetas.length === 0 ? (
-                  <p className="px-2 py-8 text-center text-[0.85rem] text-muted-foreground">{col.vacio}</p>
-                ) : (
-                  tarjetas.map((a) => (
-                    <article
-                      key={a.id}
-                      draggable
-                      onDragStart={() => setArrastrando(a.id)}
-                      onDragEnd={() => {
-                        setArrastrando(null);
-                        setSobre(null);
-                      }}
-                      onClick={() => setEditando(a)}
-                      className={cn(
-                        "cursor-grab rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-opacity hover:border-foreground/30 active:cursor-grabbing",
-                        arrastrando === a.id && "opacity-40",
-                        col.estado === "RECHAZADA" && "opacity-70"
-                      )}
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <h3 className="text-[0.95rem] leading-snug font-medium">{a.trabajador}</h3>
-                        <span className="shrink-0 rounded-full bg-muted px-2.5 py-0.5 text-[0.75rem] font-medium text-muted-foreground">
-                          {TEXTO_TIPO_AUSENCIA[a.tipo as TipoAusencia]}
-                        </span>
+          {conSaldos && (
+            <aside aria-label="Saldo de vacaciones" className="rounded-xl border border-border bg-card p-4 xl:sticky xl:top-4">
+              <h2 className="text-[0.9rem] font-semibold">Saldo de vacaciones</h2>
+              <p className="mt-1 text-[0.75rem] text-muted-foreground">1,25 días hábiles por mes trabajado (15 al año)</p>
+              <ul className="mt-4 flex flex-col gap-4">
+                {saldos.map((p) => {
+                  const negativo = p.saldo !== null && p.saldo < 0;
+                  const uso = p.ganados && p.ganados > 0 ? Math.min(100, Math.round((p.tomados / p.ganados) * 100)) : 0;
+                  return (
+                    <li key={p.id}>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[0.9rem] font-medium">{p.nombre}</span>
+                        {p.saldo === null ? null : (p.ganados ?? 0) === 0 ? (
+                          <span className="shrink-0 text-[0.8rem] text-muted-foreground">Sin días aún</span>
+                        ) : (
+                          <span className={cn("shrink-0 text-[0.9rem] font-semibold tabular-nums", negativo && "text-red-600 dark:text-red-400")}>
+                            {p.saldo} <span className="text-[0.75rem] font-normal text-muted-foreground">días</span>
+                          </span>
+                        )}
                       </div>
-                      <p className="mt-2 flex items-center gap-1.5 text-[0.85rem] text-muted-foreground tabular-nums">
-                        <CalendarDays className="size-3.5 shrink-0" />
-                        {fechaCorta(a.desde)} → {fechaCorta(a.hasta)}
-                      </p>
-                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 text-[0.8rem]">
-                        <span className="font-medium tabular-nums">
-                          {a.dias} {a.dias === 1 ? "día" : "días"}
-                        </span>
-                        {a.detalle && <span className="truncate text-muted-foreground">{a.detalle}</span>}
-                      </div>
-
-                      {/* Los botones sirven donde no se puede arrastrar (celular). */}
-                      {col.estado === "SOLICITADA" && (
-                        <div className="mt-3 grid grid-cols-2 gap-2 lg:hidden">
-                          <Button
-                            variant="outline"
-                            className="h-8 rounded-full text-[0.8rem]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              mover(a, "RECHAZADA");
-                            }}
-                          >
-                            Rechazar
-                          </Button>
-                          <Button
-                            className="h-8 rounded-full text-[0.8rem]"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              mover(a, "APROBADA");
-                            }}
-                          >
-                            Aprobar
-                          </Button>
-                        </div>
+                      {p.saldo === null ? (
+                        <p className="mt-1 text-[0.75rem] text-muted-foreground">Falta su fecha de ingreso en Personal.</p>
+                      ) : (p.ganados ?? 0) > 0 ? (
+                        <>
+                          <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${uso} % de los días ganados ya se tomó`}>
+                            <div className={cn("h-full rounded-full", negativo ? "bg-red-500" : "bg-foreground/60")} style={{ width: `${uso}%` }} />
+                          </div>
+                          <p className="mt-1 text-[0.75rem] text-muted-foreground tabular-nums">
+                            {p.tomados} tomados de {p.ganados}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="mt-1 text-[0.75rem] text-muted-foreground">Lleva menos de un mes en el comité.</p>
                       )}
-                    </article>
-                  ))
-                )}
-              </section>
-            );
-          })}
+                    </li>
+                  );
+                })}
+              </ul>
+            </aside>
+          )}
         </div>
       )}
 
