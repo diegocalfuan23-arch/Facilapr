@@ -115,6 +115,7 @@ export default async function PanelPage({
 }: {
   searchParams: Promise<{ rango?: string; demo?: string }>;
 }) {
+  // requireAdmin lleva al tesorero a su Caja.
   const { apr } = await requireAdmin();
   const { rango: rangoParam, demo: demoParam } = await searchParams;
 

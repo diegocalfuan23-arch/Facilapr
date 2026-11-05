@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { reciboDeComite } from "@/lib/recibo";
 import { Recibo } from "@/components/recibos/recibo";
 import { ImprimirBoton } from "@/components/recibos/imprimir-boton";
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
 
 export default async function ReciboPage({ params }: Props) {
   const { id } = await params;
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   const recibo = await reciboDeComite(apr.id, id);
   if (!recibo) notFound();

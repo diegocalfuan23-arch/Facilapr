@@ -228,11 +228,13 @@ export function mensajeInvitacionPortal(
 export const DIAS_VIGENCIA_INVITACION_TECNICO = 7;
 
 /** El mensaje con el que la directiva invita a un operador a cargar lecturas en terreno. */
-export function mensajeInvitacionTecnico(comite: string, url: string) {
+export function mensajeInvitacionTecnico(comite: string, url: string, rol: "OPERADOR" | "TESORERO" = "OPERADOR") {
   return [
     `Hola, te escribe ${comite}.`,
     "",
-    "Te invitamos a Facilapr para cargar las lecturas de los medidores desde tu celular. Crea tu cuenta aquí:",
+    rol === "TESORERO"
+      ? "Te invitamos a Facilapr para llevar las finanzas del comité: pagos, caja y compras. Crea tu cuenta aquí:"
+      : "Te invitamos a Facilapr para cargar las lecturas de los medidores desde tu celular. Crea tu cuenta aquí:",
     url,
     "",
     `El enlace sirve una sola vez y vence en ${DIAS_VIGENCIA_INVITACION_TECNICO} días.`,

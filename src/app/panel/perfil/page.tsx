@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 /** El perfil de quien tiene la sesión abierta: distinto de los datos del comité. Se llega desde el menú del comité. */
 export default async function PerfilPage() {
-  const { user } = await requireApr();
+  const { user } = await requireApr({ tesorero: true });
 
   return (
     <div className="mx-auto flex w-full max-w-[640px] flex-col gap-6">

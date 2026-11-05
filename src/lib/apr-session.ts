@@ -7,7 +7,13 @@ import { aprs } from "@/lib/db/schema";
 import { session as sessionTable, user as userTable } from "@/lib/db/auth-schema";
 import { basePortal } from "@/lib/portal-socio";
 
-export type RolPanel = "ADMIN" | "OPERADOR";
+export type RolPanel = "ADMIN" | "OPERADOR" | "TESORERO";
+
+/**
+ * Un usuario desactivado por la directiva. Se guarda el rol que tenía (operador o tesorero) en el
+ * propio valor, para poder devolvérselo al reactivarlo.
+ */
+export const estaDesactivado = (rol: string | null | undefined) => rol === "DESACTIVADO" || rol === "DESACTIVADO_TESORERO";
 
 /**
  * Devuelve la sesión y el APR al que pertenece el usuario. Redirige a /login
@@ -17,7 +23,7 @@ export type RolPanel = "ADMIN" | "OPERADOR";
  * Cada consulta del panel debe filtrar por el `aprId` que devuelve esta
  * función: es lo que impide que un comité vea los datos de otro.
  */
-export async function requireApr() {
+export async function requireApr(opciones: { tesorero?: boolean } = {}) {
   const session = await auth.api.getSession({ headers: await headers() });
 
   if (!session) {
@@ -28,7 +34,7 @@ export async function requireApr() {
 
   // Un operador desactivado por la directiva: se cierran sus sesiones y vuelve al
   // inicio de sesión. Se revisa aquí porque toda página del panel pasa por aquí.
-  if (user.rol === "DESACTIVADO") {
+  if (estaDesactivado(user.rol)) {
     await db.delete(sessionTable).where(eq(sessionTable.userId, user.id));
     redirect("/login?cuenta=desactivada");
   }
@@ -45,6 +51,8 @@ export async function requireApr() {
       if (user.rol === "SOCIO") {
         redirect(apr.slug ? await basePortal(apr.slug) : "/login");
       }
+      // El tesorero solo entra a Finanzas: todo lo demás lo devuelve a su Caja.
+      if (user.rol === "TESORERO" && !opciones.tesorero) redirect("/panel/caja");
       return { user, apr };
     }
   }
@@ -86,6 +94,20 @@ export async function requireAdmin() {
   const { user, apr } = await requireApr();
 
   if (user.rol !== "ADMIN") {
+    redirect("/panel/lecturas");
+  }
+
+  return { user, apr };
+}
+
+/**
+ * Para las pantallas y acciones de Finanzas (pagos, caja, compras, reportes, inventario): las puede
+ * usar el administrador y el tesorero. Un operador vuelve a sus lecturas.
+ */
+export async function requireFinanzas() {
+  const { user, apr } = await requireApr({ tesorero: true });
+
+  if (user.rol !== "ADMIN" && user.rol !== "TESORERO") {
     redirect("/panel/lecturas");
   }
 

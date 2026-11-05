@@ -6,19 +6,21 @@ import { invitaciones, aprs } from "@/lib/db/schema";
     entrega inmediata (WhatsApp/correo), no tiene sentido dejarlas abiertas. */
 const DIAS_VALIDEZ = 7;
 
-export async function crearInvitacion(aprId: string) {
+export type RolInvitado = "OPERADOR" | "TESORERO";
+
+export async function crearInvitacion(aprId: string, rol: RolInvitado = "OPERADOR") {
   const expiraEn = new Date();
   expiraEn.setDate(expiraEn.getDate() + DIAS_VALIDEZ);
 
   const [invitacion] = await db
     .insert(invitaciones)
-    .values({ aprId, rol: "OPERADOR", expiraEn })
+    .values({ aprId, rol, expiraEn })
     .returning();
 
   return invitacion;
 }
 
-export type InvitacionValida = { aprId: string; invitacionId: string };
+export type InvitacionValida = { aprId: string; invitacionId: string; rol: RolInvitado };
 
 /** Null si el código no existe, ya se usó o venció. */
 export async function validarInvitacion(
@@ -33,7 +35,11 @@ export async function validarInvitacion(
 
   if (!invitacion || invitacion.usadaPor) return null;
 
-  return { aprId: invitacion.aprId, invitacionId: invitacion.id };
+  return {
+    aprId: invitacion.aprId,
+    invitacionId: invitacion.id,
+    rol: invitacion.rol === "TESORERO" ? "TESORERO" : "OPERADOR",
+  };
 }
 
 export async function marcarInvitacionUsada(
@@ -61,5 +67,5 @@ export async function aprDeInvitacion(codigo: string) {
     columns: { nombre: true, rut: true, comuna: true },
   });
 
-  return apr;
+  return apr ? { ...apr, rol: invitacion.rol } : null;
 }

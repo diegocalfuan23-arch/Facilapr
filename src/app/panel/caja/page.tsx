@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
   diaValido,
@@ -27,7 +27,7 @@ export default async function CajaPage({
 }: {
   searchParams: Promise<{ vista?: string; dia?: string; mes?: string }>;
 }) {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "finanzas")) redirect("/panel");

@@ -14,7 +14,7 @@ import { registrarMensaje } from "@/lib/whatsapp-mensajes";
 import { credencialesDelComite } from "@/lib/whatsapp-conexion";
 import { enviarComprobanteAuto } from "@/lib/whatsapp-comprobante";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireAdmin, requireFinanzas } from "@/lib/apr-session";
 import { leerTabla } from "@/lib/tabla";
 import {
   aMonto,
@@ -297,7 +297,7 @@ export async function registrarPago(
     pagadoPorTelefono?: string;
   }
 ): Promise<ResultadoPago> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
 
   const parsed = pagoSchema.safeParse({
     monto: Math.round(datos.monto),
@@ -401,7 +401,7 @@ export async function registrarCobro(
     pagadoPorTelefono?: string;
   }
 ): Promise<ResultadoCobro> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
 
   const parsed = cobroSchema.safeParse({
     concepto: datos.concepto,
@@ -464,7 +464,7 @@ export type PagoRegistrado = {
 
 /** Los pagos ya registrados de una boleta, del más reciente al más antiguo. */
 export async function pagosDeBoleta(boletaId: string): Promise<PagoRegistrado[]> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   const filas = await db
     .select({
       id: pagos.id,
@@ -495,7 +495,7 @@ export async function pagosDeBoleta(boletaId: string): Promise<PagoRegistrado[]>
 
 /** Quita un pago registrado por error; la boleta vuelve a deber ese monto. */
 export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   const pago = await pagoDelComite(apr.id, pagoId);
   if (!pago) return { ok: false, error: "No encontramos ese pago." };
 

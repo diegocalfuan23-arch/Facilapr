@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { formatearRut } from "@/lib/formato";
 import {
@@ -89,7 +89,7 @@ export default async function InformeCajaPage({ params }: Props) {
   const { mes } = await params;
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(mes)) notFound();
 
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) redirect("/panel/caja");
 
   const lineas = await libroDelMes(apr.id, mes);

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { invitaciones } from "@/lib/db/schema";
 import { session as sessionTable, user as userTable } from "@/lib/db/auth-schema";
@@ -38,15 +38,15 @@ export async function desactivarOperador(userId: string): Promise<ResultadoAccio
     where: and(
       eq(userTable.id, userId),
       eq(userTable.aprId, apr.id),
-      eq(userTable.rol, "OPERADOR")
+      inArray(userTable.rol, ["OPERADOR", "TESORERO"])
     ),
-    columns: { id: true },
+    columns: { id: true, rol: true },
   });
-  if (!tecnico) return { ok: false, error: "No encontramos a ese operador." };
+  if (!tecnico) return { ok: false, error: "No encontramos a esa persona." };
 
   await db
     .update(userTable)
-    .set({ rol: "DESACTIVADO", updatedAt: new Date() })
+    .set({ rol: tecnico.rol === "TESORERO" ? "DESACTIVADO_TESORERO" : "DESACTIVADO", updatedAt: new Date() })
     .where(eq(userTable.id, tecnico.id));
   await db.delete(sessionTable).where(eq(sessionTable.userId, tecnico.id));
 
@@ -61,15 +61,15 @@ export async function reactivarOperador(userId: string): Promise<ResultadoAccion
     where: and(
       eq(userTable.id, userId),
       eq(userTable.aprId, apr.id),
-      eq(userTable.rol, "DESACTIVADO")
+      inArray(userTable.rol, ["DESACTIVADO", "DESACTIVADO_TESORERO"])
     ),
-    columns: { id: true },
+    columns: { id: true, rol: true },
   });
-  if (!tecnico) return { ok: false, error: "No encontramos a ese operador." };
+  if (!tecnico) return { ok: false, error: "No encontramos a esa persona." };
 
   await db
     .update(userTable)
-    .set({ rol: "OPERADOR", updatedAt: new Date() })
+    .set({ rol: tecnico.rol === "DESACTIVADO_TESORERO" ? "TESORERO" : "OPERADOR", updatedAt: new Date() })
     .where(eq(userTable.id, tecnico.id));
 
   revalidatePath("/panel/tecnicos");

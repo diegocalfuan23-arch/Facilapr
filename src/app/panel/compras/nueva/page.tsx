@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { listarProveedores } from "@/lib/compras";
 import { listarCategorias, listarInsumos, opcionesDeCategoria } from "@/lib/inventario";
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function NuevaCompraPage() {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) redirect("/panel/compras");
 
   const [proveedores, insumos, categoriasPropias] = await Promise.all([

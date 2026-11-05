@@ -12,7 +12,7 @@ import { requireApr } from "@/lib/apr-session";
  * recorrido se apoya en el navegador.
  */
 export async function recorridoYaVisto(): Promise<boolean | null> {
-  const { user } = await requireApr();
+  const { user } = await requireApr({ tesorero: true });
   try {
     const r = await db.execute(
       sql`select "recorridoVisto" as visto from "user" where id = ${user.id}`
@@ -24,7 +24,7 @@ export async function recorridoYaVisto(): Promise<boolean | null> {
 }
 
 export async function marcarRecorridoVisto(): Promise<void> {
-  const { user } = await requireApr();
+  const { user } = await requireApr({ tesorero: true });
   try {
     await db.execute(
       sql`update "user" set "recorridoVisto" = true where id = ${user.id}`

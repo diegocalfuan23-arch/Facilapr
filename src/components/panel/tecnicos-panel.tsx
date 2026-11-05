@@ -12,6 +12,9 @@ import {
 } from "@/app/panel/tecnicos/actions";
 import { iniciales, normalizarTelefono } from "@/lib/formato";
 import { enlaceWhatsApp, mensajeInvitacionTecnico, telefonoValidoParaWhatsApp } from "@/lib/whatsapp";
+
+type RolEquipo = "OPERADOR" | "TESORERO";
+const TEXTO_ROL: Record<RolEquipo, string> = { OPERADOR: "Operador", TESORERO: "Tesorero" };
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -45,6 +48,7 @@ export type Tecnico = {
   desde: Date;
   /** false = desactivado por la directiva: no puede entrar. */
   activo: boolean;
+  rol: RolEquipo;
 };
 
 export type InvitacionPendiente = {
@@ -52,34 +56,41 @@ export type InvitacionPendiente = {
   codigo: string;
   expiraEn: Date;
   creadaEn: Date;
+  rol: RolEquipo;
 };
 
 export function TecnicosPanel({
   tecnicos,
   invitacionesPendientes,
+  puedeTesorero,
 }: {
   tecnicos: Tecnico[];
   invitacionesPendientes: InvitacionPendiente[];
+  /** El plan incluye Finanzas: solo entonces se puede invitar a un tesorero. */
+  puedeTesorero: boolean;
 }) {
   return (
     <div className="flex flex-col gap-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[1.35rem] font-semibold tracking-tight">
-            Operadores
+            Equipo
           </h1>
           <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-            Quienes cargan lecturas en terreno. Solo ven lecturas.
+            Quienes tienen acceso al panel: los operadores cargan lecturas en terreno y el tesorero lleva las finanzas.
           </p>
         </div>
-        <InvitarTecnico />
+        <div className="flex flex-wrap gap-2">
+          {puedeTesorero && <InvitarTecnico rol="TESORERO" />}
+          <InvitarTecnico rol="OPERADOR" />
+        </div>
       </div>
 
       <section>
-        <h2 className="mb-3 text-[0.95rem] font-semibold">Operadores</h2>
+        <h2 className="mb-3 text-[0.95rem] font-semibold">Con acceso al panel</h2>
         {tecnicos.length === 0 ? (
           <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
-            Todavía no tienes operadores invitados.
+            Todavía no tienes personas invitadas.
           </p>
         ) : (
           <>
@@ -95,7 +106,8 @@ export function TecnicosPanel({
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="h-11 px-4">Operador</TableHead>
+                  <TableHead className="h-11 px-4">Persona</TableHead>
+                  <TableHead className="h-11 px-4">Rol</TableHead>
                   <TableHead className="h-11 px-4">Correo</TableHead>
                   <TableHead className="h-11 px-4">Desde</TableHead>
                   <TableHead className="h-11 px-4">Estado</TableHead>
@@ -204,8 +216,8 @@ function AccionesTecnico({ tecnico: t }: { tecnico: Tecnico }) {
           <DialogHeader>
             <DialogTitle>Desactivar a {t.nombre}</DialogTitle>
             <DialogDescription>
-              Dejará de poder entrar y se cerrará su sesión. Sus lecturas ya
-              cargadas se conservan en el historial. Puedes reactivarlo cuando
+              Dejará de poder entrar y se cerrará su sesión. Lo que ya registró
+              se conserva en el historial. Puedes reactivarlo cuando
               quieras.
             </DialogDescription>
           </DialogHeader>
@@ -226,6 +238,14 @@ function AccionesTecnico({ tecnico: t }: { tecnico: Tecnico }) {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function RolEtiqueta({ rol }: { rol: RolEquipo }) {
+  return (
+    <span className="inline-flex rounded-full bg-muted px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap text-muted-foreground">
+      {TEXTO_ROL[rol]}
+    </span>
   );
 }
 
@@ -252,6 +272,9 @@ function TecnicoFila({ tecnico: t }: { tecnico: Tecnico }) {
           </span>
           <span className="font-medium">{t.nombre}</span>
         </div>
+      </TableCell>
+      <TableCell className={cn("px-4 py-3.5", !t.activo && "opacity-60")}>
+        <RolEtiqueta rol={t.rol} />
       </TableCell>
       <TableCell className={cn("px-4 py-3.5 text-muted-foreground", !t.activo && "opacity-60")}>
         {t.correo}
@@ -281,7 +304,7 @@ function TarjetaTecnico({ tecnico: t }: { tecnico: Tecnico }) {
           <div className="min-w-0">
             <div className="truncate font-medium">{t.nombre}</div>
             <div className="truncate text-[0.82rem] text-muted-foreground">
-              {t.correo}
+              {TEXTO_ROL[t.rol]} · {t.correo}
             </div>
           </div>
         </div>
@@ -336,7 +359,7 @@ function InvitacionFila({ invitacion }: { invitacion: InvitacionPendiente }) {
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-tertiary/15 text-tertiary-foreground">
             <Clock className="size-4" />
           </span>
-          <span className="font-medium">Invitación para operador</span>
+          <span className="font-medium">Invitación para {TEXTO_ROL[invitacion.rol].toLowerCase()}</span>
         </div>
       </TableCell>
       <TableCell className="px-4 py-3.5 whitespace-nowrap text-muted-foreground">
@@ -368,7 +391,7 @@ function TarjetaInvitacion({ invitacion }: { invitacion: InvitacionPendiente }) 
             <Clock className="size-4" />
           </span>
           <div className="min-w-0">
-            <div className="font-medium">Invitación para operador</div>
+            <div className="font-medium">Invitación para {TEXTO_ROL[invitacion.rol].toLowerCase()}</div>
             <div className="text-[0.8rem] text-muted-foreground">
               Vence el {fecha.format(invitacion.expiraEn)}
             </div>
@@ -385,7 +408,7 @@ function TarjetaInvitacion({ invitacion }: { invitacion: InvitacionPendiente }) 
   );
 }
 
-function InvitarTecnico() {
+function InvitarTecnico({ rol }: { rol: RolEquipo }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
   const [url, setUrl] = useState<string | null>(null);
@@ -401,7 +424,7 @@ function InvitarTecnico() {
     setTelefono("");
     setError(null);
     iniciar(async () => {
-      const r = await generarInvitacionOperador();
+      const r = await generarInvitacionOperador(rol);
       if (r.ok) {
         setUrl(r.url);
         setComite(r.comite);
@@ -420,7 +443,7 @@ function InvitarTecnico() {
   function enviarPorWhatsApp() {
     if (!url || telefonoMalo) return;
     window.open(
-      enlaceWhatsApp(telefonoNormalizado, mensajeInvitacionTecnico(comite, url)),
+      enlaceWhatsApp(telefonoNormalizado, mensajeInvitacionTecnico(comite, url, rol)),
       "_blank",
       "noopener"
     );
@@ -436,9 +459,9 @@ function InvitarTecnico() {
 
   return (
     <>
-      <Button type="button" data-tour="tec-invitar" onClick={abrir}>
+      <Button type="button" variant={rol === "OPERADOR" ? "default" : "outline"} data-tour={rol === "OPERADOR" ? "tec-invitar" : undefined} onClick={abrir}>
         <UserPlus />
-        Invitar operador
+        Invitar {TEXTO_ROL[rol].toLowerCase()}
       </Button>
 
       <Dialog
@@ -450,7 +473,7 @@ function InvitarTecnico() {
       >
         <DialogContent className="sm:max-w-[440px]">
           <DialogHeader>
-            <DialogTitle>Invitar operador</DialogTitle>
+            <DialogTitle>Invitar {TEXTO_ROL[rol].toLowerCase()}</DialogTitle>
             <DialogDescription>
               Mándalo por WhatsApp o copia el enlace. Sirve una sola vez y
               vence en 7 días.
@@ -493,7 +516,7 @@ function InvitarTecnico() {
           {url && (
             <div className="flex flex-col gap-2">
               <label htmlFor="tecnico-telefono" className="text-[0.85rem] font-medium">
-                Teléfono del operador <span className="font-normal text-muted-foreground">(opcional)</span>
+                Teléfono del {TEXTO_ROL[rol].toLowerCase()} <span className="font-normal text-muted-foreground">(opcional)</span>
               </label>
               <Input
                 id="tecnico-telefono"

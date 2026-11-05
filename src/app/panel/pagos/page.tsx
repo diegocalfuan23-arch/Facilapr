@@ -3,7 +3,7 @@ import { and, asc, desc, eq, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, pagos, socios } from "@/lib/db/schema";
 import { user as usuarios } from "@/lib/db/auth-schema";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { urlComprobante } from "@/lib/comprobante-enlace";
 import { PagosTabla } from "@/components/panel/pagos-tabla";
 import { MercadoPagoCard } from "@/components/panel/mercadopago-card";
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 const MAXIMO = 1000;
 
 export default async function PagosPage({ searchParams }: { searchParams: Promise<{ mp?: string; detalle?: string }> }) {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   const { mp, detalle } = await searchParams;
   const conexionMp = apr.mercadoPagoHabilitado ? await estadoConexion(apr.id) : null;
 

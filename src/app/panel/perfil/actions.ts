@@ -13,7 +13,7 @@ export type ResultadoPerfil = { ok: true } | { ok: false; error: string };
 
 /** El nombre y el cargo de quien tiene la sesión abierta. Nada de esto toca los datos del comité. */
 export async function guardarPerfil(datos: { nombre: string; cargo: string }): Promise<ResultadoPerfil> {
-  const { user } = await requireApr();
+  const { user } = await requireApr({ tesorero: true });
 
   const nombre = String(datos.nombre ?? "").trim().replace(/\s+/g, " ");
   if (nombre.length < 2 || nombre.length > 80) {
@@ -40,7 +40,7 @@ export async function cambiarClave(datos: {
   nueva: string;
   repetida: string;
 }): Promise<ResultadoPerfil> {
-  await requireApr();
+  await requireApr({ tesorero: true });
 
   if (!datos.actual) return { ok: false, error: "Escribe tu contraseña actual." };
   if (datos.nueva.length < 8) {

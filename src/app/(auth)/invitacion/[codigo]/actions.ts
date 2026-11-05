@@ -11,7 +11,7 @@ export type ResultadoUnirse = { ok: true } | { ok: false; error: string };
  * Se llama justo después de que Better Auth crea la cuenta. El formulario de
  * invitación ya mandó el RUT del APR real como additionalField, así que el
  * hook de registro (auth.ts) encontró ese comité por RUT y no creó uno
- * nuevo: aquí solo falta marcar al usuario como OPERADOR y consumir el
+ * nuevo: aquí solo falta darle el rol de la invitación (operador o tesorero) y consumir el
  * código, ya no hay que tocar aprId.
  */
 export async function unirseConInvitacion(
@@ -25,7 +25,7 @@ export async function unirseConInvitacion(
 
   await db
     .update(userTable)
-    .set({ rol: "OPERADOR" })
+    .set({ rol: invitacion.rol })
     .where(eq(userTable.id, userId));
 
   await marcarInvitacionUsada(invitacion.invitacionId, userId);

@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { activosFijos, categoriasMovimiento, compras, incidentes, movimientos, remuneraciones } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
   CATEGORIA_MOV_NUEVA,
@@ -44,7 +44,7 @@ export async function crearMovimiento(
   _prev: ResultadoFinanzas | null,
   formData: FormData
 ): Promise<ResultadoFinanzas> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) {
     return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   }
@@ -111,7 +111,7 @@ export async function guardarSaldoInicial(
   _prev: ResultadoFinanzas | null,
   formData: FormData
 ): Promise<ResultadoFinanzas> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) {
     return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   }
@@ -153,7 +153,7 @@ export async function guardarSaldoInicial(
 
 /** Borra un movimiento anotado a mano. Los pagos de socios no se borran desde aquí. */
 export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   // Solo ingresos y egresos: el saldo inicial y los cierres de caja no se borran por aquí.
   const [m] = await db
@@ -185,7 +185,7 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
  * movimientos. Solo la directiva. Los movimientos del día no se tocan.
  */
 export async function reabrirCaja(diaCrudo: string): Promise<ResultadoFinanzas> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
 
   const dia = diaValido(diaCrudo);
@@ -208,7 +208,7 @@ export async function cerrarCaja(
   _prev: ResultadoFinanzas | null,
   formData: FormData
 ): Promise<ResultadoFinanzas> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) {
     return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   }
@@ -282,7 +282,7 @@ async function categoriaDe(aprId: string, tipo: "INGRESO" | "EGRESO", nombreCrud
 
 /** Crea una categoría desde el modal de categorías. Avisa si ya existía una con ese nombre. */
 export async function crearCategoriaMov(tipo: "INGRESO" | "EGRESO", nombreCrudo: string): Promise<ResultadoFinanzas> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
   if (tipo !== "INGRESO" && tipo !== "EGRESO") return { ok: false, error: "Tipo no válido." };
 
@@ -303,7 +303,7 @@ export async function crearCategoriaMov(tipo: "INGRESO" | "EGRESO", nombreCrudo:
 
 /** Cambia el nombre de una categoría. Los movimientos que la usan la siguen usando: guardan su id. */
 export async function renombrarCategoriaMov(id: string, nombreCrudo: string): Promise<ResultadoFinanzas> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: "La Caja está disponible desde el plan Estándar." };
 
   const nombre = limpiarNombre(nombreCrudo);
@@ -336,7 +336,7 @@ export async function renombrarCategoriaMov(id: string, nombreCrudo: string): Pr
 
 /** Borra una categoría. Los movimientos que la usaban quedan sin categoría: no se pierde ninguno. */
 export async function eliminarCategoriaMov(id: string): Promise<ResultadoFinanzas> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   try {
     await db.transaction(async (tx) => {

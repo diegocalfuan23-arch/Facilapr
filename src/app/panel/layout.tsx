@@ -25,17 +25,18 @@ export default async function PanelLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, apr } = await requireApr();
-  const rol = user.rol === "OPERADOR" ? "OPERADOR" : "ADMIN";
+  const { user, apr } = await requireApr({ tesorero: true });
+  const rol = user.rol === "OPERADOR" ? "OPERADOR" : user.rol === "TESORERO" ? "TESORERO" : "ADMIN";
   // El operador trabaja desde el teléfono en terreno: en pantalla chica el
   // marco se vuelve una app (encabezado compacto fijo, sin menú lateral); en
   // escritorio (md:) queda el panel de siempre.
   const esOperador = rol === "OPERADOR";
 
+  // El tesorero no tiene cortes ni solicitudes: sin números en su menú.
   // Lo que espera acción: el operador, órdenes por hacer; la directiva, solicitudes por
   // resolver y evidencias por dar de alta. Si la consulta falla, simplemente no hay número.
   const insignias: Record<string, number> = {};
-  try {
+  if (rol !== "TESORERO") try {
     const [f] = await db
       .select({ n: count() })
       .from(ordenes)
@@ -51,7 +52,7 @@ export default async function PanelLayout({
   }
 
   // Solicitudes que esperan a la directiva: pedidos de acceso y de clave nueva.
-  if (!esOperador) {
+  if (rol === "ADMIN") {
     try {
       const [acceso] = await db
         .select({ n: count() })
@@ -81,8 +82,8 @@ export default async function PanelLayout({
           chat={puede(apr.plan as Plan, "chat")}
           conFinanzas={puede(apr.plan as Plan, "finanzas")}
         />
-        {!esOperador && <Recorrido usuarioId={user.id} />}
-        {!esOperador && <PrimerosPasosFlotante />}
+        {rol === "ADMIN" && <Recorrido usuarioId={user.id} />}
+        {rol === "ADMIN" && <PrimerosPasosFlotante />}
 
         {/* El gradiente va en el contenedor, no en el área de contenido: así
             cubre también el header. Centrado en 50% 50% para que el velo quede
@@ -136,7 +137,7 @@ export default async function PanelLayout({
             </div>
 
             {/* El buscador de módulos es solo del plan Grande. */}
-            {!esOperador && puede(apr.plan as Plan, "buscador") && (
+            {rol === "ADMIN" && puede(apr.plan as Plan, "buscador") && (
               <BuscadorModulos
                 rol={rol}
                 chat={puede(apr.plan as Plan, "chat")}

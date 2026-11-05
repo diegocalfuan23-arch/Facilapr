@@ -3,7 +3,7 @@
 import Link, { useLinkStatus } from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ChevronsUpDown, CreditCard, LayoutDashboard, LogOut, UserRound } from "lucide-react";
-import { gruposDelMenu, type Enlace } from "@/lib/menu-panel";
+import { gruposDelMenu, type Enlace, type RolMenu } from "@/lib/menu-panel";
 import { Logo } from "@/components/marca/logo";
 import { cerrarSesionPanel } from "@/components/auth/sign-out-button";
 import { iniciales } from "@/lib/formato";
@@ -165,7 +165,7 @@ function TarjetaComite({
   comuna: string;
   plan: string;
   usuario: { nombre: string; correo: string };
-  rol: "ADMIN" | "OPERADOR";
+  rol: RolMenu;
 }) {
   const router = useRouter();
   const { isMobile } = useSidebar();
@@ -252,7 +252,7 @@ export function PanelSidebar({
 }: {
   apr: string;
   comuna: string;
-  rol: "ADMIN" | "OPERADOR";
+  rol: RolMenu;
   /** Nombre comercial del plan (Pequeño, Estándar, Grande). */
   plan: string;
   usuario: { nombre: string; correo: string };
@@ -263,7 +263,7 @@ export function PanelSidebar({
   conFinanzas?: boolean;
 }) {
   const pathname = usePathname();
-  const inicio = rol === "ADMIN" ? "/panel" : "/panel/lecturas";
+  const inicio = rol === "ADMIN" ? "/panel" : rol === "TESORERO" ? "/panel/caja" : "/panel/lecturas";
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">

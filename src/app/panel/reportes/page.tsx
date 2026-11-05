@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { hoyEnChile, listarCategoriasMovimiento, nombreMes, textoCategoria } from "@/lib/finanzas";
 import { listarCompras } from "@/lib/compras";
@@ -42,7 +42,7 @@ function ListaTotales({ filas, vacio }: { filas: { clave: string; texto: string;
  * y lo que se debe a proveedores. El inventario tiene su propia pantalla y no va aquí.
  */
 export default async function ReportesPage({ searchParams }: { searchParams: Promise<{ anio?: string }> }) {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "finanzas")) redirect("/panel");

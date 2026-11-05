@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { categoriasInsumo, insumos } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { anotarCambioStock } from "@/lib/inventario-historial";
 import {
@@ -40,7 +40,7 @@ export async function guardarInsumo(
   _prev: ResultadoInventario | null,
   formData: FormData
 ): Promise<ResultadoInventario> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   const parsed = insumoSchema.safeParse({
@@ -139,7 +139,7 @@ export async function ajustarStock(
   tipo: "ENTRADA" | "SALIDA",
   motivo = ""
 ): Promise<ResultadoInventario> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   if (!Number.isFinite(cantidad) || cantidad <= 0) return { ok: false, error: "La cantidad debe ser mayor que 0." };
@@ -180,7 +180,7 @@ export async function ajustarStock(
 }
 
 export async function eliminarInsumo(id: string): Promise<ResultadoInventario> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   const borrados = await db
     .delete(insumos)
@@ -222,7 +222,7 @@ async function crearCategoriaDe(aprId: string, nombreCrudo: string): Promise<Res
 
 /** Crea una categoría propia desde el modal de categorías. Avisa si ya existía una con ese nombre. */
 export async function crearCategoria(nombreCrudo: string): Promise<ResultadoInventario> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   const nombre = String(nombreCrudo ?? "").trim().replace(/\s+/g, " ");
@@ -244,7 +244,7 @@ export async function crearCategoria(nombreCrudo: string): Promise<ResultadoInve
 
 /** Cambia el nombre de una categoría propia. Los materiales que la usan la siguen usando: guardan su id, no el nombre. */
 export async function renombrarCategoria(id: string, nombreCrudo: string): Promise<ResultadoInventario> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
 
   const nombre = String(nombreCrudo ?? "").trim().replace(/\s+/g, " ");
@@ -276,7 +276,7 @@ export async function renombrarCategoria(id: string, nombreCrudo: string): Promi
 
 /** Borra una categoría propia. Los materiales que la usaban quedan sin categoría: no se pierde ninguno. */
 export async function eliminarCategoria(id: string): Promise<ResultadoInventario> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   try {
     await db.transaction(async (tx) => {

@@ -5,7 +5,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { compras, comprasItems, insumos, movimientos, proveedores } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
 import { UNIDADES_INSUMO } from "@/lib/inventario-comun";
@@ -41,7 +41,7 @@ export async function guardarProveedor(
   _prev: ResultadoCompras | null,
   formData: FormData
 ): Promise<ResultadoCompras> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
 
   const parsed = proveedorSchema.safeParse({
@@ -82,7 +82,7 @@ export async function guardarProveedor(
 
 /** Borra un proveedor. Sus compras se quedan con el nombre que tenía. */
 export async function eliminarProveedor(id: string): Promise<ResultadoCompras> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   const borrados = await db
     .delete(proveedores)
@@ -127,7 +127,7 @@ export type DatosCompra = z.input<typeof compraSchema>;
 export async function crearCompra(
   datos: DatosCompra
 ): Promise<{ ok: true; numero: number } | { ok: false; error: string }> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
 
   const parsed = compraSchema.safeParse(datos);
@@ -281,7 +281,7 @@ export async function crearCompra(
 
 /** Marca como pagada una compra pendiente y deja su egreso en Caja con la fecha de hoy. */
 export async function marcarPagada(compraId: string, medio: string): Promise<ResultadoCompras> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
   if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === medio)) return { ok: false, error: "El medio de pago no es válido." };
 
@@ -332,7 +332,7 @@ export async function marcarPagada(compraId: string, medio: string): Promise<Res
 
 /** Anula una compra: devuelve el stock que había sumado y, si estaba pagada, borra su egreso de Caja. */
 export async function anularCompra(compraId: string): Promise<ResultadoCompras> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
 
   let diaBloqueado = "";
@@ -419,7 +419,7 @@ export async function anularCompra(compraId: string): Promise<ResultadoCompras> 
  * la compra). No hace nada si el egreso ya existe, para no contar dos veces la misma plata.
  */
 export async function anotarEgresoCompra(compraId: string, medio: string): Promise<ResultadoCompras> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
   if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
   if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === medio)) return { ok: false, error: "El medio de pago no es válido." };
 

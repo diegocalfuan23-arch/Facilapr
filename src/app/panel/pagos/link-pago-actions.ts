@@ -1,12 +1,12 @@
 "use server";
 
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { mpConfigurado } from "@/lib/mercadopago";
 import { crearLinkPago, type ResultadoLink } from "@/lib/mercadopago-pagos";
 
 /** Crea el link de pago de una boleta, a nombre de la cuenta de Mercado Pago del comité. */
 export async function generarLinkPago(boletaId: string): Promise<ResultadoLink> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   if (!apr.mercadoPagoHabilitado || !mpConfigurado()) {
     return { ok: false, error: "El cobro con Mercado Pago no está disponible para tu comité." };
   }

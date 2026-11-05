@@ -58,7 +58,7 @@ const gestion: Enlace[] = [
   { href: "/panel/inventario", label: "Inventario", icon: Package },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
-  { href: "/panel/tecnicos", label: "Operadores", icon: HardHat },
+  { href: "/panel/tecnicos", label: "Equipo", icon: HardHat },
 ];
 
 /** Operación (desde el plan Estándar): las fallas del sistema de agua y los bienes del comité. */
@@ -96,6 +96,12 @@ const atencion: Enlace[] = [
   { href: "/panel/ayuda", label: "Ayuda", icon: LifeBuoy },
 ];
 
+/** Los roles que entran al panel. */
+export type RolMenu = "ADMIN" | "OPERADOR" | "TESORERO";
+
+/** Lo que ve un TESORERO: Finanzas y el inventario que mueven las compras. */
+const soloTesorero: Enlace[] = [{ href: "/panel/inventario", label: "Inventario", icon: Package }];
+
 /** Lo único que un OPERADOR puede ver: cargar lecturas, nada más. */
 const soloOperador: Enlace[] = [
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
@@ -108,12 +114,18 @@ export function gruposDelMenu({
   chat,
   conFinanzas,
 }: {
-  rol: "ADMIN" | "OPERADOR";
+  rol: RolMenu;
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat: boolean;
   /** El plan incluye Finanzas (Estándar y Grande): aparece su grupo y Pagos se muda a él. */
   conFinanzas: boolean;
 }): GrupoMenu[] {
+  if (rol === "TESORERO") {
+    return [
+      { titulo: "Finanzas", icono: Landmark, enlaces: finanzas },
+      ...(conFinanzas ? [{ titulo: "Bodega", icono: Package, enlaces: soloTesorero }] : []),
+    ];
+  }
   if (rol !== "ADMIN") return [{ titulo: "Terreno", icono: Droplets, enlaces: soloOperador }];
 
   return [
@@ -135,7 +147,8 @@ export function gruposDelMenu({
 }
 
 /** Destinos que no están en el menú pero se buscan igual: la cuenta y atajos a acciones frecuentes. */
-export function destinosExtra({ rol, conFinanzas }: { rol: "ADMIN" | "OPERADOR"; conFinanzas: boolean }) {
+export function destinosExtra({ rol, conFinanzas }: { rol: RolMenu; conFinanzas: boolean }) {
+  if (rol === "TESORERO") return [{ href: "/panel/perfil", label: "Mi perfil", icon: UserRound, grupo: "Cuenta" }];
   if (rol !== "ADMIN") return [];
   const cuenta: (Enlace & { grupo: string })[] = [
     { href: "/panel/plan", label: "Mi plan", icon: CreditCard, grupo: "Cuenta" },

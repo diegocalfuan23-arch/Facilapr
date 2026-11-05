@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownLeft, Search } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { destinosExtra, gruposDelMenu, PALABRAS_CLAVE, type Enlace } from "@/lib/menu-panel";
+import { destinosExtra, gruposDelMenu, PALABRAS_CLAVE, type Enlace, type RolMenu } from "@/lib/menu-panel";
 import { cn } from "@/lib/utils";
 
 type Resultado = Enlace & { grupo: string };
@@ -26,7 +26,7 @@ export function BuscadorModulos({
   chat,
   conFinanzas,
 }: {
-  rol: "ADMIN" | "OPERADOR";
+  rol: RolMenu;
   chat: boolean;
   conFinanzas: boolean;
 }) {

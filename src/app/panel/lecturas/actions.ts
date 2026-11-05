@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { anteriorDelSocio } from "@/lib/lectura-anterior";
 import { lecturas, socios, boletas, invitaciones } from "@/lib/db/schema";
 import { user as userTable } from "@/lib/db/auth-schema";
-import { LIMITE_TECNICOS, NOMBRE_PLAN, type Plan } from "@/lib/planes";
+import { LIMITE_TECNICOS, NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { requireApr, requireAdmin } from "@/lib/apr-session";
 import { crearInvitacion } from "@/lib/invitaciones";
 import {
@@ -580,12 +580,17 @@ export type ResultadoInvitacion =
   | { ok: true; url: string; comite: string }
   | { ok: false; error: string };
 
-export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> {
+export async function generarInvitacionOperador(rol: "OPERADOR" | "TESORERO" = "OPERADOR"): Promise<ResultadoInvitacion> {
   const { apr } = await requireAdmin();
+
+  // El tesorero lleva las finanzas: solo tiene sentido en los planes que las incluyen.
+  if (rol === "TESORERO" && !puede(apr.plan as Plan, "finanzas")) {
+    return { ok: false, error: "Las finanzas están disponibles desde el plan Estándar." };
+  }
 
   // Operadores con acceso + invitaciones sin usar: el tope del plan los cuenta a todos.
   const limite = LIMITE_TECNICOS[apr.plan as Plan];
-  if (Number.isFinite(limite)) {
+  if (rol === "OPERADOR" && Number.isFinite(limite)) {
     const [{ n: tecnicos }] = await db
       .select({ n: count() })
       .from(userTable)
@@ -596,6 +601,7 @@ export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> 
       .where(
         and(
           eq(invitaciones.aprId, apr.id),
+          eq(invitaciones.rol, "OPERADOR"),
           isNull(invitaciones.usadaPor),
           gt(invitaciones.expiraEn, new Date())
         )
@@ -608,7 +614,7 @@ export async function generarInvitacionOperador(): Promise<ResultadoInvitacion> 
     }
   }
 
-  const invitacion = await crearInvitacion(apr.id);
+  const invitacion = await crearInvitacion(apr.id, rol);
 
   const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
   return { ok: true, url: `https://${dominio}/invitacion/${invitacion.codigo}`, comite: apr.nombre };

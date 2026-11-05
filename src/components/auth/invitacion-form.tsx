@@ -13,9 +13,12 @@ import { Label } from "@/components/ui/label";
 export function InvitacionForm({
   codigo,
   apr,
+  cargo = "operador",
 }: {
   codigo: string;
   apr: { nombre: string; rut: string; comuna: string };
+  /** El cargo con que queda registrado: operador o tesorero. */
+  cargo?: "operador" | "tesorero";
 }) {
   const router = useRouter();
   const [enviando, setEnviando] = useState(false);
@@ -36,7 +39,7 @@ export function InvitacionForm({
       apr: apr.nombre,
       rutComite: apr.rut,
       comuna: apr.comuna,
-      cargo: "operador",
+      cargo,
     });
 
     if (errorRegistro || !data) {

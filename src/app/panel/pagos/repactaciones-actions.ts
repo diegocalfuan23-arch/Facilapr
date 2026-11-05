@@ -5,7 +5,7 @@ import { and, asc, eq, lt, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { boletas, pagos, repactaciones, socios } from "@/lib/db/schema";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { urlComprobante } from "@/lib/comprobante-enlace";
 import { estadoQueCorresponde, type EstadoBoleta } from "@/lib/boletas";
 import { normalizarTelefono } from "@/lib/formato";
@@ -39,7 +39,7 @@ export async function crearRepactacion(
   socioId: string,
   datos: { cuotas: number; primerVencimiento: string; nota?: string }
 ): Promise<ResultadoRepactacion> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
 
   const parsed = crearSchema.safeParse({
     cuotas: Math.round(datos.cuotas),
@@ -122,7 +122,7 @@ export async function registrarCuotaRepactacion(
     pagadoPorTelefono?: string;
   }
 ): Promise<ResultadoCuota> {
-  const { user, apr } = await requireAdmin();
+  const { user, apr } = await requireFinanzas();
 
   const parsed = cuotaSchema.safeParse({
     monto: Math.round(datos.monto),
@@ -244,7 +244,7 @@ export async function registrarCuotaRepactacion(
 
 /** Da por terminado un acuerdo que ya no va a seguir (el socio no cumplió o pagó todo por otro lado). No borra los pagos. */
 export async function cancelarRepactacion(repactacionId: string): Promise<ResultadoRepactacion> {
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
   const r = await db
     .update(repactaciones)
     .set({ estado: "CANCELADA", updatedAt: new Date() })

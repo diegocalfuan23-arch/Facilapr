@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { requireAdmin } from "@/lib/apr-session";
+import { requireFinanzas } from "@/lib/apr-session";
 import { recibosDelPeriodo } from "@/lib/recibo";
 import { formatearPeriodo } from "@/lib/boletas";
 import { Recibo } from "@/components/recibos/recibo";
@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default async function RecibosPeriodoPage({ params }: Props) {
   const { periodo } = await params;
-  const { apr } = await requireAdmin();
+  const { apr } = await requireFinanzas();
 
   const recibos = await recibosDelPeriodo(apr.id, periodo);
 
