@@ -14,6 +14,12 @@ const SIN_PLAN = "Personal está disponible desde el plan Estándar.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/[^\d]/g, "")) || 0;
 
+/** Un porcentaje escrito como «10,58» pasa a centésimas (1058). */
+function tasa(v: FormDataEntryValue | null) {
+  const n = Number(String(v ?? "").replace(",", "."));
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+
 function refrescar() {
   revalidatePath("/panel/personal");
   revalidatePath("/panel/remuneraciones");
@@ -27,6 +33,10 @@ const trabajadorSchema = z.object({
   email: z.string().trim().email("El correo no es válido.").max(120).nullable(),
   contrato: z.enum(["SUELDO", "HONORARIO"]),
   sueldo: z.number().int().min(0).max(100_000_000),
+  afp: z.string().trim().max(40).nullable(),
+  afpTasa: z.number().int().min(0).max(3000),
+  saludTasa: z.number().int().min(0).max(3000),
+  cesantia: z.boolean(),
   fechaIngreso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha de ingreso no es válida.").nullable(),
   activo: z.boolean(),
   notas: z.string().trim().max(500).nullable(),
@@ -46,6 +56,10 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
     contrato: formData.get("contrato"),
     sueldo: aEntero(formData.get("sueldo")),
     fechaIngreso: aTexto(formData.get("fechaIngreso")),
+    afp: aTexto(formData.get("afp")),
+    afpTasa: tasa(formData.get("afpTasa")),
+    saludTasa: tasa(formData.get("saludTasa")),
+    cesantia: formData.get("cesantia") === "si",
     activo: formData.get("activo") !== "no",
     notas: aTexto(formData.get("notas")),
   });

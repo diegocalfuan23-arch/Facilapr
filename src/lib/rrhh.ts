@@ -25,8 +25,17 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
         periodo: remuneraciones.periodo,
         sueldoBase: remuneraciones.sueldoBase,
         bonos: remuneraciones.bonos,
+        descAfp: remuneraciones.descAfp,
+        descSalud: remuneraciones.descSalud,
+        descCesantia: remuneraciones.descCesantia,
+        retencion: remuneraciones.retencion,
+        otrosDescuentos: remuneraciones.otrosDescuentos,
         descuentos: remuneraciones.descuentos,
         liquido: remuneraciones.liquido,
+        contrato: trabajadores.contrato,
+        afpTasa: trabajadores.afpTasa,
+        saludTasa: trabajadores.saludTasa,
+        cesantiaPaga: trabajadores.cesantia,
         estado: remuneraciones.estado,
         fechaPago: remuneraciones.fechaPago,
         medio: remuneraciones.medio,
@@ -36,7 +45,7 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
       .innerJoin(trabajadores, eq(trabajadores.id, remuneraciones.trabajadorId))
       .where(and(eq(remuneraciones.aprId, aprId), eq(remuneraciones.periodo, periodo)))
       .orderBy(asc(trabajadores.nombre));
-    return filas.map((f) => ({ ...f, estado: f.estado as EstadoRemuneracion }));
+    return filas.map((f) => ({ ...f, estado: f.estado as EstadoRemuneracion, contrato: f.contrato as "SUELDO" | "HONORARIO" }));
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer las remuneraciones:", e);
     return [];

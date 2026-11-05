@@ -9,7 +9,9 @@ import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
-import { PREFIJO_CONCEPTO_REMUNERACION, liquidoDe } from "@/lib/rrhh-comun";
+import { PREFIJO_CONCEPTO_REMUNERACION } from "@/lib/rrhh-comun";
+import { descuentosLegales } from "@/lib/personal-comun";
+import type { Contrato } from "@/lib/personal-comun";
 
 export type ResultadoRemuneraciones = { ok: true } | { ok: false; error: string };
 
@@ -31,14 +33,37 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
 
   try {
     const personas = await db
-      .select({ id: trabajadores.id, sueldo: trabajadores.sueldo })
+      .select({
+        id: trabajadores.id,
+        sueldo: trabajadores.sueldo,
+        contrato: trabajadores.contrato,
+        afpTasa: trabajadores.afpTasa,
+        saludTasa: trabajadores.saludTasa,
+        cesantia: trabajadores.cesantia,
+      })
       .from(trabajadores)
       .where(and(eq(trabajadores.aprId, apr.id), eq(trabajadores.activo, true)));
     if (personas.length === 0) return { ok: false, error: "Primero agrega a las personas en Personal." };
 
     await db
       .insert(remuneraciones)
-      .values(personas.map((p) => ({ aprId: apr.id, trabajadorId: p.id, periodo, sueldoBase: p.sueldo, liquido: p.sueldo })))
+      .values(
+        personas.map((p) => {
+          const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, p.sueldo);
+          return {
+            aprId: apr.id,
+            trabajadorId: p.id,
+            periodo,
+            sueldoBase: p.sueldo,
+            descAfp: d.afp,
+            descSalud: d.salud,
+            descCesantia: d.cesantia,
+            retencion: d.retencion,
+            descuentos: d.total,
+            liquido: p.sueldo - d.total,
+          };
+        })
+      )
       .onConflictDoNothing();
   } catch (e) {
     console.error("Remuneraciones: no se pudo generar el mes:", e);
@@ -52,11 +77,14 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
 const liquidacionSchema = z.object({
   sueldoBase: z.number().int().min(0).max(100_000_000),
   bonos: z.number().int().min(0).max(100_000_000),
-  descuentos: z.number().int().min(0).max(100_000_000),
+  otrosDescuentos: z.number().int().min(0).max(100_000_000),
   nota: z.string().trim().max(200).nullable(),
 });
 
-/** Corrige la liquidación de un mes mientras no esté pagada: sueldo base, bonos y descuentos. */
+/**
+ * Corrige la liquidación de un mes mientras no esté pagada: sueldo bruto, bonos y otros descuentos.
+ * La AFP, la salud, el seguro de cesantía y la retención se recalculan con la ficha de la persona.
+ */
 export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null, formData: FormData): Promise<ResultadoRemuneraciones> {
   const { apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
@@ -64,25 +92,47 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
   const parsed = liquidacionSchema.safeParse({
     sueldoBase: aEntero(formData.get("sueldoBase")),
     bonos: aEntero(formData.get("bonos")),
-    descuentos: aEntero(formData.get("descuentos")),
+    otrosDescuentos: aEntero(formData.get("otrosDescuentos")),
     nota: aTexto(formData.get("nota")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
-  if (d.descuentos > d.sueldoBase + d.bonos) return { ok: false, error: "Los descuentos no pueden ser mayores que lo que se gana." };
 
   const id = String(formData.get("id") ?? "");
   const [actual] = await db
-    .select({ estado: remuneraciones.estado })
+    .select({
+      estado: remuneraciones.estado,
+      contrato: trabajadores.contrato,
+      afpTasa: trabajadores.afpTasa,
+      saludTasa: trabajadores.saludTasa,
+      cesantia: trabajadores.cesantia,
+    })
     .from(remuneraciones)
+    .innerJoin(trabajadores, eq(trabajadores.id, remuneraciones.trabajadorId))
     .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)))
     .limit(1);
   if (!actual) return { ok: false, error: "No encontramos esa liquidación." };
   if (actual.estado === "PAGADA") return { ok: false, error: "Ya está pagada. Deshaz el pago para corregirla." };
 
+  const imponible = d.sueldoBase + d.bonos;
+  const legales = descuentosLegales({ ...actual, contrato: actual.contrato as Contrato }, imponible);
+  const descuentos = legales.total + d.otrosDescuentos;
+  if (descuentos > imponible) return { ok: false, error: "Los descuentos no pueden ser mayores que lo que se gana." };
+
   await db
     .update(remuneraciones)
-    .set({ ...d, liquido: liquidoDe(d.sueldoBase, d.bonos, d.descuentos) })
+    .set({
+      sueldoBase: d.sueldoBase,
+      bonos: d.bonos,
+      descAfp: legales.afp,
+      descSalud: legales.salud,
+      descCesantia: legales.cesantia,
+      retencion: legales.retencion,
+      otrosDescuentos: d.otrosDescuentos,
+      descuentos,
+      liquido: imponible - descuentos,
+      nota: d.nota,
+    })
     .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)));
 
   refrescar();

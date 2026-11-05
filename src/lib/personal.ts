@@ -19,6 +19,10 @@ export async function listarTrabajadores(aprId: string): Promise<TrabajadorFila[
         contrato: trabajadores.contrato,
         sueldo: trabajadores.sueldo,
         fechaIngreso: trabajadores.fechaIngreso,
+        afp: trabajadores.afp,
+        afpTasa: trabajadores.afpTasa,
+        saludTasa: trabajadores.saludTasa,
+        cesantia: trabajadores.cesantia,
         activo: trabajadores.activo,
         notas: trabajadores.notas,
       })

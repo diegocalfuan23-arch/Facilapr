@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { TrabajadorDialog } from "@/components/panel/trabajador-dialog";
-import { TEXTO_CONTRATO, type TrabajadorFila } from "@/lib/personal-comun";
+import { TEXTO_CONTRATO, descuentosLegales, type TrabajadorFila } from "@/lib/personal-comun";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -38,7 +38,7 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
         <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Costo mensual</p>
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{clp.format(costoMensual)}</p>
-          <p className="mt-2 text-[0.8rem] text-muted-foreground">Suma de sus sueldos base</p>
+          <p className="mt-2 text-[0.8rem] text-muted-foreground">Suma de sus sueldos brutos</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Inactivas</p>
@@ -70,10 +70,10 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
         </div>
       ) : (
         <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
-          <table className="w-full min-w-160 border-collapse text-[0.95rem]">
+          <table className="w-full min-w-200 border-collapse text-[0.95rem]">
             <thead>
               <tr className="border-b border-border bg-card">
-                {["Nombre", "Cargo", "Forma de pago", "Monto mensual", "Ingreso", "Teléfono"].map((c) => (
+                {["Nombre", "Cargo", "Forma de pago", "Sueldo bruto", "Descuentos", "Líquido", "Ingreso"].map((c) => (
                   <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
                     {c}
                   </th>
@@ -90,8 +90,9 @@ export function PersonalVista({ personas }: { personas: TrabajadorFila[] }) {
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{p.cargo}</td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{TEXTO_CONTRATO[p.contrato]}</td>
                   <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(p.sueldo)}</td>
+                  <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">-{clp.format(descuentosLegales(p, p.sueldo).total)}</td>
+                  <td className="px-5 py-4 font-medium whitespace-nowrap tabular-nums">{clp.format(p.sueldo - descuentosLegales(p, p.sueldo).total)}</td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{p.fechaIngreso ? fechaCorta(p.fechaIngreso) : "—"}</td>
-                  <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{p.telefono ?? "—"}</td>
                 </tr>
               ))}
             </tbody>

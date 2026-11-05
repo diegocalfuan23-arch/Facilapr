@@ -1180,6 +1180,14 @@ export const trabajadores = pgTable(
     /** Lo que se le paga cada mes, en pesos. */
     sueldo: integer("sueldo").notNull().default(0),
     fechaIngreso: date("fechaIngreso", { mode: "string" }),
+    /** La AFP en que cotiza (solo informativa). */
+    afp: text("afp"),
+    /** Lo que se le descuenta por la AFP, en centésimas de % (1058 = 10,58 %): 10 % más la comisión. */
+    afpTasa: integer("afpTasa").notNull().default(0),
+    /** Lo que se le descuenta por salud, en centésimas de % (700 = 7 %). */
+    saludTasa: integer("saludTasa").notNull().default(700),
+    /** Si paga el aporte del trabajador al seguro de cesantía (0,6 %). */
+    cesantia: boolean("cesantia").notNull().default(true),
     activo: boolean("activo").notNull().default(true),
     notas: text("notas"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
@@ -1290,7 +1298,13 @@ export const remuneraciones = pgTable(
     periodo: text("periodo").notNull(),
     sueldoBase: integer("sueldoBase").notNull().default(0),
     bonos: integer("bonos").notNull().default(0),
-    /** Previsión, salud y otros descuentos, en un solo monto. */
+    /** El desglose de lo que se descuenta; `descuentos` es la suma de todo. */
+    descAfp: integer("descAfp").notNull().default(0),
+    descSalud: integer("descSalud").notNull().default(0),
+    descCesantia: integer("descCesantia").notNull().default(0),
+    /** La retención de la boleta de honorarios (solo si se paga a honorarios). */
+    retencion: integer("retencion").notNull().default(0),
+    otrosDescuentos: integer("otrosDescuentos").notNull().default(0),
     descuentos: integer("descuentos").notNull().default(0),
     /** Lo que se le paga: base + bonos - descuentos. */
     liquido: integer("liquido").notNull().default(0),

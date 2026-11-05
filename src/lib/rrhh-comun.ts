@@ -10,8 +10,19 @@ export type RemuneracionFila = {
   periodo: string;
   sueldoBase: number;
   bonos: number;
+  descAfp: number;
+  descSalud: number;
+  descCesantia: number;
+  retencion: number;
+  otrosDescuentos: number;
+  /** La suma de todo lo que se descuenta. */
   descuentos: number;
   liquido: number;
+  /** Cómo está pagada la persona y qué tasas tiene: sirve para recalcular los descuentos al editar. */
+  contrato: "SUELDO" | "HONORARIO";
+  afpTasa: number;
+  saludTasa: number;
+  cesantiaPaga: boolean;
   estado: EstadoRemuneracion;
   fechaPago: string | null;
   medio: string | null;

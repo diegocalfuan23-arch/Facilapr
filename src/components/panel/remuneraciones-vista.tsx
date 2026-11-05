@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { MEDIOS_MOVIMIENTO, hoyEnChile, textoMedioLinea } from "@/lib/finanzas-comun";
-import { liquidoDe, type RemuneracionFila } from "@/lib/rrhh-comun";
+import { descuentosLegales } from "@/lib/personal-comun";
+import type { RemuneracionFila } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
@@ -46,7 +47,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [estado, enviar, pendiente] = useActionState<ResultadoRemuneraciones | null, FormData>(guardarRemuneracion, null);
   const [base, setBase] = useState(String(fila.sueldoBase));
   const [bonos, setBonos] = useState(fila.bonos ? String(fila.bonos) : "");
-  const [descuentos, setDescuentos] = useState(fila.descuentos ? String(fila.descuentos) : "");
+  const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
 
   useEffect(() => {
     if (estado?.ok) {
@@ -55,7 +56,10 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
     }
   }, [estado, onCerrar]);
 
-  const liquido = liquidoDe(Number(base) || 0, Number(bonos) || 0, Number(descuentos) || 0);
+  const imponible = (Number(base) || 0) + (Number(bonos) || 0);
+  const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
+  const totalDescuentos = legales.total + (Number(otros) || 0);
+  const liquido = Math.max(0, imponible - totalDescuentos);
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -68,11 +72,11 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <input type="hidden" name="id" value={fila.id} />
           <input type="hidden" name="sueldoBase" value={base} />
           <input type="hidden" name="bonos" value={bonos} />
-          <input type="hidden" name="descuentos" value={descuentos} />
+          <input type="hidden" name="otrosDescuentos" value={otros} />
           <div className="grid gap-4 sm:grid-cols-3">
             <div>
               <label htmlFor="rem-base" className={etiqueta}>
-                Sueldo base
+                Sueldo bruto
               </label>
               <MontoInput id="rem-base" valor={base} onCambio={setBase} autoFocus />
             </div>
@@ -83,16 +87,53 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
               <MontoInput id="rem-bonos" valor={bonos} onCambio={setBonos} />
             </div>
             <div>
-              <label htmlFor="rem-desc" className={etiqueta}>
-                Descuentos
+              <label htmlFor="rem-otros" className={etiqueta}>
+                Otros descuentos
               </label>
-              <MontoInput id="rem-desc" valor={descuentos} onCambio={setDescuentos} />
+              <MontoInput id="rem-otros" valor={otros} onCambio={setOtros} />
             </div>
           </div>
-          <p className="text-[0.75rem] text-muted-foreground">En descuentos van la previsión, la salud y cualquier otro descuento, sumados.</p>
-          <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-            <span className="text-[0.9rem] text-muted-foreground">Líquido a pagar</span>
-            <span className="text-[1.25rem] font-bold tabular-nums">{clp.format(liquido)}</span>
+          <p className="text-[0.75rem] text-muted-foreground">
+            La AFP, la salud y el seguro de cesantía se calculan solos con la ficha de la persona. En «otros» van anticipos, préstamos y similares.
+          </p>
+          <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total haberes</span>
+              <span className="tabular-nums">{clp.format(imponible)}</span>
+            </div>
+            {fila.contrato === "HONORARIO" ? (
+              <div className="mt-1 flex justify-between text-muted-foreground">
+                <span>Retención de honorarios</span>
+                <span className="tabular-nums">-{clp.format(legales.retencion)}</span>
+              </div>
+            ) : (
+              <>
+                <div className="mt-1 flex justify-between text-muted-foreground">
+                  <span>AFP</span>
+                  <span className="tabular-nums">-{clp.format(legales.afp)}</span>
+                </div>
+                <div className="flex justify-between text-muted-foreground">
+                  <span>Salud</span>
+                  <span className="tabular-nums">-{clp.format(legales.salud)}</span>
+                </div>
+                {legales.cesantia > 0 && (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Seguro de cesantía</span>
+                    <span className="tabular-nums">-{clp.format(legales.cesantia)}</span>
+                  </div>
+                )}
+              </>
+            )}
+            {(Number(otros) || 0) > 0 && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Otros descuentos</span>
+                <span className="tabular-nums">-{clp.format(Number(otros))}</span>
+              </div>
+            )}
+            <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
+              <span className="font-medium">Líquido a pagar</span>
+              <span className="text-[1.15rem] font-bold tabular-nums">{clp.format(liquido)}</span>
+            </div>
           </div>
           <div>
             <label htmlFor="rem-nota" className={etiqueta}>
@@ -279,7 +320,7 @@ export function RemuneracionesVista({
           <table className="w-full min-w-200 border-collapse text-[0.95rem]">
             <thead>
               <tr className="border-b border-border bg-card">
-                {["Persona", "Sueldo base", "Bonos", "Descuentos", "Líquido", "Estado", ""].map((c) => (
+                {["Persona", "Sueldo bruto", "Bonos", "Descuentos", "Líquido", "Estado", ""].map((c) => (
                   <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
                     {c}
                   </th>
