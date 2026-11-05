@@ -60,6 +60,7 @@ export function TrabajadorDialog({
   const editando = persona !== null;
   const [sueldo, setSueldo] = useState(persona?.sueldo ? String(persona.sueldo) : "");
   const [valorDia, setValorDia] = useState(persona?.valorDia ? String(persona.valorDia) : "");
+  const [porDia, setPorDia] = useState(persona?.porDia ?? false);
   const [contrato, setContrato] = useState<Contrato>(persona?.contrato ?? "SUELDO");
   const [afp, setAfp] = useState(persona?.afp ?? "");
   const [afpTasaTexto, setAfpTasaTexto] = useState(persona ? aTextoTasa(persona.afpTasa) : "");
@@ -109,6 +110,7 @@ export function TrabajadorDialog({
           {editando && <input type="hidden" name="id" value={persona.id} />}
           <input type="hidden" name="sueldo" value={sueldo} />
           <input type="hidden" name="valorDia" value={valorDia} />
+          <input type="hidden" name="porDia" value={porDia ? "si" : "no"} />
           <input type="hidden" name="afp" value={afp} />
           <input type="hidden" name="afpTasa" value={afpTasaTexto} />
           <input type="hidden" name="saludTasa" value={saludTexto} />
@@ -160,6 +162,16 @@ export function TrabajadorDialog({
 
           <h3 className="mt-2 text-[0.95rem] font-medium">Sueldo</h3>
           <div className="grid gap-4 sm:grid-cols-2">
+            <div className="sm:col-span-2">
+              <label htmlFor="per-modalidad" className={etiqueta}>
+                Cómo se le paga
+              </label>
+              <select id="per-modalidad" value={porDia ? "dia" : "mes"} onChange={(e) => setPorDia(e.target.value === "dia")} className={selectClase}>
+                <option value="mes">Sueldo mensual</option>
+                <option value="dia">Por día trabajado</option>
+              </select>
+              {porDia && <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Cada mes se le paga según los días que trabajó, tomados de la asistencia. Los puedes ajustar al armar la liquidación.</p>}
+            </div>
             <div>
               <label htmlFor="per-contrato" className={etiqueta}>
                 Forma de pago
@@ -169,6 +181,22 @@ export function TrabajadorDialog({
                 <option value="HONORARIO">Honorarios (boleta)</option>
               </select>
             </div>
+            {porDia ? (
+              <div>
+                <label htmlFor="per-valordia-dia" className={etiqueta}>
+                  Valor por día trabajado
+                </label>
+                <Input
+                  id="per-valordia-dia"
+                  value={valorDia ? `$${Number(valorDia).toLocaleString("es-CL")}` : ""}
+                  onChange={(e) => setValorDia(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                  placeholder="$0"
+                  inputMode="numeric"
+                  className={campo}
+                />
+              </div>
+            ) : (
+              <>
             <div>
               <label htmlFor="per-sueldo" className={etiqueta}>
                 Sueldo bruto mensual
@@ -196,6 +224,9 @@ export function TrabajadorDialog({
               />
               <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Es lo que se descuenta por cada día que no trabaje. Si lo dejas vacío, se usa el sueldo dividido en 30.</p>
             </div>
+
+              </>
+            )}
 
             {contrato === "SUELDO" ? (
               <>
@@ -237,7 +268,7 @@ export function TrabajadorDialog({
             )}
           </div>
 
-          {bruto > 0 && (
+          {!porDia && bruto > 0 && (
             <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Sueldo bruto</span>

@@ -1093,6 +1093,10 @@ export const ARTICULOS: Articulo[] = [
         nota: "Lo que ves en la ficha es una estimación para que cuadre con su liquidación. El cálculo real de cada mes se hace en Remuneraciones.",
       },
       {
+        titulo: "Si se le paga por día trabajado",
+        texto: "En «Cómo se le paga» elige «Por día trabajado» y escribe cuánto se le paga por día. No lleva sueldo mensual: cada mes se le paga según los días que trabajó, tomados de la asistencia. Si en cambio tiene sueldo mensual, el «Valor del día» opcional define cuánto se le descuenta por cada día que no trabaje; vacío, se usa el sueldo dividido en 30.",
+      },
+      {
         titulo: "Dale acceso al panel, si lo necesita",
         texto: "Al abrir su ficha, la sección «Acceso al panel» te dice si ya tiene cuenta. Si no, puedes invitarla como operador o como tesorero con un enlace de un solo uso. La ficha y la cuenta se ligan por el correo, así que usa el mismo. Quien ya tiene acceso pero no tiene ficha aparece en un aviso arriba, con un botón para crearla.",
       },
@@ -1122,6 +1126,10 @@ export const ARTICULOS: Articulo[] = [
         titulo: "Revisa los días que no se pagan",
         texto: "El sistema busca solo las faltas marcadas en Asistencia, los días de licencia y los permisos sin goce de ese mes. Las vacaciones sí se pagan. Cada día no pagado descuenta el sueldo dividido en 30. Al abrir una liquidación, el botón «Usar N» carga ese número de días.",
         nota: "Puedes cambiar los días a mano si algo no calza.",
+      },
+      {
+        titulo: "Cambia el valor del día, si hace falta",
+        texto: "Junto a los días no pagados está el «Valor del día»: parte con el de la ficha de la persona (o el sueldo dividido en 30) y lo puedes cambiar solo para ese mes. A quien cobra por día, la liquidación muestra sus días trabajados según la asistencia, con el botón «Usar N» para cargarlos.",
       },
       {
         titulo: "Agrega bonos u otros descuentos",

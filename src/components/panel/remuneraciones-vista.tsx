@@ -50,6 +50,8 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [bonos, setBonos] = useState(fila.bonos ? String(fila.bonos) : "");
   const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
   const [dias, setDias] = useState(String(fila.diasDescontados));
+  // A quien cobra por día: los días trabajados salen del sueldo base guardado y del valor del día.
+  const [diasTrab, setDiasTrab] = useState(String(fila.porDia && fila.valorDiaFicha ? Math.round(fila.sueldoBase / fila.valorDiaFicha) : 0));
   // El valor del día con que quedó esta liquidación (si ya tenía días descontados), el de la ficha, o el sueldo ÷ 30.
   const [valorDia, setValorDia] = useState(
     String(fila.diasDescontados > 0 && fila.descAusencias > 0 ? Math.round(fila.descAusencias / fila.diasDescontados) : valorDelDia(fila.sueldoBase, fila.valorDiaFicha))
@@ -62,8 +64,9 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
     }
   }, [estado, onCerrar]);
 
-  const descAusencias = descuentoPorDias(Number(base) || 0, Number(dias) || 0, Number(valorDia) || null);
-  const imponible = Math.max(0, (Number(base) || 0) - descAusencias) + (Number(bonos) || 0);
+  const baseNum = fila.porDia ? (Number(diasTrab) || 0) * (Number(valorDia) || 0) : Number(base) || 0;
+  const descAusencias = fila.porDia ? 0 : descuentoPorDias(baseNum, Number(dias) || 0, Number(valorDia) || null);
+  const imponible = Math.max(0, baseNum - descAusencias) + (Number(bonos) || 0);
   const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
   const totalDescuentos = legales.total + (Number(otros) || 0);
   const liquido = Math.max(0, imponible - totalDescuentos);
@@ -77,18 +80,27 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
         </DialogHeader>
         <form action={enviar} className="mt-2 flex flex-col gap-4">
           <input type="hidden" name="id" value={fila.id} />
-          <input type="hidden" name="sueldoBase" value={base} />
+          <input type="hidden" name="sueldoBase" value={baseNum} />
           <input type="hidden" name="bonos" value={bonos} />
           <input type="hidden" name="otrosDescuentos" value={otros} />
-          <input type="hidden" name="diasDescontados" value={dias} />
+          <input type="hidden" name="diasDescontados" value={fila.porDia ? 0 : dias} />
           <input type="hidden" name="valorDia" value={valorDia} />
           <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <label htmlFor="rem-base" className={etiqueta}>
-                Sueldo bruto
-              </label>
-              <MontoInput id="rem-base" valor={base} onCambio={setBase} autoFocus />
-            </div>
+            {fila.porDia ? (
+              <div>
+                <label htmlFor="rem-diastrab" className={etiqueta}>
+                  Días trabajados
+                </label>
+                <Input id="rem-diastrab" value={diasTrab} onChange={(e) => setDiasTrab(e.target.value.replace(/\D/g, "").slice(0, 2))} inputMode="numeric" className={campo} autoFocus />
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="rem-base" className={etiqueta}>
+                  Sueldo bruto
+                </label>
+                <MontoInput id="rem-base" valor={base} onCambio={setBase} autoFocus />
+              </div>
+            )}
             <div>
               <label htmlFor="rem-bonos" className={etiqueta}>
                 Bonos y extras
@@ -105,6 +117,28 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <p className="text-[0.75rem] text-muted-foreground">
             La AFP, la salud y el seguro de cesantía se calculan solos con la ficha de la persona. En «otros» van anticipos, préstamos y similares.
           </p>
+          {fila.porDia ? (
+            <div className="flex flex-col gap-2">
+              <div>
+                <label htmlFor="rem-valordia-dia" className={etiqueta}>
+                  Valor por día trabajado
+                </label>
+                <MontoInput id="rem-valordia-dia" valor={valorDia} onCambio={setValorDia} />
+              </div>
+              <p className="text-[0.75rem] text-muted-foreground">
+                Según la asistencia de este mes: {fila.ausenciasMes.trabajados} {fila.ausenciasMes.trabajados === 1 ? "día" : "días"} con presente o atraso.
+                {Number(diasTrab) !== fila.ausenciasMes.trabajados && (
+                  <>
+                    {" "}
+                    <button type="button" className="font-medium text-primary hover:underline" onClick={() => setDiasTrab(String(fila.ausenciasMes.trabajados))}>
+                      Usar {fila.ausenciasMes.trabajados}
+                    </button>
+                  </>
+                )}
+              </p>
+            </div>
+          ) : (
+            <>
           <div className="flex flex-wrap gap-4">
             <div>
               <label htmlFor="rem-dias" className={etiqueta}>
@@ -139,10 +173,12 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
               )}
             </p>
           </div>
+            </>
+          )}
           <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sueldo bruto</span>
-              <span className="tabular-nums">{clp.format(Number(base) || 0)}</span>
+              <span className="tabular-nums">{clp.format(baseNum)}</span>
             </div>
             {descAusencias > 0 && (
               <div className="flex justify-between text-muted-foreground">

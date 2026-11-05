@@ -37,6 +37,7 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
         descuentos: remuneraciones.descuentos,
         liquido: remuneraciones.liquido,
         valorDiaFicha: trabajadores.valorDia,
+        porDia: trabajadores.porDia,
         contrato: trabajadores.contrato,
         afpTasa: trabajadores.afpTasa,
         saludTasa: trabajadores.saludTasa,
@@ -237,6 +238,7 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
       vacaciones: estados.filter((e) => e === "VACACIONES").length,
       permisoSinGoce: 0,
       descontables: 0,
+      trabajados: estados.filter((e) => e === "PRESENTE" || e === "ATRASO").length,
     };
   }
 
@@ -255,7 +257,7 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
         )
       );
     for (const x of permisos) {
-      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0 });
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0 });
       const ini = Math.max(Date.parse(x.desde), primero);
       const fin = Math.min(Date.parse(x.hasta), ultimo);
       for (let t = ini; t <= fin; t += 86_400_000) {

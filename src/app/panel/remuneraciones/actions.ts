@@ -39,6 +39,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
         id: trabajadores.id,
         sueldo: trabajadores.sueldo,
         valorDia: trabajadores.valorDia,
+        porDia: trabajadores.porDia,
         contrato: trabajadores.contrato,
         afpTasa: trabajadores.afpTasa,
         saludTasa: trabajadores.saludTasa,
@@ -55,14 +56,16 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
       .insert(remuneraciones)
       .values(
         personas.map((p) => {
-          const dias = ausenciasMes[p.id]?.descontables ?? 0;
-          const descAus = descuentoPorDias(p.sueldo, dias, p.valorDia);
-          const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, p.sueldo - descAus);
+          // A quien cobra por día se le paga lo que trabajó (según su asistencia); no hay días que descontar.
+          const base = p.porDia ? (ausenciasMes[p.id]?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
+          const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
+          const descAus = descuentoPorDias(base, dias, p.valorDia);
+          const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus);
           return {
             aprId: apr.id,
             trabajadorId: p.id,
             periodo,
-            sueldoBase: p.sueldo,
+            sueldoBase: base,
             diasDescontados: dias,
             descAusencias: descAus,
             descAfp: d.afp,
@@ -70,7 +73,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
             descCesantia: d.cesantia,
             retencion: d.retencion,
             descuentos: d.total,
-            liquido: p.sueldo - descAus - d.total,
+            liquido: base - descAus - d.total,
           };
         })
       )

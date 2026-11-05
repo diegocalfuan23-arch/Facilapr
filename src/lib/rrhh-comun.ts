@@ -11,9 +11,11 @@ export type ResumenAusenciasMes = {
   vacaciones: number;
   /** Los días que no se pagan: faltas, licencia y permiso sin goce (máximo 30). */
   descontables: number;
+  /** Los días con asistencia marcada (presente o con atraso): lo que se paga a quien cobra por día. */
+  trabajados: number;
 };
 
-export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0 };
+export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0 };
 
 /** Lo que vale un día de una persona: el valor fijado en su ficha o, si no hay, un treintavo del sueldo. */
 export const valorDelDia = (sueldo: number, valorDia: number | null | undefined) => (valorDia && valorDia > 0 ? valorDia : Math.round(sueldo / 30));
@@ -31,6 +33,8 @@ export type RemuneracionFila = {
   sueldoBase: number;
   /** Lo fijado en la ficha de la persona; null si usa el sueldo dividido en 30. */
   valorDiaFicha: number | null;
+  /** Se le paga por día trabajado: el sueldo base del mes sale de los días por el valor del día. */
+  porDia: boolean;
   diasDescontados: number;
   descAusencias: number;
   /** Lo registrado este mes en asistencia y ausencias, para sugerir los días a descontar. */

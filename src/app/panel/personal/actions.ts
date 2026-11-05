@@ -35,6 +35,7 @@ const trabajadorSchema = z.object({
   contrato: z.enum(["SUELDO", "HONORARIO"]),
   sueldo: z.number().int().min(0).max(100_000_000),
   valorDia: z.number().int().min(1).max(100_000_000).nullable(),
+  porDia: z.boolean(),
   afp: z.string().trim().max(40).nullable(),
   afpTasa: z.number().int().min(0).max(3000),
   saludTasa: z.number().int().min(0).max(3000),
@@ -58,6 +59,7 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
     contrato: formData.get("contrato"),
     sueldo: aEntero(formData.get("sueldo")),
     valorDia: aEntero(formData.get("valorDia")) || null,
+    porDia: formData.get("porDia") === "si",
     fechaIngreso: aTexto(formData.get("fechaIngreso")),
     afp: aTexto(formData.get("afp")),
     afpTasa: tasa(formData.get("afpTasa")),
@@ -67,6 +69,10 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
     notas: aTexto(formData.get("notas")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  if (parsed.data.porDia && !parsed.data.valorDia) return { ok: false, error: "Escribe cuánto se le paga por día trabajado." };
+  // A quien cobra por día no se le fija un sueldo mensual: cada mes sale de sus días trabajados.
+  if (parsed.data.porDia) parsed.data.sueldo = 0;
 
   const id = String(formData.get("id") ?? "");
   try {

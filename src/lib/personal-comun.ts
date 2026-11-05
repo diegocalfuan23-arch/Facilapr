@@ -33,6 +33,8 @@ export type TrabajadorFila = {
   sueldo: number;
   /** Lo que vale un día de esta persona; null = el sueldo dividido en 30. */
   valorDia: number | null;
+  /** Cobra por los días que trabaja, no un sueldo mensual. */
+  porDia: boolean;
   fechaIngreso: string | null;
   afp: string | null;
   /** Centésimas de %: 1058 = 10,58 %. */

@@ -47,7 +47,7 @@ export function PersonalVista({ personas, cuentas, puedeTesorero }: { personas: 
         <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Costo mensual</p>
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{clp.format(costoMensual)}</p>
-          <p className="mt-2 text-[0.8rem] text-muted-foreground">Suma de sus sueldos brutos</p>
+          <p className="mt-2 text-[0.8rem] text-muted-foreground">Suma de los sueldos mensuales (sin los pagos por día)</p>
         </div>
         <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Inactivas</p>
@@ -117,9 +117,19 @@ export function PersonalVista({ personas, cuentas, puedeTesorero }: { personas: 
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{p.cargo}</td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{accesoDe(p) ? TEXTO_ACCESO[accesoDe(p)!] : "—"}</td>
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{TEXTO_CONTRATO[p.contrato]}</td>
-                  <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(p.sueldo)}</td>
-                  <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">-{clp.format(descuentosLegales(p, p.sueldo).total)}</td>
-                  <td className="px-5 py-4 font-medium whitespace-nowrap tabular-nums">{clp.format(p.sueldo - descuentosLegales(p, p.sueldo).total)}</td>
+                  {p.porDia ? (
+                    <>
+                      <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(p.valorDia ?? 0)} <span className="text-[0.8rem] text-muted-foreground">por día</span></td>
+                      <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">—</td>
+                      <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">según los días</td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(p.sueldo)}</td>
+                      <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">-{clp.format(descuentosLegales(p, p.sueldo).total)}</td>
+                      <td className="px-5 py-4 font-medium whitespace-nowrap tabular-nums">{clp.format(p.sueldo - descuentosLegales(p, p.sueldo).total)}</td>
+                    </>
+                  )}
                   <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{p.fechaIngreso ? fechaCorta(p.fechaIngreso) : "—"}</td>
                 </tr>
               ))}

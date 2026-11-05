@@ -1129,6 +1129,8 @@ export const trabajadores = pgTable(
     sueldo: integer("sueldo").notNull().default(0),
     /** Lo que vale un día de esta persona, para descontar los días no trabajados. Null = el sueldo dividido en 30. */
     valorDia: integer("valorDia"),
+    /** Se le paga por los días que trabaja (valorDia por día), no un sueldo mensual fijo. */
+    porDia: boolean("porDia").notNull().default(false),
     fechaIngreso: date("fechaIngreso", { mode: "string" }),
     /** La AFP en que cotiza (solo informativa). */
     afp: text("afp"),
