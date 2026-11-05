@@ -21,20 +21,4 @@ export type TrabajadorFila = {
   fechaIngreso: string | null;
   activo: boolean;
   notas: string | null;
-  /** Lo que ya se le pagó por el mes que se está mirando. */
-  pagadoMes: number;
 };
-
-export type PagoTrabajadorFila = {
-  id: string;
-  trabajadorId: string;
-  trabajador: string;
-  periodo: string;
-  fecha: string;
-  monto: number;
-  medio: string;
-  nota: string | null;
-};
-
-/** El concepto con que el pago queda en Caja: así se reconoce que viene de Personal. */
-export const PREFIJO_CONCEPTO_PERSONAL = "Personal · ";

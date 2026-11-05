@@ -1,4 +1,4 @@
-import { AlertOctagon, Building, BarChart3, Banknote, Briefcase, FileText, Package, ShoppingCart, Wallet } from "lucide-react";
+import { AlertOctagon, Building, BarChart3, Banknote, UsersRound, FileText, Package, ShoppingCart, Wallet } from "lucide-react";
 
 const modulos = [
   {
@@ -30,9 +30,9 @@ const modulos = [
     detalle: "Un resumen del mes listo para imprimir o descargar, para rendir cuentas a los socios sin armar planillas.",
   },
   {
-    icon: Briefcase,
-    titulo: "Personal",
-    detalle: "Quienes trabajan para el comité, con su sueldo u honorario. Cada pago que registras baja a la Caja como egreso.",
+    icon: UsersRound,
+    titulo: "RR.HH.",
+    detalle: "Personal, remuneraciones, vacaciones con su saldo, licencias y asistencia diaria. Cada sueldo que pagas baja a la Caja.",
   },
   {
     icon: AlertOctagon,
@@ -60,7 +60,7 @@ export function GestionSection() {
             No solo cobras el agua: llevas toda la plata del comité.
           </h2>
           <p className="mt-4 text-[0.97rem] text-muted-foreground">
-            Ingresos, egresos, compras, inventario, personal, incidentes y activos fijos en el mismo lugar donde ya haces las boletas. Disponible desde el
+            Ingresos, egresos, compras, inventario, RR.HH., incidentes y activos fijos en el mismo lugar donde ya haces las boletas. Disponible desde el
             plan Estándar.
           </p>
         </div>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { categoriasMovimiento, compras, incidentes, movimientos, pagosTrabajador } from "@/lib/db/schema";
+import { categoriasMovimiento, compras, incidentes, movimientos, remuneraciones } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
@@ -167,8 +167,8 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
   // El egreso de una compra, de un pago a personal o de un incidente se maneja desde su módulo: si se borrara aquí, quedaría pagado sin egreso.
   const [deCompra] = await db.select({ id: compras.id }).from(compras).where(and(eq(compras.movimientoId, id), eq(compras.aprId, apr.id))).limit(1).catch(() => []);
   if (deCompra) return { ok: false, error: "Este egreso viene de una compra. Se maneja desde Compras." };
-  const [dePersonal] = await db.select({ id: pagosTrabajador.id }).from(pagosTrabajador).where(and(eq(pagosTrabajador.movimientoId, id), eq(pagosTrabajador.aprId, apr.id))).limit(1).catch(() => []);
-  if (dePersonal) return { ok: false, error: "Este egreso viene de un pago a personal. Se anula desde Personal." };
+  const [dePersonal] = await db.select({ id: remuneraciones.id }).from(remuneraciones).where(and(eq(remuneraciones.movimientoId, id), eq(remuneraciones.aprId, apr.id))).limit(1).catch(() => []);
+  if (dePersonal) return { ok: false, error: "Este egreso viene de una remuneración. Se maneja desde Remuneraciones." };
   const [deIncidente] = await db.select({ id: incidentes.id }).from(incidentes).where(and(eq(incidentes.movimientoId, id), eq(incidentes.aprId, apr.id))).limit(1).catch(() => []);
   if (deIncidente) return { ok: false, error: "Este egreso viene de un incidente. Se maneja desde Incidentes." };
 

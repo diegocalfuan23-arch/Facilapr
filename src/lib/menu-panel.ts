@@ -1,5 +1,10 @@
 import {
   AlertOctagon,
+  CalendarCheck,
+  HandCoins,
+  Palmtree,
+  Stethoscope,
+  UsersRound,
   BarChart3,
   Banknote,
   ClipboardList,
@@ -55,11 +60,19 @@ const gestion: Enlace[] = [
   { href: "/panel/tecnicos", label: "Operadores", icon: HardHat },
 ];
 
-/** Operación (desde el plan Estándar): el personal del comité y las fallas del sistema de agua. */
+/** Operación (desde el plan Estándar): las fallas del sistema de agua y los bienes del comité. */
 const operacion: Enlace[] = [
-  { href: "/panel/personal", label: "Personal", icon: Briefcase },
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
   { href: "/panel/activos", label: "Activos fijos", icon: Building },
+];
+
+/** RR.HH. (desde el plan Estándar): las personas que trabajan para el comité. */
+const rrhh: Enlace[] = [
+  { href: "/panel/personal", label: "Personal", icon: Briefcase },
+  { href: "/panel/remuneraciones", label: "Remuneraciones", icon: HandCoins },
+  { href: "/panel/vacaciones", label: "Vacaciones", icon: Palmtree },
+  { href: "/panel/licencias", label: "Licencias", icon: Stethoscope },
+  { href: "/panel/asistencia", label: "Asistencia", icon: CalendarCheck },
 ];
 
 /**
@@ -114,6 +127,7 @@ export function gruposDelMenu({
       enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
     },
     ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),
+    ...(conFinanzas ? [{ titulo: "RR.HH.", icono: UsersRound, enlaces: rrhh }] : []),
     ...(conFinanzas ? [{ titulo: "Operación", icono: Wrench, enlaces: operacion }] : []),
     {
       titulo: "Atención",
@@ -146,7 +160,11 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/lecturas": "medidor consumo medicion",
   "/panel/lecturas/terreno": "celular tecnico ruta",
   "/panel/tecnicos": "operadores equipo invitar",
-  "/panel/personal": "trabajadores empleados sueldos honorarios operador tesorero remuneraciones",
+  "/panel/personal": "trabajadores empleados ficha operador tesorero recursos humanos rrhh",
+  "/panel/remuneraciones": "sueldos liquidaciones honorarios pago bonos descuentos planilla",
+  "/panel/vacaciones": "feriado dias libres permisos saldo descanso",
+  "/panel/licencias": "licencia medica enfermedad reposo salud",
+  "/panel/asistencia": "marcar presente ausente atraso horario llegada",
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
   "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",

@@ -1274,3 +1274,80 @@ export const activosFijos = pgTable(
   },
   (table) => [index("ActivoFijo_aprId_idx").on(table.aprId)]
 );
+
+/** La liquidación de un mes de una persona: sueldo base, bonos y descuentos. Al pagarla deja su egreso en Caja. */
+export const remuneraciones = pgTable(
+  "Remuneracion",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    /** El mes, AAAA-MM. */
+    periodo: text("periodo").notNull(),
+    sueldoBase: integer("sueldoBase").notNull().default(0),
+    bonos: integer("bonos").notNull().default(0),
+    /** Previsión, salud y otros descuentos, en un solo monto. */
+    descuentos: integer("descuentos").notNull().default(0),
+    /** Lo que se le paga: base + bonos - descuentos. */
+    liquido: integer("liquido").notNull().default(0),
+    /** PENDIENTE | PAGADA */
+    estado: text("estado").notNull().default("PENDIENTE"),
+    fechaPago: date("fechaPago", { mode: "string" }),
+    medio: text("medio"),
+    nota: text("nota"),
+    movimientoId: text("movimientoId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("Remuneracion_trabajador_periodo_key").on(table.trabajadorId, table.periodo)]
+);
+
+/** Vacaciones, licencias médicas y permisos de una persona, con sus fechas. */
+export const ausencias = pgTable(
+  "Ausencia",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    /** VACACIONES | LICENCIA | PERMISO */
+    tipo: text("tipo").notNull(),
+    desde: date("desde", { mode: "string" }).notNull(),
+    hasta: date("hasta", { mode: "string" }).notNull(),
+    /** Vacaciones y permisos: días hábiles. Licencias: días corridos. */
+    dias: integer("dias").notNull().default(0),
+    /** SOLICITADA | APROBADA | RECHAZADA */
+    estado: text("estado").notNull().default("APROBADA"),
+    /** En una licencia: el motivo o el N.° de folio. */
+    detalle: text("detalle"),
+    nota: text("nota"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Ausencia_aprId_desde_idx").on(table.aprId, table.desde)]
+);
+
+/** El registro diario de asistencia: un estado por persona y por día. */
+export const asistencias = pgTable(
+  "Asistencia",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    /** PRESENTE | ATRASO | AUSENTE | PERMISO */
+    estado: text("estado").notNull(),
+    nota: text("nota"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("Asistencia_trabajador_fecha_key").on(table.trabajadorId, table.fecha)]
+);

@@ -118,7 +118,7 @@ type Props = {
 function moduloDe(l: { automatico: boolean; categoria: string; concepto: string }): string | null {
   if (l.automatico) return null;
   if (l.categoria === "COMPRAS" && /^Compra C-\d+/.test(l.concepto)) return "Compra";
-  if (l.categoria === "REMUNERACIONES" && l.concepto.startsWith("Personal · ")) return "Personal";
+  if (l.categoria === "REMUNERACIONES" && l.concepto.startsWith("Remuneración · ")) return "Remuneración";
   if (l.categoria === "REPARACIONES" && l.concepto.startsWith("Incidente I-")) return "Incidente";
   return null;
 }
