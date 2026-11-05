@@ -51,10 +51,11 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
   const [dias, setDias] = useState(String(fila.diasDescontados));
   // A quien cobra por día: los días trabajados salen del sueldo base guardado y del valor del día.
+  const [horas, setHoras] = useState(fila.horasDescontadas ? String(fila.horasDescontadas).replace(".", ",") : "");
   const [diasTrab, setDiasTrab] = useState(String(fila.porDia && fila.valorDiaFicha ? Math.round(fila.sueldoBase / fila.valorDiaFicha) : 0));
   // El valor del día con que quedó esta liquidación (si ya tenía días descontados), el de la ficha, o el sueldo ÷ 30.
   const [valorDia, setValorDia] = useState(
-    String(fila.diasDescontados > 0 && fila.descAusencias > 0 ? Math.round(fila.descAusencias / fila.diasDescontados) : valorDelDia(fila.sueldoBase, fila.valorDiaFicha))
+    String(fila.diasDescontados > 0 && fila.horasDescontadas === 0 && fila.descAusencias > 0 ? Math.round(fila.descAusencias / fila.diasDescontados) : valorDelDia(fila.sueldoBase, fila.valorDiaFicha))
   );
 
   useEffect(() => {
@@ -65,7 +66,12 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   }, [estado, onCerrar]);
 
   const baseNum = fila.porDia ? (Number(diasTrab) || 0) * (Number(valorDia) || 0) : Number(base) || 0;
-  const descAusencias = fila.porDia ? 0 : descuentoPorDias(baseNum, Number(dias) || 0, Number(valorDia) || null);
+  const horasNum = Number(horas.replace(",", ".")) || 0;
+  const diasNoPagados = fila.porDia ? 0 : Number(dias) || 0;
+  const descAusencias = descuentoPorDias(baseNum, diasNoPagados, Number(valorDia) || null, horasNum);
+  const formatoNumero = (n: number) => String(Math.round(n * 10) / 10).replace(".", ",");
+  const detalleNoPagado = [diasNoPagados > 0 ? `${diasNoPagados} ${diasNoPagados === 1 ? "día" : "días"}` : null, horasNum > 0 ? `${formatoNumero(horasNum)} h` : null].filter(Boolean).join(" + ");
+  const diasPagados = Math.max(0, 30 - diasNoPagados - horasNum / 8);
   const imponible = Math.max(0, baseNum - descAusencias) + (Number(bonos) || 0);
   const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
   const totalDescuentos = legales.total + (Number(otros) || 0);
@@ -85,6 +91,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <input type="hidden" name="otrosDescuentos" value={otros} />
           <input type="hidden" name="diasDescontados" value={fila.porDia ? 0 : dias} />
           <input type="hidden" name="valorDia" value={valorDia} />
+          <input type="hidden" name="horasDescontadas" value={horasNum} />
           <div className="grid gap-4 sm:grid-cols-3">
             {fila.porDia ? (
               <div>
@@ -175,14 +182,45 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           </div>
             </>
           )}
+          <div>
+            <label htmlFor="rem-horas" className={etiqueta}>
+              Horas de permiso sin goce
+            </label>
+            <Input
+              id="rem-horas"
+              value={horas}
+              onChange={(e) => setHoras(e.target.value.replace(/[^\d,.]/g, "").slice(0, 5))}
+              inputMode="decimal"
+              placeholder="0"
+              className={cn(campo, "sm:w-32")}
+            />
+            <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
+              Una jornada son 8 horas: cada hora descuenta un octavo del valor del día.
+              {fila.ausenciasMes.horasPermisoSinGoce > 0 && horasNum !== fila.ausenciasMes.horasPermisoSinGoce && (
+                <>
+                  {" "}
+                  Este mes tuvo {formatoNumero(fila.ausenciasMes.horasPermisoSinGoce)} h de permiso sin goce.{" "}
+                  <button type="button" className="font-medium text-primary hover:underline" onClick={() => setHoras(String(fila.ausenciasMes.horasPermisoSinGoce).replace(".", ","))}>
+                    Usar {formatoNumero(fila.ausenciasMes.horasPermisoSinGoce)}
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
           <div className="rounded-xl border border-border bg-card px-4 py-3 text-[0.9rem]">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Sueldo bruto</span>
               <span className="tabular-nums">{clp.format(baseNum)}</span>
             </div>
+            {!fila.porDia && (
+              <div className="flex justify-between text-muted-foreground">
+                <span>Días pagados</span>
+                <span className="tabular-nums">{formatoNumero(diasPagados)} de 30</span>
+              </div>
+            )}
             {descAusencias > 0 && (
               <div className="flex justify-between text-muted-foreground">
-                <span>Días no pagados ({dias})</span>
+                <span>No pagado ({detalleNoPagado})</span>
                 <span className="tabular-nums">-{clp.format(descAusencias)}</span>
               </div>
             )}

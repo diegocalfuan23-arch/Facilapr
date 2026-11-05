@@ -13,16 +13,21 @@ export type ResumenAusenciasMes = {
   descontables: number;
   /** Los días con asistencia marcada (presente o con atraso): lo que se paga a quien cobra por día. */
   trabajados: number;
+  /** Las horas de permisos por horas sin goce, aprobados este mes. Se descuentan como parte de un día. */
+  horasPermisoSinGoce: number;
 };
 
-export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0 };
+export const SIN_AUSENCIAS: ResumenAusenciasMes = { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0 };
 
 /** Lo que vale un día de una persona: el valor fijado en su ficha o, si no hay, un treintavo del sueldo. */
 export const valorDelDia = (sueldo: number, valorDia: number | null | undefined) => (valorDia && valorDia > 0 ? valorDia : Math.round(sueldo / 30));
 
-/** Lo que se descuenta por días no pagados: el valor del día por cada día (hasta 30). */
-export const descuentoPorDias = (sueldo: number, dias: number, valorDia?: number | null) =>
-  Math.round(valorDelDia(sueldo, valorDia) * Math.min(Math.max(dias, 0), 30));
+/** Cuántas horas tiene una jornada: un permiso de 4 horas es medio día. */
+export const JORNADA_HORAS = 8;
+
+/** Lo que se descuenta por días y horas no pagados: el valor del día por cada día, y una parte de él por cada hora (hasta 30 días). */
+export const descuentoPorDias = (sueldo: number, dias: number, valorDia?: number | null, horas = 0) =>
+  Math.round(valorDelDia(sueldo, valorDia) * Math.min(Math.max(dias, 0) + Math.max(horas, 0) / JORNADA_HORAS, 30));
 
 export type RemuneracionFila = {
   id: string;
@@ -37,6 +42,8 @@ export type RemuneracionFila = {
   porDia: boolean;
   diasDescontados: number;
   descAusencias: number;
+  /** Horas de permiso sin goce descontadas en esta liquidación. */
+  horasDescontadas: number;
   /** Lo registrado este mes en asistencia y ausencias, para sugerir los días a descontar. */
   ausenciasMes: ResumenAusenciasMes;
   bonos: number;
@@ -92,6 +99,8 @@ export type AusenciaFila = {
   detalle: string | null;
   /** Solo en un permiso: sin goce de sueldo. */
   sinGoce: boolean;
+  /** Solo en un permiso por horas: cuántas. Null si es por días. */
+  horas: number | null;
   nota: string | null;
 };
 

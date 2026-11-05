@@ -59,7 +59,8 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
           // A quien cobra por día se le paga lo que trabajó (según su asistencia); no hay días que descontar.
           const base = p.porDia ? (ausenciasMes[p.id]?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
           const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
-          const descAus = descuentoPorDias(base, dias, p.valorDia);
+          const horas = ausenciasMes[p.id]?.horasPermisoSinGoce ?? 0;
+          const descAus = descuentoPorDias(base, dias, p.valorDia, horas);
           const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus);
           return {
             aprId: apr.id,
@@ -68,6 +69,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
             sueldoBase: base,
             diasDescontados: dias,
             descAusencias: descAus,
+            horasDescontadas: horas,
             descAfp: d.afp,
             descSalud: d.salud,
             descCesantia: d.cesantia,
@@ -93,6 +95,8 @@ const liquidacionSchema = z.object({
   diasDescontados: z.number().int().min(0).max(30, "Los días descontados no pueden pasar de 30."),
   otrosDescuentos: z.number().int().min(0).max(100_000_000),
   nota: z.string().trim().max(200).nullable(),
+  /** Horas de permiso sin goce que se descuentan además de los días. */
+  horasDescontadas: z.number().min(0).max(240),
   /** El valor del día de esta liquidación; 0 = el de la ficha o el sueldo dividido en 30. */
   valorDia: z.number().int().min(0).max(100_000_000),
 });
@@ -112,6 +116,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
     otrosDescuentos: aEntero(formData.get("otrosDescuentos")),
     nota: aTexto(formData.get("nota")),
     valorDia: aEntero(formData.get("valorDia")),
+    horasDescontadas: Number(String(formData.get("horasDescontadas") ?? "").replace(",", ".")) || 0,
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -134,7 +139,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
   if (actual.estado === "PAGADA") return { ok: false, error: "Ya está pagada. Deshaz el pago para corregirla." };
 
   // Lo que no se trabajó se descuenta del sueldo, y sobre lo que queda se calculan la AFP, la salud y lo demás.
-  const descAus = descuentoPorDias(d.sueldoBase, d.diasDescontados, d.valorDia || actual.valorDiaFicha);
+  const descAus = descuentoPorDias(d.sueldoBase, d.diasDescontados, d.valorDia || actual.valorDiaFicha, d.horasDescontadas);
   const imponible = Math.max(0, d.sueldoBase - descAus) + d.bonos;
   const legales = descuentosLegales({ ...actual, contrato: actual.contrato as Contrato }, imponible);
   const descuentos = legales.total + d.otrosDescuentos;
@@ -146,6 +151,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
       sueldoBase: d.sueldoBase,
       diasDescontados: d.diasDescontados,
       descAusencias: descAus,
+      horasDescontadas: d.horasDescontadas,
       bonos: d.bonos,
       descAfp: legales.afp,
       descSalud: legales.salud,

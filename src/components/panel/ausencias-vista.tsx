@@ -140,7 +140,7 @@ export function AusenciasVista({
                   </p>
                   <div className="mt-2 flex items-center justify-between gap-2 text-[0.8rem]">
                     <span className="font-semibold tabular-nums">
-                      {a.dias} {a.dias === 1 ? "día" : "días"}
+                      {a.horas != null ? `${String(a.horas).replace(".", ",")} h` : `${a.dias} ${a.dias === 1 ? "día" : "días"}`}
                     </span>
                     {a.detalle && <span className="truncate text-muted-foreground">{a.detalle}</span>}
                   </div>

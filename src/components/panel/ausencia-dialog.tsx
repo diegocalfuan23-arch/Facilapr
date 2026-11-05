@@ -37,6 +37,10 @@ export function AusenciaDialog({
   const [tipoActual, setTipoActual] = useState<TipoAusencia>(ausencia?.tipo ?? tipo);
   const [desde, setDesde] = useState(ausencia?.desde ?? hoyEnChile());
   const [hasta, setHasta] = useState(ausencia?.hasta ?? hoyEnChile());
+  // Un permiso puede ser de unas horas dentro de un solo día.
+  const [porHoras, setPorHoras] = useState(ausencia?.horas != null);
+  const [horas, setHoras] = useState(ausencia?.horas != null ? String(ausencia.horas).replace(".", ",") : "");
+  const modoHoras = tipoActual === "PERMISO" && porHoras;
   const dias = hasta >= desde ? diasDe(tipoActual, desde, hasta) : 0;
   const esLicencia = tipoActual === "LICENCIA";
 
@@ -104,24 +108,51 @@ export function AusenciaDialog({
                 </select>
               </div>
             )}
+            {tipoActual === "PERMISO" && (
+              <div className="sm:col-span-2">
+                <label htmlFor="aus-duracion" className={etiqueta}>
+                  Duración del permiso
+                </label>
+                <select id="aus-duracion" value={porHoras ? "horas" : "dias"} onChange={(e) => setPorHoras(e.target.value === "horas")} className={selectClase}>
+                  <option value="dias">Uno o más días</option>
+                  <option value="horas">Unas horas de un solo día</option>
+                </select>
+              </div>
+            )}
             <div>
               <label htmlFor="aus-desde" className={etiqueta}>
-                Desde
+                {modoHoras ? "Día" : "Desde"}
               </label>
               <Input id="aus-desde" name="desde" type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={campo} required />
             </div>
-            <div>
-              <label htmlFor="aus-hasta" className={etiqueta}>
-                Hasta
-              </label>
-              <Input id="aus-hasta" name="hasta" type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className={campo} required />
-            </div>
+            {modoHoras ? (
+              <div>
+                <input type="hidden" name="hasta" value={desde} />
+                <label htmlFor="aus-horas" className={etiqueta}>
+                  Horas
+                </label>
+                <Input id="aus-horas" name="horas" value={horas} onChange={(e) => setHoras(e.target.value.replace(/[^\d,.]/g, "").slice(0, 5))} inputMode="decimal" placeholder="Ej.: 2,5" className={campo} required />
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="aus-hasta" className={etiqueta}>
+                  Hasta
+                </label>
+                <Input id="aus-hasta" name="hasta" type="date" value={hasta} min={desde} onChange={(e) => setHasta(e.target.value)} className={campo} required />
+              </div>
+            )}
           </div>
 
-          <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
-            <span className="text-[0.9rem] text-muted-foreground">{esLicencia ? "Días corridos" : "Días hábiles"}</span>
-            <span className="text-[1.25rem] font-bold tabular-nums">{dias}</span>
-          </div>
+          {modoHoras ? (
+            <p className="rounded-xl border border-border bg-card px-4 py-3 text-[0.85rem] text-muted-foreground">
+              Una jornada son 8 horas. Si es sin goce, cada hora descuenta un octavo del valor del día en la liquidación del mes. No gasta días de vacaciones.
+            </p>
+          ) : (
+            <div className="flex items-center justify-between rounded-xl border border-border bg-card px-4 py-3">
+              <span className="text-[0.9rem] text-muted-foreground">{esLicencia ? "Días corridos" : "Días hábiles"}</span>
+              <span className="text-[1.25rem] font-bold tabular-nums">{dias}</span>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
@@ -143,7 +174,7 @@ export function AusenciaDialog({
             {tipoActual === "PERMISO" && (
               <label className="flex items-center gap-2 text-[0.9rem] sm:col-span-2">
                 <input type="checkbox" name="sinGoce" value="si" defaultChecked={ausencia?.sinGoce ?? false} className="size-4" />
-                Sin goce de sueldo (esos días se descuentan de la remuneración)
+                {modoHoras ? "Sin goce de sueldo (esas horas se descuentan de la remuneración)" : "Sin goce de sueldo (esos días se descuentan de la remuneración)"}
               </label>
             )}
             <div className="sm:col-span-2">

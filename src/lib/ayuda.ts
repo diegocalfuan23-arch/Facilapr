@@ -1128,6 +1128,10 @@ export const ARTICULOS: Articulo[] = [
         nota: "Puedes cambiar los días a mano si algo no calza.",
       },
       {
+        titulo: "Mira los días y horas que se pagan",
+        texto: "La liquidación muestra «Días pagados» (de 30) y cuánto se descuenta por las ausencias: los días de falta, de licencia y de permiso sin goce, más las horas de permisos sin goce. En «Horas de permiso sin goce» aparece el total del mes y el botón «Usar» para cargarlo; puedes cambiarlo a mano.",
+      },
+      {
         titulo: "Cambia el valor del día, si hace falta",
         texto: "Junto a los días no pagados está el «Valor del día»: parte con el de la ficha de la persona (o el sueldo dividido en 30) y lo puedes cambiar solo para ese mes. A quien cobra por día, la liquidación muestra sus días trabajados según la asistencia, con el botón «Usar N» para cargarlos.",
       },
@@ -1165,6 +1169,11 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Apruébala o recházala",
         texto: "Arrastra la tarjeta a Aprobadas o Rechazadas (en el celular, usa el botón de la tarjeta). Solo lo aprobado cuenta en el saldo y en Asistencia.",
+      },
+      {
+        titulo: "Permisos por horas",
+        texto: "Al registrar un permiso, en «Duración» elige «Unas horas de un solo día» y escribe cuántas (por ejemplo, 2,5). No gasta días de vacaciones ni marca el día completo como ausente en Asistencia. Si es sin goce, en la liquidación del mes se descuentan esas horas: una jornada son 8 horas, así que cada hora descuenta un octavo del valor del día.",
+        nota: "Si el permiso es con goce, no se descuenta nada, sin importar cuántas horas sean.",
       },
       {
         titulo: "Permisos y licencias",

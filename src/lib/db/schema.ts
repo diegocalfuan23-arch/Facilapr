@@ -1311,6 +1311,8 @@ export const remuneraciones = pgTable(
     diasDescontados: integer("diasDescontados").notNull().default(0),
     /** Lo que se descuenta del sueldo por esos días: base / 30 por cada día. */
     descAusencias: integer("descAusencias").notNull().default(0),
+    /** Horas de permiso sin goce que se descontaron (además de los días). */
+    horasDescontadas: doublePrecision("horasDescontadas").notNull().default(0),
     bonos: integer("bonos").notNull().default(0),
     /** El desglose de lo que se descuenta; `descuentos` es la suma de todo. */
     descAfp: integer("descAfp").notNull().default(0),
@@ -1356,6 +1358,8 @@ export const ausencias = pgTable(
     detalle: text("detalle"),
     /** Solo en un permiso: true si no se paga ese día (sin goce de sueldo). */
     sinGoce: boolean("sinGoce").notNull().default(false),
+    /** Solo en un permiso por horas (de un solo día): cuántas horas. Null = el permiso es por días. */
+    horas: doublePrecision("horas"),
     nota: text("nota"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { asistencias, ausencias, remuneraciones, trabajadores } from "@/lib/db/schema";
 import type {
@@ -28,6 +28,7 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
         sueldoBase: remuneraciones.sueldoBase,
         diasDescontados: remuneraciones.diasDescontados,
         descAusencias: remuneraciones.descAusencias,
+        horasDescontadas: remuneraciones.horasDescontadas,
         bonos: remuneraciones.bonos,
         descAfp: remuneraciones.descAfp,
         descSalud: remuneraciones.descSalud,
@@ -79,6 +80,7 @@ export async function listarAusencias(aprId: string, tipos: TipoAusencia[]): Pro
         estado: ausencias.estado,
         detalle: ausencias.detalle,
         sinGoce: ausencias.sinGoce,
+        horas: ausencias.horas,
         nota: ausencias.nota,
       })
       .from(ausencias)
@@ -194,7 +196,7 @@ export async function asistenciaMes(aprId: string, mes: string): Promise<Record<
       db
         .select({ trabajadorId: ausencias.trabajadorId, tipo: ausencias.tipo, desde: ausencias.desde, hasta: ausencias.hasta })
         .from(ausencias)
-        .where(and(eq(ausencias.aprId, aprId), eq(ausencias.estado, "APROBADA"), lte(ausencias.desde, hasta), gte(ausencias.hasta, desde))),
+        .where(and(eq(ausencias.aprId, aprId), eq(ausencias.estado, "APROBADA"), isNull(ausencias.horas), lte(ausencias.desde, hasta), gte(ausencias.hasta, desde))),
     ]);
 
     for (const x of marcas) poner(x.trabajadorId, x.fecha, x.estado as EstadoAsistencia);
@@ -239,6 +241,7 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
       permisoSinGoce: 0,
       descontables: 0,
       trabajados: estados.filter((e) => e === "PRESENTE" || e === "ATRASO").length,
+      horasPermisoSinGoce: 0,
     };
   }
 
@@ -252,12 +255,13 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
           eq(ausencias.tipo, "PERMISO"),
           eq(ausencias.estado, "APROBADA"),
           eq(ausencias.sinGoce, true),
+          isNull(ausencias.horas),
           lte(ausencias.desde, hasta),
           gte(ausencias.hasta, desde)
         )
       );
     for (const x of permisos) {
-      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0 });
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0 });
       const ini = Math.max(Date.parse(x.desde), primero);
       const fin = Math.min(Date.parse(x.hasta), ultimo);
       for (let t = ini; t <= fin; t += 86_400_000) {
@@ -266,6 +270,26 @@ export async function resumenAusenciasMes(aprId: string, mes: string): Promise<R
         // Un día de fin de semana, o que ya cuenta como licencia o vacaciones, no se suma dos veces.
         if (diaSemana !== 0 && diaSemana !== 6 && estado !== "LICENCIA" && estado !== "VACACIONES") r.permisoSinGoce++;
       }
+    }
+
+    // Los permisos por horas (de un solo día): se suman las horas de cada persona.
+    const porHoras = await db
+      .select({ trabajadorId: ausencias.trabajadorId, horas: ausencias.horas })
+      .from(ausencias)
+      .where(
+        and(
+          eq(ausencias.aprId, aprId),
+          eq(ausencias.tipo, "PERMISO"),
+          eq(ausencias.estado, "APROBADA"),
+          eq(ausencias.sinGoce, true),
+          isNotNull(ausencias.horas),
+          gte(ausencias.desde, desde),
+          lte(ausencias.desde, hasta)
+        )
+      );
+    for (const x of porHoras) {
+      const r = (salida[x.trabajadorId] ??= { faltas: 0, licencia: 0, permisoSinGoce: 0, vacaciones: 0, descontables: 0, trabajados: 0, horasPermisoSinGoce: 0 });
+      r.horasPermisoSinGoce += x.horas ?? 0;
     }
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer los permisos sin goce:", e);

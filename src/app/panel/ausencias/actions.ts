@@ -23,6 +23,8 @@ const ausenciaSchema = z.object({
   estado: z.enum(["SOLICITADA", "APROBADA", "RECHAZADA"]),
   detalle: z.string().trim().max(200).nullable(),
   sinGoce: z.boolean(),
+  /** Un permiso por horas: cuántas (de un solo día). */
+  horas: z.number().min(0.25, "Las horas deben ser al menos un cuarto de hora.").max(12, "Un permiso por horas no puede pasar de 12 horas.").nullable(),
   nota: z.string().trim().max(500).nullable(),
 });
 
@@ -45,14 +47,17 @@ export async function guardarAusencia(_prev: ResultadoAusencias | null, formData
     estado: formData.get("estado"),
     detalle: aTexto(formData.get("detalle")),
     sinGoce: formData.get("tipo") === "PERMISO" && formData.get("sinGoce") === "si",
+    horas: formData.get("tipo") === "PERMISO" && String(formData.get("horas") ?? "").trim() !== "" ? Number(String(formData.get("horas")).replace(",", ".")) : null,
     nota: aTexto(formData.get("nota")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
   if (d.hasta < d.desde) return { ok: false, error: "La fecha de término no puede ser antes que la de inicio." };
 
-  const dias = diasDe(d.tipo as TipoAusencia, d.desde, d.hasta);
-  if (dias <= 0) return { ok: false, error: "Ese período no tiene días hábiles. Revisa las fechas." };
+  // Un permiso por horas es de un solo día y no gasta días: cuenta las horas.
+  if (d.horas !== null && d.hasta !== d.desde) return { ok: false, error: "Un permiso por horas es de un solo día." };
+  const dias = d.horas !== null ? 0 : diasDe(d.tipo as TipoAusencia, d.desde, d.hasta);
+  if (d.horas === null && dias <= 0) return { ok: false, error: "Ese período no tiene días hábiles. Revisa las fechas." };
 
   const [persona] = await db
     .select({ id: trabajadores.id })
