@@ -218,6 +218,32 @@ export const avisosRelations = relations(avisos, ({ one }) => ({
   }),
 }));
 
+/**
+ * Imágenes del sitio público del comité: logo, foto de portada y galería. Se
+ * guardan ya comprimidas (el navegador las reduce antes de subirlas) como base64
+ * en la misma base, para no depender de un servicio de archivos aparte.
+ */
+export const sitioImagenes = pgTable(
+  "SitioImagen",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** LOGO | PORTADA | GALERIA */
+    tipo: text("tipo").notNull(),
+    /** image/webp, image/jpeg o image/png. */
+    mime: text("mime").notNull(),
+    /** El archivo en base64. */
+    datos: text("datos").notNull(),
+    bytes: integer("bytes").notNull(),
+    pie: text("pie"),
+    orden: integer("orden").notNull().default(0),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("SitioImagen_aprId_tipo_idx").on(table.aprId, table.tipo)]
+);
+
 export const socios = pgTable(
   "Socio",
   {

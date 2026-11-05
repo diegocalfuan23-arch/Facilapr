@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Globe, Lock } from "lucide-react";
 import { db } from "@/lib/db";
 import { avisos } from "@/lib/db/schema";
@@ -12,6 +12,7 @@ import {
   type Plan,
 } from "@/lib/planes";
 import { SitioEditor } from "@/components/panel/sitio-editor";
+import { imagenesDelSitio } from "@/lib/sitio-imagenes";
 
 export const metadata: Metadata = {
   title: "Sitio público",
@@ -65,17 +66,21 @@ export default async function SitioPage() {
   }
 
   const listado = await db.query.avisos.findMany({
-    where: eq(avisos.aprId, apr.id),
+    where: and(eq(avisos.aprId, apr.id), eq(avisos.publicado, true)),
     orderBy: [desc(avisos.createdAt)],
+    limit: 5,
     columns: {
       id: true,
       tipo: true,
       titulo: true,
+      cuerpo: true,
       sectores: true,
       inicia: true,
       termina: true,
     },
   });
+
+  const imagenes = await imagenesDelSitio(apr.id);
 
   return (
     <SitioEditor
@@ -88,7 +93,22 @@ export default async function SitioPage() {
         tarifaMetroCubico: apr.tarifaMetroCubico,
         infoPago: apr.infoPago,
       }}
+      sitio={{
+        id: apr.id,
+        nombre: apr.nombre,
+        comuna: apr.comuna,
+        region: apr.region,
+        direccion: apr.direccion,
+        telefono: apr.telefono,
+        email: apr.email,
+        sitioDescripcion: apr.sitioDescripcion,
+        horarioAtencion: apr.horarioAtencion,
+        tarifaCargoFijo: apr.tarifaCargoFijo,
+        tarifaMetroCubico: apr.tarifaMetroCubico,
+        infoPago: apr.infoPago,
+      }}
       avisos={listado}
+      imagenes={imagenes}
       dominioRaiz={DOMINIO_RAIZ}
       sugerenciaSlug={generarSlug(apr.nombre)}
     />

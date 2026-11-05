@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { formatearTelefono } from "@/lib/formato";
 import { AsistenteComite } from "@/components/sitio/asistente-comite";
+import { SIN_IMAGENES, urlImagenSitio, type ImagenesDelSitio } from "@/lib/sitio-imagenes-comun";
 
 /*
   Tercera pasada. Las dos anteriores inventaron un mundo visual propio para
@@ -92,11 +93,16 @@ export function SitioApr({
   avisos,
   slug,
   dominio,
+  imagenes = SIN_IMAGENES,
+  vistaPrevia = false,
 }: {
   apr: DatosSitio;
   avisos: AvisoSitio[];
   slug?: string;
   dominio?: string;
+  imagenes?: ImagenesDelSitio;
+  /** En la vista previa del panel: sin el asistente flotante y sin que los enlaces saquen de la pantalla. */
+  vistaPrevia?: boolean;
 }) {
   const hayTarifas =
     apr.tarifaCargoFijo !== null || apr.tarifaMetroCubico !== null;
@@ -105,12 +111,17 @@ export function SitioApr({
   const corteActivo = avisos.find((a) => a.tipo === "CORTE");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className={vistaPrevia ? "bg-background" : "min-h-screen bg-background"}>
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-[1180px] items-center gap-3 px-7 py-4">
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <Droplet className="size-4.5 fill-primary text-primary" />
-          </span>
+          {imagenes.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={urlImagenSitio(imagenes.logo.id)} alt="" className="size-9 shrink-0 rounded-lg object-contain" />
+          ) : (
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+              <Droplet className="size-4.5 fill-primary text-primary" />
+            </span>
+          )}
           <div className="min-w-0">
             <div className="truncate font-semibold">{apr.nombre}</div>
             <div className="text-[0.8rem] text-muted-foreground">
@@ -150,6 +161,17 @@ export function SitioApr({
           </a>
         </div>
       </section>
+
+      {imagenes.portada && (
+        <div className="mx-auto -mt-6 mb-16 max-w-[1180px] px-7">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={urlImagenSitio(imagenes.portada.id)}
+            alt={imagenes.portada.pie ?? `Fotografía de ${apr.nombre}`}
+            className="aspect-[21/9] w-full rounded-2xl border border-border object-cover"
+          />
+        </div>
+      )}
 
       {avisos.length > 0 && (
         <section className="border-y border-border bg-muted/40 py-16">
@@ -264,6 +286,28 @@ export function SitioApr({
         </section>
       )}
 
+      {imagenes.galeria.length > 0 && (
+        <section className="py-16">
+          <div className="mx-auto max-w-[1180px] px-7">
+            <span className="font-mono text-[0.72rem] font-semibold tracking-[0.09em] text-primary uppercase">
+              Galería
+            </span>
+            <h2 className="mt-3 mb-7 text-[clamp(1.5rem,2.5vw,1.9rem)] font-semibold text-balance">
+              Nuestro sistema
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {imagenes.galeria.map((foto) => (
+                <figure key={foto.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={urlImagenSitio(foto.id)} alt={foto.pie ?? ""} loading="lazy" className="aspect-[4/3] w-full object-cover" />
+                  {foto.pie && <figcaption className="px-4 py-3 text-[0.85rem] text-muted-foreground">{foto.pie}</figcaption>}
+                </figure>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {hayContacto && (
         <section className="border-t border-border bg-muted/40 py-16">
           <div className="mx-auto max-w-[1180px] px-7">
@@ -332,11 +376,13 @@ export function SitioApr({
         </div>
       </footer>
 
-      <AsistenteComite
-        nombreApr={apr.nombre}
-        slug={slug}
-        dominio={dominio}
-      />
+      {!vistaPrevia && (
+        <AsistenteComite
+          nombreApr={apr.nombre}
+          slug={slug}
+          dominio={dominio}
+        />
+      )}
     </div>
   );
 }

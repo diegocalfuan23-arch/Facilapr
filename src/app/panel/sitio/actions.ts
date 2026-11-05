@@ -181,6 +181,7 @@ export async function crearAviso(
   });
 
   revalidatePath("/panel/sitio");
+  revalidatePath("/panel/sitio/administrar");
   if (apr.slug) revalidatePath(`/sitio/${apr.slug}`);
   return { ok: true };
 }
@@ -229,6 +230,7 @@ export async function eliminarAviso(id: string): Promise<ResultadoAccion> {
     .where(and(eq(avisos.id, id), eq(avisos.aprId, apr.id)));
 
   revalidatePath("/panel/sitio");
+  revalidatePath("/panel/sitio/administrar");
   if (apr.slug) revalidatePath(`/sitio/${apr.slug}`);
   return { ok: true };
 }

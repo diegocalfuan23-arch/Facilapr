@@ -1,39 +1,15 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import {
-  AlertTriangle,
-  Check,
-  Copy,
-  Droplets,
-  ExternalLink,
-  Globe,
-  Loader2,
-  Plus,
-  Sparkles,
-  Trash2,
-  Wrench,
-} from "lucide-react";
-import {
-  alternarPublicado,
-  crearAviso,
-  eliminarAviso,
-  generarSitioIA,
-  guardarSitio,
-  type ResultadoAccion,
-} from "@/app/panel/sitio/actions";
+import { Check, Copy, ExternalLink, Globe, Loader2, Sparkles } from "lucide-react";
+import { alternarPublicado, generarSitioIA, guardarSitio, type ResultadoAccion } from "@/app/panel/sitio/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { SitioVistaPrevia } from "@/components/panel/sitio-vista-previa";
+import type { AvisoSitio, DatosSitio } from "@/components/sitio/sitio-apr";
+import type { ImagenesDelSitio } from "@/lib/sitio-imagenes-comun";
 import { cn } from "@/lib/utils";
 
 export type DatosEditor = {
@@ -45,28 +21,6 @@ export type DatosEditor = {
   tarifaMetroCubico: number | null;
   infoPago: string | null;
 };
-
-export type AvisoEditor = {
-  id: string;
-  tipo: "CORTE" | "MANTENCION" | "NOTICIA";
-  titulo: string;
-  sectores: string | null;
-  inicia: Date | null;
-  termina: Date | null;
-};
-
-const ETIQUETA_TIPO = {
-  CORTE: { texto: "Corte", icono: AlertTriangle, color: "text-destructive" },
-  MANTENCION: { texto: "Mantención", icono: Wrench, color: "text-tertiary" },
-  NOTICIA: { texto: "Noticia", icono: Droplets, color: "text-primary" },
-} as const;
-
-const fechaCorta = new Intl.DateTimeFormat("es-CL", {
-  day: "numeric",
-  month: "short",
-  hour: "2-digit",
-  minute: "2-digit",
-});
 
 const campoClase = "h-10 px-3 text-[0.95rem]";
 
@@ -94,12 +48,17 @@ function Campo({
 
 export function SitioEditor({
   datos,
+  sitio,
   avisos,
+  imagenes,
   dominioRaiz,
   sugerenciaSlug,
 }: {
   datos: DatosEditor;
-  avisos: AvisoEditor[];
+  /** Los datos del comité tal como los ve el sitio público (nombre, comuna, contacto). */
+  sitio: DatosSitio;
+  avisos: AvisoSitio[];
+  imagenes: ImagenesDelSitio;
   dominioRaiz: string;
   sugerenciaSlug: string;
 }) {
@@ -110,7 +69,8 @@ export function SitioEditor({
 
   const [slug, setSlug] = useState(datos.slug ?? sugerenciaSlug);
   const [copiado, setCopiado] = useState(false);
-  const [nuevoAviso, setNuevoAviso] = useState(false);
+  const [cargoFijo, setCargoFijo] = useState(datos.tarifaCargoFijo === null ? "" : String(datos.tarifaCargoFijo));
+  const [valorM3, setValorM3] = useState(datos.tarifaMetroCubico === null ? "" : String(datos.tarifaMetroCubico));
   const [publicando, iniciarPublicar] = useTransition();
   const [errorPublicar, setErrorPublicar] = useState<string | null>(null);
 
@@ -216,7 +176,7 @@ export function SitioEditor({
         </p>
       )}
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <form
           action={accion}
           className="rounded-xl border border-border/60 bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]"
@@ -361,7 +321,8 @@ export function SitioEditor({
                   id="tarifaCargoFijo"
                   name="tarifaCargoFijo"
                   inputMode="numeric"
-                  defaultValue={datos.tarifaCargoFijo ?? ""}
+                  value={cargoFijo}
+                  onChange={(e) => setCargoFijo(e.target.value)}
                   placeholder="2500"
                   className={campoClase}
                 />
@@ -371,7 +332,8 @@ export function SitioEditor({
                   id="tarifaMetroCubico"
                   name="tarifaMetroCubico"
                   inputMode="numeric"
-                  defaultValue={datos.tarifaMetroCubico ?? ""}
+                  value={valorM3}
+                  onChange={(e) => setValorM3(e.target.value)}
                   placeholder="450"
                   className={campoClase}
                 />
@@ -415,185 +377,19 @@ export function SitioEditor({
           </div>
         </form>
 
-        <section className="rounded-xl border border-border/60 bg-card p-6 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <h2 className="text-[0.95rem] font-semibold">Avisos</h2>
-              <p className="mt-1 text-[0.8rem] text-muted-foreground">
-                Cortes, mantenciones y noticias.
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              className="h-9 px-3 text-[0.85rem]"
-              onClick={() => setNuevoAviso(true)}
-            >
-              <Plus />
-              Nuevo
-            </Button>
-          </div>
-
-          <div className="mt-4">
-            {avisos.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-[0.85rem] text-muted-foreground">
-                Todavía no has publicado avisos.
-              </p>
-            ) : (
-              <div className="flex flex-col divide-y divide-border/60">
-                {avisos.map((aviso) => {
-                  const meta = ETIQUETA_TIPO[aviso.tipo];
-                  const Icono = meta.icono;
-
-                  return (
-                    <div
-                      key={aviso.id}
-                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                    >
-                      <Icono className={cn("size-4 shrink-0", meta.color)} />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-[0.9rem] font-medium">
-                          {aviso.titulo}
-                        </div>
-                        <div className="truncate text-[0.78rem] text-muted-foreground">
-                          {meta.texto}
-                          {aviso.inicia && ` · ${fechaCorta.format(aviso.inicia)}`}
-                          {aviso.sectores && ` · ${aviso.sectores}`}
-                        </div>
-                      </div>
-                      <FormularioEliminar id={aviso.id} titulo={aviso.titulo} />
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </section>
+        <SitioVistaPrevia
+          apr={{
+            ...sitio,
+            sitioDescripcion: sitioDescripcion.trim() || null,
+            horarioAtencion: horarioAtencion.trim() || null,
+            infoPago: infoPago.trim() || null,
+            tarifaCargoFijo: cargoFijo.replace(/\D/g, "") === "" ? null : Number(cargoFijo.replace(/\D/g, "")),
+            tarifaMetroCubico: valorM3.replace(/\D/g, "") === "" ? null : Number(valorM3.replace(/\D/g, "")),
+          }}
+          avisos={avisos}
+          imagenes={imagenes}
+        />
       </div>
-
-      <AvisoDialog abierto={nuevoAviso} onAbiertoChange={setNuevoAviso} />
     </>
-  );
-}
-
-function FormularioEliminar({ id, titulo }: { id: string; titulo: string }) {
-  const [pendiente, iniciar] = useTransition();
-
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      disabled={pendiente}
-      aria-label={`Eliminar aviso ${titulo}`}
-      onClick={() => iniciar(async () => void (await eliminarAviso(id)))}
-    >
-      {pendiente ? <Loader2 className="animate-spin" /> : <Trash2 />}
-    </Button>
-  );
-}
-
-function AvisoDialog({
-  abierto,
-  onAbiertoChange,
-}: {
-  abierto: boolean;
-  onAbiertoChange: (v: boolean) => void;
-}) {
-  const [estado, accion, pendiente] = useActionState<
-    ResultadoAccion | null,
-    FormData
-  >(async (prev, formData) => {
-    const r = await crearAviso(prev, formData);
-    if (r.ok) onAbiertoChange(false);
-    return r;
-  }, null);
-
-  return (
-    <Dialog open={abierto} onOpenChange={onAbiertoChange}>
-      <DialogContent className="sm:max-w-[480px]">
-        <DialogHeader>
-          <DialogTitle>Nuevo aviso</DialogTitle>
-          <DialogDescription>
-            Se publica de inmediato en tu sitio.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form action={accion} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="tipo">Tipo</Label>
-            <select
-              id="tipo"
-              name="tipo"
-              defaultValue="CORTE"
-              className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            >
-              <option value="CORTE">Corte de agua</option>
-              <option value="MANTENCION">Mantención</option>
-              <option value="NOTICIA">Noticia</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="titulo">Título</Label>
-            <Input
-              id="titulo"
-              name="titulo"
-              required
-              maxLength={160}
-              placeholder="Corte programado por reparación de matriz"
-            />
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="sectores">Sectores afectados</Label>
-            <Input
-              id="sectores"
-              name="sectores"
-              maxLength={300}
-              placeholder="Sector norte, camino a Pitrelahué"
-            />
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="inicia">Comienza</Label>
-              <Input id="inicia" name="inicia" type="datetime-local" />
-            </div>
-            <div className="flex flex-col gap-1.5">
-              <Label htmlFor="termina">Termina</Label>
-              <Input id="termina" name="termina" type="datetime-local" />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="cuerpo">Detalle</Label>
-            <Textarea
-              id="cuerpo"
-              name="cuerpo"
-              rows={3}
-              maxLength={1000}
-              placeholder="Recomendamos almacenar agua durante la mañana."
-            />
-          </div>
-
-          {estado && !estado.ok && (
-            <p className="text-[0.88rem] text-destructive">{estado.error}</p>
-          )}
-
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onAbiertoChange(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={pendiente}>
-              {pendiente && <Loader2 className="animate-spin" />}
-              Publicar aviso
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

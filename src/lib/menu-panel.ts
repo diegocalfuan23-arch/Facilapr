@@ -11,6 +11,7 @@ import {
   CreditCard,
   Droplets,
   Globe,
+  ImagePlus,
   HardHat,
   Briefcase,
   Building,
@@ -93,6 +94,7 @@ const atencion: Enlace[] = [
   { href: "/panel/cortes", label: "Cortes", icon: Scissors },
   // Solo en Estándar y Grande (el mismo corte que Finanzas); ver gruposDelMenu.
   { href: "/panel/sitio", label: "Sitio público", icon: Globe },
+  { href: "/panel/sitio/administrar", label: "Administrar", icon: ImagePlus },
   { href: "/panel/configuracion", label: "Configuración", icon: Settings },
   { href: "/panel/ayuda", label: "Ayuda", icon: LifeBuoy },
 ];
@@ -130,7 +132,7 @@ export function gruposDelMenu({
     {
       titulo: "Atención",
       icono: Headset,
-      enlaces: atencion.filter((e) => (chat || e.href !== "/panel/conversaciones") && (conFinanzas || e.href !== "/panel/sitio")),
+      enlaces: atencion.filter((e) => (chat || e.href !== "/panel/conversaciones") && (conFinanzas || !e.href.startsWith("/panel/sitio"))),
     },
   ];
 }
@@ -163,6 +165,8 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/vacaciones": "feriado dias libres permisos saldo descanso",
   "/panel/licencias": "licencia medica enfermedad reposo salud",
   "/panel/asistencia": "marcar presente ausente atraso horario llegada",
+  "/panel/sitio": "pagina web dominio direccion publicar landing",
+  "/panel/sitio/administrar": "fotos imagenes logo portada galeria anuncios avisos contenido pagina web",
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
   "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",

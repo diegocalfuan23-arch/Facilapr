@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { aprs, avisos } from "@/lib/db/schema";
 import { puede, type Plan } from "@/lib/planes";
 import type { AvisoSitio, DatosSitio } from "@/components/sitio/sitio-apr";
+import { imagenesDelSitio, type ImagenesDelSitio } from "@/lib/sitio-imagenes";
 
 /**
  * Busca el comité dueño de una landing. Devuelve null —y la ruta responde
@@ -11,7 +12,7 @@ import type { AvisoSitio, DatosSitio } from "@/components/sitio/sitio-apr";
  */
 export async function cargarSitio(
   filtro: { slug: string } | { dominio: string }
-): Promise<{ apr: DatosSitio; avisos: AvisoSitio[] } | null> {
+): Promise<{ apr: DatosSitio; avisos: AvisoSitio[]; imagenes: ImagenesDelSitio } | null> {
   const condicion =
     "slug" in filtro
       ? eq(aprs.slug, filtro.slug)
@@ -58,5 +59,5 @@ export async function cargarSitio(
     },
   });
 
-  return { apr, avisos: listado };
+  return { apr, avisos: listado, imagenes: await imagenesDelSitio(apr.id) };
 }
