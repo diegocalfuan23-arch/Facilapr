@@ -99,33 +99,41 @@ export function AusenciasVista({
 
       {!esLicencia && saldos && saldos.length > 0 && (
         <section aria-label="Saldo de vacaciones">
-          <h2 className="mb-3 text-[0.95rem] font-semibold">Saldo de vacaciones</h2>
-          <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-120 border-collapse text-[0.95rem]">
-              <thead>
-                <tr className="border-b border-border bg-card">
-                  {["Persona", "Ganados", "Tomados", "Saldo"].map((c) => (
-                    <th key={c} className="px-5 py-3 text-left font-medium whitespace-nowrap text-muted-foreground">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {saldos.map((s) => (
-                  <tr key={s.id} className="border-b border-border last:border-0">
-                    <td className="px-5 py-3 font-medium">{s.nombre}</td>
-                    <td className="px-5 py-3 tabular-nums text-muted-foreground">{s.ganados === null ? "—" : s.ganados}</td>
-                    <td className="px-5 py-3 tabular-nums text-muted-foreground">{s.tomados}</td>
-                    <td className={cn("px-5 py-3 font-medium tabular-nums", s.saldo !== null && s.saldo < 0 && "text-red-600 dark:text-red-400")}>
-                      {s.saldo === null ? <span className="text-[0.8rem] font-normal text-muted-foreground">Falta su fecha de ingreso</span> : `${s.saldo} días`}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-[0.95rem] font-semibold">Saldo de vacaciones</h2>
+            <p className="text-[0.75rem] text-muted-foreground">1,25 días hábiles por mes trabajado (15 al año)</p>
           </div>
-          <p className="mt-2 text-[0.75rem] text-muted-foreground">Se ganan 1,25 días hábiles por mes trabajado (15 al año). No descuenta feriados.</p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {saldos.map((p) => {
+              const sinFecha = p.saldo === null;
+              const sinAcumular = !sinFecha && (p.ganados ?? 0) === 0;
+              const uso = p.ganados && p.ganados > 0 ? Math.min(100, Math.round((p.tomados / p.ganados) * 100)) : 0;
+              const negativo = p.saldo !== null && p.saldo < 0;
+              return (
+                <div key={p.id} className="rounded-xl border border-border bg-card p-5">
+                  <p className="truncate text-[0.95rem] font-medium">{p.nombre}</p>
+                  {sinFecha ? (
+                    <p className="mt-3 text-[0.85rem] text-muted-foreground">Agrega su fecha de ingreso en Personal para calcular sus días.</p>
+                  ) : sinAcumular ? (
+                    <p className="mt-3 text-[0.85rem] text-muted-foreground">Aún no acumula días: lleva menos de un mes en el comité.</p>
+                  ) : (
+                    <>
+                      <p className={cn("mt-3 text-[2rem] leading-none font-bold tabular-nums", negativo && "text-red-600 dark:text-red-400")}>
+                        {p.saldo}
+                        <span className="ml-1.5 text-[0.85rem] font-normal text-muted-foreground">días disponibles</span>
+                      </p>
+                      <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-muted" role="img" aria-label={`${uso} % de los días ganados ya se tomó`}>
+                        <div className={cn("h-full rounded-full", negativo ? "bg-red-500" : "bg-primary")} style={{ width: `${uso}%` }} />
+                      </div>
+                      <p className="mt-2 text-[0.75rem] text-muted-foreground tabular-nums">
+                        {p.tomados} tomados de {p.ganados} ganados
+                      </p>
+                    </>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </section>
       )}
 
@@ -145,6 +153,18 @@ export function AusenciasVista({
       {personas.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border py-20 text-center">
           <p className="text-[1.05rem] font-medium">Primero agrega personas en Personal</p>
+        </div>
+      ) : ausencias.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border py-16 text-center">
+          <p className="text-[1.05rem] font-medium">{esLicencia ? "Aún no hay licencias registradas" : "Aún no hay vacaciones ni permisos"}</p>
+          <p className="mx-auto mt-2 max-w-md px-4 text-[0.95rem] text-muted-foreground">
+            {esLicencia
+              ? "Cuando alguien presente una licencia médica, regístrala aquí con su folio y sus fechas."
+              : "Registra las vacaciones o permisos de tu equipo y arrástralos entre Solicitadas, Aprobadas y Rechazadas."}
+          </p>
+          <Button className="mt-5 h-10 rounded-full px-5 text-[0.95rem]" onClick={() => setCreando(true)}>
+            {esLicencia ? "+ Nueva licencia" : "+ Nuevas vacaciones o permiso"}
+          </Button>
         </div>
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-3">
