@@ -11,6 +11,7 @@ import {
   CreditCard,
   Droplets,
   Globe,
+  Hammer,
   ImagePlus,
   HardHat,
   Briefcase,
@@ -65,6 +66,7 @@ const gestion: Enlace[] = [
 /** Operación (desde el plan Estándar): las fallas del sistema de agua y los bienes del comité. */
 const operacion: Enlace[] = [
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
+  { href: "/panel/labores", label: "Labores", icon: Hammer },
   { href: "/panel/activos", label: "Activos fijos", icon: Building },
 ];
 
@@ -167,6 +169,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/asistencia": "marcar presente ausente atraso horario llegada",
   "/panel/sitio": "pagina web dominio direccion publicar landing",
   "/panel/sitio/administrar": "fotos imagenes logo portada galeria anuncios avisos contenido pagina web",
+  "/panel/labores": "trabajos mantencion reparacion materiales insumos descuento stock cambio medidor limpieza cloracion",
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
   "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",

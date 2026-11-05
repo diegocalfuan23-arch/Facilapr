@@ -84,7 +84,7 @@ export function formatoCantidad(n: number) {
 export const estaBajo = (i: Pick<Insumo, "stock" | "stockMinimo">) => i.stockMinimo > 0 && i.stock <= i.stockMinimo;
 
 /** De dónde vino un cambio de stock. */
-export type OrigenStock = "MANUAL" | "COMPRA" | "ANULACION" | "INICIAL" | "CORRECCION";
+export type OrigenStock = "MANUAL" | "COMPRA" | "ANULACION" | "INICIAL" | "CORRECCION" | "LABOR" | "LABOR_DEVUELTA";
 
 export const TEXTO_ORIGEN_STOCK: Record<OrigenStock, string> = {
   MANUAL: "Ajuste a mano",
@@ -92,6 +92,8 @@ export const TEXTO_ORIGEN_STOCK: Record<OrigenStock, string> = {
   ANULACION: "Compra anulada",
   INICIAL: "Stock inicial",
   CORRECCION: "Corrección al editar",
+  LABOR: "Usado en una labor",
+  LABOR_DEVUELTA: "Devuelto de una labor",
 };
 
 /** Una línea del historial del inventario. */

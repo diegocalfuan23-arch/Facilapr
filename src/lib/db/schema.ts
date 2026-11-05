@@ -1280,6 +1280,62 @@ export const incidentes = pgTable(
 );
 
 /**
+ * Una labor de operación del comité (cambiar un medidor, limpiar el estanque, clorar, reparar una
+ * matriz…) y los materiales del inventario que usa. Los materiales se descuentan del stock cuando la
+ * labor pasa a HECHA (`descontada`), y vuelven si se reabre o se borra.
+ */
+export const labores = pgTable(
+  "Labor",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** Correlativo por comité: L-1, L-2… */
+    numero: integer("numero").notNull(),
+    titulo: text("titulo").notNull(),
+    descripcion: text("descripcion"),
+    /** MANTENCION | REPARACION | INSTALACION | LIMPIEZA | CLORACION | OTRO */
+    tipo: text("tipo").notNull().default("MANTENCION"),
+    lugar: text("lugar"),
+    /** PROGRAMADA | EN_CURSO | HECHA */
+    estado: text("estado").notNull().default("PROGRAMADA"),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    fechaTermino: date("fechaTermino", { mode: "string" }),
+    responsable: text("responsable"),
+    /** true si los materiales ya se descontaron del inventario. */
+    descontada: boolean("descontada").notNull().default(false),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("Labor_aprId_fecha_idx").on(table.aprId, table.fecha),
+    uniqueIndex("Labor_aprId_numero_key").on(table.aprId, table.numero),
+  ]
+);
+
+/** Un material del inventario que usa una labor. Guarda el nombre y el costo del momento para conservar el registro. */
+export const laborInsumos = pgTable(
+  "LaborInsumo",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    laborId: text("laborId")
+      .notNull()
+      .references(() => labores.id, { onDelete: "cascade" }),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    insumoId: text("insumoId").references(() => insumos.id, { onDelete: "set null" }),
+    insumoNombre: text("insumoNombre").notNull(),
+    unidad: text("unidad").notNull().default("UNIDAD"),
+    cantidad: doublePrecision("cantidad").notNull(),
+    /** Costo por unidad en el momento de usarlo, en pesos. */
+    costoUnitario: integer("costoUnitario").notNull().default(0),
+  },
+  (table) => [index("LaborInsumo_laborId_idx").on(table.laborId)]
+);
+
+/**
  * Los bienes de largo plazo del comité (bomba, estanque, terreno, vehículo, medidores…): qué son,
  * cuándo y en cuánto se compraron, y cuánto valen hoy según su vida útil (depreciación lineal).
  */
