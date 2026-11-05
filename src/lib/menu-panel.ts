@@ -10,6 +10,7 @@ import {
   ClipboardList,
   CreditCard,
   Droplets,
+  Globe,
   HardHat,
   Briefcase,
   Building,
@@ -90,11 +91,8 @@ const atencion: Enlace[] = [
   { href: "/panel/conversaciones", label: "Conversaciones", icon: MessageCircle },
   { href: "/panel/socios/solicitudes", label: "Solicitudes", icon: UserCheck },
   { href: "/panel/cortes", label: "Cortes", icon: Scissors },
-  // "Sitio público" está oculto por ahora: todavía no se ofrece a los comités.
-  // La página sigue existiendo en /panel/sitio; para volver a mostrarla, basta
-  // descomentar esta línea (y volver a importar el ícono Globe de lucide-react). Las tarifas ya no dependen de ella: están en
-  // Configuración → Facturación.
-  // { href: "/panel/sitio", label: "Sitio público", icon: Globe },
+  // Solo en Estándar y Grande (el mismo corte que Finanzas); ver gruposDelMenu.
+  { href: "/panel/sitio", label: "Sitio público", icon: Globe },
   { href: "/panel/configuracion", label: "Configuración", icon: Settings },
   { href: "/panel/ayuda", label: "Ayuda", icon: LifeBuoy },
 ];
@@ -132,7 +130,7 @@ export function gruposDelMenu({
     {
       titulo: "Atención",
       icono: Headset,
-      enlaces: atencion.filter((e) => chat || e.href !== "/panel/conversaciones"),
+      enlaces: atencion.filter((e) => (chat || e.href !== "/panel/conversaciones") && (conFinanzas || e.href !== "/panel/sitio")),
     },
   ];
 }
