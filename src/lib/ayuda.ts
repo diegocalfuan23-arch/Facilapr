@@ -20,6 +20,9 @@ export type Categoria =
   | "Portal de socios"
   | "Equipo"
   | "Finanzas"
+  | "RR.HH."
+  | "Operación"
+  | "Sitio público"
   | "Tu plan";
 
 export type Articulo = {
@@ -65,6 +68,18 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   {
     nombre: "Finanzas",
     descripcion: "La plata del comité: caja, compras, bodega e informes. Desde el plan Estándar.",
+  },
+  {
+    nombre: "RR.HH.",
+    descripcion: "Personal, sueldos, vacaciones, licencias y asistencia. Desde el plan Estándar.",
+  },
+  {
+    nombre: "Operación",
+    descripcion: "Incidentes, activos fijos y labores con materiales del inventario. Desde el plan Estándar.",
+  },
+  {
+    nombre: "Sitio público",
+    descripcion: "La página web de tu comité: dirección, fotos, avisos y secciones propias.",
   },
   {
     nombre: "Tu plan",
@@ -1022,6 +1037,281 @@ export const ARTICULOS: Articulo[] = [
         texto:
           "Desde Caja, abre el informe del mes. Es un resumen ordenado que puedes imprimir o guardar como PDF para presentarlo a los socios.",
         nota: "Los reportes se arman con lo que anotaste en Caja y Compras: mientras más al día esté, más útil es el informe.",
+      },
+    ],
+  },
+  {
+    slug: "personal-ficha-trabajadores-apr",
+    titulo: "Registrar al personal del comité: ficha y sueldo",
+    resumen: "Carga a las personas que trabajan para el comité con su cargo, contrato, sueldo bruto, AFP y salud.",
+    categoria: "RR.HH.",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Personal",
+        texto: "En el grupo RR.HH. del menú, entra a Personal. Aquí ves a todas las personas del comité con su cargo, su sueldo bruto, sus descuentos y su líquido. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Agrega a la persona",
+        texto: "Pulsa «+ Nueva persona» y completa su nombre, RUT, cargo, teléfono, correo y la fecha en que ingresó.",
+      },
+      {
+        titulo: "Elige el tipo de contrato",
+        texto: "Sueldo, si está a contrato, u honorarios, si te emite boleta de honorarios. De eso depende cómo se calculan sus descuentos.",
+      },
+      {
+        titulo: "Anota el sueldo bruto y los descuentos",
+        texto: "Escribe el sueldo bruto, elige su AFP (queda cargada la tasa) y su salud, y revisa la cesantía. Abajo ves en vivo cuánto le descuentan y cuánto queda líquido.",
+        nota: "Lo que ves en la ficha es una estimación para que cuadre con su liquidación. El cálculo real de cada mes se hace en Remuneraciones.",
+      },
+      {
+        titulo: "Si la persona se va",
+        texto: "Cámbiale el estado a «Inactivo» en vez de borrarla: deja de aparecer en las liquidaciones nuevas, pero se conserva todo lo anterior.",
+      },
+    ],
+  },
+  {
+    slug: "remuneraciones-liquidaciones-apr",
+    titulo: "Calcular y pagar los sueldos del mes",
+    resumen: "Arma las liquidaciones con descuentos legales y ausencias, y paga: el egreso queda solo en la Caja.",
+    categoria: "RR.HH.",
+    para: "Administrador",
+    minutos: 5,
+    pasos: [
+      {
+        titulo: "Elige el mes",
+        texto: "En RR.HH. → Remuneraciones, usa las flechas para elegir el mes. Arriba ves cuánto se paga en total, cuánto falta por pagar y cuánto ya se pagó.",
+      },
+      {
+        titulo: "Arma el mes",
+        texto: "Pulsa «Armar el mes». Se crea una liquidación por cada persona activa, con su sueldo base y los descuentos legales de su ficha (AFP, salud y cesantía, o la retención si es honorarios). Si después ingresas a alguien nuevo, usa «Agregar a quienes falten».",
+      },
+      {
+        titulo: "Revisa los días que no se pagan",
+        texto: "El sistema busca solo las faltas marcadas en Asistencia, los días de licencia y los permisos sin goce de ese mes. Las vacaciones sí se pagan. Cada día no pagado descuenta el sueldo dividido en 30. Al abrir una liquidación, el botón «Usar N» carga ese número de días.",
+        nota: "Puedes cambiar los días a mano si algo no calza.",
+      },
+      {
+        titulo: "Agrega bonos u otros descuentos",
+        texto: "Edita la liquidación para sumar bonos o descuentos extra. Los descuentos legales se recalculan solos sobre lo que queda imponible.",
+      },
+      {
+        titulo: "Págala",
+        texto: "Pulsa Pagar, elige la fecha y el medio de pago. El líquido sale como egreso en la Caja, con categoría Remuneraciones.",
+        nota: "Si te equivocas, «Deshacer pago» también quita el egreso de la Caja. Si el día de la Caja ya está cerrado, primero hay que reabrirlo.",
+      },
+    ],
+  },
+  {
+    slug: "vacaciones-licencias-permisos-apr",
+    titulo: "Gestionar vacaciones, licencias y permisos del personal",
+    resumen: "Registra las ausencias en un tablero por estado, con el saldo de vacaciones de cada persona.",
+    categoria: "RR.HH.",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Vacaciones o Licencias",
+        texto: "En RR.HH. hay una pantalla para Vacaciones y otra para Licencias. Cada una es un tablero con tres columnas: Solicitadas, Aprobadas y Rechazadas.",
+      },
+      {
+        titulo: "Mira el saldo",
+        texto: "En Vacaciones, arriba ves el saldo de cada persona: se acumulan 1,25 días hábiles por mes trabajado, menos los días ya tomados.",
+      },
+      {
+        titulo: "Registra una solicitud",
+        texto: "Pulsa «+ Nuevas vacaciones o permiso» (o «+ Nueva licencia» en Licencias), elige a la persona y las fechas. Los días se cuentan solos, de lunes a viernes.",
+      },
+      {
+        titulo: "Apruébala o recházala",
+        texto: "Arrastra la tarjeta a Aprobadas o Rechazadas (en el celular, usa el botón de la tarjeta). Solo lo aprobado cuenta en el saldo y en Asistencia.",
+      },
+      {
+        titulo: "Permisos y licencias",
+        texto: "Un permiso puede marcarse «sin goce de sueldo»: esos días se descuentan en la liquidación. Los días de licencia médica tampoco los paga el comité.",
+        nota: "Las vacaciones aprobadas se pagan completas: no descuentan nada del sueldo.",
+      },
+    ],
+  },
+  {
+    slug: "asistencia-calendario-apr",
+    titulo: "Llevar la asistencia del personal en el calendario",
+    resumen: "Marca quién llegó, quién se atrasó y quién faltó en un calendario mensual; las faltas bajan al sueldo.",
+    categoria: "RR.HH.",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Asistencia",
+        texto: "En RR.HH. → Asistencia ves el mes completo en un calendario. Cada día muestra con un punto de color quién tuvo algo. Las flechas cambian de mes y «Hoy» vuelve al día actual.",
+      },
+      {
+        titulo: "Elige un día",
+        texto: "Toca un día del calendario. A la derecha aparece cada persona con los botones Presente, Atraso, Ausente y Permiso.",
+      },
+      {
+        titulo: "Marca a cada persona",
+        texto: "Pulsa el botón que corresponda. Se guarda al tiro. Las vacaciones y licencias aprobadas aparecen solas, sin botones.",
+      },
+      {
+        titulo: "Las faltas llegan al sueldo",
+        texto: "Los días marcados como Ausente se descuentan al armar la liquidación del mes en Remuneraciones. Los atrasos y los permisos con goce no descuentan.",
+      },
+    ],
+  },
+  {
+    slug: "incidentes-sistema-agua-apr",
+    titulo: "Registrar incidentes del sistema de agua y lo que costó repararlos",
+    resumen: "Anota fugas, fallas y cortes en un tablero por estado, con su costo de reparación.",
+    categoria: "Operación",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Incidentes",
+        texto: "En el grupo Operación del menú, entra a Incidentes. Es un tablero con tres columnas: Abiertos, En reparación y Resueltos. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Registra lo que pasó",
+        texto: "Pulsa Nuevo incidente. Escribe qué pasó, elige el tipo (fuga, falla de bomba, agua turbia, sin agua, corte de luz), el lugar y la prioridad.",
+      },
+      {
+        titulo: "Muévelo mientras avanza",
+        texto: "Arrastra la tarjeta de una columna a otra, o usa el botón de la tarjeta en el celular. Al pasarla a Resuelto se anota la fecha.",
+      },
+      {
+        titulo: "Anota cuánto costó",
+        texto: "Al editarlo, escribe el costo de la reparación y la solución. Si marcas «registrar el costo en Caja», queda como egreso con categoría Reparaciones.",
+        nota: "Si después cambias el costo, el egreso de la Caja se ajusta solo.",
+      },
+    ],
+  },
+  {
+    slug: "activos-fijos-valor-actual-apr",
+    titulo: "Llevar los activos fijos del comité y su valor actual",
+    resumen: "Registra la bomba, el estanque, el terreno y demás bienes, y ve cuánto valen hoy.",
+    categoria: "Operación",
+    para: "Administrador",
+    minutos: 3,
+    pasos: [
+      {
+        titulo: "Abre Activos fijos",
+        texto: "En Operación → Activos fijos ves los bienes del comité con su costo y su valor actual. Está en los planes Estándar y Grande.",
+      },
+      {
+        titulo: "Registra un bien",
+        texto: "Pulsa «+ Nuevo bien». Escribe el nombre, la categoría (bomba, estanque, captación, red, terreno, vehículo…), la fecha de compra y el costo.",
+      },
+      {
+        titulo: "Revisa la vida útil",
+        texto: "Al elegir la categoría se propone una vida útil típica en años, y puedes cambiarla. Con 0 años el bien no se deprecia, como un terreno.",
+      },
+      {
+        titulo: "Mira cuánto vale hoy",
+        texto: "El valor actual baja parejo cada mes hasta cumplir la vida útil. Es una referencia para el comité, no una contabilidad tributaria.",
+      },
+      {
+        titulo: "Anota el costo en la Caja, si corresponde",
+        texto: "Marca «Anotar el costo como egreso en la Caja» solo si lo compraste con plata del comité y aún no lo registras. En un bien antiguo, déjalo sin marcar.",
+        nota: "Cuando un bien deja de estar, márcalo como dado de baja en vez de borrarlo.",
+      },
+    ],
+  },
+  {
+    slug: "labores-materiales-inventario-apr",
+    titulo: "Registrar labores y descontar los materiales del inventario",
+    resumen: "Anota los trabajos del comité y los materiales que usan: se descuentan solos al marcarlos hechos.",
+    categoria: "Operación",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Labores",
+        texto: "En Operación → Labores ves un tablero con Programadas, En curso y Hechas. Está en los planes Estándar y Grande, junto con el Inventario.",
+      },
+      {
+        titulo: "Crea la labor",
+        texto: "Pulsa Nueva labor. Escribe qué se hace (por ejemplo, cambio de medidores del sector norte), elige el tipo, la fecha, el lugar y quién es el responsable.",
+      },
+      {
+        titulo: "Agrega los materiales",
+        texto: "En «Materiales del inventario» pulsa Agregar material, elige el material y la cantidad. Junto a cada uno ves cuánto stock hay.",
+      },
+      {
+        titulo: "Márcala como hecha",
+        texto: "Cuando el trabajo termine, arrastra la tarjeta a Hechas. En ese momento los materiales se descuentan del inventario, y en el historial del material queda «Usado en una labor» con el número de la labor.",
+        nota: "Si no alcanza el stock de algún material, no te deja marcarla como hecha y te dice cuál falta. Nada se descuenta a medias.",
+      },
+      {
+        titulo: "Si te equivocas",
+        texto: "Si sacas la labor de Hechas o la borras, los materiales vuelven al inventario. Si cambias los materiales de una labor ya hecha, primero se devuelve lo anterior y luego se descuenta lo nuevo.",
+      },
+    ],
+  },
+  {
+    slug: "sitio-publico-comite-apr",
+    titulo: "Publicar el sitio web de tu comité",
+    resumen: "Elige la dirección, escribe la presentación y las tarifas, y publica tu página con una vista previa en vivo.",
+    categoria: "Sitio público",
+    para: "Administrador",
+    minutos: 4,
+    pasos: [
+      {
+        titulo: "Abre Sitio público",
+        texto: "En el grupo Atención del menú, entra a Sitio público. Está en los planes Estándar y Grande. A la izquierda editas y a la derecha ves cómo queda tu página, al instante.",
+      },
+      {
+        titulo: "Elige la dirección",
+        texto: "Escribe el nombre de tu comité en «Dirección web»: será algo como micomite.facilapr.cl. Pulsa Guardar cambios para que la dirección exista.",
+        nota: "Si cambias la dirección y no guardas, el botón Ver sitio sigue llevando a la anterior.",
+      },
+      {
+        titulo: "Escribe la presentación",
+        texto: "Completa la descripción, el horario de atención, las tarifas (cargo fijo y valor del m³) y cómo y dónde pagar. Si te cuesta redactar, pulsa «Redactar con IA», cuéntale tu comité en un par de frases y revisa lo que propone antes de guardar.",
+      },
+      {
+        titulo: "Publícalo",
+        texto: "Arriba a la derecha, pulsa Publicar sitio. Mientras esté sin publicar, solo tú lo ves. Con Despublicar lo escondes cuando quieras.",
+      },
+      {
+        titulo: "Sigue con Administrar",
+        texto: "Para sumar fotos, anuncios y secciones propias, entra a Administrar, justo debajo en el menú.",
+      },
+    ],
+  },
+  {
+    slug: "administrar-sitio-fotos-secciones-apr",
+    titulo: "Agregar fotos, anuncios y secciones a tu sitio",
+    resumen: "Sube el logo, la portada y la galería, publica avisos y arma secciones con texto, imágenes, botones o cuadros.",
+    categoria: "Sitio público",
+    para: "Administrador",
+    minutos: 5,
+    pasos: [
+      {
+        titulo: "Abre Administrar",
+        texto: "En Atención → Administrar cambias lo que se ve en tu sitio público. Los cambios aparecen enseguida en tu página.",
+      },
+      {
+        titulo: "Sube el logo, la portada y la galería",
+        texto: "El logo reemplaza la gota de Facilapr arriba a la izquierda. La portada es una foto ancha bajo el título. La galería admite hasta 8 fotos con un texto corto cada una. Puedes subir la foto del celular tal cual: se achica sola.",
+      },
+      {
+        titulo: "Publica anuncios y avisos",
+        texto: "En «Anuncios y avisos» pulsa Nuevo aviso para un corte, una mantención o una noticia. Con el ojito lo ocultas del sitio sin borrarlo.",
+      },
+      {
+        titulo: "Agrega una sección propia",
+        texto: "En «Secciones de tu sitio» pulsa Agregar sección y elige: Texto, Imagen con texto, Botón o Cuadros (de 2 a 6 con título y texto). Puedes tener hasta 12.",
+      },
+      {
+        titulo: "Ponle un botón",
+        texto: "En una sección Botón escribe lo que dice y a dónde lleva: una página web, un correo o un número de teléfono. Si pones un número, el botón abre WhatsApp.",
+        nota: "Los botones solo aceptan enlaces web, correo o teléfono, por seguridad.",
+      },
+      {
+        titulo: "Ordénalas",
+        texto: "Con las flechas subes o bajas cada sección; el ojito la oculta sin borrarla. Se muestran en ese orden, después de la galería y antes del contacto.",
       },
     ],
   },
