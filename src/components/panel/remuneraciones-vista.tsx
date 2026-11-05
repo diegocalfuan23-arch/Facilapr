@@ -52,6 +52,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const [otros, setOtros] = useState(fila.otrosDescuentos ? String(fila.otrosDescuentos) : "");
   const [dias, setDias] = useState(String(fila.diasDescontados));
   // A quien cobra por día: los días trabajados salen del sueldo base guardado y del valor del día.
+  const [noImp, setNoImp] = useState(fila.noImponible ? String(fila.noImponible) : "");
   const [horasExtra, setHorasExtra] = useState(fila.horasExtra ? String(fila.horasExtra).replace(".", ",") : "");
   const [horas, setHoras] = useState(fila.horasDescontadas ? String(fila.horasDescontadas).replace(".", ",") : "");
   const [diasTrab, setDiasTrab] = useState(String(fila.porDia && fila.valorDiaFicha ? Math.round(fila.sueldoBase / fila.valorDiaFicha) : 0));
@@ -83,7 +84,8 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
   const imponible = Math.max(0, baseNum - descAusencias) + (Number(bonos) || 0) + montoExtra;
   const legales = descuentosLegales({ contrato: fila.contrato, afpTasa: fila.afpTasa, saludTasa: fila.saludTasa, cesantia: fila.cesantiaPaga }, imponible);
   const totalDescuentos = legales.total + (Number(otros) || 0);
-  const liquido = Math.max(0, imponible - totalDescuentos);
+  const noImpNum = Number(noImp) || 0;
+  const liquido = Math.max(0, imponible - totalDescuentos) + noImpNum;
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -101,6 +103,7 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
           <input type="hidden" name="valorDia" value={valorDia} />
           <input type="hidden" name="horasDescontadas" value={horasNum} />
           <input type="hidden" name="horasExtra" value={horasExtraNum} />
+          <input type="hidden" name="noImponible" value={noImpNum} />
           <div className="grid gap-4 sm:grid-cols-3">
             {fila.porDia ? (
               <div>
@@ -217,6 +220,13 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
             </p>
           </div>
           <div>
+            <label htmlFor="rem-noimp" className={etiqueta}>
+              Colación y movilización
+            </label>
+            <MontoInput id="rem-noimp" valor={noImp} onCambio={setNoImp} />
+            <p className="mt-1.5 text-[0.75rem] text-muted-foreground">No es imponible: se suma al líquido sin descontar AFP ni salud.</p>
+          </div>
+          <div>
             <label htmlFor="rem-extra" className={etiqueta}>
               Horas extras
             </label>
@@ -293,6 +303,12 @@ function EditarDialog({ fila, onCerrar }: { fila: RemuneracionFila; onCerrar: ()
               <div className="flex justify-between text-muted-foreground">
                 <span>Otros descuentos</span>
                 <span className="tabular-nums">-{clp.format(Number(otros))}</span>
+              </div>
+            )}
+            {noImpNum > 0 && (
+              <div className="mt-1 flex justify-between text-muted-foreground">
+                <span>Colación y movilización (no imponible)</span>
+                <span className="tabular-nums">+{clp.format(noImpNum)}</span>
               </div>
             )}
             <div className="mt-2 flex items-center justify-between border-t border-border pt-2">
@@ -405,6 +421,7 @@ function descargarLibro(filas: RemuneracionFila[], periodo: string) {
     "horas_extras",
     "monto_horas_extras",
     "bonos",
+    "colacion_movilizacion",
     "afp",
     "salud",
     "seguro_cesantia",
@@ -427,6 +444,7 @@ function descargarLibro(filas: RemuneracionFila[], periodo: string) {
     f.horasExtra,
     f.montoHorasExtra,
     f.bonos,
+    f.noImponible,
     f.descAfp,
     f.descSalud,
     f.descCesantia,

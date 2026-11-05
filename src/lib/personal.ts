@@ -24,6 +24,7 @@ export async function listarTrabajadores(aprId: string): Promise<TrabajadorFila[
         jornadaSemanal: trabajadores.jornadaSemanal,
         diasSemana: trabajadores.diasSemana,
         valorHoraExtra: trabajadores.valorHoraExtra,
+        noImponible: trabajadores.noImponible,
         fechaIngreso: trabajadores.fechaIngreso,
         afp: trabajadores.afp,
         afpTasa: trabajadores.afpTasa,

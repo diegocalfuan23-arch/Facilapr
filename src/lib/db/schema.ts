@@ -1137,6 +1137,8 @@ export const trabajadores = pgTable(
     diasSemana: integer("diasSemana").notNull().default(5),
     /** Lo que se le paga por cada hora extra. Null = la hora ordinaria con el recargo legal del 50 %. */
     valorHoraExtra: integer("valorHoraExtra"),
+    /** Colación y movilización mensuales: no son imponibles, se suman al líquido sin descuentos. */
+    noImponible: integer("noImponible").notNull().default(0),
     fechaIngreso: date("fechaIngreso", { mode: "string" }),
     /** La AFP en que cotiza (solo informativa). */
     afp: text("afp"),
@@ -1322,6 +1324,8 @@ export const remuneraciones = pgTable(
     /** Horas extras del mes y lo que se paga por ellas. */
     horasExtra: doublePrecision("horasExtra").notNull().default(0),
     montoHorasExtra: integer("montoHorasExtra").notNull().default(0),
+    /** Colación y movilización de este mes (no imponibles). */
+    noImponible: integer("noImponible").notNull().default(0),
     bonos: integer("bonos").notNull().default(0),
     /** El desglose de lo que se descuenta; `descuentos` es la suma de todo. */
     descAfp: integer("descAfp").notNull().default(0),

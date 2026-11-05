@@ -43,6 +43,7 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
         porDia: trabajadores.porDia,
         jornadaSemanal: trabajadores.jornadaSemanal,
         diasSemana: trabajadores.diasSemana,
+        noImponible: trabajadores.noImponible,
         contrato: trabajadores.contrato,
         afpTasa: trabajadores.afpTasa,
         saludTasa: trabajadores.saludTasa,
@@ -77,8 +78,9 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
             descSalud: d.salud,
             descCesantia: d.cesantia,
             retencion: d.retencion,
+            noImponible: p.noImponible,
             descuentos: d.total,
-            liquido: base - descAus - d.total,
+            liquido: base - descAus - d.total + p.noImponible,
           };
         })
       )
@@ -102,6 +104,8 @@ const liquidacionSchema = z.object({
   horasDescontadas: z.number().min(0).max(240),
   /** Horas extras del mes. */
   horasExtra: z.number().min(0).max(300),
+  /** Colación y movilización del mes. */
+  noImponible: z.number().int().min(0).max(10_000_000),
   /** El valor del día de esta liquidación; 0 = el de la ficha o el sueldo dividido en 30. */
   valorDia: z.number().int().min(0).max(100_000_000),
 });
@@ -123,6 +127,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
     valorDia: aEntero(formData.get("valorDia")),
     horasDescontadas: Number(String(formData.get("horasDescontadas") ?? "").replace(",", ".")) || 0,
     horasExtra: Number(String(formData.get("horasExtra") ?? "").replace(",", ".")) || 0,
+    noImponible: aEntero(formData.get("noImponible")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -170,6 +175,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
       horasDescontadas: d.horasDescontadas,
       horasExtra: d.horasExtra,
       montoHorasExtra: montoExtra,
+      noImponible: d.noImponible,
       bonos: d.bonos,
       descAfp: legales.afp,
       descSalud: legales.salud,
@@ -177,7 +183,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
       retencion: legales.retencion,
       otrosDescuentos: d.otrosDescuentos,
       descuentos,
-      liquido: imponible - descuentos,
+      liquido: imponible - descuentos + d.noImponible,
       nota: d.nota,
     })
     .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)));

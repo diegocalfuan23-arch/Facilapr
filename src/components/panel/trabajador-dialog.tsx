@@ -69,6 +69,7 @@ export function TrabajadorDialog({
   const [jornada, setJornada] = useState(String(persona?.jornadaSemanal ?? JORNADA_SEMANAL_LEGAL).replace(".", ","));
   const [diasSemana, setDiasSemana] = useState(String(persona?.diasSemana ?? 5));
   const [valorExtra, setValorExtra] = useState(persona?.valorHoraExtra ? String(persona.valorHoraExtra) : "");
+  const [noImp, setNoImp] = useState(persona?.noImponible ? String(persona.noImponible) : "");
   const datosJornada = {
     sueldo: Number(sueldo) || 0,
     valorDia: Number(valorDia) || null,
@@ -130,6 +131,7 @@ export function TrabajadorDialog({
           <input type="hidden" name="jornadaSemanal" value={jornada} />
           <input type="hidden" name="diasSemana" value={diasSemana} />
           <input type="hidden" name="valorHoraExtra" value={valorExtra} />
+          <input type="hidden" name="noImponible" value={noImp} />
           <input type="hidden" name="afp" value={afp} />
           <input type="hidden" name="afpTasa" value={afpTasaTexto} />
           <input type="hidden" name="saludTasa" value={saludTexto} />
@@ -282,6 +284,21 @@ export function TrabajadorDialog({
               <p className="mt-1.5 text-[0.75rem] text-muted-foreground">
                 Hora ordinaria ${Math.round(valorHoraOrdinaria(datosJornada)).toLocaleString("es-CL")}; la extra lleva un recargo del {RECARGO_HORA_EXTRA * 100} % por ley. Si el comité paga otro valor, escríbelo aquí; vacío, se usa el legal.
               </p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label htmlFor="per-noimp" className={etiqueta}>
+                Colación y movilización al mes (opcional)
+              </label>
+              <Input
+                id="per-noimp"
+                value={noImp ? `$${Number(noImp).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setNoImp(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                placeholder="$0"
+                inputMode="numeric"
+                className={campo}
+              />
+              <p className="mt-1.5 text-[0.75rem] text-muted-foreground">No es imponible: se suma al líquido sin descontar AFP ni salud. Queda cargado en cada liquidación; lo puedes cambiar mes a mes.</p>
             </div>
 
             {contrato === "SUELDO" ? (

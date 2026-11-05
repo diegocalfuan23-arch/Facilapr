@@ -31,6 +31,7 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
         horasDescontadas: remuneraciones.horasDescontadas,
         horasExtra: remuneraciones.horasExtra,
         montoHorasExtra: remuneraciones.montoHorasExtra,
+        noImponible: remuneraciones.noImponible,
         bonos: remuneraciones.bonos,
         descAfp: remuneraciones.descAfp,
         descSalud: remuneraciones.descSalud,

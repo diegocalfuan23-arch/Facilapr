@@ -51,6 +51,8 @@ export type RemuneracionFila = {
   /** Horas extras del mes y lo que se paga por ellas. */
   horasExtra: number;
   montoHorasExtra: number;
+  /** Colación y movilización: se suman al líquido sin pasar por los descuentos. */
+  noImponible: number;
   /** Lo registrado este mes en asistencia y ausencias, para sugerir los días a descontar. */
   ausenciasMes: ResumenAusenciasMes;
   bonos: number;

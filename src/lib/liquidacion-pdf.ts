@@ -109,6 +109,7 @@ export async function generarLiquidacionPdf(l: LiquidacionDatos): Promise<Uint8A
   linea();
   y -= 17;
   fila("Total haberes", dinero(haberes), { negrita: true });
+  if (l.noImponible > 0) fila("Colación y movilización (no imponible)", dinero(l.noImponible), { signo: "+" });
   y -= 8;
 
   // ---- Descuentos.

@@ -31,6 +31,7 @@ export type LiquidacionDatos = {
   descAusencias: number;
   horasExtra: number;
   montoHorasExtra: number;
+  noImponible: number;
   bonos: number;
   descAfp: number;
   descSalud: number;
@@ -57,6 +58,7 @@ export async function liquidacionPorId(aprId: string, id: string): Promise<Liqui
       descAusencias: remuneraciones.descAusencias,
       horasExtra: remuneraciones.horasExtra,
       montoHorasExtra: remuneraciones.montoHorasExtra,
+      noImponible: remuneraciones.noImponible,
       bonos: remuneraciones.bonos,
       descAfp: remuneraciones.descAfp,
       descSalud: remuneraciones.descSalud,
@@ -120,6 +122,7 @@ export async function liquidacionPorId(aprId: string, id: string): Promise<Liqui
     descAusencias: f.descAusencias,
     horasExtra: f.horasExtra,
     montoHorasExtra: f.montoHorasExtra,
+    noImponible: f.noImponible,
     bonos: f.bonos,
     descAfp: f.descAfp,
     descSalud: f.descSalud,

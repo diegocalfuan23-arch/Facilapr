@@ -41,6 +41,8 @@ export type TrabajadorFila = {
   diasSemana: number;
   /** Lo que se le paga por hora extra; null = la hora ordinaria más el recargo legal. */
   valorHoraExtra: number | null;
+  /** Colación y movilización mensuales (no imponibles). */
+  noImponible: number;
   fechaIngreso: string | null;
   afp: string | null;
   /** Centésimas de %: 1058 = 10,58 %. */
