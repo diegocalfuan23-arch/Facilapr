@@ -160,13 +160,28 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
                   ))}
                 </select>
               </Campo>
-              <Campo id="lab-fecha" label="Fecha">
+              <Campo id="lab-fecha" label="Fecha de inicio">
                 <Input id="lab-fecha" name="fecha" type="date" defaultValue={labor?.fecha ?? hoyEnChile()} className={campo} required />
               </Campo>
-              {estado === "HECHA" && (
+              <Campo id="lab-hora" label="Hora de inicio" opcional>
+                <Input id="lab-hora" name="hora" type="time" defaultValue={labor?.hora ?? ""} className={campo} />
+              </Campo>
+              {estado === "HECHA" ? (
                 <Campo id="lab-termino" label="Fecha en que se terminó" className="sm:col-span-2">
                   <Input id="lab-termino" name="fechaTermino" type="date" defaultValue={labor?.fechaTermino ?? hoyEnChile()} className={campo} />
                 </Campo>
+              ) : (
+                <>
+                  <Campo id="lab-termino" label="Termina el" opcional>
+                    <Input id="lab-termino" name="fechaTermino" type="date" defaultValue={labor?.fechaTermino ?? ""} className={campo} />
+                  </Campo>
+                  <Campo id="lab-horafin" label="A las" opcional>
+                    <Input id="lab-horafin" name="horaFin" type="time" defaultValue={labor?.horaFin ?? ""} className={campo} />
+                  </Campo>
+                  <p className="-mt-2 text-[0.75rem] text-muted-foreground sm:col-span-2">
+                    Pasa sola a «En curso» cuando llega su hora de inicio y, si indicas cuándo termina, a «Hecha» a esa hora, descontando los materiales del inventario.
+                  </p>
+                </>
               )}
               <Campo id="lab-lugar" label="Lugar" opcional>
                 <Input id="lab-lugar" name="lugar" defaultValue={labor?.lugar ?? ""} placeholder="Sector, caseta o pozo" maxLength={160} className={campo} />

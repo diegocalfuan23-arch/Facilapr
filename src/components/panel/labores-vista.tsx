@@ -212,7 +212,10 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
                               <CalendarDays className="size-3.5" aria-hidden />
                               {col.estado === "HECHA" && l.fechaTermino ? "Terminada" : "Fecha"}
                             </p>
-                            <p className="mt-0.5 text-[0.85rem] font-semibold tabular-nums">{fechaCorta(col.estado === "HECHA" && l.fechaTermino ? l.fechaTermino : l.fecha)}</p>
+                            <p className="mt-0.5 text-[0.85rem] font-semibold tabular-nums">
+                              {fechaCorta(col.estado === "HECHA" && l.fechaTermino ? l.fechaTermino : l.fecha)}
+                              {col.estado !== "HECHA" && l.hora && <span className="font-normal text-muted-foreground"> · {l.hora}</span>}
+                            </p>
                           </div>
                           <div className="rounded-lg bg-muted/60 px-3 py-2">
                             <p className="flex items-center gap-1 text-[0.72rem] text-muted-foreground">
@@ -224,6 +227,12 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
                             </p>
                           </div>
                         </div>
+                        {col.estado !== "HECHA" && l.fechaTermino && (
+                          <p className={cn("mt-3 flex items-center gap-1.5 text-[0.8rem]", l.vencida ? "font-medium text-amber-700 dark:text-amber-300" : "text-muted-foreground")}>
+                            <Clock3 className="size-3.5 shrink-0" aria-hidden />
+                            {l.vencida ? "Ya debía terminar: revisa el stock de sus materiales" : `Termina ${fechaCorta(l.fechaTermino)}${l.horaFin ? ` · ${l.horaFin}` : ""}`}
+                          </p>
+                        )}
                         {l.lugar && (
                           <p className="mt-3 flex items-center gap-1.5 text-[0.8rem] text-muted-foreground">
                             <MapPin className="size-3.5 shrink-0" aria-hidden />

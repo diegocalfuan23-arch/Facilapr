@@ -1235,7 +1235,11 @@ export const labores = pgTable(
     /** PROGRAMADA | EN_CURSO | HECHA */
     estado: text("estado").notNull().default("PROGRAMADA"),
     fecha: date("fecha", { mode: "string" }).notNull(),
+    /** La hora de inicio programada (HH:MM, hora de Chile). Sin hora, la labor parte a las 00:00 de su fecha. */
+    hora: text("hora"),
+    /** Cuándo termina: la fecha programada (o, ya hecha, la real) y su hora. Si está definida, la labor pasa sola a Hecha. */
     fechaTermino: date("fechaTermino", { mode: "string" }),
+    horaFin: text("horaFin"),
     responsable: text("responsable"),
     /** true si los materiales ya se descontaron del inventario. */
     descontada: boolean("descontada").notNull().default(false),

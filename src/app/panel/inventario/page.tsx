@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { estaBajo, listarCategorias, listarInsumos } from "@/lib/inventario";
+import { avanzarLaboresVencidas } from "@/lib/labores-auto";
 import { listarHistorial } from "@/lib/inventario-historial";
 import { InventarioVista } from "@/components/panel/inventario-vista";
 
@@ -15,6 +16,9 @@ export default async function InventarioPage() {
 
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "inventario")) redirect("/panel");
+
+  // Una labor que terminó a su hora descuenta materiales: se aplica antes de mostrar el stock.
+  await avanzarLaboresVencidas(apr.id);
 
   const [insumos, categoriasPropias, historial] = await Promise.all([
     listarInsumos(apr.id),

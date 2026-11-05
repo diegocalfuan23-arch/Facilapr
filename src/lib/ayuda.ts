@@ -1335,6 +1335,11 @@ export const ARTICULOS: Articulo[] = [
         texto: "En «Materiales del inventario» pulsa Agregar material, elige el material y la cantidad. Junto a cada uno ves cuánto stock hay.",
       },
       {
+        titulo: "Programa su hora y que avance sola",
+        texto: "Ponle una «Hora de inicio» y, si quieres, cuándo «Termina». Cuando llega la hora de inicio, la labor pasa sola a En curso; y cuando llega la hora de término, pasa sola a Hecha y descuenta los materiales. Para posponerla, cámbiale la fecha u hora (no se puede devolver a Programada si su hora ya pasó).",
+        nota: "El cambio se aplica cuando alguien abre Labores o Inventario, no justo a la hora. Si al terminar no alcanza el stock de un material, la labor queda En curso con el aviso «Ya debía terminar».",
+      },
+      {
         titulo: "Márcala como hecha",
         texto: "Cuando el trabajo termine, arrastra la tarjeta a Hechas. En ese momento los materiales se descuentan del inventario, y en el historial del material queda «Usado en una labor» con el número de la labor.",
         nota: "Si no alcanza el stock de algún material, no te deja marcarla como hecha y te dice cuál falta. Nada se descuenta a medias.",

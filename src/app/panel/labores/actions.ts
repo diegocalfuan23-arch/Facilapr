@@ -9,9 +9,8 @@ import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { hoyEnChile } from "@/lib/finanzas-comun";
-import { anotarCambioStock } from "@/lib/inventario-historial";
-import { formatoCantidad, unidadCorta } from "@/lib/inventario-comun";
-import { TIPOS_LABOR } from "@/lib/labores-comun";
+import { ErrorLabor, descontarStock, devolverStock } from "@/lib/labores-stock";
+import { TIPOS_LABOR, ahoraEnChile } from "@/lib/labores-comun";
 
 export type ResultadoLabores = { ok: true } | { ok: false; error: string };
 
@@ -21,73 +20,6 @@ const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 function refrescar() {
   revalidatePath("/panel/labores");
   revalidatePath("/panel/inventario");
-}
-
-type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
-type Ctx = { aprId: string; userId: string };
-
-/** Un error que se le muestra tal cual a quien usa el panel (no es una falla del sistema). */
-class ErrorLabor extends Error {}
-
-function redondear(n: number) {
-  return Math.round(n * 1000) / 1000;
-}
-
-/** Devuelve al inventario lo que la labor había descontado. Si un material se borró del inventario, no hay a dónde devolverlo. */
-async function devolverStock(tx: Tx, ctx: Ctx, labor: { id: string; numero: number }) {
-  const lineas = await tx.select().from(laborInsumos).where(eq(laborInsumos.laborId, labor.id));
-  for (const l of lineas) {
-    if (!l.insumoId) continue;
-    const [m] = await tx
-      .update(insumos)
-      .set({ stock: sql`${insumos.stock} + ${l.cantidad}`, updatedAt: new Date() })
-      .where(and(eq(insumos.id, l.insumoId), eq(insumos.aprId, ctx.aprId)))
-      .returning({ stock: insumos.stock });
-    if (!m) continue;
-    await anotarCambioStock(tx, {
-      aprId: ctx.aprId,
-      insumoId: l.insumoId,
-      insumoNombre: l.insumoNombre,
-      unidad: l.unidad,
-      cantidad: l.cantidad,
-      stockResultante: redondear(m.stock),
-      origen: "LABOR_DEVUELTA",
-      motivo: `Labor L-${labor.numero}`,
-      registradoPorId: ctx.userId,
-    });
-  }
-}
-
-/** Descuenta del inventario lo que usa la labor. Falla, sin tocar nada, si algún material no alcanza. */
-async function descontarStock(tx: Tx, ctx: Ctx, labor: { id: string; numero: number }) {
-  const lineas = await tx.select().from(laborInsumos).where(eq(laborInsumos.laborId, labor.id));
-  for (const l of lineas) {
-    if (!l.insumoId) throw new ErrorLabor(`«${l.insumoNombre}» ya no está en el inventario. Quítalo de la labor o vuelve a crearlo.`);
-    // Se descuenta solo si alcanza, en el mismo paso: dos labores a la vez no pueden dejar el stock bajo cero.
-    const [m] = await tx
-      .update(insumos)
-      .set({ stock: sql`${insumos.stock} - ${l.cantidad}`, updatedAt: new Date() })
-      .where(and(eq(insumos.id, l.insumoId), eq(insumos.aprId, ctx.aprId), sql`${insumos.stock} >= ${l.cantidad}`))
-      .returning({ stock: insumos.stock, costo: insumos.costo });
-    if (!m) {
-      const [actual] = await tx.select({ stock: insumos.stock }).from(insumos).where(eq(insumos.id, l.insumoId)).limit(1);
-      throw new ErrorLabor(
-        `No alcanza «${l.insumoNombre}»: hay ${formatoCantidad(actual?.stock ?? 0)} ${unidadCorta(l.unidad)} y la labor usa ${formatoCantidad(l.cantidad)}.`
-      );
-    }
-    await tx.update(laborInsumos).set({ costoUnitario: m.costo }).where(eq(laborInsumos.id, l.id));
-    await anotarCambioStock(tx, {
-      aprId: ctx.aprId,
-      insumoId: l.insumoId,
-      insumoNombre: l.insumoNombre,
-      unidad: l.unidad,
-      cantidad: -l.cantidad,
-      stockResultante: redondear(m.stock),
-      origen: "LABOR",
-      motivo: `Labor L-${labor.numero}`,
-      registradoPorId: ctx.userId,
-    });
-  }
 }
 
 const fecha = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida.");
@@ -100,6 +32,8 @@ const laborSchema = z.object({
   estado: z.enum(["PROGRAMADA", "EN_CURSO", "HECHA"]),
   fecha,
   fechaTermino: fecha.nullable(),
+  hora: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "La hora de inicio no es válida.").nullable(),
+  horaFin: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "La hora de término no es válida.").nullable(),
   responsable: z.string().trim().max(120).nullable(),
 });
 
@@ -124,6 +58,8 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
     estado: formData.get("estado"),
     fecha: formData.get("fecha"),
     fechaTermino: aTexto(formData.get("fechaTermino")),
+    hora: aTexto(formData.get("hora")),
+    horaFin: aTexto(formData.get("horaFin")),
     responsable: aTexto(formData.get("responsable")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
@@ -142,7 +78,12 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
   for (const l of lineasParse.data) porMaterial.set(l.insumoId, (porMaterial.get(l.insumoId) ?? 0) + l.cantidad);
 
   const d = parsed.data;
-  const fechaTermino = d.estado === "HECHA" ? (d.fechaTermino ?? hoyEnChile()) : null;
+  // Hecha: la fecha en que se terminó. Antes de eso, la fecha en que se programó que termine (si se puso).
+  const fechaTermino = d.estado === "HECHA" ? (d.fechaTermino ?? hoyEnChile()) : d.fechaTermino;
+  if (d.estado !== "HECHA" && d.fechaTermino && `${d.fechaTermino} ${d.horaFin ?? "23:59"}` < `${d.fecha} ${d.hora ?? "00:00"}`) {
+    return { ok: false, error: "El término no puede ser antes del inicio." };
+  }
+  const horaFin = d.estado === "HECHA" ? null : d.fechaTermino ? d.horaFin : null;
   const id = String(formData.get("id") ?? "");
   const ctx = { aprId: apr.id, userId: user.id };
 
@@ -178,7 +119,7 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
         numero = m + 1;
       }
 
-      const valores = { ...d, fechaTermino, descontada: false, updatedAt: new Date() };
+      const valores = { ...d, fechaTermino, horaFin, descontada: false, updatedAt: new Date() };
       if (id) {
         await tx.update(labores).set(valores).where(and(eq(labores.id, id), eq(labores.aprId, apr.id)));
         await tx.delete(laborInsumos).where(eq(laborInsumos.laborId, id));
@@ -226,11 +167,19 @@ export async function cambiarEstadoLabor(id: string, estado: "PROGRAMADA" | "EN_
   try {
     await db.transaction(async (tx) => {
       const [actual] = await tx
-        .select({ numero: labores.numero, descontada: labores.descontada, fechaTermino: labores.fechaTermino })
+        .select({ numero: labores.numero, descontada: labores.descontada, fechaTermino: labores.fechaTermino, fecha: labores.fecha, hora: labores.hora })
         .from(labores)
         .where(and(eq(labores.id, id), eq(labores.aprId, apr.id)))
         .limit(1);
       if (!actual) throw new ErrorLabor("No encontramos esa labor.");
+
+      // Una labor cuya hora ya pasó no puede quedar «Programada»: se adelantaría sola. Para posponerla, se le cambia la fecha u hora.
+      if (estado === "PROGRAMADA") {
+        const ahora = ahoraEnChile();
+        if (`${actual.fecha} ${actual.hora ?? "00:00"}` <= `${ahora.fecha} ${ahora.hora}`) {
+          throw new ErrorLabor("Ya pasó la hora de inicio de esta labor. Para posponerla, cámbiale la fecha u hora.");
+        }
+      }
 
       let descontada = actual.descontada;
       if (estado === "HECHA" && !descontada) {
@@ -243,7 +192,7 @@ export async function cambiarEstadoLabor(id: string, estado: "PROGRAMADA" | "EN_
 
       await tx
         .update(labores)
-        .set({ estado, descontada, fechaTermino: estado === "HECHA" ? (actual.fechaTermino ?? hoyEnChile()) : null, updatedAt: new Date() })
+        .set({ estado, descontada, fechaTermino: estado === "HECHA" ? (actual.fechaTermino ?? hoyEnChile()) : null, horaFin: null, updatedAt: new Date() })
         .where(and(eq(labores.id, id), eq(labores.aprId, apr.id)));
     });
   } catch (e) {

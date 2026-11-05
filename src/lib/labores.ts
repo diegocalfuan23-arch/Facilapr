@@ -1,7 +1,7 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { laborInsumos, labores } from "@/lib/db/schema";
-import type { EstadoLabor, LaborFila } from "@/lib/labores-comun";
+import { claveAhora, claveFin, type EstadoLabor, type LaborFila } from "@/lib/labores-comun";
 
 export * from "@/lib/labores-comun";
 
@@ -19,9 +19,12 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
       lugar: f.lugar,
       estado: f.estado as EstadoLabor,
       fecha: f.fecha,
+      hora: f.hora,
       fechaTermino: f.fechaTermino,
+      horaFin: f.horaFin,
       responsable: f.responsable,
       descontada: f.descontada,
+      vencida: f.estado !== "HECHA" && (claveFin(f) ?? "9999") <= claveAhora(),
       materiales: lineas
         .filter((l) => l.laborId === f.id)
         .map((l) => ({ insumoId: l.insumoId, nombre: l.insumoNombre, unidad: l.unidad, cantidad: l.cantidad, costoUnitario: l.costoUnitario })),
