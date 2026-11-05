@@ -2,10 +2,10 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, Plus, X } from "lucide-react";
+import { CalendarClock, CheckCircle2, ClipboardPlus, Clock3, Loader2, Package, Plus, Trash2, X, type LucideIcon } from "lucide-react";
 import { eliminarLabor, guardarLabor, type ResultadoLabores } from "@/app/panel/labores/actions";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
@@ -14,12 +14,31 @@ import { TIPOS_LABOR, type EstadoLabor, type LaborFila } from "@/lib/labores-com
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
 
-const campo = "h-10 px-3 text-[0.95rem]";
-const etiqueta = "mb-2 block text-[0.8rem] font-medium";
+const campo = "h-11 rounded-xl px-3 text-[0.95rem]";
+const etiqueta = "text-[0.8rem] font-semibold";
 const selectClase =
-  "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+  "h-11 w-full rounded-xl border border-input bg-transparent px-3 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
+
+/** El color de la franja de arriba y del botón de cada estado: la franja cambia según el estado que se elige. */
+const ESTADOS: { valor: EstadoLabor; nombre: string; icono: LucideIcon; banda: string; activo: string }[] = [
+  { valor: "PROGRAMADA", nombre: "Programada", icono: CalendarClock, banda: "bg-sky-700", activo: "border-sky-600 bg-sky-50 text-sky-800 dark:bg-sky-500/10 dark:text-sky-300" },
+  { valor: "EN_CURSO", nombre: "En curso", icono: Clock3, banda: "bg-amber-700", activo: "border-amber-600 bg-amber-50 text-amber-900 dark:bg-amber-500/10 dark:text-amber-300" },
+  { valor: "HECHA", nombre: "Hecha", icono: CheckCircle2, banda: "bg-emerald-700", activo: "border-emerald-600 bg-emerald-50 text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300" },
+];
 
 type Linea = { clave: number; insumoId: string; cantidad: string };
+
+function Campo({ id, label, opcional, className, children }: { id: string; label: string; opcional?: boolean; className?: string; children: React.ReactNode }) {
+  return (
+    <div className={cn("flex min-w-0 flex-col gap-1.5", className)}>
+      <label htmlFor={id} className={etiqueta}>
+        {label}
+        {opcional && <span className="ml-1 font-normal text-muted-foreground">(opcional)</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
 
 /** Registrar una labor del comité y los materiales del inventario que usa. */
 export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; onCerrar: () => void }) {
@@ -27,11 +46,13 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
   const [resultado, enviar, pendiente] = useActionState<ResultadoLabores | null, FormData>(guardarLabor, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = labor !== null;
+  const [titulo, setTitulo] = useState(labor?.titulo ?? "");
   const [estado, setEstado] = useState<EstadoLabor>(labor?.estado ?? "PROGRAMADA");
   const [lineas, setLineas] = useState<Linea[]>(
     (labor?.materiales ?? []).filter((m) => m.insumoId).map((m, i) => ({ clave: i, insumoId: m.insumoId as string, cantidad: String(m.cantidad) }))
   );
   const [siguiente, setSiguiente] = useState(100);
+  const actual = ESTADOS.find((e) => e.valor === estado) ?? ESTADOS[0];
 
   useEffect(() => {
     if (resultado?.ok) {
@@ -48,9 +69,17 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
     setLineas((ls) => ls.map((l) => (l.clave === clave ? { ...l, ...parte } : l)));
   }
 
-  const materiales = JSON.stringify(
-    lineas.filter((l) => l.insumoId && Number(l.cantidad.replace(",", ".")) > 0).map((l) => ({ insumoId: l.insumoId, cantidad: Number(l.cantidad.replace(",", ".")) }))
-  );
+  const cantidadDe = (l: Linea) => Number(l.cantidad.replace(",", ".")) || 0;
+  const disponibleDe = (l: Linea) => {
+    const m = delInventario.get(l.insumoId);
+    return m ? m.stock + yaDescontado(m.id) : 0;
+  };
+  // Al marcarla como hecha, lo que se usa no puede pasar de lo que hay.
+  const excede = (l: Linea) => estado === "HECHA" && Boolean(delInventario.get(l.insumoId)) && cantidadDe(l) > disponibleDe(l);
+  const lineaValida = (l: Linea) => Boolean(l.insumoId) && cantidadDe(l) > 0 && !excede(l);
+  const puedeGuardar = titulo.trim().length > 0 && lineas.every(lineaValida);
+
+  const materiales = JSON.stringify(lineas.filter((l) => l.insumoId && cantidadDe(l) > 0).map((l) => ({ insumoId: l.insumoId, cantidad: cantidadDe(l) })));
 
   async function borrar() {
     if (!labor) return;
@@ -68,175 +97,192 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto p-6 sm:max-w-2xl sm:p-8">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-medium">{editando ? `Labor L-${labor.numero}` : "Nueva labor"}</DialogTitle>
-          <DialogDescription className="text-[0.9rem]">Un trabajo del comité y los materiales que usa. Al marcarla como hecha, se descuentan del inventario.</DialogDescription>
-        </DialogHeader>
-
-        <form action={enviar} className="mt-2 flex flex-col gap-4">
+      <DialogContent showCloseButton={false} className="flex max-h-[calc(100dvh-24px)] flex-col gap-0 overflow-hidden p-0 sm:max-w-[640px] sm:p-0">
+        <form action={enviar} className="flex min-h-0 flex-1 flex-col">
           {editando && <input type="hidden" name="id" value={labor.id} />}
           <input type="hidden" name="materiales" value={materiales} />
+          <input type="hidden" name="estado" value={estado} />
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="sm:col-span-2">
-              <label htmlFor="lab-titulo" className={etiqueta}>
-                ¿Qué se hace?
-              </label>
-              <Input id="lab-titulo" name="titulo" defaultValue={labor?.titulo} placeholder="Ej.: Cambio de medidores del sector norte" maxLength={140} className={campo} autoFocus required />
+          {/* La franja de arriba cambia de color con el estado elegido. */}
+          <div className={cn("flex shrink-0 items-center gap-3 py-4 pr-3 pl-5 text-white transition-colors", actual.banda)}>
+            <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/20">
+              <ClipboardPlus className="size-[22px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-xl leading-tight font-bold text-white">{editando ? `Labor L-${labor.numero}` : "Nueva labor"}</DialogTitle>
+              <DialogDescription className="text-[0.8rem] text-white/90">Los materiales se descuentan al marcarla como hecha.</DialogDescription>
             </div>
-            <div>
-              <label htmlFor="lab-tipo" className={etiqueta}>
-                Tipo
-              </label>
-              <select id="lab-tipo" name="tipo" defaultValue={labor?.tipo ?? "MANTENCION"} className={selectClase}>
-                {TIPOS_LABOR.map((t) => (
-                  <option key={t.valor} value={t.valor}>
-                    {t.texto}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="lab-estado" className={etiqueta}>
-                Estado
-              </label>
-              <select id="lab-estado" name="estado" value={estado} onChange={(e) => setEstado(e.target.value as EstadoLabor)} className={selectClase}>
-                <option value="PROGRAMADA">Programada</option>
-                <option value="EN_CURSO">En curso</option>
-                <option value="HECHA">Hecha</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="lab-fecha" className={etiqueta}>
-                Fecha
-              </label>
-              <Input id="lab-fecha" name="fecha" type="date" defaultValue={labor?.fecha ?? hoyEnChile()} className={campo} required />
-            </div>
-            {estado === "HECHA" ? (
-              <div>
-                <label htmlFor="lab-termino" className={etiqueta}>
-                  Fecha en que se terminó
-                </label>
-                <Input id="lab-termino" name="fechaTermino" type="date" defaultValue={labor?.fechaTermino ?? hoyEnChile()} className={campo} />
-              </div>
-            ) : (
-              <div />
-            )}
-            <div>
-              <label htmlFor="lab-lugar" className={etiqueta}>
-                Lugar (opcional)
-              </label>
-              <Input id="lab-lugar" name="lugar" defaultValue={labor?.lugar ?? ""} placeholder="Sector, caseta o pozo" maxLength={160} className={campo} />
-            </div>
-            <div>
-              <label htmlFor="lab-responsable" className={etiqueta}>
-                Responsable (opcional)
-              </label>
-              <Input id="lab-responsable" name="responsable" defaultValue={labor?.responsable ?? ""} maxLength={120} className={campo} />
-            </div>
-            <div className="sm:col-span-2">
-              <label htmlFor="lab-desc" className={etiqueta}>
-                Detalle (opcional)
-              </label>
-              <Textarea id="lab-desc" name="descripcion" defaultValue={labor?.descripcion ?? ""} rows={2} maxLength={1000} />
-            </div>
+            <button type="button" onClick={onCerrar} aria-label="Cerrar" className="flex size-9 shrink-0 items-center justify-center rounded-lg text-white/90 transition-colors hover:bg-white/20 hover:text-white">
+              <X className="size-5" />
+            </button>
           </div>
 
-          <div className="rounded-xl border border-border p-4">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-[0.9rem] font-semibold">Materiales del inventario</h3>
-              <Button
-                type="button"
-                variant="outline"
-                className="h-8 px-3 text-[0.8rem]"
-                disabled={insumos.length === 0}
-                onClick={() => {
-                  setLineas((ls) => [...ls, { clave: siguiente, insumoId: "", cantidad: "" }]);
-                  setSiguiente((n) => n + 1);
-                }}
-              >
-                <Plus />
-                Agregar material
-              </Button>
-            </div>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-5 py-5">
+            <Campo id="lab-titulo" label="¿Qué se hace?">
+              <Input id="lab-titulo" name="titulo" value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder="Ej.: Cambio de medidores del sector norte" maxLength={140} className={campo} autoFocus required />
+            </Campo>
 
-            {insumos.length === 0 && <p className="mt-3 text-[0.85rem] text-muted-foreground">Primero carga materiales en Inventario para poder usarlos aquí.</p>}
-
-            {lineas.length > 0 && (
-              <div className="mt-3 flex flex-col gap-2">
-                {lineas.map((l) => {
-                  const mat = delInventario.get(l.insumoId);
-                  const disponible = mat ? mat.stock + yaDescontado(mat.id) : 0;
-                  const cantidad = Number(l.cantidad.replace(",", ".")) || 0;
-                  const falta = estado === "HECHA" && mat && cantidad > disponible;
+            <div className="flex flex-col gap-1.5">
+              <span id="lab-estado" className={etiqueta}>
+                Estado
+              </span>
+              <div role="radiogroup" aria-labelledby="lab-estado" className="grid grid-cols-3 gap-2">
+                {ESTADOS.map((e) => {
+                  const Icono = e.icono;
+                  const activo = e.valor === estado;
                   return (
-                    <div key={l.clave} className="flex flex-col gap-1">
-                      <div className="flex items-center gap-2">
-                        <select
-                          aria-label="Material"
-                          value={l.insumoId}
-                          onChange={(e) => cambiar(l.clave, { insumoId: e.target.value })}
-                          className={cn(selectClase, "min-w-0 flex-1")}
-                        >
-                          <option value="">Elige un material…</option>
-                          {insumos.map((i) => (
-                            <option key={i.id} value={i.id}>
-                              {i.nombre} ({formatoCantidad(i.stock + yaDescontado(i.id))} {unidadCorta(i.unidad)})
-                            </option>
-                          ))}
-                        </select>
-                        <Input
-                          aria-label="Cantidad"
-                          value={l.cantidad}
-                          onChange={(e) => cambiar(l.clave, { cantidad: e.target.value.replace(/[^\d.,]/g, "").slice(0, 10) })}
-                          inputMode="decimal"
-                          placeholder="Cant."
-                          className={cn(campo, "w-24 shrink-0")}
-                        />
-                        <span className="w-10 shrink-0 text-[0.8rem] text-muted-foreground">{mat ? unidadCorta(mat.unidad) : ""}</span>
-                        <Button type="button" variant="ghost" size="icon-sm" aria-label="Quitar material" onClick={() => setLineas((ls) => ls.filter((x) => x.clave !== l.clave))}>
-                          <X />
-                        </Button>
-                      </div>
-                      {falta && (
-                        <p className="text-[0.75rem] text-destructive">
-                          Solo hay {formatoCantidad(disponible)} {unidadCorta(mat.unidad)}: no se podrá marcar como hecha.
-                        </p>
+                    <button
+                      key={e.valor}
+                      type="button"
+                      role="radio"
+                      aria-checked={activo}
+                      onClick={() => setEstado(e.valor)}
+                      className={cn(
+                        "flex min-h-11 items-center justify-center gap-1.5 rounded-xl border px-2 text-[0.85rem] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        activo ? e.activo : "border-input text-muted-foreground hover:bg-muted"
                       )}
-                    </div>
+                    >
+                      <Icono className="hidden size-4 sm:block" aria-hidden />
+                      {e.nombre}
+                    </button>
                   );
                 })}
               </div>
-            )}
+            </div>
 
-            <p className="mt-3 text-[0.75rem] text-muted-foreground">
-              {estado === "HECHA"
-                ? "Al guardar, estos materiales se descuentan del inventario."
-                : "Se descuentan del inventario cuando la labor pasa a Hecha. Si la reabres, vuelven."}
-            </p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Campo id="lab-tipo" label="Tipo">
+                <select id="lab-tipo" name="tipo" defaultValue={labor?.tipo ?? "MANTENCION"} className={selectClase}>
+                  {TIPOS_LABOR.map((t) => (
+                    <option key={t.valor} value={t.valor}>
+                      {t.texto}
+                    </option>
+                  ))}
+                </select>
+              </Campo>
+              <Campo id="lab-fecha" label="Fecha">
+                <Input id="lab-fecha" name="fecha" type="date" defaultValue={labor?.fecha ?? hoyEnChile()} className={campo} required />
+              </Campo>
+              {estado === "HECHA" && (
+                <Campo id="lab-termino" label="Fecha en que se terminó" className="sm:col-span-2">
+                  <Input id="lab-termino" name="fechaTermino" type="date" defaultValue={labor?.fechaTermino ?? hoyEnChile()} className={campo} />
+                </Campo>
+              )}
+              <Campo id="lab-lugar" label="Lugar" opcional>
+                <Input id="lab-lugar" name="lugar" defaultValue={labor?.lugar ?? ""} placeholder="Sector, caseta o pozo" maxLength={160} className={campo} />
+              </Campo>
+              <Campo id="lab-responsable" label="Responsable" opcional>
+                <Input id="lab-responsable" name="responsable" defaultValue={labor?.responsable ?? ""} placeholder="Nombre de quien la hace" maxLength={120} className={campo} />
+              </Campo>
+            </div>
+
+            <Campo id="lab-desc" label="Detalle" opcional>
+              <Textarea id="lab-desc" name="descripcion" defaultValue={labor?.descripcion ?? ""} rows={2} maxLength={1000} className="min-h-[68px] resize-y" />
+            </Campo>
+
+            <section aria-label="Materiales del inventario" className="rounded-2xl bg-muted/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="flex items-center gap-2 text-[0.95rem] font-bold">
+                  <Package className="size-[18px] text-primary" aria-hidden />
+                  Materiales del inventario
+                </h3>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="h-10 shrink-0 rounded-xl bg-card font-semibold text-primary"
+                  disabled={insumos.length === 0}
+                  onClick={() => {
+                    setLineas((ls) => [...ls, { clave: siguiente, insumoId: "", cantidad: "" }]);
+                    setSiguiente((n) => n + 1);
+                  }}
+                >
+                  <Plus />
+                  Agregar
+                </Button>
+              </div>
+
+              {insumos.length === 0 && <p className="mt-3 text-[0.8rem] text-muted-foreground">Primero carga materiales en Inventario para poder usarlos aquí.</p>}
+              {insumos.length > 0 && lineas.length === 0 && <p className="mt-3 text-[0.8rem] text-muted-foreground">Esta labor no usa materiales por ahora.</p>}
+
+              {lineas.length > 0 && (
+                <div className="mt-3 flex flex-col gap-2">
+                  {lineas.map((l) => {
+                    const mat = delInventario.get(l.insumoId);
+                    const disponible = disponibleDe(l);
+                    const cantidad = cantidadDe(l);
+                    const sobra = excede(l);
+                    return (
+                      <div key={l.clave} className="rounded-xl bg-card p-3 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <select aria-label="Material" value={l.insumoId} onChange={(e) => cambiar(l.clave, { insumoId: e.target.value })} className={cn(selectClase, "min-w-0 flex-1")}>
+                            <option value="">Elegir material…</option>
+                            {insumos.map((i) => (
+                              <option key={i.id} value={i.id}>
+                                {i.nombre}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="relative w-24 shrink-0 sm:w-28">
+                            <Input
+                              aria-label="Cantidad"
+                              value={l.cantidad}
+                              onChange={(e) => cambiar(l.clave, { cantidad: e.target.value.replace(/[^\d.,]/g, "").slice(0, 10) })}
+                              inputMode="decimal"
+                              placeholder="Cant."
+                              className={cn(campo, "pr-9", sobra && "border-destructive")}
+                            />
+                            {mat && <span className="absolute top-1/2 right-3 -translate-y-1/2 text-[0.8rem] font-medium text-muted-foreground">{unidadCorta(mat.unidad)}</span>}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            aria-label={`Quitar ${mat?.nombre ?? "material"}`}
+                            onClick={() => setLineas((ls) => ls.filter((x) => x.clave !== l.clave))}
+                            className="size-11 shrink-0 rounded-xl text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                        {mat && (
+                          <p className={cn("mt-2 text-[0.8rem] font-medium", sobra ? "text-destructive" : "text-muted-foreground")}>
+                            {sobra
+                              ? `Solo hay ${formatoCantidad(disponible)} ${unidadCorta(mat.unidad)} en inventario: no se podrá marcar como hecha.`
+                              : `Disponible ${formatoCantidad(disponible)} ${unidadCorta(mat.unidad)}${cantidad > 0 ? ` · quedarán ${formatoCantidad(disponible - cantidad)} ${unidadCorta(mat.unidad)}` : ""}`}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <p className="mt-3 text-[0.75rem] text-muted-foreground">
+                {estado === "HECHA" ? "Al guardar, estos materiales se descuentan del inventario." : "Se descuentan del inventario cuando la labor pasa a Hecha. Si la reabres, vuelven."}
+              </p>
+            </section>
+
+            {resultado && !resultado.ok && (
+              <p className="text-[0.85rem] text-destructive" role="alert">
+                {resultado.error}
+              </p>
+            )}
           </div>
 
-          {resultado && !resultado.ok && (
-            <p className="text-[0.85rem] text-destructive" role="alert">
-              {resultado.error}
-            </p>
-          )}
-
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border bg-card px-5 py-3">
             {editando ? (
-              <Button type="button" variant="ghost" className="h-10 px-4 text-[0.95rem] text-destructive" onClick={borrar} disabled={borrando || pendiente}>
+              <Button type="button" variant="ghost" className="h-11 rounded-full px-4 font-semibold text-destructive" onClick={borrar} disabled={borrando || pendiente}>
                 {borrando && <Loader2 className="animate-spin" />}
                 Borrar
               </Button>
             ) : (
               <span />
             )}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button type="button" variant="outline" className="h-10 px-4 text-[0.95rem]" onClick={onCerrar}>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" className="h-11 rounded-full px-5 font-semibold" onClick={onCerrar}>
                 Cancelar
               </Button>
-              <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente || borrando}>
+              <Button type="submit" className="h-11 rounded-full px-6 font-semibold" disabled={pendiente || borrando || !puedeGuardar}>
                 {pendiente && <Loader2 className="animate-spin" />}
                 {editando ? "Guardar cambios" : "Registrar labor"}
               </Button>
