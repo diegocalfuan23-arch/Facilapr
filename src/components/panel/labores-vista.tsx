@@ -2,7 +2,7 @@
 
 import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { MapPin, Package, User } from "lucide-react";
+import { CalendarDays, Check, ClipboardList, Clock3, Droplet, MapPin, Package, Wrench, type LucideIcon } from "lucide-react";
 import { cambiarEstadoLabor } from "@/app/panel/labores/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,43 @@ import { cn } from "@/lib/utils";
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 const alto = "h-10";
-const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
+
+/** La franja de color de cada tarjeta según su estado (todas con buen contraste con el texto blanco). */
+const BANDA: Record<EstadoLabor, string> = {
+  PROGRAMADA: "bg-sky-700",
+  EN_CURSO: "bg-amber-700",
+  HECHA: "bg-emerald-700",
+};
+
+const iniciales = (nombre: string) =>
+  nombre
+    .split(" ")
+    .filter(Boolean)
+    .map((p) => p[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+function iconoDe(tipo: string): LucideIcon {
+  if (tipo === "CLORACION") return Droplet;
+  if (tipo === "REPARACION") return Wrench;
+  return ClipboardList;
+}
+
+/** Un número del resumen, con su ícono en un recuadro de color (el ícono se oculta en pantallas chicas). */
+function Kpi({ etiqueta, valor, icono: Icono, tono, destacado = false }: { etiqueta: string; valor: string; icono: LucideIcon; tono: string; destacado?: boolean }) {
+  return (
+    <div className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 sm:p-5">
+      <span aria-hidden className={cn("hidden size-11 shrink-0 items-center justify-center rounded-xl text-white lg:flex", tono)}>
+        <Icono className="size-5" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[0.8rem] leading-tight font-medium text-muted-foreground">{etiqueta}</p>
+        <p className={cn("mt-0.5 text-[1.5rem] leading-tight font-bold tabular-nums", destacado && "text-primary")}>{valor}</p>
+      </div>
+    </div>
+  );
+}
 
 const COLUMNAS: { estado: EstadoLabor; titulo: string; punto: string; vacio: string }[] = [
   { estado: "PROGRAMADA", titulo: "Programadas", punto: "bg-sky-500", vacio: "Sin labores programadas" },
@@ -60,7 +96,8 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
     });
   }
 
-  const mes = hoyEnChile().slice(0, 7);
+  const hoy = hoyEnChile();
+  const mes = hoy.slice(0, 7);
   const programadas = labores.filter((l) => estadoDe(l) === "PROGRAMADA").length;
   const enCurso = labores.filter((l) => estadoDe(l) === "EN_CURSO").length;
   const hechasMes = labores.filter((l) => estadoDe(l) === "HECHA" && (l.fechaTermino ?? l.fecha).startsWith(mes));
@@ -79,23 +116,11 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-4">
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Programadas</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{programadas}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>En curso</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{enCurso}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Hechas este mes</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{hechasMes.length}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Materiales usados este mes</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{clp.format(costoMes)}</p>
-        </div>
+      <section aria-label="Resumen" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <Kpi etiqueta="Programadas" valor={String(programadas)} icono={CalendarDays} tono="bg-sky-600" />
+        <Kpi etiqueta="En curso" valor={String(enCurso)} icono={Clock3} tono="bg-amber-600" />
+        <Kpi etiqueta="Hechas este mes" valor={String(hechasMes.length)} icono={Check} tono="bg-emerald-600" />
+        <Kpi etiqueta="Materiales usados este mes" valor={clp.format(costoMes)} icono={Package} tono="bg-primary" destacado />
       </section>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -144,6 +169,7 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
               ) : (
                 tarjetas.map((l) => {
                   const costo = costoMateriales(l);
+                  const Icono = iconoDe(l.tipo);
                   return (
                     <article
                       key={l.id}
@@ -155,52 +181,75 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
                       }}
                       onClick={() => setEditando(l)}
                       className={cn(
-                        "cursor-grab rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-opacity hover:border-foreground/30 active:cursor-grabbing",
+                        "cursor-grab overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-opacity hover:border-foreground/30 active:cursor-grabbing",
                         arrastrando === l.id && "opacity-40",
                         col.estado === "HECHA" && "opacity-80"
                       )}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-[0.8rem] font-medium text-muted-foreground">L-{l.numero}</span>
-                        <span className="rounded-full bg-muted px-2.5 py-0.5 text-[0.75rem] font-medium text-muted-foreground">{textoTipoLabor(l.tipo)}</span>
-                      </div>
-                      <h3 className="mt-2 text-[0.95rem] leading-snug font-medium">{l.titulo}</h3>
-
-                      <div className="mt-3 flex flex-col gap-1 text-[0.8rem] text-muted-foreground">
-                        {l.lugar && (
-                          <span className="flex items-center gap-1.5">
-                            <MapPin className="size-3.5 shrink-0" />
-                            <span className="truncate">{l.lugar}</span>
+                      <div className={cn("flex items-center justify-between gap-2 px-4 py-2 text-white", BANDA[col.estado])}>
+                        <span className="flex min-w-0 items-center gap-2 text-[0.85rem] font-semibold">
+                          <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-md bg-white/20">
+                            <Icono className="size-3.5" />
+                          </span>
+                          <span className="truncate">
+                            L-{l.numero} · {textoTipoLabor(l.tipo)}
+                          </span>
+                        </span>
+                        {col.estado !== "HECHA" && l.fecha === hoy && <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[0.7rem] font-bold text-sky-800">Hoy</span>}
+                        {col.estado === "HECHA" && (
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[0.7rem] font-bold text-emerald-800">
+                            <Check className="size-3" aria-hidden />
+                            Hecha
                           </span>
                         )}
-                        {l.responsable && (
-                          <span className="flex items-center gap-1.5">
-                            <User className="size-3.5 shrink-0" />
+                      </div>
+
+                      <div className="p-4">
+                        <h3 className="text-[0.95rem] leading-snug font-semibold">{l.titulo}</h3>
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <div className="rounded-lg bg-muted/60 px-3 py-2">
+                            <p className="flex items-center gap-1 text-[0.72rem] text-muted-foreground">
+                              <CalendarDays className="size-3.5" aria-hidden />
+                              {col.estado === "HECHA" && l.fechaTermino ? "Terminada" : "Fecha"}
+                            </p>
+                            <p className="mt-0.5 text-[0.85rem] font-semibold tabular-nums">{fechaCorta(col.estado === "HECHA" && l.fechaTermino ? l.fechaTermino : l.fecha)}</p>
+                          </div>
+                          <div className="rounded-lg bg-muted/60 px-3 py-2">
+                            <p className="flex items-center gap-1 text-[0.72rem] text-muted-foreground">
+                              <Package className="size-3.5" aria-hidden />
+                              Materiales
+                            </p>
+                            <p className="mt-0.5 text-[0.85rem] font-semibold">
+                              {l.materiales.length === 0 ? "Sin materiales" : `${l.materiales.length}${l.descontada ? " · usados" : ""}`}
+                            </p>
+                          </div>
+                        </div>
+                        {l.lugar && (
+                          <p className="mt-3 flex items-center gap-1.5 text-[0.8rem] text-muted-foreground">
+                            <MapPin className="size-3.5 shrink-0" aria-hidden />
+                            <span className="truncate">{l.lugar}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-between gap-3 border-t border-border bg-muted/30 px-4 py-2.5">
+                        {l.responsable ? (
+                          <span className="flex min-w-0 items-center gap-2 text-[0.8rem] font-medium">
+                            <span aria-hidden className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.65rem] font-bold text-primary">
+                              {iniciales(l.responsable)}
+                            </span>
                             <span className="truncate">{l.responsable}</span>
                           </span>
+                        ) : (
+                          <span className="text-[0.8rem] text-muted-foreground">Sin responsable</span>
                         )}
-                        {l.materiales.length > 0 && (
-                          <span className="flex items-center gap-1.5">
-                            <Package className="size-3.5 shrink-0" />
-                            <span className="truncate">
-                              {l.materiales.length === 1 ? "1 material" : `${l.materiales.length} materiales`}
-                              {l.descontada && " · descontados"}
-                            </span>
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 text-[0.8rem]">
-                        <span className="text-muted-foreground tabular-nums">
-                          {col.estado === "HECHA" && l.fechaTermino ? `Hecha ${fechaCorta(l.fechaTermino)}` : fechaCorta(l.fecha)}
-                        </span>
-                        {costo > 0 && <span className="font-medium tabular-nums">{clp.format(costo)}</span>}
+                        {costo > 0 && <span className="shrink-0 text-[0.95rem] font-bold tabular-nums">{clp.format(costo)}</span>}
                       </div>
 
                       {col.estado !== "HECHA" && (
                         <Button
                           variant="outline"
-                          className="mt-3 h-8 w-full rounded-full text-[0.8rem] lg:hidden"
+                          className="m-4 mt-0 h-8 w-[calc(100%-2rem)] rounded-full text-[0.8rem] lg:hidden"
                           onClick={(e) => {
                             e.stopPropagation();
                             mover(l, col.estado === "PROGRAMADA" ? "EN_CURSO" : "HECHA");
