@@ -582,8 +582,7 @@ export function Landing() {
               <h2 className={`${TITULO} text-4xl leading-[1.08] md:text-[52px]`}>Veamos tu comité</h2>
               <p className="mt-3 text-lg text-white/80">Te respondemos dentro de 1 día hábil.</p>
               <div className="mt-6 flex flex-col gap-2">
-                <p className="w-fit rounded-full bg-white/10 px-4 py-2 text-[15px] font-medium">WhatsApp +56 9 4250 6724</p>
-                <p className="w-fit rounded-full bg-white/10 px-4 py-2 text-[15px] font-medium">hola@facilapr.cl</p>
+                <a href="https://wa.me/56942506724" target="_blank" rel="noopener noreferrer" className="w-fit rounded-full bg-white/10 px-4 py-2 text-[15px] font-medium transition-colors hover:bg-white/20">WhatsApp +56 9 4250 6724</a>
               </div>
             </div>
             <div className="relative rounded-[24px] bg-white p-5 text-[#15132B] md:p-6">

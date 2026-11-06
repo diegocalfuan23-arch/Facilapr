@@ -102,7 +102,7 @@ export async function enviarConsulta(
     return {
       ok: false,
       error:
-        "No pudimos registrar tu consulta. Escríbenos directamente a hola@facilapr.cl.",
+        "No pudimos registrar tu consulta. Escríbenos por WhatsApp al +56 9 4250 6724.",
     };
   }
 
