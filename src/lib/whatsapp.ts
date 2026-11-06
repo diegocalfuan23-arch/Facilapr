@@ -73,9 +73,23 @@ export function telefonoValidoParaWhatsApp(telefono: string | null | undefined) 
   return Boolean(telefono && /^\+\d{8,15}$/.test(telefono));
 }
 
-/** Con el teléfono vacío, WhatsApp deja elegir a quién mandarlo. */
+/**
+ * La firma discreta al final de cada mensaje que sale del panel. WhatsApp no deja achicar la letra:
+ * va en cursiva (entre guiones bajos), separada del texto, para que se vea pequeña y no estorbe.
+ */
+export const MARCA_WHATSAPP = "_Enviado con Facilapr · facilapr.cl_";
+
+/** El texto con la firma al final (una sola vez, aunque ya la traiga). */
+export function conMarcaWhatsApp(texto: string) {
+  const limpio = texto.trimEnd();
+  return limpio.includes(MARCA_WHATSAPP) ? limpio : `${limpio}
+
+${MARCA_WHATSAPP}`;
+}
+
+/** Con el teléfono vacío, WhatsApp deja elegir a quién mandarlo. Todo mensaje sale con la firma de Facilapr al final. */
 export function enlaceWhatsApp(telefono: string, texto: string) {
-  return `https://wa.me/${telefono.replace(/\D/g, "")}?text=${encodeURIComponent(texto)}`;
+  return `https://wa.me/${telefono.replace(/\D/g, "")}?text=${encodeURIComponent(conMarcaWhatsApp(texto))}`;
 }
 
 export type DatosComiteWhatsApp = {
