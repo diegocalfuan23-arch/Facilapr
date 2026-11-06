@@ -1,13 +1,29 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { and, countDistinct, desc, eq, gte, inArray, sql } from "drizzle-orm";
-import { AlertTriangle, ArrowRight, Banknote, FlaskConical, ReceiptText, ShieldCheck, TriangleAlert, UserCheck, Users, Wallet, type LucideIcon } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDown,
+  ArrowRight,
+  ArrowUp,
+  Banknote,
+  Droplets,
+  FlaskConical,
+  UserCheck,
+  ReceiptText,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { db } from "@/lib/db";
 import { boletas, socios, solicitudesAcceso } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { libroDelMes, mesValido, mesVecino, resumenPeriodo } from "@/lib/finanzas";
-import { ResumenBarras } from "@/components/panel/resumen-barras";
+import {
+  GraficoArea,
+  GraficoBarras,
+  SparklineArea,
+} from "@/components/panel/graficos";
 import { formatearPeriodo } from "@/lib/boletas";
 import { DEMO, type DatosDashboard } from "@/lib/demo-dashboard";
 import { iniciales, tiempoRelativo } from "@/lib/formato";
@@ -45,6 +61,55 @@ function ultimosPeriodos(n: number): string[] {
   });
 }
 
+function Tarjeta({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "min-w-0 rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-5",
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
+/** Variación respecto al período anterior. */
+function Delta({ valor, invertido }: { valor: number | null; invertido?: boolean }) {
+  if (valor === null) {
+    return (
+      <span className="rounded-full bg-muted px-2 py-0.5 text-[0.75rem] font-medium text-muted-foreground">
+        sin comparación
+      </span>
+    );
+  }
+
+  // En morosidad subir es malo: `invertido` cambia qué color es bueno.
+  const bueno = invertido ? valor <= 0 : valor >= 0;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[0.75rem] font-medium tabular-nums",
+        bueno ? "bg-forest/10 text-forest" : "bg-destructive/10 text-destructive"
+      )}
+    >
+      {valor >= 0 ? (
+        <ArrowUp className="size-3" />
+      ) : (
+        <ArrowDown className="size-3" />
+      )}
+      {Math.abs(valor).toFixed(1)}%
+    </span>
+  );
+}
+
 export default async function PanelPage({
   searchParams,
 }: {
@@ -59,9 +124,9 @@ export default async function PanelPage({
   // suya, dos boletas del mismo vencimiento podrían mostrar estados distintos.
   const ahora = new Date();
   const rango = RANGOS.find((r) => r.id === rangoParam) ?? RANGOS[1];
-  const desde = new Date(ahora.getTime() - rango.dias * 86_400_000);
+  const desde = new Date(Date.now() - rango.dias * 86_400_000);
   // El período anterior de igual largo, para calcular la variación.
-  const desdeAnterior = new Date(ahora.getTime() - rango.dias * 2 * 86_400_000);
+  const desdeAnterior = new Date(Date.now() - rango.dias * 2 * 86_400_000);
 
   const noAnulada = sql`${boletas.estado} <> 'ANULADA'`;
   const impaga = sql`${boletas.montoPagado} < ${boletas.montoTotal}`;
@@ -124,18 +189,6 @@ export default async function PanelPage({
         sql`${boletas.fechaEmision} < ${desde}`
       )
     );
-
-  // Lo que está por cobrar: las boletas con saldo, cuántas ya vencieron y cuándo vence la próxima.
-  const [porCobrar] = await db
-    .select({
-      n: sql<number>`count(*)::int`,
-      monto: sql<number>`coalesce(sum(${boletas.montoTotal} - ${boletas.montoPagado}), 0)::int`,
-      vencidas: sql<number>`count(*) filter (where ${boletas.fechaVencimiento} < now())::int`,
-      proxima: sql<string | null>`min(${boletas.fechaVencimiento}) filter (where ${boletas.fechaVencimiento} >= now())`,
-    })
-    .from(boletas)
-    .innerJoin(socios, eq(boletas.socioId, socios.id))
-    .where(and(eq(socios.aprId, apr.id), noAnulada, impaga));
 
   // Con Finanzas (Estándar y Grande), la Caja del mes reemplaza dos tarjetas de cobranza.
   const conCaja = !demo && puede(apr.plan as Plan, "finanzas");
@@ -372,345 +425,484 @@ export default async function PanelPage({
   const tasaMorosidad =
     d.padron.total > 0 ? (d.morosidad.socios / d.padron.total) * 100 : 0;
 
-  const kpis: { icono: LucideIcon; tono: string; etiqueta: string; valor: string; detalle: string; href: string }[] = [
+  const kpis = [
     {
-      icono: Users,
-      tono: "bg-[#ECE8FD] text-[#3A0CE3]",
+      icono: <Users />,
+      fondo: "bg-primary/10",
+      texto: "text-primary",
       etiqueta: "Socios",
       valor: String(d.padron.total),
+      delta: null,
       detalle: `${d.padron.activos} ${d.padron.activos === 1 ? "activo" : "activos"}`,
       href: "/panel/socios",
     },
     {
-      icono: d.morosidad.socios === 0 ? ShieldCheck : AlertTriangle,
-      tono: d.morosidad.socios === 0 ? "bg-[#DFF4EB] text-[#0A7A52]" : "bg-[#FDECEC] text-[#A32020]",
+      icono: <AlertTriangle />,
+      fondo: "bg-destructive/10",
+      texto: "text-destructive",
       etiqueta: "Morosos",
       valor: String(d.morosidad.socios),
-      detalle: d.morosidad.socios === 0 ? "Sin boletas vencidas" : `${tasaMorosidad.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} % de los socios · ${clp.format(d.morosidad.monto)} por cobrar`,
+      delta: null,
+      detalle:
+        d.morosidad.socios === 0
+          ? "Sin boletas vencidas"
+          : `${clp.format(d.morosidad.monto)} por cobrar`,
       href: "/panel/boletas",
     },
     {
-      icono: Wallet,
-      tono: "bg-[#E2F2FC] text-[#0A6EA8]",
+      icono: <Wallet />,
+      fondo: "bg-forest/10",
+      texto: "text-forest",
       etiqueta: "Recaudado",
       valor: clp.format(d.facturacion.recaudado),
-      detalle: d.facturacion.facturado === 0 ? "Aún no emites boletas" : `${cobertura}% de lo facturado`,
+      delta: variacion(recienteActual.recaudado, recienteAnterior.recaudado),
+      detalle:
+        d.facturacion.facturado === 0
+          ? "Aún no emites boletas"
+          : `${cobertura}% de lo facturado`,
       href: "/panel/boletas",
     },
     caja
       ? {
-          icono: Banknote,
-          tono: "bg-[#FFEEDC] text-[#B05300]",
+          icono: <Banknote />,
+          fondo: "bg-tertiary/15",
+          texto: "text-tertiary-texto",
           etiqueta: "Disponible en caja",
           valor: caja.disponible === null ? "—" : clp.format(caja.disponible),
-          detalle: caja.disponible === null ? "Falta el saldo inicial" : `${clp.format(caja.egresos)} de egresos este mes`,
+          delta: null,
+          detalle:
+            caja.disponible === null
+              ? "Falta el saldo inicial"
+              : `${clp.format(caja.egresos)} de egresos este mes`,
           href: "/panel/caja",
         }
       : {
-          icono: ReceiptText,
-          tono: "bg-[#FFEEDC] text-[#B05300]",
+          icono: <ReceiptText />,
+          fondo: "bg-tertiary/15",
+          texto: "text-tertiary-texto",
           etiqueta: "Facturas emitidas",
           valor: String(d.facturacion.emitidas),
-          detalle: d.facturacion.emitidas === 0 ? "Sin boletas emitidas" : `${clp.format(d.facturacion.facturado)} facturados`,
+          delta: variacion(recienteActual.emitidas, recienteAnterior.emitidas),
+          detalle:
+            d.facturacion.emitidas === 0
+              ? "Sin boletas emitidas"
+              : `${clp.format(d.facturacion.facturado)} facturados`,
           href: "/panel/boletas",
         },
   ];
 
-  // El aviso de arriba: lo que falta por cobrar. En la demostración sale de las boletas de muestra.
-  const aviso = demo
-    ? (() => {
-        const sin = d.boletas.filter((b) => b.montoPagado < b.montoTotal);
-        const futuras = sin.filter((b) => b.fechaVencimiento >= ahora).map((b) => b.fechaVencimiento.getTime());
-        return {
-          n: sin.length,
-          monto: sin.reduce((t, b) => t + (b.montoTotal - b.montoPagado), 0),
-          vencidas: sin.filter((b) => b.fechaVencimiento < ahora).length,
-          proxima: futuras.length ? new Date(Math.min(...futuras)) : null,
-        };
-      })()
-    : { n: porCobrar.n, monto: porCobrar.monto, vencidas: porCobrar.vencidas, proxima: porCobrar.proxima ? new Date(porCobrar.proxima) : null };
-
-  const resultado = caja ? caja.ingresos - caja.egresos : 0;
-  const maxFlujo = caja ? Math.max(caja.ingresos, caja.egresos, 1) : 1;
-  const usoTotal = d.consumoPorUso.residencial + d.consumoPorUso.comercial;
-  const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
-  const GRIS = "text-[#5B5970]";
-  const tarjeta = cn("rounded-[20px] bg-card p-5", SOMBRA);
-
   return (
-    <div className="flex flex-col gap-4">
+    <>
       {demo && (
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-tertiary/40 bg-tertiary/10 px-4 py-3">
+        <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-tertiary/40 bg-tertiary/10 px-4 py-3">
           <FlaskConical className="size-4 shrink-0 text-tertiary-texto" />
           <p className="flex-1 text-[0.88rem] leading-relaxed">
-            <strong>Vista de demostración.</strong> Ninguna de estas cifras es de tu comité: son datos inventados para ver cómo se verá el panel.
+            <strong>Vista de demostración.</strong> Ninguna de estas cifras es
+            de tu comité: son datos inventados para ver cómo se verá el panel.
           </p>
-          <Link href="/panel" className="text-[0.85rem] font-medium text-primary hover:underline">
+          <Link
+            href="/panel"
+            className="text-[0.85rem] font-medium text-primary hover:underline"
+          >
             Salir de la demo
           </Link>
         </div>
       )}
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-[32px] leading-tight font-bold tracking-tight">Resumen</h1>
-          <p className={cn("mt-1 text-[15px]", GRIS)}>Cómo va tu comité este mes.</p>
+      {/* Resumen: los cuatro KPI con un filtro de período único para toda la
+          vista, en vez de un selector por tarjeta. */}
+      <Tarjeta className="p-0">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-5">
+          <h2 className="text-[1.05rem] font-semibold">Resumen</h2>
+
+          <div className="flex rounded-lg border border-border p-0.5">
+            {RANGOS.map((r) => (
+              <Link
+                key={r.id}
+                href={`/panel?rango=${r.id}${demo ? "&demo=1" : ""}`}
+                className={cn(
+                  "rounded-md px-3 py-1.5 text-[0.85rem] font-medium transition-colors",
+                  r.id === rango.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {r.label}
+              </Link>
+            ))}
+          </div>
         </div>
-        <div role="group" aria-label="Período" className="grid w-full grid-cols-3 gap-1 rounded-full bg-white/80 p-1 sm:w-auto">
-          {RANGOS.map((r) => (
+
+        <div className="grid grid-cols-2 border-t border-border xl:grid-cols-4">
+          {kpis.map((kpi, i) => (
             <Link
-              key={r.id}
-              href={`/panel?rango=${r.id}${demo ? "&demo=1" : ""}`}
-              aria-current={r.id === rango.id ? "true" : undefined}
+              key={kpi.etiqueta}
+              href={kpi.href}
               className={cn(
-                "flex h-9 items-center justify-center rounded-full px-4 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                r.id === rango.id ? "bg-primary text-white" : "text-[#3F3C55] hover:bg-accent"
+                "min-w-0 p-3.5 transition-colors hover:bg-muted/40 sm:p-5",
+                i > 0 && "xl:border-l xl:border-border",
+                i % 2 === 1 && "border-l border-border xl:border-l",
+                i > 1 && "border-t border-border xl:border-t-0"
               )}
             >
-              {r.label}
+              <div className="flex items-center gap-2.5">
+                <span
+                  className={cn(
+                    "flex size-7 shrink-0 items-center justify-center rounded-lg sm:size-9 [&_svg]:size-4 sm:[&_svg]:size-4.5",
+                    kpi.fondo,
+                    kpi.texto
+                  )}
+                >
+                  {kpi.icono}
+                </span>
+                <span className="truncate text-[0.82rem] text-muted-foreground sm:text-[0.9rem]">
+                  {kpi.etiqueta}
+                </span>
+              </div>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 sm:mt-4">
+                <span
+                  className={cn(
+                    "text-[1.4rem] leading-none font-semibold tabular-nums sm:text-[1.8rem]",
+                    kpi.texto
+                  )}
+                >
+                  {kpi.valor}
+                </span>
+                {kpi.delta !== null && <Delta valor={kpi.delta} />}
+              </div>
+
+              <p className="mt-1.5 truncate text-[0.76rem] text-muted-foreground sm:text-[0.83rem]">
+                {kpi.detalle}
+              </p>
             </Link>
           ))}
         </div>
-      </div>
+      </Tarjeta>
 
-      {aviso.n > 0 && (
-        <Link href="/panel/boletas" className="flex items-center gap-3 rounded-2xl bg-[#FFF3E5] px-4 py-3 text-[15px] transition-colors hover:bg-[#FFEEDC]">
-          <TriangleAlert className="size-5 shrink-0 text-[#B05300]" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <strong className="font-bold">{aviso.n} {aviso.n === 1 ? "boleta pendiente" : "boletas pendientes"}</strong> por {clp.format(aviso.monto)}
-            {aviso.vencidas > 0
-              ? `, ${aviso.vencidas} ya ${aviso.vencidas === 1 ? "vencida" : "vencidas"}.`
-              : aviso.proxima
-                ? `, vence${aviso.n === 1 ? "" : "n"} el ${fechaCorta.format(aviso.proxima)}.`
-                : "."}
-          </span>
-          <ArrowRight className="size-4 shrink-0 text-[#8F4400]" aria-hidden />
-        </Link>
-      )}
+      {/* Dos tarjetas de tendencia + rendimiento del padrón a la derecha. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Tarjeta>
+          <h3 className="text-[1rem] font-semibold">Tasa de morosidad</h3>
+          <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
+            Socios con boletas vencidas
+          </p>
 
-      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        {kpis.map((kpi) => {
-          const Icono = kpi.icono;
-          return (
-            <Link key={kpi.etiqueta} href={kpi.href} className={cn("min-w-0 rounded-[20px] bg-card p-4 transition-shadow hover:shadow-[0_14px_34px_rgba(58,12,227,0.14)] lg:p-5", SOMBRA)}>
-              <div className="flex items-center justify-between gap-3">
-                <p className={cn("text-[13px] font-semibold", GRIS)}>{kpi.etiqueta}</p>
-                <span aria-hidden className={cn("flex size-9 shrink-0 items-center justify-center rounded-xl", kpi.tono)}>
-                  <Icono className="size-[18px]" />
-                </span>
+          <div className="mt-5 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[1.8rem] leading-none font-semibold tabular-nums">
+                {tasaMorosidad.toFixed(2)}%
               </div>
-              <p className="mt-1 text-[26px] leading-tight font-bold tracking-tight tabular-nums lg:text-[32px]">{kpi.valor}</p>
-              <p className={cn("mt-1 text-[13px]", GRIS)}>{kpi.detalle}</p>
-            </Link>
-          );
-        })}
-      </section>
-
-      <div className="grid gap-4 lg:grid-cols-12">
-        <section className={cn(tarjeta, "lg:col-span-7")}>
-          <h2 className="text-lg font-bold">Recaudación por mes</h2>
-          <p className={cn("mb-4 text-sm", GRIS)}>Cuánto se cobró en cada período</p>
-          <ResumenBarras datos={d.recaudado} formato="clp" nombre="Recaudación por mes" />
-        </section>
+              <p className="mt-1.5 text-[0.83rem] text-muted-foreground">
+                {d.morosidad.socios} de {d.padron.total || 0} socios
+              </p>
+            </div>
+            <div className="w-32">
+              <SparklineArea
+                datos={d.vencidas}
+                nombre="Boletas vencidas"
+                color="var(--destructive)"
+                id="spark-morosidad"
+              />
+            </div>
+          </div>
+        </Tarjeta>
 
         {caja ? (
-          <section className={cn(tarjeta, "flex flex-col lg:col-span-5")}>
-            <h2 className="text-lg font-bold">Resultado del mes</h2>
-            <p className={cn("text-sm", GRIS)}>Lo que entró menos lo que salió</p>
-            <p className={cn("mt-3 text-[40px] leading-none font-bold tracking-tight tabular-nums", resultado < 0 ? "text-[#A32020]" : "text-[#066A47]")}>
-              {resultado > 0 ? "+" : ""}
-              {clp.format(resultado)}
-            </p>
-            <div className="mt-5 flex flex-col gap-3">
-              {(
-                [
-                  ["Ingresos", caja.ingresos, "bg-[#0A9B68]"],
-                  ["Egresos", caja.egresos, "bg-[#E0524F]"],
-                ] as const
-              ).map(([n, v, c]) => (
-                <div key={n}>
-                  <div className="flex justify-between gap-3 text-sm">
-                    <span className={GRIS}>{n}</span>
-                    <span className="font-semibold tabular-nums">{clp.format(v)}</span>
-                  </div>
-                  <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#ECE9F5]">
-                    <div className={cn("h-full rounded-full", c)} style={{ width: `${(v / maxFlujo) * 100}%` }} />
-                  </div>
-                </div>
-              ))}
-            </div>
-            <Link href="/panel/caja" className="mt-auto inline-flex min-h-11 items-center gap-2 pt-3 text-sm font-semibold text-primary hover:underline">
-              Ver Caja <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          </section>
-        ) : (
-          // Sin Finanzas no hay Caja: aquí va cuánto de lo facturado ya se cobró.
-          <section className={cn(tarjeta, "flex flex-col lg:col-span-5")}>
-            <h2 className="text-lg font-bold">Cobertura de cobranza</h2>
-            <p className={cn("text-sm", GRIS)}>Cuánto de lo facturado se ha cobrado</p>
-            <p className="mt-3 text-[40px] leading-none font-bold tracking-tight text-[#066A47] tabular-nums">{cobertura}%</p>
+          <Tarjeta>
+            <h3 className="text-[1rem] font-semibold">Resultado del mes</h3>
+            <p className="mt-0.5 text-[0.85rem] text-muted-foreground">Lo que entró menos lo que salió</p>
+
             <div className="mt-5">
-              <div className="flex justify-between gap-3 text-sm">
-                <span className={GRIS}>Cobrado</span>
-                <span className="font-semibold tabular-nums">
-                  {clp.format(d.facturacion.recaudado)} de {clp.format(d.facturacion.facturado)}
-                </span>
+              <div
+                className={cn(
+                  "text-[1.8rem] leading-none font-semibold tabular-nums",
+                  caja.ingresos - caja.egresos < 0 ? "text-destructive" : "text-forest"
+                )}
+              >
+                {clp.format(caja.ingresos - caja.egresos)}
               </div>
-              <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#ECE9F5]">
-                <div className="h-full rounded-full bg-[#0A9B68]" style={{ width: `${Math.min(cobertura, 100)}%` }} />
-              </div>
+              <p className="mt-1.5 text-[0.83rem] text-muted-foreground">
+                {clp.format(caja.ingresos)} de ingresos · {clp.format(caja.egresos)} de egresos
+              </p>
+              <Link
+                href="/panel/caja"
+                className="mt-3 inline-flex items-center gap-1 text-[0.85rem] font-medium text-primary hover:underline"
+              >
+                Ver Caja
+                <ArrowRight className="size-3.5" />
+              </Link>
             </div>
-            <Link href="/panel/boletas" className="mt-auto inline-flex min-h-11 items-center gap-2 pt-3 text-sm font-semibold text-primary hover:underline">
-              Ver boletas <ArrowRight className="size-4" aria-hidden />
-            </Link>
-          </section>
+          </Tarjeta>
+        ) : (
+        // Cobertura, no monto: el monto ya está en el KPI de arriba. Aquí interesa qué proporción de lo facturado llegó a cobrarse.
+        <Tarjeta>
+          <h3 className="text-[1rem] font-semibold">Cobertura de cobranza</h3>
+          <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
+            Cuánto de lo facturado se ha cobrado
+          </p>
+
+          <div className="mt-5 flex items-end justify-between gap-3">
+            <div>
+              <div className="text-[1.8rem] leading-none font-semibold tabular-nums">
+                {cobertura}%
+              </div>
+              <p className="mt-1.5 text-[0.83rem] text-muted-foreground">
+                {clp.format(d.facturacion.recaudado)} de{" "}
+                {clp.format(d.facturacion.facturado)}
+              </p>
+            </div>
+            <div className="w-32">
+              <SparklineArea
+                datos={d.recaudado}
+                nombre="Recaudado"
+                color="var(--forest)"
+                id="spark-recaudacion"
+              />
+            </div>
+          </div>
+        </Tarjeta>
         )}
 
-        <section className={cn(tarjeta, "lg:col-span-7")}>
-          <h2 className="text-lg font-bold">Consumo de agua</h2>
-          <p className={cn("mb-4 text-sm", GRIS)}>Metros cúbicos por período</p>
-          <ResumenBarras datos={d.consumo} formato="m3" nombre="Consumo de agua" />
-          {usoTotal > 0 && (
-            <dl className="mt-4 grid grid-cols-2 gap-4 border-t border-[#F0EEF6] pt-3">
-              {[
-                { texto: "Residencial", valor: d.consumoPorUso.residencial },
-                { texto: "Comercial", valor: d.consumoPorUso.comercial },
-              ].map((u) => (
-                <div key={u.texto}>
-                  <dt className={cn("text-sm", GRIS)}>{u.texto}</dt>
-                  <dd className="text-lg font-bold tabular-nums">
-                    {u.valor.toLocaleString("es-CL")} m³ <span className={cn("text-sm font-normal", GRIS)}>{Math.round((u.valor / usoTotal) * 100)} %</span>
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          )}
-        </section>
-
-        <section className={cn(tarjeta, "lg:col-span-5")}>
-          <h2 className="text-lg font-bold">Quiénes pagaron</h2>
-          <p className={cn("text-sm", GRIS)}>{d.mejorPeriodo ? `${formatearPeriodo(d.mejorPeriodo.periodo)}, el mejor mes` : "Aún no hay pagos registrados"}</p>
-          {d.pagadores.length === 0 ? (
-            <p className={cn("mt-4 text-sm", GRIS)}>Todavía nadie ha pagado.</p>
-          ) : (
-            <ul className="mt-3">
-              {d.pagadores.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 border-t border-[#F0EEF6] py-3 first:border-t-0">
-                  <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ECE8FD] text-[13px] font-bold text-[#2A07A8]">
-                    {iniciales(s.nombre)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[15px] font-semibold">{s.nombre}</p>
-                    <p className={cn("text-[13px]", GRIS)}>
-                      {s.boletas} {s.boletas === 1 ? "boleta" : "boletas"}
-                    </p>
-                  </div>
-                  <p className="shrink-0 text-[15px] font-bold tabular-nums">{clp.format(s.pagado)}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className={cn("overflow-hidden rounded-[20px] bg-card lg:col-span-8", SOMBRA)}>
-          <div className="flex items-center justify-between gap-3 px-5 pt-5 pb-2">
-            <h2 className="text-lg font-bold">Boletas recientes</h2>
-            <Link href="/panel/boletas" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary hover:underline">
-              Ver todas <ArrowRight className="size-4" aria-hidden />
-            </Link>
+        <Tarjeta className="lg:row-span-2">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-[1rem] font-semibold">Recaudación por mes</h3>
+            <Wallet className="size-4 shrink-0 text-forest" />
           </div>
-          {d.boletas.length === 0 ? (
-            <p className={cn("px-5 pt-4 pb-8 text-center text-sm", GRIS)}>Todavía no hay boletas emitidas.</p>
-          ) : (
-            <>
-              <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[640px] border-collapse text-left">
-                  <thead>
-                    <tr className={cn("text-[13px]", GRIS)}>
-                      <th scope="col" className="px-5 py-2 font-semibold">Socio</th>
-                      <th scope="col" className="px-3 py-2 font-semibold">Período</th>
-                      <th scope="col" className="px-3 py-2 text-right font-semibold">Monto</th>
-                      <th scope="col" className="px-3 py-2 font-semibold">Vence</th>
-                      <th scope="col" className="px-5 py-2 font-semibold">Estado</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {d.boletas.map((b) => (
-                      <tr key={b.id} className="border-t border-[#F0EEF6] hover:bg-[#FBFAFF]">
-                        <td className="px-5 py-3 text-sm font-semibold">{b.socioNombre}</td>
-                        <td className="px-3 py-3 text-sm text-[#3F3C55]">{formatearPeriodo(b.periodo)}</td>
-                        <td className="px-3 py-3 text-right text-sm font-bold tabular-nums">{clp.format(b.montoTotal)}</td>
-                        <td className="px-3 py-3 text-sm text-[#3F3C55]">{fechaCorta.format(b.fechaVencimiento)}</td>
-                        <td className="px-5 py-3">
-                          <EstadoBoleta b={b} ahora={ahora} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <ul className="divide-y divide-[#F0EEF6] md:hidden">
-                {d.boletas.map((b) => (
-                  <li key={b.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-[15px] font-semibold">{b.socioNombre}</p>
-                      <p className={cn("text-[13px]", GRIS)}>
-                        {formatearPeriodo(b.periodo)} · vence {fechaCorta.format(b.fechaVencimiento)}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-[15px] font-bold tabular-nums">{clp.format(b.montoTotal)}</p>
-                      <EstadoBoleta b={b} ahora={ahora} />
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
+          <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
+            Cuánto se cobró en cada período
+          </p>
 
-        <section className={cn("flex flex-col rounded-[20px] bg-card p-6 lg:col-span-4", SOMBRA, d.solicitudesPendientes.length === 0 && "items-center justify-center text-center")}>
-          <UserCheck className="size-7 text-primary" aria-hidden />
-          <h2 className="mt-2 text-lg font-bold">Solicitudes de acceso</h2>
-          {d.solicitudesPendientes.length > 0 ? (
-            <>
-              <p className={cn("mt-1 text-sm", GRIS)}>
-                {d.solicitudesPendientes.length} {d.solicitudesPendientes.length === 1 ? "pendiente" : "pendientes"}
-              </p>
-              <ul className="mt-3 flex flex-col divide-y divide-[#F0EEF6]">
-                {d.solicitudesPendientes.map((s) => (
-                  <li key={s.id} className="flex items-center gap-3 py-3">
-                    <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#ECE8FD] text-[12px] font-bold text-[#2A07A8]">
+          <div className="mt-6">
+            <GraficoBarras
+              datos={d.recaudado}
+              nombre="Recaudado"
+              color="var(--forest)"
+              formato="clp"
+            />
+          </div>
+
+          <div className="mt-6 border-t border-border pt-4">
+            <h4 className="text-[0.9rem] font-medium">Quiénes pagaron</h4>
+            <p className="mt-0.5 text-[0.8rem] text-muted-foreground">
+              {d.mejorPeriodo
+                ? `En ${formatearPeriodo(d.mejorPeriodo.periodo)}, el mejor mes`
+                : "Aún no hay pagos registrados"}
+            </p>
+
+            <div className="mt-3 flex flex-col gap-3">
+              {d.pagadores.length === 0 ? (
+                <p className="text-[0.85rem] text-muted-foreground">
+                  Todavía nadie ha pagado.
+                </p>
+              ) : (
+                d.pagadores.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-forest/10 text-[0.7rem] font-semibold text-forest">
                       {iniciales(s.nombre)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{s.nombre}</p>
-                      <p className={cn("truncate text-[13px]", GRIS)}>{s.rut}</p>
+                      <div className="truncate text-[0.87rem]">{s.nombre}</div>
+                      <div className="text-[0.75rem] text-muted-foreground">
+                        {s.boletas} {s.boletas === 1 ? "boleta" : "boletas"}
+                      </div>
                     </div>
-                    <span className={cn("shrink-0 text-xs", GRIS)}>{s.hace}</span>
-                  </li>
+                    <span className="shrink-0 text-[0.85rem] font-semibold tabular-nums text-forest">
+                      {clp.format(s.pagado)}
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </Tarjeta>
+
+        {/* Consumo en área: una sola serie, que es donde este gráfico
+            funciona. Con tres estados de escalas distintas las curvas chicas
+            quedaban aplastadas contra el eje. */}
+        <Tarjeta className="lg:col-span-2">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="text-[1rem] font-semibold">
+                Evolución del consumo
+              </h3>
+              <p className="mt-0.5 text-[0.85rem] text-muted-foreground">
+                Metros cúbicos consumidos por período
+              </p>
+            </div>
+            <Droplets className="size-4 shrink-0 text-primary" />
+          </div>
+
+          <div className="mt-5">
+            <GraficoArea
+              datos={d.consumo}
+              nombre="Consumo (m³)"
+              color="var(--primary)"
+            />
+          </div>
+
+          {/* Quién consume: el mismo período, separado por uso del agua. */}
+          {d.consumoPorUso.residencial + d.consumoPorUso.comercial > 0 && (
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-border/60 pt-4 text-[0.85rem]">
+              {[
+                { texto: "Residencial", valor: d.consumoPorUso.residencial },
+                { texto: "Comercial", valor: d.consumoPorUso.comercial },
+              ].map((u) => {
+                const total = d.consumoPorUso.residencial + d.consumoPorUso.comercial;
+                return (
+                  <div key={u.texto}>
+                    <div className="text-muted-foreground">{u.texto}</div>
+                    <div className="mt-0.5 text-[1.05rem] font-semibold tabular-nums">
+                      {u.valor.toLocaleString("es-CL")} m³
+                      <span className="ml-1.5 text-[0.78rem] font-normal text-muted-foreground">
+                        {Math.round((u.valor / total) * 100)} %
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Tarjeta>
+      </div>
+
+      {/* Ambas tarjetas terminan a la misma altura: la tabla reparte el
+          espacio sobrante entre sus filas en vez de dejar un hueco al pie. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <Tarjeta className="flex flex-col lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-[1rem] font-semibold">Boletas recientes</h3>
+            <Link
+              href="/panel/boletas"
+              className="inline-flex items-center gap-1 text-[0.85rem] font-medium text-primary hover:underline"
+            >
+              Ver todas
+              <ArrowRight className="size-3.5" />
+            </Link>
+          </div>
+
+          {d.boletas.length === 0 ? (
+            <p className="mt-8 mb-4 text-center text-[0.88rem] text-muted-foreground">
+              Todavía no hay boletas emitidas.
+            </p>
+          ) : (
+            /* h-full + la tabla al 100%: las filas se estiran para llenar el
+               alto en vez de amontonarse arriba y dejar el resto vacío. */
+            <div className="mt-4 h-full overflow-x-auto">
+              <table className="h-full w-full text-[0.87rem]">
+                <thead>
+                  <tr className="border-b border-border/50 text-left text-muted-foreground">
+                    <th className="pb-2.5 font-medium">Socio</th>
+                    <th className="hidden pb-2.5 font-medium sm:table-cell">Período</th>
+                    <th className="pb-2.5 font-medium">Monto</th>
+                    <th className="pb-2.5 font-medium">Vence</th>
+                    <th className="pb-2.5 font-medium">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.boletas.map((b) => {
+                    const pagada = b.montoPagado >= b.montoTotal;
+                    // `ahora` se fija una vez arriba: leer el reloj por fila
+                    // haría que una boleta cambiara de estado a media tabla.
+                    const atrasada = !pagada && b.fechaVencimiento < ahora;
+
+                    return (
+                      <tr key={b.id} className="border-b border-border/40 last:border-0">
+                        <td className="py-3 font-medium">{b.socioNombre}</td>
+                        <td className="hidden py-3 text-muted-foreground sm:table-cell">
+                          {formatearPeriodo(b.periodo)}
+                        </td>
+                        <td className="py-3 tabular-nums">
+                          {clp.format(b.montoTotal)}
+                        </td>
+                        <td className="py-3 tabular-nums text-muted-foreground">
+                          {fechaCorta.format(b.fechaVencimiento)}
+                        </td>
+                        <td className="py-3">
+                          <span
+                            className={cn(
+                              "rounded-full px-2 py-0.5 text-[0.75rem] font-medium",
+                              pagada
+                                ? "bg-forest/10 text-forest"
+                                : atrasada
+                                  ? "bg-destructive/10 text-destructive"
+                                  : "bg-tertiary/15 text-tertiary-texto"
+                            )}
+                          >
+                            {pagada ? "Pagada" : atrasada ? "Vencida" : "Pendiente"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </Tarjeta>
+
+        <Tarjeta>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="text-[1rem] font-semibold">Solicitudes de acceso</h3>
+            <UserCheck className="size-4 text-primary" />
+          </div>
+
+          {d.solicitudesPendientes.length > 0 ? (
+            <>
+              <div className="mt-4 flex flex-wrap items-end justify-between gap-2">
+                <div className="text-[1.8rem] leading-none font-semibold tabular-nums">
+                  {d.solicitudesPendientes.length}
+                  <span className="ml-2 text-[0.85rem] font-normal text-muted-foreground">
+                    pendiente{d.solicitudesPendientes.length === 1 ? "" : "s"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-4 flex flex-col divide-y divide-border/60 border-t border-border pt-1">
+                {d.solicitudesPendientes.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2.5 py-2.5">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-[0.7rem] font-semibold text-muted-foreground">
+                      {iniciales(s.nombre)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate text-[0.85rem] font-medium">
+                        {s.nombre}
+                      </div>
+                      <div className="truncate text-[0.8rem] text-muted-foreground">
+                        {s.rut}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[0.75rem] text-muted-foreground">
+                      {s.hace}
+                    </span>
+                  </div>
                 ))}
-              </ul>
-              <Link href="/panel/socios/solicitudes" className="mt-auto inline-flex min-h-11 items-center gap-2 pt-3 text-sm font-semibold text-primary hover:underline">
-                Revisar solicitudes <ArrowRight className="size-4" aria-hidden />
+              </div>
+
+              <Link
+                href="/panel/socios/solicitudes"
+                className="mt-4 flex items-center justify-center gap-1.5 rounded-lg border border-border py-2.5 text-[0.85rem] font-medium text-primary transition-colors hover:bg-muted"
+              >
+                Revisar solicitudes
+                <ArrowRight className="size-3.5" />
               </Link>
             </>
           ) : (
-            <p className={cn("mt-1 text-sm", GRIS)}>No hay solicitudes pendientes.</p>
+            <div className="mt-8 mb-6 flex flex-col items-center text-center">
+              <span className="flex size-11 items-center justify-center rounded-full bg-muted">
+                <UserCheck className="size-5 text-muted-foreground" />
+              </span>
+              <p className="mt-4 text-[0.88rem] font-medium">
+                No hay solicitudes pendientes
+              </p>
+              <p className="mt-1.5 text-[0.83rem] leading-relaxed text-muted-foreground">
+                Cuando un socio pida acceso a su panel con su RUT, aparecerá
+                aquí para que lo apruebes.
+              </p>
+            </div>
           )}
-        </section>
+        </Tarjeta>
       </div>
-    </div>
-  );
-}
-
-/** El estado de una boleta: pagada, vencida o pendiente. `ahora` se lee una sola vez para toda la página. */
-function EstadoBoleta({ b, ahora }: { b: { montoTotal: number; montoPagado: number; fechaVencimiento: Date }; ahora: Date }) {
-  const pagada = b.montoPagado >= b.montoTotal;
-  const vencida = !pagada && b.fechaVencimiento < ahora;
-  return (
-    <span className={cn("inline-block rounded-full px-3 py-1 text-xs font-bold", pagada ? "bg-[#DFF4EB] text-[#075A3C]" : vencida ? "bg-[#FDECEC] text-[#A32020]" : "bg-[#FFEEDC] text-[#8F4400]")}>
-      {pagada ? "Pagada" : vencida ? "Vencida" : "Pendiente"}
-    </span>
+    </>
   );
 }
