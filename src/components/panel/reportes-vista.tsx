@@ -52,6 +52,45 @@ function Operador({ c }: { c: string }) {
   );
 }
 
+/** En el celular, el gráfico no cabe: cada mes con movimientos es una tarjeta con sus dos barras. Al tocarla, los totales pasan a ese mes. */
+function GraficoMovil({ meses, sel, onSel }: { meses: MesReporte[]; sel: string | null; onSel: (mes: string) => void }) {
+  const conDatos = meses.filter((m) => m.ingresos + m.egresos > 0);
+  const max = Math.max(...conDatos.flatMap((m) => [m.ingresos, m.egresos]), 1);
+  const vacios = meses.length - conDatos.length;
+  return (
+    <div className="flex flex-col gap-2 md:hidden">
+      {conDatos.map((m) => (
+        <button
+          key={m.mes}
+          type="button"
+          aria-pressed={sel === m.mes}
+          onClick={() => onSel(m.mes)}
+          className={cn("rounded-2xl p-3 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", sel === m.mes ? "bg-primary/10" : "bg-muted/60")}
+        >
+          <span className="block text-[0.95rem] font-bold capitalize">{m.nombre}</span>
+          {(
+            [
+              ["Ingresos", m.ingresos, C_ING],
+              ["Egresos", m.egresos, C_EGR],
+            ] as const
+          ).map(([nombre, valor, color]) => (
+            <span key={nombre} className="mt-2 block">
+              <span className="flex justify-between gap-4 text-sm">
+                <span className="text-muted-foreground">{nombre}</span>
+                <span className="font-semibold tabular-nums">{clp(valor)}</span>
+              </span>
+              <span className="mt-1 block h-2 overflow-hidden rounded-full bg-muted">
+                <span className={cn("block h-full rounded-full", color)} style={{ width: `${(valor / max) * 100}%` }} />
+              </span>
+            </span>
+          ))}
+        </button>
+      ))}
+      {vacios > 0 && <p className="pt-1 text-[0.8rem] text-muted-foreground">Sin movimientos en {vacios === 1 ? "el otro mes" : `los otros ${vacios} meses`}.</p>}
+    </div>
+  );
+}
+
 /** Barras de ingresos y egresos por mes: al tocar un mes, los totales de arriba pasan a ese mes. */
 function Grafico({ meses, sel, onSel }: { meses: MesReporte[]; sel: string | null; onSel: (mes: string) => void }) {
   const [hover, setHover] = useState<string | null>(null);
@@ -62,7 +101,7 @@ function Grafico({ meses, sel, onSel }: { meses: MesReporte[]; sel: string | nul
   const miles = (n: number) => (n === 0 ? "$0" : n >= 1_000_000 ? `$${(n / 1_000_000).toLocaleString("es-CL")} M` : `$${(n / 1000).toLocaleString("es-CL")} mil`);
   const mostrar = hover ?? sel;
   return (
-    <div>
+    <div className="hidden md:block">
       <div className="relative h-[230px] pl-[58px]">
         {marcas.map((v, i) => (
           <div key={v} aria-hidden className="absolute inset-x-0 flex items-center gap-2" style={{ top: `${(i / (marcas.length - 1)) * 100}%`, transform: "translateY(-50%)" }}>
@@ -297,6 +336,7 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
           <h2 className="text-lg font-bold">Mes a mes</h2>
           <p className="mb-4 text-sm text-muted-foreground">Toca un mes para verlo en detalle</p>
           <Grafico meses={meses} sel={sel} onSel={elegir} />
+          <GraficoMovil meses={meses} sel={sel} onSel={elegir} />
         </section>
 
         <section className={cn(TARJETA, "flex flex-col p-5 lg:col-span-5")}>
