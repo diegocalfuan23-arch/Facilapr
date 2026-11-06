@@ -27,7 +27,7 @@ export function MenuMovil({ enlaces }: { enlaces: Enlace[] }) {
   return (
     <Sheet open={abierto} onOpenChange={setAbierto}>
       <SheetTrigger
-        render={<Button variant="ghost" size="icon" aria-label="Abrir menú" className="sm:hidden" />}
+        render={<Button variant="ghost" size="icon" aria-label="Abrir menú" className="rounded-full text-white hover:bg-white/10 hover:text-white md:hidden" />}
       >
         <Menu />
       </SheetTrigger>

@@ -1,61 +1,36 @@
 import Link from "next/link";
-import { Logo } from "@/components/marca/logo";
+
+const GRIS = "text-[#5B5970]";
+
+const enlaces: [string, string][] = [
+  ["Centro de ayuda", "/ayuda"],
+  ["Cómo calcular la tarifa", "/ayuda/como-calcular-tarifa-agua-apr"],
+  ["Cortes por morosidad", "/ayuda/cortes-por-morosidad-apr"],
+  ["Soy socio: paga tu boleta", "/socios"],
+  ["Planilla gratis en Excel", "/planilla-cobro-agua-potable-rural"],
+  ["Términos de uso", "/terminos"],
+  ["Privacidad", "/privacidad"],
+];
 
 export function Footer() {
   return (
-    <footer className="border-t border-border py-10">
-      <div className="mx-auto flex max-w-[1180px] flex-wrap items-center justify-between gap-4 px-7 text-[0.85rem] text-muted-foreground">
-        <div className="flex items-center gap-2 font-semibold text-foreground">
-          <Logo className="size-5.5" />
-          Facilapr
+    <footer className="px-4 pb-8 sm:px-8">
+      <div className="mx-auto max-w-[1180px]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <p className="text-lg font-semibold tracking-tight">facilapr</p>
+          <nav aria-label="Pie de página" className={`flex flex-wrap gap-x-5 gap-y-1 text-sm ${GRIS}`}>
+            {enlaces.map(([n, h]) => (
+              <Link key={h} href={h} className="transition-colors hover:text-[#3A0CE3]">
+                {n}
+              </Link>
+            ))}
+          </nav>
         </div>
-
-        <div className="flex flex-wrap items-center gap-5">
-          <Link href="/ayuda" className="transition-colors hover:text-foreground">
-            Centro de ayuda
-          </Link>
-          <Link
-            href="/ayuda/como-calcular-tarifa-agua-apr"
-            className="transition-colors hover:text-foreground"
-          >
-            Cómo calcular la tarifa
-          </Link>
-          <Link
-            href="/ayuda/cortes-por-morosidad-apr"
-            className="transition-colors hover:text-foreground"
-          >
-            Cortes por morosidad
-          </Link>
-          <Link href="/socios" className="transition-colors hover:text-foreground">
-            Soy socio: paga tu boleta
-          </Link>
-          <Link
-            href="/planilla-cobro-agua-potable-rural"
-            className="transition-colors hover:text-foreground"
-          >
-            Planilla gratis en Excel
-          </Link>
-          <Link href="/terminos" className="transition-colors hover:text-foreground">
-            Términos de uso
-          </Link>
-          <Link
-            href="/privacidad"
-            className="transition-colors hover:text-foreground"
-          >
-            Privacidad
-          </Link>
-        </div>
-
-        <span>
-          &copy; 2026 Facilapr. Hecho para los comités de agua potable rural
-          de Chile.
-        </span>
-
+        <p className={`mt-4 text-[13px] leading-relaxed ${GRIS}`}>&copy; 2026 Facilapr. Hecho para los comités de agua potable rural de Chile.</p>
         {/* Quién está detrás del sitio: razón social y RUT, como figuran en el Registro de Empresas y Sociedades. */}
-        <p className="w-full border-t border-border/60 pt-5 text-[0.78rem] leading-relaxed">
-          Facilapr es un producto de <strong className="font-medium text-foreground">DESARROLLO DE SOFTWARES A MEDIDAS SpA</strong>,
-          RUT 78.324.975-8. Domicilio: Padre Las Casas, Región de La Araucanía, Chile. Contacto:{" "}
-          <a href="mailto:hola@facilapr.cl" className="underline-offset-2 hover:text-foreground hover:underline">
+        <p className={`mt-2 text-[13px] leading-relaxed ${GRIS}`}>
+          Facilapr es un producto de <strong className="font-medium text-[#15132B]">DESARROLLO DE SOFTWARES A MEDIDAS SpA</strong>, RUT 78.324.975-8. Domicilio: Padre Las Casas, Región de La Araucanía, Chile. Contacto:{" "}
+          <a href="mailto:hola@facilapr.cl" className="underline-offset-2 hover:text-[#15132B] hover:underline">
             hola@facilapr.cl
           </a>
           .

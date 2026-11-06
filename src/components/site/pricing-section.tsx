@@ -2,178 +2,134 @@
 
 import { useState } from "react";
 import { Check, Clock } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { MESES_GRATIS, PLANES_COMERCIALES as planes, UNIDAD } from "@/lib/planes-comerciales";
+import { MESES_GRATIS, PLANES_COMERCIALES as planes, UNIDAD, formatoPrecio as formato, precioPlan } from "@/lib/planes-comerciales";
 
-const formato = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
+const TITULO = "font-semibold tracking-[-0.035em] [text-wrap:balance]";
+const GRIS = "text-[#5B5970]";
+const SOMBRA = "shadow-[0_1px_2px_rgba(21,19,43,0.04),0_16px_40px_rgba(58,12,227,0.08)]";
 
 export function PricingSection() {
   const [anual, setAnual] = useState(false);
 
   return (
-    <section id="planes" className="py-24">
-      <div className="mx-auto max-w-[1180px] px-7">
-        <div className="mx-auto mb-10 max-w-[640px] text-center">
-          <h2 className="mt-3 text-[clamp(1.8rem,3vw,2.4rem)] font-semibold text-balance">
-            Un precio que crece con tu comité
-          </h2>
-          <p className="mt-3.5 text-[1.05rem] leading-relaxed text-muted-foreground">
-            Según la cantidad de socios activos que administra tu APR o SSR.
-            Pagando por mes no hay permanencia mínima.
-          </p>
+    <section id="planes" className="scroll-mt-20 px-4 pb-16 sm:px-8 md:pb-24">
+      <div className="mx-auto max-w-[1180px]">
+        <h2 className={`${TITULO} text-4xl leading-[1.08] md:text-[52px]`}>Un precio que crece con tu comité</h2>
+        <p className={`mt-3 max-w-[640px] text-lg ${GRIS}`}>Según la cantidad de socios activos que administra tu APR o SSR. Pagando por mes no hay permanencia mínima.</p>
+
+        <div role="group" aria-label="Período de pago" className="mt-8 inline-flex items-center rounded-full bg-white p-1 shadow-[0_1px_2px_rgba(21,19,43,0.06)]">
+          {[
+            { valor: false, texto: "Mensual" },
+            { valor: true, texto: "Anual" },
+          ].map((o) => (
+            <button
+              key={o.texto}
+              type="button"
+              aria-pressed={anual === o.valor}
+              onClick={() => setAnual(o.valor)}
+              className={cn(
+                "flex min-h-11 items-center gap-2 rounded-full px-5 text-[0.9rem] font-semibold transition-colors",
+                anual === o.valor ? "bg-[#3A0CE3] text-white" : "text-[#5B5970] hover:text-[#15132B]"
+              )}
+            >
+              {o.texto}
+              {o.valor && (
+                <span className={cn("rounded-full px-2 py-0.5 text-[0.68rem] font-semibold", anual ? "bg-white/20 text-white" : "bg-[#DFF4EB] text-[#075A3C]")}>
+                  {MESES_GRATIS === 1 ? "1 mes gratis" : `${MESES_GRATIS} meses gratis`}
+                </span>
+              )}
+            </button>
+          ))}
         </div>
 
-        <div className="mb-10 flex justify-center">
-          <div
-            role="group"
-            aria-label="Período de pago"
-            className="inline-flex items-center rounded-full border border-border bg-muted/50 p-1"
-          >
-            {[
-              { valor: false, texto: "Mensual" },
-              { valor: true, texto: "Anual" },
-            ].map((o) => (
-              <button
-                key={o.texto}
-                type="button"
-                aria-pressed={anual === o.valor}
-                onClick={() => setAnual(o.valor)}
-                className={cn(
-                  "flex items-center gap-2 rounded-full px-5 py-2 text-[0.9rem] font-medium transition-colors",
-                  anual === o.valor
-                    ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {o.texto}
-                {o.valor && (
-                  <span
-                    className={cn(
-                      "rounded-full px-2 py-0.5 text-[0.68rem] font-semibold",
-                      anual
-                        ? "bg-white/20 text-primary-foreground"
-                        : "bg-forest/15 text-forest"
-                    )}
-                  >
-                    {MESES_GRATIS === 1 ? "1 mes gratis" : `${MESES_GRATIS} meses gratis`}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="grid items-stretch gap-6 sm:grid-cols-3">
+        <div className="mt-8 grid items-stretch gap-4 lg:grid-cols-3">
           {planes.map((plan) => {
             const aMedida = plan.mensual === null;
-            const base = plan.mensual ?? plan.desde ?? null;
-            const precioAnual = base === null ? 0 : base * (12 - MESES_GRATIS);
-            const precio = base === null ? null : anual ? precioAnual : base;
+            const precio = precioPlan(plan.mensual, anual, plan.desde);
+            const precioAnual = precioPlan(plan.mensual, true, plan.desde);
+            const d = plan.destacado;
 
             return (
-              <div
+              <article
                 key={plan.nombre}
                 className={cn(
-                  "relative flex flex-col rounded-2xl border border-border bg-card p-7.5",
-                  plan.destacado && "border-primary shadow-[0_0_0_1px_var(--primary)]"
+                  "relative flex flex-col overflow-hidden rounded-[28px] p-7 transition-transform duration-200 hover:-translate-y-1 motion-reduce:transition-none motion-reduce:hover:translate-y-0",
+                  d ? "bg-[#0B0A1F] text-white shadow-[0_24px_60px_rgba(58,12,227,0.35)]" : `bg-white ${SOMBRA}`
                 )}
               >
-                {plan.destacado && (
-                  <span className="absolute -top-3.25 left-6.5 rounded-full bg-primary px-3 py-1.25 text-[0.72rem] font-bold tracking-[0.03em] text-primary-foreground">
-                    Más elegido
-                  </span>
-                )}
+                {d && <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_90%_55%_at_80%_0%,rgba(70,90,255,0.55),transparent_70%)]" />}
+                <div className="relative flex flex-1 flex-col">
+                  <div className="flex items-center justify-between gap-4">
+                    <h3 className="text-xl font-semibold tracking-tight">{plan.nombre}</h3>
+                    {d && <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">Más elegido</span>}
+                  </div>
+                  <p className={`text-[15px] ${d ? "text-white/80" : GRIS}`}>{plan.descripcion}</p>
 
-                <span className="text-[1.15rem] font-semibold">{plan.nombre}</span>
-                <p className="mt-1.5 mb-5 text-[0.88rem] text-muted-foreground">
-                  {plan.descripcion}
-                </p>
-
-                <div className="flex items-baseline gap-1.5 text-[2rem] font-semibold">
-                  {precio === null ? (
-                    "A medida"
-                  ) : (
-                    <>
-                      {aMedida && (
-                        <span className="text-[0.9rem] font-medium text-muted-foreground">Desde</span>
-                      )}
-                      {formato.format(precio)} {UNIDAD}
-                      <span className="font-sans text-[0.9rem] font-medium text-muted-foreground">
-                        {anual ? "/año" : "/mes"}
-                      </span>
-                    </>
-                  )}
-                </div>
-                {precio === null ? (
-                  <div className="mb-5" />
-                ) : (
-                  <p className="mb-5 text-[0.8rem] text-muted-foreground">
-                    + IVA{aMedida && " · según tus socios y sedes"}
-                    {anual && (
+                  <p className="mt-6 text-[44px] leading-none font-semibold tracking-[-0.04em]">
+                    {precio === null ? (
+                      "A medida"
+                    ) : (
                       <>
-                        {" · "}
-                        <span className="font-medium text-forest">
-                          equivale a {formato.format(precioAnual / 12)} {UNIDAD}/mes
-                        </span>
+                        {aMedida && <span className={`mr-2 text-base font-medium tracking-normal ${d ? "text-white/80" : GRIS}`}>Desde</span>}
+                        {formato.format(precio)} {UNIDAD}
+                        <span className={`ml-2 text-base font-normal tracking-normal ${d ? "text-white/80" : GRIS}`}>{anual ? "/año" : "/mes"}</span>
                       </>
                     )}
                   </p>
-                )}
-
-                {plan.incluye && (
-                  <p className="mb-3 text-[0.82rem] font-medium text-foreground">
-                    {plan.incluye}
-                  </p>
-                )}
-                <ul className="mb-6.5 flex flex-1 flex-col gap-3">
-                  {plan.lista.map((item) => {
-                    const texto = typeof item === "string" ? item : item.texto;
-                    const pronto = typeof item !== "string" && item.pronto;
-                    return (
-                      <li
-                        key={texto}
-                        className="flex items-start gap-2.5 text-[0.9rem] text-muted-foreground"
-                      >
-                        {pronto ? (
-                          <Clock className="mt-0.5 size-3.5 shrink-0 text-tertiary" />
-                        ) : (
-                          <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                        )}
-                        <span>
-                          {texto}
-                          {pronto && (
-                            <span className="ml-1.5 rounded-full bg-tertiary/15 px-1.5 py-0.5 text-[0.65rem] font-semibold text-tertiary-foreground">
-                              Próximamente
-                            </span>
-                          )}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-
-                <a
-                  href="#contacto"
-                  className={cn(
-                    buttonVariants({
-                      variant: plan.destacado ? "default" : "outline",
-                    }),
-                    "w-full"
+                  {precio !== null && (
+                    <p className={`mt-2 text-sm ${d ? "text-white/80" : GRIS}`}>
+                      + IVA{aMedida && " · según tus socios y sedes"}
+                      {anual && precioAnual !== null && (
+                        <>
+                          {" · "}
+                          <span className={`font-medium ${d ? "text-[#8DF0C4]" : "text-[#075A3C]"}`}>
+                            equivale a {formato.format(precioAnual / 12)} {UNIDAD}/mes
+                          </span>
+                        </>
+                      )}
+                    </p>
                   )}
-                >
-                  {plan.cta}
-                </a>
-              </div>
+
+                  <a
+                    href="#contacto"
+                    className={cn(
+                      "mt-6 inline-flex min-h-12 items-center justify-center rounded-full text-[15px] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-[#9D85FF] focus-visible:ring-offset-2 focus-visible:outline-none",
+                      d ? "bg-white text-[#15132B] hover:bg-[#ECE8FD]" : "bg-[#F1EEFD] text-[#2A07A8] hover:bg-[#E4DFFC]"
+                    )}
+                  >
+                    {plan.cta}
+                  </a>
+
+                  <div className={`mt-6 border-t pt-5 ${d ? "border-white/15" : "border-[#ECE9F5]"}`}>
+                    {plan.incluye && <p className="mb-3 text-sm font-semibold">{plan.incluye}</p>}
+                    <ul className="flex flex-col gap-3">
+                      {plan.lista.map((item) => {
+                        const texto = typeof item === "string" ? item : item.texto;
+                        const pronto = typeof item !== "string" && item.pronto;
+                        return (
+                          <li key={texto} className={`flex gap-2 text-[15px] leading-snug ${d ? "text-white/90" : "text-[#3B394F]"}`}>
+                            {pronto ? (
+                              <Clock className={`mt-0.5 size-[18px] shrink-0 ${d ? "text-[#FFC38A]" : "text-[#B85A00]"}`} aria-hidden />
+                            ) : (
+                              <Check className={`mt-0.5 size-[18px] shrink-0 ${d ? "text-[#8DF0C4]" : "text-[#3A0CE3]"}`} aria-hidden />
+                            )}
+                            <span>
+                              {texto}
+                              {pronto && <span className={`ml-2 rounded-full px-2 py-0.5 text-[0.65rem] font-semibold ${d ? "bg-white/15" : "bg-[#FFEEDC] text-[#8F4400]"}`}>Próximamente</span>}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
 
-        {anual && (
-          <p className="mt-6 text-center text-[0.82rem] text-muted-foreground">
-            El plan anual se paga una sola vez por el año completo.
-          </p>
-        )}
+        <p className={`mt-4 text-sm ${GRIS}`}>{anual ? "El plan anual se paga una sola vez por el año completo." : "Los precios no incluyen IVA."}</p>
       </div>
     </section>
   );

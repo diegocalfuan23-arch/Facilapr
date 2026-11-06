@@ -1,17 +1,10 @@
 import type { Metadata } from "next";
 import { Header } from "@/components/site/header";
 import { Hero } from "@/components/site/hero";
-import { PanelSection } from "@/components/site/panel-section";
-import { ProblemSection } from "@/components/site/problem-section";
-import { HowItWorksSection } from "@/components/site/how-it-works-section";
-import { FeaturesSection } from "@/components/site/features-section";
-import { InvoiceSection } from "@/components/site/invoice-section";
-import { ChatSection } from "@/components/site/chat-section";
-import { GestionSection } from "@/components/site/gestion-section";
-import { PagosSection } from "@/components/site/pagos-section";
+import { CambiaSection } from "@/components/site/cambia-section";
+import { ProductoSection } from "@/components/site/producto-section";
 import { PricingSection } from "@/components/site/pricing-section";
 import { FaqSection } from "@/components/site/faq-section";
-import { CtaSection } from "@/components/site/cta-section";
 import { ContactSection } from "@/components/site/contact-section";
 import { Footer } from "@/components/site/footer";
 import { StructuredData } from "@/components/seo/structured-data";
@@ -24,22 +17,16 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="flex flex-1 flex-col">
+    // Colores fijos: la portada tiene su propio diseño, claro y oscuro a la vez.
+    <div className="flex flex-1 flex-col bg-[#F6F6FB] text-[#15132B]">
       <StructuredData />
       <Header />
       <main>
         <Hero />
-        <PanelSection />
-        <ProblemSection />
-        <HowItWorksSection />
-        <FeaturesSection />
-        <InvoiceSection />
-        <GestionSection />
-        <ChatSection />
-        <PagosSection />
+        <CambiaSection />
+        <ProductoSection />
         <PricingSection />
         <FaqSection />
-        <CtaSection />
         <ContactSection />
       </main>
       <Footer />
