@@ -2,13 +2,21 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { asistenciaDelDia, asistenciaMes } from "@/lib/rrhh";
-import { diaVecino, hoyEnChile, nombreMes } from "@/lib/finanzas";
+import { asistenciaDelDia, asistenciaMes, horasExtraDelMes } from "@/lib/rrhh";
+import type { EstadoAsistencia } from "@/lib/rrhh-comun";
+import { hoyEnChile } from "@/lib/finanzas";
 import { AsistenciaVista } from "@/components/panel/asistencia-vista";
 
 export const metadata: Metadata = {
   title: "Asistencia",
 };
+
+/** El mes (AAAA-MM) a `delta` meses de otro. */
+function mesVecino(mes: string, delta: number) {
+  const [a, m] = mes.split("-").map(Number);
+  const d = new Date(Date.UTC(a, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
 
 export default async function AsistenciaPage({ searchParams }: { searchParams: Promise<{ dia?: string }> }) {
   const { apr } = await requireAdmin();
@@ -16,19 +24,25 @@ export default async function AsistenciaPage({ searchParams }: { searchParams: P
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "personal")) redirect("/panel");
 
+  const hoy = hoyEnChile();
   const { dia: diaParam } = await searchParams;
-  const dia = diaParam && /^\d{4}-\d{2}-\d{2}$/.test(diaParam) ? diaParam : hoyEnChile();
+  const dia = diaParam && /^\d{4}-\d{2}-\d{2}$/.test(diaParam) ? diaParam : hoy;
   const mes = dia.slice(0, 7);
-  const [filas, grilla] = await Promise.all([asistenciaDelDia(apr.id, dia), asistenciaMes(apr.id, mes)]);
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Asistencia</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Quién vino cada día. Las vacaciones y licencias aprobadas se marcan solas.</p>
-      </div>
+  // La semana puede cruzar de un mes a otro, y el aviso de días pendientes mira el mes de hoy: se cargan
+  // el mes elegido, el anterior, el siguiente y el actual.
+  const meses = [...new Set([mesVecino(mes, -1), mes, mesVecino(mes, 1), hoy.slice(0, 7)])];
+  const [filas, planillas, extras] = await Promise.all([
+    asistenciaDelDia(apr.id, dia),
+    Promise.all(meses.map((m) => asistenciaMes(apr.id, m))),
+    horasExtraDelMes(apr.id, mes),
+  ]);
 
-      <AsistenciaVista dia={dia} anterior={diaVecino(dia, -1)} siguiente={diaVecino(dia, 1)} filas={filas} grilla={grilla} mes={mes} mesTexto={nombreMes(mes)} />
-    </div>
-  );
+  // Por persona y por día (AAAA-MM-DD), lo que pasó, de todos esos meses juntos.
+  const grilla: Record<string, Record<string, EstadoAsistencia>> = {};
+  for (const planilla of planillas) {
+    for (const [id, dias] of Object.entries(planilla)) Object.assign((grilla[id] ??= {}), dias);
+  }
+
+  return <AsistenciaVista dia={dia} filas={filas} grilla={grilla} horasExtraMes={extras} />;
 }

@@ -169,6 +169,24 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
   }
 }
 
+/** Las horas extras de cada persona en un mes (AAAA-MM), sumadas. Si la tabla aún no existe, devuelve vacío. */
+export async function horasExtraDelMes(aprId: string, mes: string): Promise<Record<string, number>> {
+  const [a, m] = mes.split("-").map(Number);
+  const desde = new Date(Date.UTC(a, m - 1, 1)).toISOString().slice(0, 10);
+  const hasta = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
+  try {
+    const filas = await db
+      .select({ trabajadorId: horasExtras.trabajadorId, horas: sql<number>`sum(${horasExtras.horas})::float` })
+      .from(horasExtras)
+      .where(and(eq(horasExtras.aprId, aprId), gte(horasExtras.fecha, desde), lte(horasExtras.fecha, hasta)))
+      .groupBy(horasExtras.trabajadorId);
+    return Object.fromEntries(filas.map((f) => [f.trabajadorId, f.horas]));
+  } catch (e) {
+    console.error("RR.HH.: no se pudieron leer las horas extras del mes:", e);
+    return {};
+  }
+}
+
 /** Cuántos días de cada estado tuvo cada persona en un mes (AAAA-MM), según las marcas manuales. */
 export async function resumenAsistenciaMes(aprId: string, mes: string): Promise<Record<string, Partial<Record<EstadoAsistencia, number>>>> {
   try {
