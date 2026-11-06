@@ -70,11 +70,11 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   },
   {
     nombre: "RR.HH.",
-    descripcion: "Personal, sueldos, vacaciones, licencias y asistencia. Desde el plan Estándar.",
+    descripcion: "Personal, sueldos, vacaciones, licencias y asistencia. Solo en el plan Grande.",
   },
   {
     nombre: "Operación",
-    descripcion: "Incidentes, activos fijos y labores con materiales del inventario. Desde el plan Estándar.",
+    descripcion: "Incidentes y activos fijos (plan Grande). Las labores con materiales del inventario van en Gestión desde el plan Estándar.",
   },
   {
     nombre: "Tu plan",
@@ -1077,7 +1077,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Personal",
-        texto: "En el grupo RR.HH. del menú, entra a Personal. Aquí ves a todas las personas del comité con su cargo, su sueldo bruto, sus descuentos y su líquido. Está en los planes Estándar y Grande.",
+        texto: "En el grupo RR.HH. del menú, entra a Personal. Aquí ves a todas las personas del comité con su cargo, su sueldo bruto, sus descuentos y su líquido. Está en el plan Grande.",
       },
       {
         titulo: "Agrega a la persona",
@@ -1169,7 +1169,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Préstamos",
-        texto: "En RR.HH. → Préstamos ves lo que falta por descontar, los que están vigentes y los ya saldados. Está en los planes Estándar y Grande.",
+        texto: "En RR.HH. → Préstamos ves lo que falta por descontar, los que están vigentes y los ya saldados. Está en el plan Grande.",
       },
       {
         titulo: "Registra el anticipo o el préstamo",
@@ -1266,7 +1266,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Incidentes",
-        texto: "En el grupo Operación del menú, entra a Incidentes. Es un tablero con tres columnas: Abiertos, En reparación y Resueltos. Está en los planes Estándar y Grande.",
+        texto: "En el grupo Operación del menú, entra a Incidentes. Es un tablero con tres columnas: Abiertos, En reparación y Resueltos. Está en el plan Grande.",
       },
       {
         titulo: "Registra lo que pasó",
@@ -1293,7 +1293,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Activos fijos",
-        texto: "En Operación → Activos fijos ves los bienes del comité con su costo y su valor actual. Está en los planes Estándar y Grande.",
+        texto: "En Operación → Activos fijos ves los bienes del comité con su costo y su valor actual. Está en el plan Grande.",
       },
       {
         titulo: "Registra un bien",
@@ -1324,7 +1324,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Labores",
-        texto: "En Operación → Labores ves un tablero con Programadas, En curso y Hechas. Está en los planes Estándar y Grande, junto con el Inventario.",
+        texto: "En Gestión → Labores (o en Operación, en el plan Grande) ves un tablero con Programadas, En curso y Hechas. Está en los planes Estándar y Grande, junto con el Inventario.",
       },
       {
         titulo: "Crea la labor",
@@ -1373,12 +1373,12 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Estándar: hasta 800 socios",
         texto:
-          "Para comités medianos. Suma hasta 3 operadores, las finanzas del comité (Caja, Compras, Inventario y Reportes), el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
+          "Para comités medianos. Suma hasta 3 operadores, las finanzas del comité (Caja, Compras, Inventario con sus Labores y Reportes), el chat en tiempo real con los socios y el asistente de IA, que incluye 3 millones de tokens al mes (unas 1.500 respuestas). Si se acaban, puedes sumar packs de 2 millones. Cuesta 1,5 UF al mes más IVA.",
       },
       {
         titulo: "Grande: sin tope de socios",
         texto:
-          "Para comités muy grandes o con varias sedes. El precio es a medida y parte desde 6 UF al mes más IVA, según tus socios y sedes.",
+          "Para comités muy grandes o con varias sedes. Suma RR.HH. (personal, sueldos, vacaciones y asistencia) y Operación (incidentes y activos fijos). El precio es a medida y parte desde 6 UF al mes más IVA, según tus socios y sedes.",
       },
       {
         titulo: "Cómo se calcula el precio",

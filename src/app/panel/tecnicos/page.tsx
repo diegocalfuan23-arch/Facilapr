@@ -35,7 +35,8 @@ export default async function TecnicosPage() {
   });
 
   // Las personas de Personal, tengan o no cuenta. Quien ya tiene cuenta (por su correo) se ve una sola vez.
-  const [fichas, cuentas] = await Promise.all([listarTrabajadores(apr.id), cuentasDelPanel(apr.id)]);
+  // Sin RR.HH. en el plan no hay personal que mostrar.
+  const [fichas, cuentas] = await Promise.all([puede(apr.plan as Plan, "personal") ? listarTrabajadores(apr.id) : Promise.resolve([]), cuentasDelPanel(apr.id)]);
   const conCuenta = new Set(cuentas.map((c) => c.email));
   const cargoPorCorreo = new Map(fichas.filter((f) => f.email).map((f) => [f.email!.toLowerCase(), f.cargo]));
   const sinCuenta = fichas.filter((f) => f.activo && !(f.email && conCuenta.has(f.email.toLowerCase())));

@@ -14,7 +14,7 @@ import { PREFIJO_CONCEPTO_INCIDENTE, TIPOS_INCIDENTE } from "@/lib/incidentes-co
 
 export type ResultadoIncidentes = { ok: true } | { ok: false; error: string };
 
-const SIN_PLAN = "Incidentes está disponible desde el plan Estándar.";
+const SIN_PLAN = "Incidentes está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/[^\d]/g, "")) || 0;
 

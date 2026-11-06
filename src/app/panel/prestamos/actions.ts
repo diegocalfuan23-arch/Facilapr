@@ -14,7 +14,7 @@ import { PREFIJO_CONCEPTO_ANTICIPO, PREFIJO_CONCEPTO_PRESTAMO } from "@/lib/pres
 
 export type ResultadoPrestamos = { ok: true } | { ok: false; error: string };
 
-const SIN_PLAN = "Remuneraciones está disponible desde el plan Estándar.";
+const SIN_PLAN = "Remuneraciones está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 
 function refrescar() {

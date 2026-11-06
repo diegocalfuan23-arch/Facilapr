@@ -63,14 +63,15 @@ const gestion: Enlace[] = [
   { href: "/panel/tecnicos", label: "Equipo", icon: HardHat },
 ];
 
-/** Operación (desde el plan Estándar): las fallas del sistema de agua y los bienes del comité. */
+/** Operación (plan Grande): las fallas del sistema de agua, las labores y los bienes del comité. */
+const laboresEnlace: Enlace = { href: "/panel/labores", label: "Labores", icon: Hammer };
 const operacion: Enlace[] = [
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
-  { href: "/panel/labores", label: "Labores", icon: Hammer },
+  laboresEnlace,
   { href: "/panel/activos", label: "Activos fijos", icon: Building },
 ];
 
-/** RR.HH. (desde el plan Estándar): las personas que trabajan para el comité. */
+/** RR.HH. (plan Grande): las personas que trabajan para el comité. */
 const rrhh: Enlace[] = [
   { href: "/panel/personal", label: "Personal", icon: Briefcase },
   { href: "/panel/remuneraciones", label: "Remuneraciones", icon: HandCoins },
@@ -117,12 +118,18 @@ export function gruposDelMenu({
   rol,
   chat,
   conFinanzas,
+  conRrhh = false,
+  conOperacion = false,
 }: {
   rol: RolMenu;
   /** El plan incluye el chat en tiempo real: sin él, Conversaciones no aparece. */
   chat: boolean;
   /** El plan incluye Finanzas (Estándar y Grande): aparece su grupo y Pagos se muda a él. */
   conFinanzas: boolean;
+  /** El plan incluye RR.HH. (Grande): aparece su grupo. */
+  conRrhh?: boolean;
+  /** El plan incluye Operación (Grande): aparece su grupo. Sin él, Labores pasa a Gestión junto al Inventario. */
+  conOperacion?: boolean;
 }): GrupoMenu[] {
   if (rol === "TESORERO") {
     return [
@@ -137,11 +144,15 @@ export function gruposDelMenu({
       titulo: "Gestión",
       icono: LayoutGrid,
       // Con Finanzas (Estándar y Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: va con el mismo plan.
-      enlaces: gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
+      enlaces: [
+        ...gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
+        // Las labores usan el inventario: con Inventario pero sin el grupo Operación, viven en Gestión.
+        ...(conFinanzas && !conOperacion ? [laboresEnlace] : []),
+      ],
     },
     ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),
-    ...(conFinanzas ? [{ titulo: "RR.HH.", icono: UsersRound, enlaces: rrhh }] : []),
-    ...(conFinanzas ? [{ titulo: "Operación", icono: Wrench, enlaces: operacion }] : []),
+    ...(conRrhh ? [{ titulo: "RR.HH.", icono: UsersRound, enlaces: rrhh }] : []),
+    ...(conOperacion ? [{ titulo: "Operación", icono: Wrench, enlaces: operacion }] : []),
     {
       titulo: "Atención",
       icono: Headset,

@@ -37,7 +37,7 @@ function refrescar() {
 /** Registra unas vacaciones, una licencia o un permiso, o lo corrige si viene con `id`. Calcula los días solo. */
 export async function guardarAusencia(_prev: ResultadoAusencias | null, formData: FormData): Promise<ResultadoAusencias> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible desde el plan Estándar." };
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible en el plan Grande." };
 
   const parsed = ausenciaSchema.safeParse({
     trabajadorId: formData.get("trabajadorId"),
@@ -104,7 +104,7 @@ export async function eliminarAusencia(id: string): Promise<ResultadoAusencias> 
 /** Cambia el estado de una solicitud (desde el tablero): aprobarla, rechazarla o dejarla de nuevo como solicitada. */
 export async function cambiarEstadoAusencia(id: string, estado: "SOLICITADA" | "APROBADA" | "RECHAZADA"): Promise<ResultadoAusencias> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible desde el plan Estándar." };
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible en el plan Grande." };
   if (!["SOLICITADA", "APROBADA", "RECHAZADA"].includes(estado)) return { ok: false, error: "El estado no es válido." };
 
   const [editada] = await db

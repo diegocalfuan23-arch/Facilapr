@@ -11,7 +11,7 @@ import { puede, type Plan } from "@/lib/planes";
 
 export type ResultadoPersonal = { ok: true } | { ok: false; error: string };
 
-const SIN_PLAN = "Personal está disponible desde el plan Estándar.";
+const SIN_PLAN = "Personal está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/[^\d]/g, "")) || 0;
 

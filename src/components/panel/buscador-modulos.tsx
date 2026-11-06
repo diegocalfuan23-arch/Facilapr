@@ -25,10 +25,14 @@ export function BuscadorModulos({
   rol,
   chat,
   conFinanzas,
+  conRrhh = false,
+  conOperacion = false,
 }: {
   rol: RolMenu;
   chat: boolean;
   conFinanzas: boolean;
+  conRrhh?: boolean;
+  conOperacion?: boolean;
 }) {
   const router = useRouter();
   const [abierto, setAbierto] = useState(false);
@@ -38,9 +42,9 @@ export function BuscadorModulos({
   const lista = useRef<HTMLUListElement>(null);
 
   const todos = useMemo<Resultado[]>(() => {
-    const delMenu = gruposDelMenu({ rol, chat, conFinanzas }).flatMap((g) => g.enlaces.map((e) => ({ ...e, grupo: g.titulo })));
+    const delMenu = gruposDelMenu({ rol, chat, conFinanzas, conRrhh, conOperacion }).flatMap((g) => g.enlaces.map((e) => ({ ...e, grupo: g.titulo })));
     return [...delMenu, ...destinosExtra({ rol, conFinanzas })];
-  }, [rol, chat, conFinanzas]);
+  }, [rol, chat, conFinanzas, conRrhh, conOperacion]);
 
   const resultados = useMemo(() => {
     const q = normalizar(consulta.trim());

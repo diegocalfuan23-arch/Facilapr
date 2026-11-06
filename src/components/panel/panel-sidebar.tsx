@@ -249,6 +249,8 @@ export function PanelSidebar({
   insignias,
   chat = false,
   conFinanzas = false,
+  conRrhh = false,
+  conOperacion = false,
 }: {
   apr: string;
   comuna: string;
@@ -261,6 +263,10 @@ export function PanelSidebar({
   chat?: boolean;
   /** El plan incluye Finanzas (Estándar y Grande): aparece su grupo y Pagos se muda a él. */
   conFinanzas?: boolean;
+  /** El plan incluye RR.HH. (Grande). */
+  conRrhh?: boolean;
+  /** El plan incluye Operación: incidentes y activos fijos (Grande). Sin él, Labores va en Gestión. */
+  conOperacion?: boolean;
 }) {
   const pathname = usePathname();
   const inicio = rol === "ADMIN" ? "/panel" : rol === "TESORERO" ? "/panel/caja" : "/panel/lecturas";
@@ -292,7 +298,7 @@ export function PanelSidebar({
       </SidebarHeader>
 
       <SidebarContent>
-        {gruposDelMenu({ rol, chat, conFinanzas }).map((g) => (
+        {gruposDelMenu({ rol, chat, conFinanzas, conRrhh, conOperacion }).map((g) => (
           <GrupoEnlaces
             key={g.titulo}
             titulo={g.titulo}

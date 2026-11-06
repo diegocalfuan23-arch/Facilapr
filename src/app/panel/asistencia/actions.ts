@@ -19,7 +19,7 @@ export async function marcarAsistencia(
   nota?: string
 ): Promise<ResultadoAsistencia> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible desde el plan Estándar." };
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible en el plan Grande." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { ok: false, error: "La fecha no es válida." };
   if (estado !== null && !ESTADOS_ASISTENCIA_MANUAL.includes(estado)) return { ok: false, error: "Ese estado no se marca a mano." };
 
@@ -52,7 +52,7 @@ export async function marcarAsistencia(
 /** Anota las horas extras de una persona en un día; con 0 se quitan. Se suman solas al armar la liquidación del mes. */
 export async function guardarHorasExtra(trabajadorId: string, dia: string, horas: number): Promise<ResultadoAsistencia> {
   const { apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible desde el plan Estándar." };
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible en el plan Grande." };
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) return { ok: false, error: "La fecha no es válida." };
   if (!Number.isFinite(horas) || horas < 0) return { ok: false, error: "Las horas no son válidas." };
   if (horas > 12) return { ok: false, error: "Un día no puede tener más de 12 horas extras." };

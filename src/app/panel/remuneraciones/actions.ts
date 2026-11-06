@@ -18,7 +18,7 @@ import type { Contrato } from "@/lib/personal-comun";
 
 export type ResultadoRemuneraciones = { ok: true } | { ok: false; error: string };
 
-const SIN_PLAN = "Remuneraciones está disponible desde el plan Estándar.";
+const SIN_PLAN = "Remuneraciones está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/[^\d]/g, "")) || 0;
 const periodoOk = (p: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(p);

@@ -87,6 +87,8 @@ export default async function PanelLayout({
           usuario={{ nombre: user.name, correo: user.email }}
           chat={puede(apr.plan as Plan, "chat")}
           conFinanzas={puede(apr.plan as Plan, "finanzas")}
+          conRrhh={puede(apr.plan as Plan, "personal")}
+          conOperacion={puede(apr.plan as Plan, "incidentes")}
         />
         {rol === "ADMIN" && <Recorrido usuarioId={user.id} />}
         {rol === "ADMIN" && <PrimerosPasosFlotante />}
@@ -148,6 +150,8 @@ export default async function PanelLayout({
                 rol={rol}
                 chat={puede(apr.plan as Plan, "chat")}
                 conFinanzas={puede(apr.plan as Plan, "finanzas")}
+                conRrhh={puede(apr.plan as Plan, "personal")}
+                conOperacion={puede(apr.plan as Plan, "incidentes")}
               />
             )}
           </header>
