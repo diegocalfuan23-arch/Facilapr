@@ -359,7 +359,7 @@ export function LecturaForm({
           )}
 
           {/* La ruta del mes: cuántos socios llevas leídos. */}
-          <section aria-label="Ruta del mes" className="rounded-2xl bg-gradient-to-br from-primary to-primary/70 p-4 text-primary-foreground shadow-lg shadow-primary/30">
+          <section aria-label="Ruta del mes" className="rounded-2xl bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] p-4 text-primary-foreground shadow-lg shadow-primary/30">
             <div className="flex items-center justify-between gap-4">
               <div className="min-w-0">
                 <label htmlFor="terreno-periodo" className="text-[0.8rem] font-medium text-white/85">
@@ -417,14 +417,14 @@ export function LecturaForm({
           )}
 
           {!actual ? (
-            <div className="flex flex-col items-center gap-2 rounded-2xl border border-border bg-card px-6 py-10 text-center shadow-md shadow-primary/10">
+            <div className="flex flex-col items-center gap-2 rounded-2xl bg-card px-6 py-10 text-center shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
               <PartyPopper className="size-9 text-primary" aria-hidden />
               <p className="text-lg font-bold">Ruta completa</p>
               <p className="text-sm text-muted-foreground">Todos los socios tienen lectura en {formatearPeriodo(periodo)}.</p>
               <div className="w-full text-left">{buscador}</div>
             </div>
           ) : (
-            <form action={accion} className="rounded-2xl border border-border bg-card p-4 shadow-md shadow-primary/10">
+            <form action={accion} className="rounded-2xl bg-card p-4 shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
               <input type="hidden" name="socioId" value={actual.id} />
               <input type="hidden" name="periodo" value={periodo} />
               <input type="hidden" name="valor" value={valorTxt} />
@@ -601,7 +601,7 @@ export function LecturaForm({
                           onClick={() => setMesVer(m)}
                           className={cn(
                             "flex h-28 w-36 shrink-0 snap-start flex-col justify-between rounded-2xl border p-4 text-left transition-colors",
-                            activo ? "border-transparent bg-gradient-to-br from-primary to-primary/70 text-primary-foreground shadow-lg shadow-primary/30" : "border-border bg-card shadow-sm shadow-primary/10 hover:bg-muted"
+                            activo ? "border-transparent bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] text-primary-foreground shadow-lg shadow-primary/30" : "border-border bg-card shadow-[0_6px_18px_rgba(58,12,227,0.1)] hover:bg-muted"
                           )}
                         >
                           <span>
@@ -656,7 +656,7 @@ export function LecturaForm({
                       const meta = ESTADO_META[l.estado];
                       const Icono = meta.icono;
                       return (
-                        <div key={l.id} className="flex items-center gap-4 rounded-2xl border border-border bg-card p-3 shadow-sm shadow-primary/10">
+                        <div key={l.id} className="flex items-center gap-4 rounded-2xl bg-card p-3 shadow-[0_6px_18px_rgba(58,12,227,0.1)]">
                           <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.8rem] font-bold text-primary">
                             {iniciales(l.socio)}
                           </span>

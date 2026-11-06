@@ -30,8 +30,8 @@ export default async function InventarioPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Inventario</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
+        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Inventario</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">
           {insumos.length === 0
             ? "Cloro, cañerías, medidores, repuestos: lo que guardas en bodega."
             : bajos > 0

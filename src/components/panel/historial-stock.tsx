@@ -75,7 +75,7 @@ export function HistorialStock({ historial, busquedaInicial }: { historial: Movi
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-md shadow-primary/10">
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl bg-card shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
             {filtrado.map((h) => {
               const entra = h.cantidad > 0;
               const Icono = entra ? ArrowDownLeft : ArrowUpRight;

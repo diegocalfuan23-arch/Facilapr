@@ -14,7 +14,7 @@ const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 const alto = "h-11";
 
 const AZUL = "from-sky-500 to-sky-700";
-const VIOLETA = "from-primary to-primary/70";
+const VIOLETA = "from-[#3A0CE3] to-[#6B46F5]";
 const VERDE = "from-emerald-500 to-emerald-700";
 const GRIS = "from-slate-500 to-slate-700";
 
@@ -48,7 +48,7 @@ function Kpi({ label, valor, icono: Icono, tono, nota, resaltado }: { label: str
   return (
     <div
       className={cn(
-        "flex items-center gap-4 rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 lg:p-5 shadow-md shadow-primary/10",
+        "flex items-center gap-4 rounded-2xl border p-4 transition-transform hover:-translate-y-0.5 lg:p-5 shadow-[0_8px_24px_rgba(58,12,227,0.1)]",
         resaltado === "verde" && "border-emerald-200 bg-emerald-50 dark:border-emerald-500/30 dark:bg-emerald-500/10",
         resaltado === "ambar" && "border-amber-200 bg-amber-50 dark:border-amber-500/30 dark:bg-amber-500/10",
         !resaltado && "border-border bg-card"
@@ -185,10 +185,10 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
         </div>
       ) : (
         <>
-          <div className="scroll-fino hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-lg shadow-primary/10 md:block">
+          <div className="scroll-fino hidden overflow-x-auto rounded-2xl bg-card shadow-[0_10px_26px_rgba(58,12,227,0.14)] md:block">
             <table className="w-full min-w-200 border-collapse text-[0.95rem]">
               <thead>
-                <tr className="bg-gradient-to-r from-primary to-primary/70 text-primary-foreground">
+                <tr className="bg-gradient-to-r from-[#3A0CE3] to-[#6B46F5] text-primary-foreground">
                   {["Bien", "Categoría", "Adquirido", "Costo", "Valor actual", "Estado"].map((c) => (
                     <th key={c} className="px-5 py-3 text-left text-[0.85rem] font-semibold whitespace-nowrap">
                       {c}
@@ -229,7 +229,7 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
                 key={a.id}
                 type="button"
                 onClick={() => setEditando(a)}
-                className={cn("overflow-hidden rounded-2xl border border-border bg-card text-left shadow-lg shadow-primary/10", a.estado === "BAJA" && "opacity-60")}
+                className={cn("overflow-hidden rounded-2xl bg-card text-left shadow-[0_10px_26px_rgba(58,12,227,0.14)]", a.estado === "BAJA" && "opacity-60")}
               >
                 <div className={cn("flex items-center justify-between gap-3 bg-gradient-to-r px-4 py-3 text-white", categoriaDe(a.categoria).tono)}>
                   <div className="min-w-0">

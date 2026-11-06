@@ -1,15 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { bolsillosAl, diaVecino, hoyEnChile, listarCategoriasMovimiento, netoEntre, nombreMes, saldoInicialDe, textoCategoria } from "@/lib/finanzas";
 import { listarCompras } from "@/lib/compras";
 import { resumenAnual } from "@/lib/reportes";
 import { ReportesVista, type CuadreReporte } from "@/components/panel/reportes-vista";
-import { DescargarCsvBoton } from "@/components/panel/descargar-csv-boton";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "Reportes",
@@ -86,38 +82,13 @@ export default async function ReportesPage({ searchParams }: { searchParams: Pro
     ["total", resumen.totalIngresos, resumen.totalEgresos, resultado],
   ];
 
-  const botonAnio = "flex size-9 items-center justify-center rounded-full hover:bg-muted";
-
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-[1.35rem] font-semibold tracking-tight">Reportes</h1>
-          <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Cuánto entró, cuánto salió y si la plata cuadra.</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center rounded-full border border-border bg-card p-1">
-            <Link href={`/panel/reportes?anio=${anio - 1}`} aria-label="Año anterior" className={botonAnio}>
-              <ChevronLeft className="size-4" />
-            </Link>
-            <span className="px-2 text-[0.95rem] font-bold tabular-nums">{anio}</span>
-            {anio < anioActual + 1 ? (
-              <Link href={`/panel/reportes?anio=${anio + 1}`} aria-label="Año siguiente" className={botonAnio}>
-                <ChevronRight className="size-4" />
-              </Link>
-            ) : (
-              <span className={cn(botonAnio, "text-muted-foreground/40 hover:bg-transparent")}>
-                <ChevronRight className="size-4" />
-              </span>
-            )}
-          </div>
-          <DescargarCsvBoton nombreArchivo={`reporte-${anio}.csv`} filas={planilla} />
-        </div>
-      </div>
-
       <ReportesVista
         key={anio}
         anio={anio}
+        anioActual={anioActual}
+        planilla={planilla}
         meses={resumen.meses.map((m) => ({
           mes: m.mes,
           nombre: nombreMes(m.mes).replace(/\s+\d{4}$/, ""),

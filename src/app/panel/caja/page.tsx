@@ -53,8 +53,8 @@ export default async function CajaPage({
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Caja</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">La plata de tu comité: lo que entra, lo que sale y cuánta hay.</p>
+        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Caja</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">La plata de tu comité: lo que entra, lo que sale y cuánta hay.</p>
       </div>
 
       <CajaVista

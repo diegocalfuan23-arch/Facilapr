@@ -24,8 +24,8 @@ export default async function LaboresPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Labores</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Los trabajos del comité y los materiales que usan: al marcarlos como hechos, se descuentan del inventario.</p>
+        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Labores</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">Los trabajos del comité y los materiales que usan: al marcarlos como hechos, se descuentan del inventario.</p>
       </div>
 
       <LaboresVista labores={labores} insumos={insumos} />

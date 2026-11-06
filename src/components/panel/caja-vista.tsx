@@ -99,7 +99,7 @@ function Kpi({
   nota?: React.ReactNode;
 }) {
   return (
-    <div className={cn("flex min-w-0 items-center gap-4 rounded-2xl border p-4 shadow-md shadow-primary/10", fondo ?? "border-border bg-card")}>
+    <div className={cn("flex min-w-0 items-center gap-4 rounded-2xl border p-4 shadow-[0_8px_24px_rgba(58,12,227,0.1)]", fondo ?? "border-border bg-card")}>
       <span aria-hidden className={cn("hidden size-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br text-white shadow-sm xl:flex", tono)}>
         <Icono className="size-5" />
       </span>
@@ -371,7 +371,7 @@ export function CajaVista({
             </Button>
           </div>
           {masAbierto && (
-            <div className="mt-2 overflow-hidden rounded-2xl border border-border bg-card shadow-md shadow-primary/10">
+            <div className="mt-2 overflow-hidden rounded-2xl bg-card shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
               <button
                 type="button"
                 className="flex min-h-12 w-full items-center gap-4 px-4 text-left text-sm font-semibold"
@@ -422,7 +422,7 @@ export function CajaVista({
           label="Disponible anterior"
           valor={resumen.disponibleAnterior === null ? <span className="text-muted-foreground/50">—</span> : clp.format(resumen.disponibleAnterior)}
           icono={Wallet}
-          tono="from-primary to-primary/70"
+          tono="from-[#3A0CE3] to-[#6B46F5]"
         />
         <Operador icono={Plus} />
         <Kpi
@@ -477,7 +477,7 @@ export function CajaVista({
             const cambio = b.antes === null ? 0 : b.valor - b.antes;
             const pct = resumen.disponible && resumen.disponible > 0 ? Math.max(0, Math.min(100, Math.round((b.valor / resumen.disponible) * 100))) : null;
             return (
-              <div key={b.titulo} className="rounded-2xl border border-border bg-card p-4 shadow-md shadow-primary/10">
+              <div key={b.titulo} className="rounded-2xl bg-card p-4 shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
                 <div className="flex items-center gap-4">
                   <span aria-hidden className={cn("flex size-11 shrink-0 items-center justify-center rounded-xl", b.icono_c)}>
                     <b.icono className="size-5" />
@@ -522,7 +522,7 @@ export function CajaVista({
             { titulo: "De dónde vino", filas: ingresos },
             { titulo: "A dónde fue", filas: egresos },
           ].map((bloque) => (
-            <div key={bloque.titulo} className="rounded-2xl border border-border bg-card p-5 shadow-md shadow-primary/10">
+            <div key={bloque.titulo} className="rounded-2xl bg-card p-5 shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
               <h2 className="text-[0.8rem] font-medium tracking-wide text-muted-foreground uppercase">{bloque.titulo}</h2>
               {bloque.filas.length === 0 ? (
                 <p className="mt-4 text-[0.9rem] text-muted-foreground">Nada este mes.</p>
@@ -617,10 +617,10 @@ export function CajaVista({
         </div>
       ) : (
         <>
-          <div className="scroll-fino hidden overflow-x-auto rounded-2xl border border-border bg-card shadow-lg shadow-primary/10 md:block">
+          <div className="scroll-fino hidden overflow-x-auto rounded-2xl bg-card shadow-[0_10px_26px_rgba(58,12,227,0.14)] md:block">
             <table className="w-full min-w-160 border-collapse text-[0.95rem]">
               <thead>
-                <tr className="bg-gradient-to-r from-primary to-primary/70 text-primary-foreground">
+                <tr className="bg-gradient-to-r from-[#3A0CE3] to-[#6B46F5] text-primary-foreground">
                   {[...(esDia ? [] : ["Fecha"]), "Descripción", "Tipo", "Origen", "Medio", "Monto"].map((c) => (
                     <th key={c} className={cn("px-5 py-3 text-left text-[0.85rem] font-semibold whitespace-nowrap", c === "Monto" && "text-right")}>
                       {c}
@@ -666,7 +666,7 @@ export function CajaVista({
 
           <div className="flex flex-col gap-2 md:hidden">
             {filtradas.map((l) => (
-              <div key={l.id} className="rounded-2xl border border-border bg-card p-4 shadow-md shadow-primary/10">
+              <div key={l.id} className="rounded-2xl bg-card p-4 shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
                     <p className="leading-snug font-semibold">{l.concepto}</p>

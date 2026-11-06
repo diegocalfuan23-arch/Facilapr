@@ -92,7 +92,7 @@ export function InstalarApp({
 
   if (compacto) {
     return (
-      <div className="flex items-center gap-4 rounded-2xl border border-border bg-card p-3 shadow-sm shadow-primary/10">
+      <div className="flex items-center gap-4 rounded-2xl bg-card p-3 shadow-[0_6px_18px_rgba(58,12,227,0.1)]">
         <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Smartphone className="size-5" />
         </span>

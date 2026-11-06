@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Banknote, Landmark, TriangleAlert, X } from "lucide-react";
+import { ArrowRight, Banknote, ChevronLeft, ChevronRight, Download, FileText, Landmark, TriangleAlert, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const clp = (n: number) => (n < 0 ? "-" : "") + "$" + Math.abs(n).toLocaleString("es-CL");
 const signo = (n: number) => (n > 0 ? "+" : "") + clp(n);
 
-const TARJETA = "rounded-2xl border border-border bg-card shadow-md shadow-primary/10";
+const TARJETA = "rounded-2xl bg-card shadow-[0_8px_24px_rgba(58,12,227,0.1)]";
 const C_ING = "bg-primary";
 const C_EGR = "bg-amber-500";
 
@@ -19,6 +20,9 @@ export type CompraPorPagar = { id: string; numero: number; proveedor: string; ve
 
 type Props = {
   anio: number;
+  anioActual: number;
+  /** Las filas del Excel de movimientos. */
+  planilla: (string | number)[][];
   meses: MesReporte[];
   origen: LineaReporte[];
   destino: LineaReporte[];
@@ -183,8 +187,9 @@ function Cascada({ label, valor, desde, hasta, tope, color, fuerte = false }: { 
 
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
 
-export function ReportesVista({ anio, meses, origen, destino, cuadre, proveedores, comprasPorProveedor }: Props) {
+export function ReportesVista({ anio, anioActual, planilla, meses, origen, destino, cuadre, proveedores, comprasPorProveedor }: Props) {
   const [sel, setSel] = useState<string | null>(null);
+  const [descarga, setDescarga] = useState(false);
   const conDatos = meses.filter((m) => m.ingresos + m.egresos > 0);
   const totalIng = meses.reduce((s, m) => s + m.ingresos, 0);
   const totalEgr = meses.reduce((s, m) => s + m.egresos, 0);
@@ -194,6 +199,21 @@ export function ReportesVista({ anio, meses, origen, destino, cuadre, proveedore
   const res = ing - egr;
   const alcance = mes ? `${mes.nombre} ${anio}` : String(anio);
   const elegir = (id: string) => setSel((s) => (s === id ? null : id));
+
+  // El informe imprimible es el de un mes: el elegido o, si no hay, el último con movimientos.
+  const mesInforme = mes?.mes ?? conDatos[conDatos.length - 1]?.mes ?? null;
+
+  function descargarExcel() {
+    const celda = (t: string | number) => `"${String(t).replace(/"/g, '""')}"`;
+    const csv = "﻿" + planilla.map((f) => f.map(celda).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `reporte-${anio}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  const botonAnio = "flex size-9 items-center justify-center rounded-full hover:bg-muted";
 
   const totalOrigen = origen.reduce((s, l) => s + l.monto, 0);
   const cobros = origen.find((l) => l.clave === "COBROS");
@@ -205,6 +225,57 @@ export function ReportesVista({ anio, meses, origen, destino, cuadre, proveedore
 
   return (
     <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-[32px] leading-tight font-bold tracking-tight">Reportes</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">Cuánto entró, cuánto salió y si la plata cuadra.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center rounded-full bg-card p-1">
+            <Link href={`/panel/reportes?anio=${anio - 1}`} aria-label="Año anterior" className={botonAnio}>
+              <ChevronLeft className="size-4" />
+            </Link>
+            <span className="px-2 text-[15px] font-bold tabular-nums">{anio}</span>
+            {anio < anioActual + 1 ? (
+              <Link href={`/panel/reportes?anio=${anio + 1}`} aria-label="Año siguiente" className={botonAnio}>
+                <ChevronRight className="size-4" />
+              </Link>
+            ) : (
+              <span className={cn(botonAnio, "text-muted-foreground/40 hover:bg-transparent")}>
+                <ChevronRight className="size-4" />
+              </span>
+            )}
+          </div>
+          <div className="relative">
+            <Button variant="outline" aria-expanded={descarga} onClick={() => setDescarga((v) => !v)} className="h-11 rounded-full bg-card font-semibold">
+              <Download />
+              Descargar
+            </Button>
+            {descarga && (
+              <div className="absolute right-0 z-20 mt-1 w-[230px] overflow-hidden rounded-2xl bg-card p-1 shadow-[0_16px_40px_rgba(22,21,28,0.18)]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    descargarExcel();
+                    setDescarga(false);
+                  }}
+                  className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent"
+                >
+                  <Download className="size-4" aria-hidden />
+                  Excel de movimientos
+                </button>
+                {mesInforme ? (
+                  <Link href={`/informes/caja/${mesInforme}`} target="_blank" onClick={() => setDescarga(false)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent">
+                    <FileText className="size-4" aria-hidden />
+                    PDF del período
+                  </Link>
+                ) : null}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {mes && (
         <button type="button" onClick={() => setSel(null)} className="inline-flex min-h-9 w-fit items-center gap-2 rounded-full bg-primary/10 px-3 text-sm font-semibold text-primary">
           Viendo {mes.nombre} {anio}

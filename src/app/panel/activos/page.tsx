@@ -20,8 +20,8 @@ export default async function ActivosPage() {
   return (
     <div className="flex flex-col gap-8">
       <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Activos fijos</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Los bienes del comité: qué tienes, cuánto costó y cuánto vale hoy.</p>
+        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Activos fijos</h1>
+        <p className="mt-1 text-[15px] text-muted-foreground">Los bienes del comité: qué tienes, cuánto costó y cuánto vale hoy.</p>
       </div>
 
       <ActivosVista activos={activos} />

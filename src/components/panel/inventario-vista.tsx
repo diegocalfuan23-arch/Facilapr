@@ -26,7 +26,7 @@ import { cn } from "@/lib/utils";
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 
 const alto = "h-11";
-const SOMBRA = "shadow-md shadow-primary/10";
+const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.1)]";
 const COLUMNAS = "lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1.6fr)_110px_130px_210px]";
 
 /** El ícono de un material según de qué parece ser (por el nombre de su categoría). */
@@ -149,7 +149,7 @@ function AjusteDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => vo
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
       <DialogContent className="gap-0 overflow-hidden rounded-[20px] p-0 sm:max-w-[440px]">
-        <div className="bg-gradient-to-r from-primary to-primary/70 py-4 pr-14 pl-5 text-primary-foreground">
+        <div className="bg-gradient-to-r from-[#3A0CE3] to-[#6B46F5] py-4 pr-14 pl-5 text-primary-foreground">
           <DialogTitle className="text-xl font-bold">Ajustar {insumo.nombre}</DialogTitle>
           <DialogDescription className="text-sm text-white/90">
             Stock actual: {formatoCantidad(insumo.stock)} {unidadCorta(insumo.unidad)}
