@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, History, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { formatoCantidad, TEXTO_ORIGEN_STOCK, unidadCorta, type MovimientoStockFila } from "@/lib/inventario-comun";
 import { cn } from "@/lib/utils";
 
-const alto = "h-10";
+const alto = "h-11";
 
 const cuando = new Intl.DateTimeFormat("es-CL", {
   day: "2-digit",
@@ -35,15 +35,18 @@ export function HistorialStock({ historial, busquedaInicial }: { historial: Movi
   });
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por material o motivo…"
-          className={cn(alto, "rounded-full px-5 text-[0.95rem] sm:w-80")}
-          aria-label="Buscar en el historial"
-        />
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative sm:w-80">
+          <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="Buscar por material o motivo"
+            className={cn(alto, "rounded-full pr-4 pl-11 text-[0.95rem]")}
+            aria-label="Buscar en el historial"
+          />
+        </div>
         <div className="relative sm:w-56">
           <select
             value={tipo}
@@ -51,7 +54,7 @@ export function HistorialStock({ historial, busquedaInicial }: { historial: Movi
             aria-label="Tipo de movimiento"
             className={cn(
               alto,
-              "w-full appearance-none rounded-xl border border-input bg-transparent pr-10 pl-4 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+              "w-full appearance-none rounded-full border border-input bg-transparent pr-10 pl-4 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
             )}
           >
             <option value="todos">Entradas y salidas</option>
@@ -63,74 +66,57 @@ export function HistorialStock({ historial, busquedaInicial }: { historial: Movi
       </div>
 
       {filtrado.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border py-20 text-center">
-          <p className="text-[1.05rem] font-medium">
-            {historial.length === 0 ? "Todavía no hay movimientos" : "Nada coincide con esa búsqueda"}
-          </p>
-          <p className="mx-auto mt-2 max-w-xl px-4 text-[0.95rem] text-muted-foreground">
-            {historial.length === 0
-              ? "Aquí queda anotado cada ajuste de stock, cada compra y cada corrección, con quién lo hizo."
-              : "Prueba con otro material o cambia el tipo."}
+        <div className="rounded-2xl border border-dashed border-border px-6 py-16 text-center">
+          <History className="mx-auto size-7 text-primary" aria-hidden />
+          <p className="mt-2 text-[1.05rem] font-medium">{historial.length === 0 ? "Todavía no hay movimientos" : "Nada coincide con esa búsqueda"}</p>
+          <p className="mx-auto mt-1 max-w-xl text-[0.95rem] text-muted-foreground">
+            {historial.length === 0 ? "Aquí queda anotado cada ajuste de stock, cada compra y cada corrección, con quién lo hizo." : "Prueba con otro material o cambia el tipo."}
           </p>
         </div>
       ) : (
         <>
-          <div className="scroll-fino overflow-x-auto rounded-xl border border-border">
-            <table className="w-full min-w-192 border-collapse text-[0.95rem]">
-              <thead>
-                <tr className="border-b border-border bg-card">
-                  {["Fecha", "Material", "Tipo", "Cantidad", "Quedó", "Motivo", "Quién"].map((c) => (
-                    <th key={c} className="px-5 py-4 text-left font-medium whitespace-nowrap text-muted-foreground">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filtrado.map((h) => {
-                  const entra = h.cantidad > 0;
-                  return (
-                    <tr key={h.id} className="border-b border-border last:border-0">
-                      <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{cuando.format(new Date(h.fecha))}</td>
-                      <td className="px-5 py-4 font-medium">{h.insumo}</td>
-                      <td className="px-5 py-4 whitespace-nowrap">
-                        <span
-                          className={cn(
-                            "rounded-full px-3 py-1 text-[0.8rem] font-medium",
-                            entra
-                              ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400"
-                              : "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400"
-                          )}
-                        >
-                          {entra ? "Entrada" : "Salida"}
-                        </span>
-                      </td>
-                      <td
-                        className={cn(
-                          "px-5 py-4 font-medium whitespace-nowrap tabular-nums",
-                          entra ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                        )}
-                      >
-                        {entra ? "+" : "−"}
-                        {formatoCantidad(Math.abs(h.cantidad))} {unidadCorta(h.unidad)}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap tabular-nums">
-                        {formatoCantidad(h.stockResultante)} {unidadCorta(h.unidad)}
-                      </td>
-                      <td className="px-5 py-4">
-                        <div>{TEXTO_ORIGEN_STOCK[h.origen]}</div>
-                        {h.motivo && <div className="text-[0.8rem] text-muted-foreground">{h.motivo}</div>}
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{h.quien ?? "—"}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          {historial.length >= 300 && (
-            <p className="text-[0.8rem] text-muted-foreground">Se muestran los últimos 300 movimientos.</p>
-          )}
+          <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card shadow-md shadow-primary/10">
+            {filtrado.map((h) => {
+              const entra = h.cantidad > 0;
+              const Icono = entra ? ArrowDownLeft : ArrowUpRight;
+              return (
+                <li key={h.id} className="flex items-center gap-4 px-4 py-3 sm:px-5">
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "flex size-9 shrink-0 items-center justify-center rounded-full",
+                      entra ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+                    )}
+                  >
+                    <Icono className="size-[18px]" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[0.95rem] font-semibold">
+                      {entra ? "Entrada" : "Salida"} de {h.insumo}
+                    </p>
+                    <p className="truncate text-[0.8rem] text-muted-foreground">
+                      {TEXTO_ORIGEN_STOCK[h.origen]}
+                      {h.motivo ? ` · ${h.motivo}` : ""}
+                    </p>
+                    <p className="truncate text-[0.75rem] text-muted-foreground tabular-nums">
+                      {cuando.format(new Date(h.fecha))}
+                      {h.quien ? ` · ${h.quien}` : ""}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className={cn("font-bold tabular-nums", entra ? "text-emerald-700 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>
+                      {entra ? "+" : "−"}
+                      {formatoCantidad(Math.abs(h.cantidad))} {unidadCorta(h.unidad)}
+                    </p>
+                    <p className="text-[0.8rem] text-muted-foreground tabular-nums">
+                      Quedan {formatoCantidad(h.stockResultante)} {unidadCorta(h.unidad)}
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {historial.length >= 300 && <p className="text-[0.8rem] text-muted-foreground">Se muestran los últimos 300 movimientos.</p>}
         </>
       )}
     </div>
