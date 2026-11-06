@@ -478,3 +478,43 @@ export async function anotarEgresoCompra(compraId: string, medio: string): Promi
   refrescar();
   return { ok: true };
 }
+
+/** Le pone (o le cambia) el proveedor a una compra que ya existe. Si la compra ya está pagada, el egreso de Caja queda con el mismo nombre. */
+export async function asignarProveedor(compraId: string, proveedorId: string): Promise<ResultadoCompras> {
+  const { apr } = await requireFinanzas();
+  if (!puede(apr.plan as Plan, "finanzas")) return { ok: false, error: SIN_PLAN };
+
+  try {
+    const r = await db.transaction(async (tx) => {
+      const [prov] = await tx
+        .select({ id: proveedores.id, nombre: proveedores.nombre })
+        .from(proveedores)
+        .where(and(eq(proveedores.id, proveedorId), eq(proveedores.aprId, apr.id)))
+        .limit(1);
+      if (!prov) return "PROVEEDOR" as const;
+
+      const [c] = await tx
+        .select({ id: compras.id, estado: compras.estado, movimientoId: compras.movimientoId })
+        .from(compras)
+        .where(and(eq(compras.id, compraId), eq(compras.aprId, apr.id)))
+        .limit(1);
+      if (!c) return "NO_EXISTE" as const;
+      if (c.estado === "ANULADA") return "ANULADA" as const;
+
+      await tx.update(compras).set({ proveedorId: prov.id, proveedorNombre: prov.nombre, updatedAt: new Date() }).where(eq(compras.id, c.id));
+      if (c.movimientoId) {
+        await tx.update(movimientos).set({ contraparte: prov.nombre }).where(and(eq(movimientos.id, c.movimientoId), eq(movimientos.aprId, apr.id)));
+      }
+      return "OK" as const;
+    });
+    if (r === "PROVEEDOR") return { ok: false, error: "Ese proveedor ya no existe." };
+    if (r === "NO_EXISTE") return { ok: false, error: "No encontramos esa compra." };
+    if (r === "ANULADA") return { ok: false, error: "Una compra anulada no se puede modificar." };
+  } catch (e) {
+    console.error("Compras: no se pudo asignar el proveedor:", e);
+    return { ok: false, error: "No pudimos asignar el proveedor. Inténtalo de nuevo." };
+  }
+
+  refrescar();
+  return { ok: true };
+}
