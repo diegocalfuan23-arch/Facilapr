@@ -17,7 +17,7 @@ export function DescargarCsvBoton({ nombreArchivo, filas }: { nombreArchivo: str
   }
 
   return (
-    <Button variant="outline" className="h-10 rounded-xl px-4 text-[0.95rem]" onClick={descargar}>
+    <Button variant="outline" className="h-11 rounded-full px-4 text-[0.95rem] font-semibold" onClick={descargar}>
       <Download />
       Descargar
     </Button>

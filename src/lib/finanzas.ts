@@ -203,7 +203,7 @@ export async function saldoInicialDe(aprId: string) {
  * Cuánto entró y cuánto salió de `desde` (incluido) a `hasta` (excluido), AAAA-MM-DD:
  * los movimientos anotados más los pagos de socios. No cuenta el saldo inicial ni los cierres.
  */
-async function netoEntre(aprId: string, desde: string, hasta: string) {
+export async function netoEntre(aprId: string, desde: string, hasta: string) {
   const movs = await db
     .select({
       ingresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'INGRESO' then ${movimientos.monto} else 0 end), 0)::int`,

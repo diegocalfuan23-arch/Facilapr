@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { ClipboardList, Droplets } from "lucide-react";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -19,6 +20,9 @@ import { Recorrido } from "@/components/panel/recorrido";
 import { NOMBRE_PLAN, puede, type Plan } from "@/lib/planes";
 import { PrimerosPasosFlotante } from "@/components/panel/primeros-pasos-flotante";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+// La tipografía del panel (la de los diseños nuevos). La portada y el acceso siguen con Geist.
+const fuente = Plus_Jakarta_Sans({ subsets: ["latin"] });
 
 export default async function PanelLayout({
   children,
@@ -71,6 +75,8 @@ export default async function PanelLayout({
 
   return (
     <TooltipProvider>
+      {/* Cambia la fuente de todo el panel, también la de los diálogos, que se dibujan fuera de él. Se quita sola al salir del panel. */}
+      <style>{`html:root{--font-sans:${fuente.style.fontFamily},system-ui,sans-serif}`}</style>
       <SidebarProvider>
         <PanelSidebar
           apr={apr.nombre}
