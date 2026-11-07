@@ -1,9 +1,10 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asistencias, ausencias, horasExtras, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { asistencias, ausencias, diasCalendario, horariosLaborales, horasExtras, remuneraciones, trabajadores } from "@/lib/db/schema";
 import type {
   AsistenciaDia,
   AusenciaFila,
+  DiaEspecial,
   EstadoAsistencia,
   EstadoAusencia,
   EstadoRemuneracion,
@@ -165,6 +166,32 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
     });
   } catch (e) {
     console.error("RR.HH.: no se pudo leer la asistencia:", e);
+    return [];
+  }
+}
+
+/** Los días de la semana en que trabaja cada persona que tiene un horario cargado. Si la tabla aún no existe, devuelve vacío. */
+export async function horariosDelComite(aprId: string): Promise<Record<string, number[]>> {
+  try {
+    const filas = await db.select({ trabajadorId: horariosLaborales.trabajadorId, dias: horariosLaborales.dias }).from(horariosLaborales).where(eq(horariosLaborales.aprId, aprId));
+    return Object.fromEntries(filas.map((f) => [f.trabajadorId, f.dias]));
+  } catch (e) {
+    console.error("RR.HH.: no se pudieron leer los horarios:", e);
+    return {};
+  }
+}
+
+/** Los feriados locales y días sin operación que el comité anotó. Si la tabla aún no existe, devuelve vacío. */
+export async function diasCalendarioDelComite(aprId: string): Promise<DiaEspecial[]> {
+  try {
+    const filas = await db
+      .select({ fecha: diasCalendario.fecha, tipo: diasCalendario.tipo, nombre: diasCalendario.nombre })
+      .from(diasCalendario)
+      .where(eq(diasCalendario.aprId, aprId))
+      .orderBy(asc(diasCalendario.fecha));
+    return filas.map((f) => ({ fecha: f.fecha, tipo: f.tipo as DiaEspecial["tipo"], nombre: f.nombre }));
+  } catch (e) {
+    console.error("RR.HH.: no se pudo leer el calendario laboral:", e);
     return [];
   }
 }

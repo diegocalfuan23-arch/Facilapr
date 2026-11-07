@@ -183,3 +183,29 @@ export function saldoVacaciones(fechaIngreso: string | null, tomados: number, ho
   const ganados = Math.round(meses * DIAS_VACACIONES_POR_MES * 100) / 100;
   return { ganados, tomados, saldo: Math.round((ganados - tomados) * 100) / 100 };
 }
+
+// ---------------------------------------------------------------- horario laboral y calendario
+
+/** Un día que no es laboral: un feriado (nacional o local) o un día sin operación del comité. */
+export type DiaEspecial = {
+  /** AAAA-MM-DD */
+  fecha: string;
+  tipo: "FERIADO" | "SIN_OPERACION";
+  nombre: string;
+  /** true: viene del código (feriados nacionales) y no se edita. */
+  nacional?: boolean;
+};
+
+/** Los días de la semana (0 = domingo … 6 = sábado) en que trabaja quien no tiene un horario cargado. */
+export const HORARIO_POR_DEFECTO = [1, 2, 3, 4, 5];
+
+/** El texto corto de unos días de la semana: «Lun a Vie», «Lun, Mié y Vie»… */
+export function resumenDias(dias: number[]) {
+  const orden = [1, 2, 3, 4, 5, 6, 0];
+  const corto = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const o = orden.filter((d) => dias.includes(d));
+  if (!o.length) return "Ningún día";
+  if (o.length === 7) return "Todos los días";
+  const seguidos = o.every((d, i) => i === 0 || orden.indexOf(d) === orden.indexOf(o[i - 1]) + 1);
+  return o.length > 2 && seguidos ? `${corto[o[0]]} a ${corto[o[o.length - 1]]}` : o.map((d) => corto[d]).join(", ");
+}

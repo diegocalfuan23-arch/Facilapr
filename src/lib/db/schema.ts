@@ -1475,6 +1475,47 @@ export const asistencias = pgTable(
   (table) => [uniqueIndex("Asistencia_trabajador_fecha_key").on(table.trabajadorId, table.fecha)]
 );
 
+/**
+ * Los días de la semana en que trabaja cada persona (0 = domingo … 6 = sábado). Sin fila, trabaja de lunes a
+ * viernes. Con esto la asistencia sabe a quién le toca trabajar cada día y no deja pendientes los días libres.
+ */
+export const horariosLaborales = pgTable(
+  "HorarioLaboral",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    trabajadorId: text("trabajadorId")
+      .notNull()
+      .references(() => trabajadores.id, { onDelete: "cascade" }),
+    dias: integer("dias").array().notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("HorarioLaboral_trabajador_key").on(table.trabajadorId)]
+);
+
+/**
+ * Las fechas propias del comité que no son laborales: un feriado local (los nacionales ya vienen en el
+ * código) o un día sin operación (corte programado, aniversario, emergencia). Nadie queda pendiente ese día.
+ */
+export const diasCalendario = pgTable(
+  "DiaCalendario",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    /** FERIADO | SIN_OPERACION */
+    tipo: text("tipo").notNull(),
+    nombre: text("nombre").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("DiaCalendario_apr_fecha_key").on(table.aprId, table.fecha)]
+);
+
 /** Un arranque del comité: un punto de conexión a la red que abastece a uno o más socios. */
 export const arranques = pgTable(
   "Arranque",
