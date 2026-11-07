@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { CheckCircle2, FileDown, Link2, Pencil, Plus, Search, Trash2, Wallet } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, Banknote, CheckCircle2, Download, Landmark, Link2, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Store, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { eliminarPago } from "@/app/panel/boletas/actions";
 import { EditarPagoDialog } from "@/components/panel/editar-pago-dialog";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
@@ -16,7 +16,7 @@ import { MEDIOS_PAGO, textoConcepto, textoMedioPago } from "@/lib/pagos";
 import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
 import { LinkPagoDialog } from "@/components/panel/link-pago-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
-import type { DatosComiteWhatsApp } from "@/lib/whatsapp";
+import { enlaceWhatsApp, type DatosComiteWhatsApp } from "@/lib/whatsapp";
 import { useConfirmar } from "@/components/ui/confirmar";
 
 export type PagoFila = {
@@ -37,6 +37,7 @@ export type PagoFila = {
   repactacionId: string | null;
   socioNombre: string;
   socioRut: string | null;
+  socioTelefono?: string | null;
   /** SOCIO o USUARIO: de quién es la cuenta que se pagó. */
   socioTipo: string;
   /** El usuario del panel que registró el pago; null en los antiguos. */
@@ -50,13 +51,35 @@ const clp = new Intl.NumberFormat("es-CL", {
   maximumFractionDigits: 0,
 });
 
-const fechaLarga = new Intl.DateTimeFormat("es-CL", {
-  day: "numeric",
-  month: "short",
-  year: "numeric",
-});
-
 const POR_PAGINA = 25;
+const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
+const GRIS = "text-[#5B5970]";
+
+const ICONO_MEDIO: Record<string, LucideIcon> = { EFECTIVO: Banknote, TRANSFERENCIA: Landmark, CAJA_VECINA: Store };
+const TINTE: Record<string, string> = {
+  TRANSFERENCIA: "bg-[#ECE8FD] text-[#3A0CE3]",
+  EFECTIVO: "bg-[#DFF4EB] text-[#0A7A52]",
+  CAJA_VECINA: "bg-[#FFEEDC] text-[#B86400]",
+};
+const COLOR_MEDIO: Record<string, string> = { TRANSFERENCIA: "bg-[#3A0CE3]", EFECTIVO: "bg-[#0A9B68]", CAJA_VECINA: "bg-[#E58200]" };
+function IconoMedio({ medio, className }: { medio: string; className?: string }) {
+  const Icono = ICONO_MEDIO[medio] ?? MoreHorizontal;
+  return <Icono className={className} aria-hidden />;
+}
+const tinteDe = (medio: string) => TINTE[medio] ?? "bg-[#F0EFF4] text-[#6F6C82]";
+const colorDe = (medio: string) => COLOR_MEDIO[medio] ?? "bg-[#A5A3B5]";
+
+/** Lo que no es uno de los cuatro medios (Mercado Pago, Flow) cuenta como "Otro". */
+const medioAgrupado = (m: string) => (MEDIOS_PAGO.some((x) => x.valor === m) ? m : "OTRO");
+
+const claveDia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const diaLargo = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getDate()} de ${MESES[d.getMonth()]} ${d.getFullYear()}`;
+};
 
 /** Qué se pagó: el mes de la boleta, o el concepto (con su detalle) si no fue una boleta. */
 function queSePago(p: PagoFila) {
@@ -66,6 +89,68 @@ function queSePago(p: PagoFila) {
 
 const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/** El comprobante de un pago: encabezado con el monto y el detalle, y sus acciones. */
+function Comprobante({ p, onCerrar, onCorregir, onEliminar }: { p: PagoFila; onCerrar: () => void; onCorregir: () => void; onEliminar: () => void }) {
+  const filas: [string, string][] = [
+    ["Socio", p.socioNombre],
+    ["Tipo", p.socioTipo === "USUARIO" ? "Usuario" : "Socio"],
+    ["RUT", p.socioRut ? formatearRut(p.socioRut) : "Sin RUT"],
+    ["Concepto", queSePago(p)],
+    ["Pagó", p.pagadoPor ?? "El titular"],
+    ["Registró", p.registradoPor ?? "—"],
+    ["N.° de operación", p.referencia ?? "—"],
+  ];
+  const mensaje = `Hola, te enviamos el comprobante de tu pago de ${clp.format(p.monto)}: ${p.comprobanteUrl}`;
+  const enviar = enlaceWhatsApp(p.socioTelefono ?? "", mensaje);
+  return (
+    <div className="flex h-full flex-col">
+      <div className="relative bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] px-5 pt-5 pb-6 text-white">
+        <Button variant="ghost" size="icon" aria-label="Cerrar comprobante" onClick={onCerrar} className="absolute top-3 right-3 size-9 rounded-lg text-white hover:bg-white/15 hover:text-white lg:hidden">
+          <X />
+        </Button>
+        <div className="flex items-center justify-between pr-10 text-[13px] font-medium text-white/80 lg:pr-0">
+          <span>Comprobante de pago</span>
+          <span className="tabular-nums">N.° {p.id.slice(-5).toUpperCase()}</span>
+        </div>
+        <p className="mt-1 text-[36px] leading-none font-semibold tracking-tight tabular-nums">{clp.format(p.monto)}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-2.5 py-1 font-semibold">
+            <IconoMedio medio={p.medio} className="size-3.5" />
+            {textoMedioPago(p.medio)}
+          </span>
+          <span className="text-white/75">{diaLargo(p.fecha)}</span>
+          {p.repactacionId && <span className="rounded-full bg-white/15 px-2.5 py-1 font-semibold">Repactación</span>}
+        </div>
+      </div>
+      <div aria-hidden className="h-3 bg-[radial-gradient(circle_at_8px_0,transparent_7px,#fff_7.5px)] bg-[length:16px_12px] bg-repeat-x" />
+      <dl className="flex-1 px-5 pb-2">
+        {filas.map(([k, v]) => (
+          <div key={k} className="flex justify-between gap-4 border-b border-dashed border-[#E4E1F0] py-2.5 text-sm last:border-0">
+            <dt className={GRIS}>{k}</dt>
+            <dd className="min-w-0 truncate text-right font-medium tabular-nums">{v}</dd>
+          </div>
+        ))}
+      </dl>
+      <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 border-t border-[#F0EEF6] p-4">
+        <Button className="h-10 rounded-lg px-3 font-semibold" render={<a href={p.comprobanteUrl} target="_blank" rel="noopener" />}>
+          <Download />
+          Descargar
+        </Button>
+        <Button variant="outline" className="h-10 rounded-lg border-[#E4E1F0] px-3 font-semibold" render={<a href={enviar} target="_blank" rel="noopener" />}>
+          <MessageCircle />
+          Enviar
+        </Button>
+        <Button variant="outline" size="icon" aria-label={`Corregir el pago de ${p.socioNombre}`} title="Corregir este pago" onClick={onCorregir} className="size-10 rounded-lg border-[#E4E1F0]">
+          <Pencil />
+        </Button>
+        <Button variant="outline" size="icon" aria-label={`Eliminar el pago de ${p.socioNombre}`} title="Eliminar este pago" onClick={onEliminar} className="size-10 rounded-lg border-[#E4E1F0] text-[#A32020] hover:bg-[#FDECEC] hover:text-[#A32020]">
+          <Trash2 />
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 /** Todos los pagos que ha registrado el comité, con búsqueda y filtro por medio. */
 export function PagosTabla({
@@ -105,18 +190,28 @@ export function PagosTabla({
   const [busqueda, setBusqueda] = useState("");
   const [medio, setMedio] = useState<string>("todos");
   const [visibles, setVisibles] = useState(POR_PAGINA);
+  const [sel, setSel] = useState<string | null>(null);
+  const [movil, setMovil] = useState(false);
 
   const ahora = new Date();
+  const mesActual = ahora.getFullYear() * 12 + ahora.getMonth();
   const delMes = pagos.filter((p) => {
     const f = new Date(p.fecha);
-    return f.getFullYear() === ahora.getFullYear() && f.getMonth() === ahora.getMonth();
+    return f.getFullYear() * 12 + f.getMonth() === mesActual;
+  });
+  const delMesAnterior = pagos.filter((p) => {
+    const f = new Date(p.fecha);
+    return f.getFullYear() * 12 + f.getMonth() === mesActual - 1;
   });
   const totalMes = delMes.reduce((acc, p) => acc + p.monto, 0);
+  const totalAnterior = delMesAnterior.reduce((acc, p) => acc + p.monto, 0);
+  const diferencia = totalMes - totalAnterior;
+  const nombreMesAnterior = MESES[(ahora.getMonth() + 11) % 12];
 
   const filtrados = useMemo(() => {
     const q = sinTildes(busqueda.trim());
     return pagos.filter((p) => {
-      if (medio !== "todos" && p.medio !== medio) return false;
+      if (medio !== "todos" && medioAgrupado(p.medio) !== medio) return false;
       if (!q) return true;
       return sinTildes(
         `${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${queSePago(p)} ${p.pagadoPor ?? ""} ${p.registradoPor ?? ""}`
@@ -126,66 +221,79 @@ export function PagosTabla({
 
   const totalFiltrado = filtrados.reduce((acc, p) => acc + p.monto, 0);
 
+  const grupos = useMemo(() => {
+    const m = new Map<string, PagoFila[]>();
+    for (const p of filtrados.slice(0, visibles)) {
+      const k = claveDia(new Date(p.fecha));
+      m.set(k, [...(m.get(k) ?? []), p]);
+    }
+    return [...m.entries()];
+  }, [filtrados, visibles]);
+
+  const porMedio = useMemo(
+    () =>
+      MEDIOS_PAGO.map((m) => {
+        const ps = pagos.filter((p) => medioAgrupado(p.medio) === m.valor);
+        return { m: m.valor as string, v: ps.reduce((t, p) => t + p.monto, 0), n: ps.length };
+      }),
+    [pagos]
+  );
+  const totalTodo = pagos.reduce((t, p) => t + p.monto, 0);
+
+  // Los últimos 30 días, uno por barra.
+  const dias = useMemo(() => {
+    const hoy = new Date();
+    return Array.from({ length: 30 }, (_, i) => {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 29 + i);
+      const k = claveDia(d);
+      return { k, d, v: pagos.filter((p) => claveDia(new Date(p.fecha)) === k).reduce((t, p) => t + p.monto, 0) };
+    });
+  }, [pagos]);
+  const maxDia = Math.max(...dias.map((x) => x.v), 1);
+  const etiquetaDia = (d: Date) => `${d.getDate()} ${MESES_CORTOS[d.getMonth()]}`;
+
+  const pago = filtrados.find((p) => p.id === sel) ?? filtrados[0] ?? null;
+
   async function borrar(p: PagoFila) {
     const aviso = p.periodo ? "La boleta volverá a deber ese monto." : "Se quita también de la Caja.";
     if (!(await confirmar({ titulo: `¿Eliminar el pago de ${clp.format(p.monto)}?`, descripcion: `${p.socioNombre}. ${aviso}`, boton: "Eliminar" }))) return;
     const r = await eliminarPago(p.id);
     if (r.ok) {
       toast.success("Pago eliminado");
+      setMovil(false);
       router.refresh();
     } else {
       toast.error(r.error);
     }
   }
 
-  /** Corregir y eliminar, junto al comprobante. */
-  const acciones = (p: PagoFila) => (
-    <>
-      <button
-        type="button"
-        aria-label={`Corregir el pago de ${p.socioNombre}`}
-        title="Corregir este pago"
-        onClick={() => setCorrigiendo(p)}
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-      >
-        <Pencil className="size-4" />
-      </button>
-      <button
-        type="button"
-        aria-label={`Eliminar el pago de ${p.socioNombre}`}
-        title="Eliminar este pago"
-        onClick={() => void borrar(p)}
-        className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-      >
-        <Trash2 className="size-4" />
-      </button>
-    </>
-  );
+  const filtros = [
+    { valor: "todos", texto: "Todos", n: pagos.length },
+    ...MEDIOS_PAGO.map((m) => ({ valor: m.valor as string, texto: m.texto as string, n: porMedio.find((x) => x.m === m.valor)?.n ?? 0 })),
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[1.35rem] font-semibold tracking-tight">Pagos</h1>
-          <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-            Todo lo que han pagado tus socios, con su comprobante.
-          </p>
+          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Pagos</h1>
+          <p className={cn("mt-0.5 text-[15px]", GRIS)}>Todo lo que han pagado tus socios, con su comprobante.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           {mpConectado ? (
-            <Button variant="outline" onClick={() => setConLink(true)} title="Mercado Pago conectado">
+            <Button variant="outline" onClick={() => setConLink(true)} title="Mercado Pago conectado" className="h-10 flex-1 rounded-lg border-[#E4E1F0] bg-white font-semibold sm:flex-none">
               <CheckCircle2 className="text-emerald-600" />
               Link de pago
             </Button>
           ) : (
             mpHabilitado && (
-              <Button variant="outline" render={<a href="/api/mercadopago/conectar" />}>
+              <Button variant="outline" render={<a href="/api/mercadopago/conectar" />} className="h-10 flex-1 rounded-lg border-[#E4E1F0] bg-white font-semibold sm:flex-none">
                 <Link2 />
                 Conectar Mercado Pago
               </Button>
             )
           )}
-          <Button data-tour="pag-registrar" onClick={() => setRegistrando(true)}>
+          <Button data-tour="pag-registrar" onClick={() => setRegistrando(true)} className="h-10 flex-1 rounded-lg px-4 font-semibold sm:flex-none">
             <Plus />
             Registrar pago
           </Button>
@@ -194,227 +302,235 @@ export function PagosTabla({
 
       {estadoMp}
 
-      <div className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
-        {[
-          { etiqueta: "Recaudado este mes", valor: clp.format(totalMes), nota: null, tono: "" },
-          { etiqueta: "Pagos este mes", valor: String(delMes.length), nota: null, tono: "" },
-          {
-            etiqueta: "Socios al día",
-            valor: String(resumen.alDia),
-            nota: "sin deuda vencida",
-            tono: "text-forest",
-          },
-          {
-            etiqueta: "Socios morosos",
-            valor: String(resumen.morosos),
-            nota: resumen.morosos > 0 ? `${clp.format(resumen.deudaVencida)} vencidos` : "nadie debe",
-            tono: resumen.morosos > 0 ? "text-destructive" : "",
-          },
-        ].map((k) => (
-          <div key={k.etiqueta} className="rounded-xl border border-border bg-card p-4">
-            <div className="text-[0.8rem] text-muted-foreground">{k.etiqueta}</div>
-            <div className={cn("mt-1 text-[1.4rem] font-semibold tabular-nums", k.tono)}>{k.valor}</div>
-            {k.nota && <div className="mt-0.5 text-[0.76rem] text-muted-foreground tabular-nums">{k.nota}</div>}
-          </div>
-        ))}
-      </div>
-
       {pagos.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
-          <span className="flex size-11 items-center justify-center rounded-full bg-muted">
-            <Wallet className="size-5 text-muted-foreground" />
+        <div className={cn("flex flex-col items-center rounded-2xl bg-card px-6 py-14 text-center", SOMBRA)}>
+          <span className="flex size-11 items-center justify-center rounded-full bg-[#F4F3F9]">
+            <Wallet className="size-5 text-[#5B5970]" />
           </span>
           <h2 className="mt-4 text-[1rem] font-semibold">Aún no hay pagos registrados</h2>
-          <p className="mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed text-muted-foreground">
+          <p className={cn("mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed", GRIS)}>
             Cuando un socio pague, toca “Registrar pago”, busca al socio y elige su
             boleta, o una reposición, reparación u otro cobro. Aquí quedará el historial y el comprobante para enviarle.
           </p>
         </div>
       ) : (
-        <div data-tour="pag-lista" className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <div className="flex flex-wrap items-center gap-3 p-3 sm:p-5">
-            <div className="relative w-full sm:min-w-60 sm:flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
+            <div className={cn("flex flex-col rounded-2xl bg-card p-5 sm:p-6 lg:col-span-8", SOMBRA)}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className={cn("text-[13px] font-medium", GRIS)}>Recaudado en {MESES[ahora.getMonth()]}</p>
+                  <p className="mt-1.5 text-[34px] leading-none font-semibold tracking-tight tabular-nums sm:text-[40px]">{clp.format(totalMes)}</p>
+                  <p className={cn("mt-2 flex items-center gap-1.5 text-[13px]", GRIS)}>
+                    <span className={cn("inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-semibold", diferencia >= 0 ? "bg-[#DFF4EB] text-[#075A3C]" : "bg-[#FDECEC] text-[#A32020]")}>
+                      {diferencia >= 0 ? <ArrowUpRight className="size-3.5" aria-hidden /> : <ArrowDownRight className="size-3.5" aria-hidden />}
+                      {clp.format(Math.abs(diferencia))}
+                    </span>
+                    {diferencia >= 0 ? "más" : "menos"} que {nombreMesAnterior}
+                  </p>
+                </div>
+                <span className={cn("hidden rounded-full bg-[#F4F3F9] px-3 py-1 text-xs font-medium sm:inline", GRIS)}>Últimos 30 días</span>
+              </div>
+              <div className="relative mt-6 flex-1">
+                <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[96px] border-t border-dashed border-[#ECEAF4]" />
+                <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[48px] border-t border-dashed border-[#ECEAF4]" />
+                <div role="img" aria-label="Recaudación diaria de los últimos 30 días" className="relative flex h-[96px] items-end gap-[3px] border-b border-[#E4E1F0]">
+                  {dias.map((x) => (
+                    <span
+                      key={x.k}
+                      title={`${etiquetaDia(x.d)}: ${clp.format(x.v)}`}
+                      className={cn("relative min-w-0 flex-1 rounded-t-[4px]", x.v ? (x.v === maxDia ? "bg-primary" : "bg-[#8F78F2]") : "bg-[#F0EEF7]")}
+                      style={{ height: x.v ? `${Math.max((x.v / maxDia) * 100, 8)}%` : "3px" }}
+                    >
+                      {x.v === maxDia && x.v > 0 ? (
+                        <span className="absolute -top-6 left-1/2 hidden -translate-x-1/2 rounded-md bg-[#15132B] px-1.5 py-0.5 text-[11px] font-semibold whitespace-nowrap text-white sm:block">{clp.format(x.v)}</span>
+                      ) : null}
+                    </span>
+                  ))}
+                </div>
+                <div className={cn("mt-1.5 flex justify-between text-[11px]", GRIS)}>
+                  <span>{etiquetaDia(dias[0].d)}</span>
+                  <span>{etiquetaDia(dias[15].d)}</span>
+                  <span>{etiquetaDia(dias[29].d)}</span>
+                </div>
+              </div>
+              <dl className="mt-5 grid grid-cols-2 gap-y-3 border-t border-[#F0EEF6] pt-4 sm:grid-cols-4">
+                {[
+                  { k: "Pagos del mes", v: String(delMes.length), nota: null as string | null },
+                  { k: nombreMesAnterior[0].toUpperCase() + nombreMesAnterior.slice(1), v: clp.format(totalAnterior), nota: null },
+                  { k: "Socios al día", v: String(resumen.alDia), nota: null },
+                  { k: "Morosos", v: String(resumen.morosos), nota: resumen.morosos > 0 ? `${clp.format(resumen.deudaVencida)} vencidos` : null },
+                ].map((x, i) => (
+                  <div key={x.k} className={cn("min-w-0", i % 2 ? "pl-4 sm:pl-5" : "", i > 0 ? "sm:border-l sm:border-[#F0EEF6] sm:pl-5" : "")}>
+                    <dt className={cn("text-xs", GRIS)}>{x.k}</dt>
+                    <dd className={cn("mt-0.5 text-[17px] font-semibold tabular-nums", x.k === "Morosos" && resumen.morosos > 0 && "text-destructive")}>{x.v}</dd>
+                    {x.nota && <p className={cn("text-xs tabular-nums", GRIS)}>{x.nota}</p>}
+                  </div>
+                ))}
+              </dl>
+            </div>
+
+            <div className={cn("rounded-2xl bg-card p-5 sm:p-6 lg:col-span-4", SOMBRA)}>
+              <p className={cn("text-[13px] font-medium", GRIS)}>Por medio de pago</p>
+              <div aria-hidden className="mt-3 flex h-3 gap-0.5 overflow-hidden rounded-full bg-[#F0EEF7]">
+                {porMedio.filter((x) => x.v > 0).map((x) => (
+                  <span key={x.m} className={colorDe(x.m)} style={{ width: `${(x.v / (totalTodo || 1)) * 100}%`, minWidth: 6 }} />
+                ))}
+              </div>
+              <ul className="mt-5 flex flex-col gap-3.5">
+                {porMedio.map((x) => {
+                  return (
+                    <li key={x.m} className="flex items-center gap-3 text-sm">
+                      <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", tinteDe(x.m))}>
+                        <IconoMedio medio={x.m} className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium">{textoMedioPago(x.m)}</span>
+                        <span className={cn("block text-xs", GRIS)}>
+                          {x.n} pago{x.n === 1 ? "" : "s"} · {totalTodo ? Math.round((x.v / totalTodo) * 100) : 0}%
+                        </span>
+                      </span>
+                      <span className="font-semibold tabular-nums">{clp.format(x.v)}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="relative min-w-0 sm:w-[340px]">
+              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <Input
+                aria-label="Buscar pagos"
                 value={busqueda}
                 onChange={(e) => {
                   setBusqueda(e.target.value);
                   setVisibles(POR_PAGINA);
                 }}
-                placeholder="Buscar por socio, quién pagó, RUT, período o N.º de operación…"
-                aria-label="Buscar pagos"
-                className="h-10 border-transparent bg-muted/60 pl-10"
+                placeholder="Socio, RUT, período u operación"
+                className="h-10 rounded-lg border-[#E4E1F0] bg-white pl-9 shadow-none"
               />
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {[{ valor: "todos", texto: "Todos" }, ...MEDIOS_PAGO].map((m) => (
+            <Select
+              value={medio}
+              onValueChange={(v) => {
+                setMedio(v as string);
+                setVisibles(POR_PAGINA);
+              }}
+            >
+              <SelectTrigger aria-label="Filtrar por medio" className="h-10 w-full rounded-lg border-[#E4E1F0] bg-white px-3 sm:hidden">
+                <SelectValue>
+                  {(v) => {
+                    const f = filtros.find((x) => x.valor === v);
+                    return f ? `${f.valor === "todos" ? "Todos los medios" : f.texto} (${f.n})` : "";
+                  }}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {filtros.map((f) => (
+                  <SelectItem key={f.valor} value={f.valor}>
+                    {f.valor === "todos" ? "Todos los medios" : f.texto} ({f.n})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div role="group" aria-label="Filtrar por medio" className="hidden gap-1 rounded-lg bg-white/80 p-1 sm:flex">
+              {filtros.map((f) => (
                 <button
-                  key={m.valor}
+                  key={f.valor}
                   type="button"
+                  aria-pressed={medio === f.valor}
                   onClick={() => {
-                    setMedio(m.valor);
+                    setMedio(f.valor);
                     setVisibles(POR_PAGINA);
                   }}
-                  className={cn(
-                    "rounded-full border px-3 py-1.5 text-[0.8rem] font-medium transition-colors",
-                    medio === m.valor
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  )}
+                  className={cn("h-9 truncate rounded-md px-3 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", medio === f.valor ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}
                 >
-                  {m.texto}
+                  {f.texto}
+                  <span className={cn("ml-1.5 text-xs font-medium tabular-nums", medio === f.valor ? "text-[#6B46F5]" : "text-[#A19FB2]")}>{f.n}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {filtrados.length === 0 ? (
-            <p className="border-t border-border/60 px-5 py-10 text-center text-[0.9rem] text-muted-foreground">
-              No hay pagos con ese filtro.
-            </p>
-          ) : (
-            <>
-              <div className="flex flex-col divide-y divide-border/60 border-t border-border/60 md:hidden">
-                {filtrados.slice(0, visibles).map((p) => (
-                  <div
-                    key={p.id}
-                    className="flex items-center justify-between gap-3 px-3 py-3.5 sm:px-5"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex min-w-0 items-center gap-2">
-                        <span className="truncate font-medium">{p.socioNombre}</span>
-                        <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.68rem] font-medium text-muted-foreground">
-                          {p.socioTipo === "USUARIO" ? "Usuario" : "Socio"}
-                        </span>
-                        {p.repactacionId && (
-                          <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[0.68rem] font-medium text-primary">
-                            Repactación
-                          </span>
-                        )}
-                      </div>
-                      <div className="truncate text-[0.8rem] text-muted-foreground">
-                        {fechaLarga.format(new Date(p.fecha))} · {textoMedioPago(p.medio)} ·{" "}
-                        {queSePago(p)}
-                        {p.socioRut ? ` · ${formatearRut(p.socioRut)}` : ""}
-                        {p.pagadoPor ? ` · pagó ${p.pagadoPor}` : " · pagó el titular"}
-                        {p.referencia ? ` · Op. ${p.referencia}` : ""}
-                        {p.registradoPor ? ` · registró ${p.registradoPor}` : ""}
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span className="font-mono text-[0.95rem] font-semibold text-forest tabular-nums">
-                        {clp.format(p.monto)}
-                      </span>
-                      <a
-                        href={p.comprobanteUrl}
-                        target="_blank"
-                        rel="noopener"
-                        aria-label={`Comprobante de ${p.socioNombre}`}
-                        title="Ver comprobante"
-                        className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                      >
-                        <FileDown className="size-4" />
-                      </a>
-                      {acciones(p)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="hidden overflow-x-auto border-t border-border/60 md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="h-11 px-4">Fecha</TableHead>
-                      <TableHead className="h-11 px-4">Socio o usuario</TableHead>
-                      <TableHead className="h-11 px-4">Concepto</TableHead>
-                      <TableHead className="h-11 px-4">Medio</TableHead>
-                      <TableHead className="h-11 px-4">Pagó</TableHead>
-                      <TableHead className="h-11 px-4">Registró</TableHead>
-                      <TableHead className="h-11 px-4">N.º op.</TableHead>
-                      <TableHead className="h-11 px-4 text-right">Monto</TableHead>
-                      <TableHead className="h-11 w-36 px-4">
-                        <span className="sr-only">Comprobante y acciones</span>
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filtrados.slice(0, visibles).map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="px-4 whitespace-nowrap">{fechaLarga.format(new Date(p.fecha))}</TableCell>
-                        <TableCell className="px-4">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{p.socioNombre}</span>
-                            <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[0.68rem] font-medium text-muted-foreground">
-                              {p.socioTipo === "USUARIO" ? "Usuario" : "Socio"}
-                            </span>
-                          </div>
-                          {p.socioRut && (
-                            <div className="text-[0.76rem] text-muted-foreground">{formatearRut(p.socioRut)}</div>
-                          )}
-                        </TableCell>
-                        <TableCell className="px-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span>{p.periodo ? formatearPeriodo(p.periodo) : queSePago(p)}</span>
-                            {p.repactacionId && (
-                              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[0.68rem] font-medium text-primary">
-                                Repactación
+          <div data-tour="pag-lista" className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className={cn("min-w-0 overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+              {filtrados.length === 0 ? (
+                <p className={cn("px-6 py-14 text-center text-sm", GRIS)}>No hay pagos con ese filtro.</p>
+              ) : (
+                grupos.map(([k, ps]) => (
+                  <section key={k} aria-label={diaLargo(ps[0].fecha)}>
+                    <h2 className={cn("flex justify-between border-y border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2 text-xs font-semibold tracking-wide uppercase first:border-t-0", GRIS)}>
+                      <span>{diaLargo(ps[0].fecha)}</span>
+                      <span className="tabular-nums">{clp.format(ps.reduce((t, p) => t + p.monto, 0))}</span>
+                    </h2>
+                    <ul>
+                      {ps.map((p) => {
+                        const activo = pago?.id === p.id;
+                        return (
+                          <li key={p.id}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSel(p.id);
+                                setMovil(true);
+                              }}
+                              aria-current={activo ? "true" : undefined}
+                              className={cn("flex w-full items-center gap-3 px-5 py-3 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset", activo ? "bg-[#F5F3FE] shadow-[inset_3px_0_0_#3A0CE3]" : "hover:bg-[#FBFAFF]")}
+                            >
+                              <span aria-hidden className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", tinteDe(p.medio))}>
+                                <IconoMedio medio={p.medio} className="size-[18px]" />
                               </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-4">{textoMedioPago(p.medio)}</TableCell>
-                        <TableCell className="px-4">
-                          {p.pagadoPor ?? <span className="text-muted-foreground">El titular</span>}
-                        </TableCell>
-                        <TableCell className="px-4">
-                          {p.registradoPor ?? <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell className="px-4 font-mono text-[0.82rem]">
-                          {p.referencia ?? <span className="text-muted-foreground">—</span>}
-                        </TableCell>
-                        <TableCell className="px-4 text-right font-mono font-semibold text-forest tabular-nums">
-                          {clp.format(p.monto)}
-                        </TableCell>
-                        <TableCell className="px-4 whitespace-nowrap">
-                          <a
-                            href={p.comprobanteUrl}
-                            target="_blank"
-                            rel="noopener"
-                            aria-label={`Comprobante de ${p.socioNombre}`}
-                            title="Ver comprobante"
-                            className="inline-flex rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-                          >
-                            <FileDown className="size-4" />
-                          </a>
-                          {acciones(p)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/60 px-3 py-3 text-[0.82rem] text-muted-foreground sm:px-5">
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-[15px] font-semibold">{p.socioNombre}</span>
+                                <span className={cn("block truncate text-[13px]", GRIS)}>
+                                  {queSePago(p)} · {textoMedioPago(p.medio)}
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-right">
+                                <span className="block text-[15px] font-semibold tabular-nums">{clp.format(p.monto)}</span>
+                                <span className={cn("block text-xs", GRIS)}>{p.pagadoPor ?? "Titular"}</span>
+                              </span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))
+              )}
+              <div className={cn("flex flex-wrap items-center justify-between gap-3 border-t border-[#F0EEF6] bg-[#FAFAFD] px-5 py-3 text-sm", GRIS)}>
                 <span>
-                  {filtrados.length} pago{filtrados.length === 1 ? "" : "s"} ·{" "}
-                  <span className="font-medium text-foreground tabular-nums">
-                    {clp.format(totalFiltrado)}
-                  </span>
+                  {filtrados.length} pago{filtrados.length === 1 ? "" : "s"}
                 </span>
                 {visibles < filtrados.length && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setVisibles((v) => v + POR_PAGINA)}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => setVisibles((v) => v + POR_PAGINA)}>
                     Ver más
                   </Button>
                 )}
+                <span>
+                  Total <strong className="font-semibold text-[#15132B] tabular-nums">{clp.format(totalFiltrado)}</strong>
+                </span>
               </div>
-            </>
+            </div>
+
+            {pago && (
+              <div className={cn("hidden overflow-hidden rounded-2xl bg-card lg:sticky lg:top-4 lg:block", SOMBRA)}>
+                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} />
+              </div>
+            )}
+          </div>
+
+          {pago && movil && (
+            <div className="fixed inset-0 z-50 lg:hidden">
+              <button type="button" aria-label="Cerrar comprobante" onClick={() => setMovil(false)} className="absolute inset-0 bg-[#15132B]/40" />
+              <div className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white">
+                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} />
+              </div>
+            </div>
           )}
-        </div>
+        </>
       )}
 
       {conLink && (

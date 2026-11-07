@@ -37,6 +37,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
       periodo: boletas.periodo,
       socioNombre: socios.nombre,
       socioRut: socios.rut,
+      socioTelefono: socios.telefono,
       socioTipo: socios.tipo,
       registradoPor: usuarios.name,
     })
