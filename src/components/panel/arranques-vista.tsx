@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { TEXTO_ESTADO_ARRANQUE, type ArranqueFila, type EstadoArranque } from "@/lib/arranques";
+import { TEXTO_ESTADO_ARRANQUE, type ArranqueFila, type EstadoArranque } from "@/lib/arranques-comun";
 import { formatearPeriodo } from "@/lib/boletas";
 import { cn } from "@/lib/utils";
 

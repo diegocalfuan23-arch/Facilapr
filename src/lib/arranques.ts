@@ -3,34 +3,9 @@ import { db } from "@/lib/db";
 import { boletas, socios } from "@/lib/db/schema";
 import { anterioresDelComite } from "@/lib/lectura-anterior";
 import { cortadosActuales, ordenesDelComite } from "@/lib/ordenes-datos";
+import type { ArranqueFila, EstadoArranque } from "@/lib/arranques-comun";
 
-export type EstadoArranque = "CORTADO" | "INACTIVO" | "MOROSO" | "AL_DIA";
-
-export const TEXTO_ESTADO_ARRANQUE: Record<EstadoArranque, string> = {
-  CORTADO: "Cortado",
-  INACTIVO: "Inactivo",
-  MOROSO: "Con deuda vencida",
-  AL_DIA: "Al día",
-};
-
-export type ArranqueFila = {
-  id: string;
-  /** El N.º de cliente o de arranque, si el comité lo lleva. */
-  numero: string | null;
-  nombre: string;
-  rut: string | null;
-  direccion: string | null;
-  tipo: "SOCIO" | "USUARIO";
-  uso: "RESIDENCIAL" | "COMERCIAL";
-  estado: EstadoArranque;
-  /** Lo que debe en boletas impagas, en pesos. */
-  deuda: number;
-  boletasVencidas: number;
-  /** La lectura del medidor más reciente (aprobada, o la de su última boleta). */
-  ultimaLectura: { valor: number; periodo: string } | null;
-  /** El consumo de su última boleta. */
-  ultimoConsumo: { m3: number; periodo: string } | null;
-};
+export * from "@/lib/arranques-comun";
 
 /**
  * El catastro de arranques del comité: cada conexión con su socio, su estado (al día, con deuda,
