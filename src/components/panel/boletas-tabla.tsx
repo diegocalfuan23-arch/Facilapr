@@ -1,5 +1,8 @@
 "use client";
 
+import { CupoWhatsappInfo } from "@/components/panel/cupo-whatsapp";
+import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
+
 import { toast } from "sonner";
 import {
   useActionState,
@@ -222,6 +225,7 @@ export function BoletasTabla({
   tarifasComercial,
   comite,
   envioAutomatico,
+  cupoWhatsapp,
   plantillaBoleta,
 }: {
   boletas: BoletaFila[];
@@ -232,6 +236,8 @@ export function BoletasTabla({
   comite: DatosComiteWhatsApp;
   /** Si es true, "Enviar por WhatsApp" manda el mensaje por la API en vez de abrir wa.me. */
   envioAutomatico: boolean;
+  /** Mensajes automáticos del mes (null si el envío por API no está activo). */
+  cupoWhatsapp: CupoWhatsapp | null;
   /** Plantilla de Meta que usa el envío automático: de ella depende el texto de la vista previa. */
   plantillaBoleta: PlantillaBoleta;
 }) {
@@ -289,10 +295,20 @@ export function BoletasTabla({
     if (r.ok) {
       marcarEnviada(b.id);
       if (avisar) toast.success(`Enviada a ${primerNombre(b.socioNombre)}`);
-    } else if (avisar) {
-      toast.error(r.error);
+      return true;
     }
-    return r.ok;
+    // Se acabaron los mensajes automáticos del plan este mes: se envía a mano con wa.me.
+    if ("sinCupo" in r && r.sinCupo) {
+      if (avisar && b.socioTelefono) {
+        toast.info(r.error);
+        window.open(enlaceWhatsApp(b.socioTelefono, mensajeBoleta(comite, b, plantilla)), "_blank", "noopener");
+        marcarEnviada(b.id);
+        return true;
+      }
+      return "sinCupo" as const;
+    }
+    if (avisar) toast.error(r.error);
+    return false;
   }
 
   /** De a una, para no saturar a WhatsApp ni a la base. */
@@ -301,9 +317,18 @@ export function BoletasTabla({
       (b) => telefonoValidoParaWhatsApp(b.socioTelefono) && !enviadas.has(b.id)
     );
     let salieron = 0;
-    for (const b of pendientes) if (await enviarPorApi(b, false)) salieron++;
+    let sinCupo = false;
+    for (const b of pendientes) {
+      const r = await enviarPorApi(b, false);
+      if (r === "sinCupo") {
+        sinCupo = true;
+        break;
+      }
+      if (r) salieron++;
+    }
     const fallaron = pendientes.length - salieron;
-    if (fallaron === 0) toast.success(`${salieron} boletas enviadas`);
+    if (sinCupo) toast.info(`${salieron} enviadas. Se acabaron los mensajes automáticos de este mes: el resto se envía a mano, una por una.`);
+    else if (fallaron === 0) toast.success(`${salieron} boletas enviadas`);
     else toast.error(`${salieron} enviadas y ${fallaron} no salieron. Revisa y reintenta esas.`);
   }
 
@@ -491,6 +516,8 @@ export function BoletasTabla({
           </Button>
         </div>
       </div>
+
+      {cupoWhatsapp && <CupoWhatsappInfo cupo={cupoWhatsapp} compacto />}
 
       {socios.length === 0 && (
         <div className="flex items-start gap-2.5 rounded-xl border border-tertiary/40 bg-tertiary/10 px-4 py-3">

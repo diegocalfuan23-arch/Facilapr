@@ -12,6 +12,8 @@ import { enviarPlantilla, envioAutomaticoActivo } from "@/lib/whatsapp-api";
 import { parametrosBoletaApi, plantillaBoletaApi } from "@/lib/whatsapp";
 import { registrarMensaje } from "@/lib/whatsapp-mensajes";
 import { credencialesDelComite } from "@/lib/whatsapp-conexion";
+import { cupoWhatsapp, MENSAJE_SIN_CUPO } from "@/lib/whatsapp-cupo";
+import type { Plan } from "@/lib/planes";
 import { enviarComprobanteAuto } from "@/lib/whatsapp-comprobante";
 import { recalcularBoleta } from "@/lib/boleta-saldo";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
@@ -671,7 +673,7 @@ export async function eliminarBoleta(
  * total, recibo en PDF y el botón para pagar). El comité y
  * el teléfono salen de la base, nunca del cliente: solo se recibe el id.
  */
-export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<ResultadoAccion> {
+export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<ResultadoAccion | { ok: false; error: string; sinCupo: true }> {
   const { apr } = await requireAdmin();
   if (!envioAutomaticoActivo()) return { ok: false, error: "El envío automático no está activado." };
 
@@ -700,6 +702,10 @@ export async function enviarBoletaPorWhatsApp(boletaId: string): Promise<Resulta
   if (!b.consentimiento) {
     return { ok: false, error: "Este socio todavía no aceptó recibir WhatsApp automáticos. Márcalo en Socios." };
   }
+
+  // Sin cupo en el mes no sale por la API: el panel abre wa.me para enviarla a mano.
+  const cupo = await cupoWhatsapp(apr.id, apr.plan as Plan);
+  if (!cupo.disponible) return { ok: false, error: MENSAJE_SIN_CUPO, sinCupo: true };
 
   const plantilla = plantillaBoletaApi();
   const r = await enviarPlantilla(b.telefono, plantilla, {

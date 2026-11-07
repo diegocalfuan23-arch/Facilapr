@@ -38,6 +38,7 @@ import { UsoComite, type DatosUso } from "@/components/panel/uso-comite";
 import { AjustesComite } from "@/components/panel/ajustes-comite";
 import { LogoComite } from "@/components/panel/logo-comite";
 import type { ConexionWhatsapp } from "@/components/panel/conectar-whatsapp";
+import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 
 export type DatosConfiguracion = {
   /** El plan incluye la IA dentro del chat (Estándar y Grande). */
@@ -82,6 +83,8 @@ export type DatosConfiguracion = {
   apareceEnBuscador: boolean;
   /** El envío por la API de WhatsApp está activo en el servidor. */
   whatsappDisponible: boolean;
+  /** Mensajes automáticos del mes (null si el envío por API no está activo). */
+  cupoWhatsapp: CupoWhatsapp | null;
   /** El comprobante sale solo por WhatsApp al registrar un pago. */
   whatsappComprobanteAuto: boolean;
   /** Se puede conectar el WhatsApp propio del comité. */
@@ -413,6 +416,7 @@ export function ConfiguracionForm({
             apareceEnBuscador={datos.apareceEnBuscador}
             tieneSlug={Boolean(datos.slug)}
             whatsappDisponible={datos.whatsappDisponible}
+            cupo={datos.cupoWhatsapp}
             comprobanteAuto={datos.whatsappComprobanteAuto}
             conexionDisponible={datos.conexionWhatsappDisponible}
             conexion={datos.conexionWhatsapp}

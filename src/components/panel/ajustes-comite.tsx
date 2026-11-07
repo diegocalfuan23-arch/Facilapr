@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { cambiarApareceEnBuscador } from "@/app/panel/configuracion/buscador-actions";
 import { cambiarComprobanteAuto } from "@/app/panel/configuracion/whatsapp-auto-actions";
 import { Switch } from "@/components/ui/switch";
+import { CupoWhatsappInfo } from "@/components/panel/cupo-whatsapp";
+import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 import { ConectarWhatsapp, type ConexionWhatsapp } from "@/components/panel/conectar-whatsapp";
 
 type Resultado = { ok: true } | { ok: false; error: string };
@@ -56,6 +58,7 @@ export function AjustesComite({
   apareceEnBuscador,
   tieneSlug,
   whatsappDisponible,
+  cupo,
   comprobanteAuto,
   conexionDisponible,
   conexion,
@@ -64,6 +67,7 @@ export function AjustesComite({
   tieneSlug: boolean;
   /** El envío por la API de WhatsApp está activo en el servidor. */
   whatsappDisponible: boolean;
+  cupo: CupoWhatsapp | null;
   comprobanteAuto: boolean;
   /** Se puede conectar el WhatsApp propio del comité (la app de Meta está lista para eso). */
   conexionDisponible: boolean;
@@ -79,6 +83,7 @@ export function AjustesComite({
         deshabilitado={!tieneSlug && !apareceEnBuscador}
         guardar={cambiarApareceEnBuscador}
       />
+      {whatsappDisponible && cupo && <CupoWhatsappInfo cupo={cupo} />}
       {whatsappDisponible && (
         <Interruptor
           titulo="Comprobante automático por WhatsApp"

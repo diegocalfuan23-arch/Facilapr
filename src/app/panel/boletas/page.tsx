@@ -7,6 +7,8 @@ import { requireAdmin } from "@/lib/apr-session";
 import { BoletasTabla } from "@/components/panel/boletas-tabla";
 import { urlRecibo } from "@/lib/recibo-enlace";
 import { envioAutomaticoActivo } from "@/lib/whatsapp-api";
+import { cupoWhatsapp } from "@/lib/whatsapp-cupo";
+import type { Plan } from "@/lib/planes";
 import { plantillaBoletaApi } from "@/lib/whatsapp";
 
 export const metadata: Metadata = {
@@ -15,6 +17,8 @@ export const metadata: Metadata = {
 
 export default async function BoletasPage() {
   const { apr } = await requireAdmin();
+  // Cuántos mensajes automáticos le quedan al comité este mes (solo si el envío por API está activo).
+  const cupo = envioAutomaticoActivo() ? await cupoWhatsapp(apr.id, apr.plan as Plan) : null;
 
   const listado = await db
     .select({
@@ -69,7 +73,8 @@ export default async function BoletasPage() {
         infoPago: apr.infoPago,
         comprobanteAutomatico: envioAutomaticoActivo() && apr.whatsappComprobanteAuto,
       }}
-      envioAutomatico={envioAutomaticoActivo()}
+      envioAutomatico={envioAutomaticoActivo() && (cupo?.disponible ?? true)}
+      cupoWhatsapp={cupo}
       plantillaBoleta={plantillaBoletaApi()}
     />
   );

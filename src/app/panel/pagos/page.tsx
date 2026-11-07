@@ -9,6 +9,8 @@ import { PagosTabla } from "@/components/panel/pagos-tabla";
 import { MercadoPagoCard } from "@/components/panel/mercadopago-card";
 import { estadoConexion, modoMp, mpConfigurado } from "@/lib/mercadopago";
 import { envioAutomaticoActivo } from "@/lib/whatsapp-api";
+import { cupoWhatsapp } from "@/lib/whatsapp-cupo";
+import type { Plan } from "@/lib/planes";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 
 export const metadata: Metadata = {
@@ -22,6 +24,8 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
   const { apr } = await requireFinanzas();
   const { mp, detalle } = await searchParams;
   const conexionMp = apr.mercadoPagoHabilitado ? await estadoConexion(apr.id) : null;
+  // Mensajes automáticos del mes: de eso depende si «Enviar» sale por la API o abre wa.me.
+  const cupo = envioAutomaticoActivo() ? await cupoWhatsapp(apr.id, apr.plan as Plan) : null;
 
   const filas = await db
     .select({
@@ -38,6 +42,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
       socioNombre: socios.nombre,
       socioRut: socios.rut,
       socioTelefono: socios.telefono,
+      socioConsentimiento: socios.whatsappConsentimiento,
       socioTipo: socios.tipo,
       registradoPor: usuarios.name,
     })
@@ -141,6 +146,7 @@ export default async function PagosPage({ searchParams }: { searchParams: Promis
         infoPago: apr.infoPago,
         comprobanteAutomatico: envioAutomaticoActivo() && apr.whatsappComprobanteAuto,
       }}
+      cupoWhatsapp={cupo}
       mpConectado={Boolean(conexionMp)}
       mpHabilitado={apr.mercadoPagoHabilitado}
       mpModo={modoMp()}

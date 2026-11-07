@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, Banknote, CheckCircle2, Download, Landmark, Link2, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Store, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, Banknote, CheckCircle2, Download, Landmark, Link2, Loader2, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Store, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { eliminarPago } from "@/app/panel/boletas/actions";
@@ -16,7 +16,10 @@ import { MEDIOS_PAGO, textoConcepto, textoMedioPago } from "@/lib/pagos";
 import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
 import { LinkPagoDialog } from "@/components/panel/link-pago-dialog";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
-import { enlaceWhatsApp, type DatosComiteWhatsApp } from "@/lib/whatsapp";
+import { enlaceWhatsApp, mensajeComprobanteCobro, type DatosComiteWhatsApp } from "@/lib/whatsapp";
+import { enviarComprobantePorWhatsApp } from "@/app/panel/pagos/comprobante-actions";
+import { CupoWhatsappInfo } from "@/components/panel/cupo-whatsapp";
+import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 import { useConfirmar } from "@/components/ui/confirmar";
 
 export type PagoFila = {
@@ -38,6 +41,8 @@ export type PagoFila = {
   socioNombre: string;
   socioRut: string | null;
   socioTelefono?: string | null;
+  /** El socio aceptó recibir WhatsApp automáticos (Meta lo exige para enviar por la API). */
+  socioConsentimiento?: boolean;
   /** SOCIO o USUARIO: de quién es la cuenta que se pagó. */
   socioTipo: string;
   /** El usuario del panel que registró el pago; null en los antiguos. */
@@ -100,7 +105,7 @@ const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** El comprobante de un pago: encabezado con el monto y el detalle, y sus acciones. */
-function Comprobante({ p, onCerrar, onCorregir, onEliminar, onVerSocio }: { p: PagoFila; onCerrar: () => void; onCorregir: () => void; onEliminar: () => void; onVerSocio: () => void }) {
+function Comprobante({ p, onCerrar, onCorregir, onEliminar, onVerSocio, onEnviar, enviando, porApi }: { p: PagoFila; onCerrar: () => void; onCorregir: () => void; onEliminar: () => void; onVerSocio: () => void; onEnviar: () => void; enviando: boolean; porApi: boolean }) {
   const filas: [string, string][] = [
     ["Socio", p.socioNombre],
     ["Tipo", p.socioTipo === "USUARIO" ? "Usuario" : "Socio"],
@@ -110,8 +115,7 @@ function Comprobante({ p, onCerrar, onCorregir, onEliminar, onVerSocio }: { p: P
     ["Registró", p.registradoPor ?? "—"],
     ["N.° de operación", p.referencia ?? "—"],
   ];
-  const mensaje = `Hola, te enviamos el comprobante de tu pago de ${clp.format(p.monto)}: ${p.comprobanteUrl}`;
-  const enviar = enlaceWhatsApp(p.socioTelefono ?? "", mensaje);
+  const sinTelefono = !p.socioTelefono;
   return (
     <div className="flex h-full flex-col">
       <div className="relative bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] px-5 pt-5 pb-6 text-white">
@@ -150,8 +154,14 @@ function Comprobante({ p, onCerrar, onCorregir, onEliminar, onVerSocio }: { p: P
           <Download />
           Descargar
         </Button>
-        <Button variant="outline" className="h-10 rounded-lg border-[#E4E1F0] px-3 font-semibold" render={<a href={enviar} target="_blank" rel="noopener" />}>
-          <MessageCircle />
+        <Button
+          variant="outline"
+          disabled={enviando || (sinTelefono && !porApi)}
+          onClick={onEnviar}
+          title={sinTelefono ? "El socio no tiene teléfono" : porApi ? "Sale solo por WhatsApp (mensaje automático)" : "Se abre WhatsApp para enviarlo a mano"}
+          className="h-10 rounded-lg border-[#E4E1F0] px-3 font-semibold"
+        >
+          {enviando ? <Loader2 className="animate-spin" /> : <MessageCircle />}
           Enviar
         </Button>
         <Button variant="outline" size="icon" aria-label={`Corregir el pago de ${p.socioNombre}`} title="Corregir este pago" onClick={onCorregir} className="size-10 rounded-lg border-[#E4E1F0]">
@@ -178,6 +188,7 @@ export function PagosTabla({
   mpHabilitado = false,
   estadoMp,
   mpModo = "prueba",
+  cupoWhatsapp = null,
 }: {
   pagos: PagoFila[];
   /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
@@ -194,6 +205,8 @@ export function PagosTabla({
   /** Franja de estado de Mercado Pago (aviso tras conectar, cuenta conectada), bajo el encabezado. */
   estadoMp?: React.ReactNode;
   mpModo?: "prueba" | "produccion";
+  /** Mensajes automáticos del mes (null si el envío por API no está activo). */
+  cupoWhatsapp?: CupoWhatsapp | null;
 }) {
   const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
@@ -300,6 +313,46 @@ export function PagosTabla({
 
   const hayFiltro = busqueda.trim() !== "" || medio !== "todos";
 
+  const [enviandoId, setEnviandoId] = useState<string | null>(null);
+
+  /** ¿Este comprobante puede salir por la API? Envío activo, cupo, consentimiento, teléfono y pago de una boleta. */
+  const sale_por_api = (p: PagoFila) =>
+    Boolean(cupoWhatsapp?.disponible && p.socioConsentimiento && p.socioTelefono && p.concepto === "BOLETA" && p.periodo);
+
+  /** Abre WhatsApp con el comprobante ya escrito: el envío manual, que no gasta mensajes del plan. */
+  function enviarAMano(p: PagoFila) {
+    if (!p.socioTelefono) return;
+    const texto = mensajeComprobanteCobro(comite.nombre, {
+      socioNombre: p.socioNombre,
+      concepto: p.periodo ? `la boleta de ${formatearPeriodo(p.periodo)}` : textoConcepto(p.concepto),
+      descripcion: p.periodo ? null : p.descripcion,
+      monto: p.monto,
+      comprobanteUrl: p.comprobanteUrl,
+      pagadoPor: p.pagadoPor,
+    });
+    window.open(enlaceWhatsApp(p.socioTelefono, texto), "_blank", "noopener");
+  }
+
+  async function enviarComprobante(p: PagoFila) {
+    if (!sale_por_api(p)) return enviarAMano(p);
+    setEnviandoId(p.id);
+    const r = await enviarComprobantePorWhatsApp(p.id).catch(() => ({ ok: false, error: "No pudimos enviar el mensaje. Vuelve a intentarlo." }) as const);
+    setEnviandoId(null);
+    if (r.ok) {
+      toast.success("Comprobante enviado por WhatsApp");
+      router.refresh();
+      return;
+    }
+    // Se acabaron los mensajes del plan este mes: se manda a mano.
+    if ("sinCupo" in r && r.sinCupo) {
+      toast.info(r.error);
+      enviarAMano(p);
+      router.refresh();
+      return;
+    }
+    toast.error(r.error);
+  }
+
   async function borrar(p: PagoFila) {
     const aviso = p.periodo ? "La boleta volverá a deber ese monto." : "Se quita también de la Caja.";
     if (!(await confirmar({ titulo: `¿Eliminar el pago de ${clp.format(p.monto)}?`, descripcion: `${p.socioNombre}. ${aviso}`, boton: "Eliminar" }))) return;
@@ -347,6 +400,8 @@ export function PagosTabla({
       </div>
 
       {estadoMp}
+
+      {cupoWhatsapp && <CupoWhatsappInfo cupo={cupoWhatsapp} compacto />}
 
       {pagos.length === 0 ? (
         <div className={cn("flex flex-col items-center rounded-2xl bg-card px-6 py-14 text-center", SOMBRA)}>
@@ -622,7 +677,7 @@ export function PagosTabla({
 
             {pago && (
               <div className={cn("hidden overflow-hidden rounded-2xl bg-card lg:sticky lg:top-4 lg:block", SOMBRA)}>
-                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} onVerSocio={() => verPagosDe(pago)} />
+                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} onVerSocio={() => verPagosDe(pago)} onEnviar={() => void enviarComprobante(pago)} enviando={enviandoId === pago.id} porApi={sale_por_api(pago)} />
               </div>
             )}
           </div>
@@ -631,7 +686,7 @@ export function PagosTabla({
             <div className="fixed inset-0 z-50 lg:hidden">
               <button type="button" aria-label="Cerrar comprobante" onClick={() => setMovil(false)} className="absolute inset-0 bg-[#15132B]/40" />
               <div className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white">
-                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} onVerSocio={() => verPagosDe(pago)} />
+                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} onVerSocio={() => verPagosDe(pago)} onEnviar={() => void enviarComprobante(pago)} enviando={enviandoId === pago.id} porApi={sale_por_api(pago)} />
               </div>
             </div>
           )}
