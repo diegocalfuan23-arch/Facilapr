@@ -1,76 +1,49 @@
-import { and, asc, desc, eq, isNotNull, ne, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, socios } from "@/lib/db/schema";
-import { anterioresDelComite } from "@/lib/lectura-anterior";
-import { cortadosActuales, ordenesDelComite } from "@/lib/ordenes-datos";
-import type { ArranqueFila, EstadoArranque } from "@/lib/arranques-comun";
+import { arranqueSocios, arranques, socios } from "@/lib/db/schema";
+import { faltaEsquema } from "@/lib/db-errores";
+import type { ArranqueFila, DatosArranques } from "@/lib/arranques-comun";
 
 export * from "@/lib/arranques-comun";
 
 /**
- * El catastro de arranques del comité: cada conexión con su socio, su estado (al día, con deuda,
- * cortado o inactivo), su última lectura y su último consumo. Se arma con lo que ya existe
- * (socios, boletas, lecturas y cortes); no guarda nada propio.
+ * Los arranques del comité y a qué socios abastece cada uno, más todos los socios para poder
+ * asignarlos. Si las tablas todavía no existen en la base, devuelve vacío y lo avisa.
  */
-export async function listarArranques(aprId: string): Promise<ArranqueFila[]> {
-  const [lista, deudas, consumos, anteriores, ordenes] = await Promise.all([
-    db
-      .select({
-        id: socios.id,
-        numero: socios.numeroCliente,
-        nombre: socios.nombre,
-        rut: socios.rut,
-        direccion: socios.direccion,
-        tipo: socios.tipo,
-        uso: socios.uso,
-        activo: socios.activo,
-      })
-      .from(socios)
-      .where(eq(socios.aprId, aprId))
-      .orderBy(asc(socios.nombre)),
-    db
-      .select({
-        socioId: boletas.socioId,
-        deuda: sql<number>`coalesce(sum(${boletas.montoTotal} - ${boletas.montoPagado}), 0)::int`,
-        vencidas: sql<number>`count(*) filter (where ${boletas.fechaVencimiento} < now())::int`,
-      })
-      .from(boletas)
-      .innerJoin(socios, eq(boletas.socioId, socios.id))
-      .where(and(eq(socios.aprId, aprId), ne(boletas.estado, "ANULADA"), sql`${boletas.montoPagado} < ${boletas.montoTotal}`))
-      .groupBy(boletas.socioId),
-    db
-      .selectDistinctOn([boletas.socioId], { socioId: boletas.socioId, m3: boletas.consumoM3, periodo: boletas.periodo })
-      .from(boletas)
-      .innerJoin(socios, eq(boletas.socioId, socios.id))
-      .where(and(eq(socios.aprId, aprId), ne(boletas.estado, "ANULADA"), isNotNull(boletas.consumoM3)))
-      .orderBy(boletas.socioId, desc(boletas.periodo)),
-    anterioresDelComite(aprId).catch(() => new Map()),
-    ordenesDelComite(aprId, ["COMPLETADA"]).catch(() => []),
-  ]);
+export async function listarArranques(aprId: string): Promise<DatosArranques> {
+  const todosLosSocios = await db
+    .select({ id: socios.id, nombre: socios.nombre, numero: socios.numeroCliente, rut: socios.rut })
+    .from(socios)
+    .where(eq(socios.aprId, aprId))
+    .orderBy(asc(socios.nombre));
 
-  const deudaDe = new Map(deudas.map((d) => [d.socioId, d]));
-  const consumoDe = new Map(consumos.map((c) => [c.socioId, c]));
-  const cortados = new Set(cortadosActuales(ordenes).map((o) => o.socioId));
+  try {
+    const filas = await db.select().from(arranques).where(eq(arranques.aprId, aprId)).orderBy(asc(arranques.nombre));
+    const vinculos = await db
+      .select({ arranqueId: arranqueSocios.arranqueId, socioId: arranqueSocios.socioId })
+      .from(arranqueSocios)
+      .innerJoin(arranques, eq(arranqueSocios.arranqueId, arranques.id))
+      .where(eq(arranques.aprId, aprId));
 
-  return lista.map((s) => {
-    const d = deudaDe.get(s.id);
-    const c = consumoDe.get(s.id);
-    const a = anteriores.get(s.id);
-    const vencidas = d?.vencidas ?? 0;
-    const estado: EstadoArranque = cortados.has(s.id) ? "CORTADO" : !s.activo ? "INACTIVO" : vencidas > 0 ? "MOROSO" : "AL_DIA";
+    const sociosPorId = new Map(todosLosSocios.map((s) => [s.id, s]));
+    const arranquePorSocio = new Map(vinculos.map((v) => [v.socioId, v.arranqueId]));
+    const delArranque = new Map<string, ArranqueFila["socios"]>();
+    for (const v of vinculos) {
+      const s = sociosPorId.get(v.socioId);
+      if (!s) continue;
+      const lista = delArranque.get(v.arranqueId) ?? [];
+      lista.push({ id: s.id, nombre: s.nombre, numero: s.numero });
+      delArranque.set(v.arranqueId, lista);
+    }
+
     return {
-      id: s.id,
-      numero: s.numero,
-      nombre: s.nombre,
-      rut: s.rut,
-      direccion: s.direccion,
-      tipo: s.tipo,
-      uso: s.uso,
-      estado,
-      deuda: d?.deuda ?? 0,
-      boletasVencidas: vencidas,
-      ultimaLectura: a ? { valor: a.valor, periodo: a.periodo } : null,
-      ultimoConsumo: c && c.m3 !== null ? { m3: c.m3, periodo: c.periodo } : null,
+      sinTablas: false,
+      arranques: filas.map((a) => ({ id: a.id, nombre: a.nombre, ubicacion: a.ubicacion, notas: a.notas, socios: delArranque.get(a.id) ?? [] })),
+      socios: todosLosSocios.map((s) => ({ ...s, arranqueId: arranquePorSocio.get(s.id) ?? null })),
     };
-  });
+  } catch (e) {
+    if (!faltaEsquema(e)) throw e;
+    console.error("Arranques: faltan las tablas en la base de datos:", e);
+    return { sinTablas: true, arranques: [], socios: todosLosSocios.map((s) => ({ ...s, arranqueId: null })) };
+  }
 }

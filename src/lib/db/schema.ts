@@ -1470,3 +1470,35 @@ export const asistencias = pgTable(
   },
   (table) => [uniqueIndex("Asistencia_trabajador_fecha_key").on(table.trabajadorId, table.fecha)]
 );
+
+/** Un arranque del comité: un punto de conexión a la red que abastece a uno o más socios. */
+export const arranques = pgTable(
+  "Arranque",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** Cómo lo nombra el comité: «Arranque 12», «Pasaje Los Aromos», etc. */
+    nombre: text("nombre").notNull(),
+    ubicacion: text("ubicacion"),
+    notas: text("notas"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Arranque_aprId_idx").on(table.aprId)]
+);
+
+/** Qué socios abastece cada arranque. Un socio pertenece a un solo arranque. */
+export const arranqueSocios = pgTable(
+  "ArranqueSocio",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    arranqueId: text("arranqueId")
+      .notNull()
+      .references(() => arranques.id, { onDelete: "cascade" }),
+    socioId: text("socioId")
+      .notNull()
+      .references(() => socios.id, { onDelete: "cascade" }),
+  },
+  (table) => [uniqueIndex("ArranqueSocio_socioId_key").on(table.socioId), index("ArranqueSocio_arranqueId_idx").on(table.arranqueId)]
+);
