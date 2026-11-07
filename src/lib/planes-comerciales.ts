@@ -68,7 +68,7 @@ export const PLANES_COMERCIALES: {
     lista: [
       "Socios y operadores sin tope",
       "RR.HH.: personal, remuneraciones (los sueldos pagados quedan en la Caja), vacaciones, licencias, asistencia y préstamos",
-      "Operación: incidentes del sistema (fugas, fallas y cuánto costó repararlas) y activos fijos con su valor actual",
+      "Operación: incidentes del sistema (fugas, fallas y cuánto costó repararlas) y activos fijos con su valor actual y catastro de arranques (estado, consumo y deuda de cada conexión)",
       "IA del chat con más capacidad: 10 millones de tokens al mes (unas 5.000 respuestas) y packs adicionales",
       "Varios administradores con roles",
       { texto: "Conciliación de pagos con la cartola del banco", pronto: true },

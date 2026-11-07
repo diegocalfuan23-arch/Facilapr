@@ -16,6 +16,7 @@ import {
   HardHat,
   Briefcase,
   Building,
+  Waypoints,
   Headset,
   Landmark,
   LayoutDashboard,
@@ -63,12 +64,13 @@ const gestion: Enlace[] = [
   { href: "/panel/tecnicos", label: "Equipo", icon: HardHat },
 ];
 
-/** Operación (plan Grande): las fallas del sistema de agua, las labores y los bienes del comité. */
+/** Operación (plan Grande): las fallas del sistema de agua, las labores, los bienes del comité y el catastro de arranques. */
 const laboresEnlace: Enlace = { href: "/panel/labores", label: "Labores", icon: Hammer };
 const operacion: Enlace[] = [
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
   laboresEnlace,
   { href: "/panel/activos", label: "Activos fijos", icon: Building },
+  { href: "/panel/arranques", label: "Arranques", icon: Waypoints },
 ];
 
 /** RR.HH. (plan Grande): las personas que trabajan para el comité. */
@@ -194,6 +196,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/prestamos": "anticipo adelanto prestamo cuotas descuento sueldo deuda trabajador",
   "/panel/labores": "trabajos mantencion reparacion materiales insumos descuento stock cambio medidor limpieza cloracion",
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
+  "/panel/arranques": "conexiones medidores catastro red socios deuda cortados consumo",
   "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",
   "/panel/compras": "proveedores facturas comprar gastos",

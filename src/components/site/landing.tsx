@@ -295,7 +295,7 @@ const PLANES: { nombre: string; para: string; precio: string; uf: number; previo
     precio: "Desde 6 UF",
     uf: 6,
     previo: "Todo lo del Estándar, más:",
-    items: ["Socios y operadores sin tope", "RR.HH.: sueldos, vacaciones y asistencia", "Incidentes y activos fijos", "Asistente: unas 5.000 respuestas al mes", "Varias sedes o comités", "Administradores con roles", "Soporte prioritario"],
+    items: ["Socios y operadores sin tope", "RR.HH.: sueldos, vacaciones y asistencia", "Incidentes, activos fijos y catastro de arranques", "Asistente: unas 5.000 respuestas al mes", "Varias sedes o comités", "Administradores con roles", "Soporte prioritario"],
     cta: "Conversemos",
   },
 ]

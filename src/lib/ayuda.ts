@@ -74,7 +74,7 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   },
   {
     nombre: "Operación",
-    descripcion: "Incidentes y activos fijos (plan Grande). Las labores con materiales del inventario van en Gestión desde el plan Estándar.",
+    descripcion: "Incidentes, activos fijos y el catastro de arranques (plan Grande). Las labores con materiales del inventario van en Gestión desde el plan Estándar.",
   },
   {
     nombre: "Tu plan",
