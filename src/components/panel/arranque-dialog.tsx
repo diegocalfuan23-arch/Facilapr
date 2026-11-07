@@ -1,178 +1,251 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState, useTransition } from "react";
+import { useActionState, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Search } from "lucide-react";
-import { eliminarArranque, guardarArranque, type ResultadoArranques } from "@/app/panel/arranques/actions";
+import { Check, Droplets, Loader2, MapPin, MessageSquarePlus, Search } from "lucide-react";
+import { guardarArranque, type ResultadoArranques } from "@/app/panel/arranques/actions";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useConfirmar } from "@/components/ui/confirmar";
+import { AvatarSocio } from "@/components/panel/avatar-socio";
 import type { ArranqueFila, SocioAsignable } from "@/lib/arranques-comun";
+import { formatearRut } from "@/lib/formato";
 import { cn } from "@/lib/utils";
 
-const campo = "h-10 px-3 text-[0.95rem]";
-const etiqueta = "mb-2 block text-[0.8rem] font-medium";
+const GRIS = "text-[#5B5970]";
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+/** Los socios se ordenan por su número de cliente (los que no tienen, al final). */
+const porNumero = (a: SocioAsignable, b: SocioAsignable) => {
+  const na = Number.parseInt(a.numero ?? "", 10);
+  const nb = Number.parseInt(b.numero ?? "", 10);
+  if (Number.isNaN(na) && Number.isNaN(nb)) return a.nombre.localeCompare(b.nombre, "es");
+  if (Number.isNaN(na)) return 1;
+  if (Number.isNaN(nb)) return -1;
+  return na - nb;
+};
 
-/** Crear un arranque o corregir uno: su nombre, dónde está y qué socios abastece. */
+type Filtro = "asignados" | "libres" | "todos";
+
+/** Corregir un arranque: su nombre, dónde está, sus notas y qué socios abastece. El punto exacto se marca en el mapa del detalle. */
 export function ArranqueDialog({
   arranque,
   arranques,
   socios,
   onCerrar,
 }: {
-  arranque: ArranqueFila | null;
-  /** Todos los arranques, para decir en cuál está ya cada socio. */
+  arranque: ArranqueFila;
+  /** Todos los arranques, para decir en cuál está hoy cada socio. */
   arranques: ArranqueFila[];
   socios: SocioAsignable[];
   onCerrar: () => void;
 }) {
-  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoArranques | null, FormData>(guardarArranque, null);
-  const [borrando, iniciarBorrado] = useTransition();
-  const editando = arranque !== null;
-  const [elegidos, setElegidos] = useState<Set<string>>(() => new Set(arranque?.socios.map((s) => s.id) ?? []));
-  const [busca, setBusca] = useState("");
+  const [nombre, setNombre] = useState(arranque.nombre);
+  const [ubicacion, setUbicacion] = useState(arranque.ubicacion ?? "");
+  const [notas, setNotas] = useState<string | null>(arranque.notas ?? null);
+  const original = useMemo(() => arranque.socios.map((s) => s.id), [arranque]);
+  const [sel, setSel] = useState<string[]>(original);
+  const [q, setQ] = useState("");
+  const [filtro, setFiltro] = useState<Filtro>("asignados");
 
   useEffect(() => {
     if (estado?.ok) {
-      toast.success(editando ? "Arranque actualizado" : "Arranque registrado");
+      toast.success("Arranque actualizado");
       onCerrar();
     }
-  }, [estado, editando, onCerrar]);
+  }, [estado, onCerrar]);
 
   const nombreDe = useMemo(() => new Map(arranques.map((a) => [a.id, a.nombre])), [arranques]);
 
-  const visibles = useMemo(() => {
-    const q = sinTildes(busca.trim());
-    const lista = socios.filter((s) => !q || sinTildes(`${s.nombre} ${s.numero ?? ""} ${s.rut ?? ""}`).includes(q));
-    // Los ya elegidos primero, para verlos sin buscar.
-    return [...lista].sort((a, b) => Number(elegidos.has(b.id)) - Number(elegidos.has(a.id))).slice(0, 120);
-  }, [socios, busca, elegidos]);
+  const agregados = sel.filter((id) => !original.includes(id)).length;
+  const quitados = original.filter((id) => !sel.includes(id)).length;
+  const cambios =
+    agregados +
+    quitados +
+    (nombre.trim() !== arranque.nombre ? 1 : 0) +
+    (ubicacion.trim() !== (arranque.ubicacion ?? "") ? 1 : 0) +
+    ((notas ?? "").trim() !== (arranque.notas ?? "") ? 1 : 0);
 
-  function alternar(id: string) {
-    setElegidos((prev) => {
-      const nuevo = new Set(prev);
-      if (nuevo.has(id)) nuevo.delete(id);
-      else nuevo.add(id);
-      return nuevo;
-    });
-  }
+  const libres = socios.filter((s) => !s.arranqueId && !sel.includes(s.id)).length;
 
-  async function borrar() {
-    if (!arranque) return;
-    if (!(await confirmar({ titulo: `¿Borrar «${arranque.nombre}»?`, descripcion: "Los socios no se borran: solo dejan de estar asignados a este arranque.", boton: "Borrar" }))) return;
-    iniciarBorrado(async () => {
-      const r = await eliminarArranque(arranque.id);
-      if (r.ok) {
-        toast.success("Arranque borrado");
-        onCerrar();
-      } else {
-        toast.error(r.error);
-      }
-    });
-  }
+  const lista = useMemo(() => {
+    const t = sinTildes(q.trim());
+    return socios
+      .filter((s) => (filtro === "todos" ? true : filtro === "asignados" ? sel.includes(s.id) || original.includes(s.id) : !s.arranqueId && !sel.includes(s.id)))
+      .filter((s) => !t || sinTildes(`${s.numero ?? ""} ${s.nombre} ${s.rut ?? ""}`).includes(t))
+      .sort(porNumero);
+  }, [socios, filtro, q, sel, original]);
+
+  const alternar = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  const filtros = [
+    ["asignados", "Asignados", sel.length],
+    ["libres", "Sin arranque", libres],
+    ["todos", "Todos", socios.length],
+  ] as const;
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto p-6 sm:max-w-xl sm:p-8">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-medium">{editando ? "Editar arranque" : "Nuevo arranque"}</DialogTitle>
-          <DialogDescription className="text-[0.9rem]">Un punto de conexión de la red y los socios que abastece.</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="flex max-h-[92vh] max-w-[920px] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[920px]">
+        {/* Encabezado fijo */}
+        <div className="flex shrink-0 items-center gap-3 bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] px-6 py-5 pr-14 text-white">
+          <span aria-hidden className="flex size-10 items-center justify-center rounded-xl bg-white/15">
+            <Droplets className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <DialogTitle className="truncate text-lg font-semibold">Editar {arranque.nombre}</DialogTitle>
+            <DialogDescription className="text-[13px] text-white/80">Datos del arranque y los socios que abastece.</DialogDescription>
+          </div>
+        </div>
 
-        <form action={enviar} className="mt-2 flex flex-col gap-4">
-          {editando && <input type="hidden" name="id" value={arranque.id} />}
-          <input type="hidden" name="socios" value={JSON.stringify([...elegidos])} />
+        <form id="form-arranque" action={enviar} className="grid min-h-0 flex-1 grid-cols-1 overflow-y-auto md:grid-cols-[300px_minmax(0,1fr)] md:overflow-hidden">
+          <input type="hidden" name="id" value={arranque.id} />
+          <input type="hidden" name="nombre" value={nombre} />
+          <input type="hidden" name="ubicacion" value={ubicacion} />
+          <input type="hidden" name="notas" value={notas ?? ""} />
+          <input type="hidden" name="socios" value={JSON.stringify(sel)} />
 
-          <div>
-            <label htmlFor="arr-nombre" className={etiqueta}>
+          {/* Datos */}
+          <section aria-label="Datos del arranque" className="flex flex-col gap-4 border-b border-[#F0EEF6] p-6 md:overflow-y-auto md:border-r md:border-b-0">
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
               Nombre
+              <Input value={nombre} onChange={(e) => setNombre(e.target.value)} required maxLength={120} className="h-11 rounded-lg border-[#E4E1F0] shadow-none" />
             </label>
-            <Input id="arr-nombre" name="nombre" defaultValue={arranque?.nombre} placeholder="Ej.: Arranque 12 o Pasaje Los Aromos" maxLength={120} className={campo} autoFocus required />
-          </div>
-          <div>
-            <label htmlFor="arr-ubicacion" className={etiqueta}>
-              Dónde está (opcional)
-            </label>
-            <Input id="arr-ubicacion" name="ubicacion" defaultValue={arranque?.ubicacion ?? ""} placeholder="Sector, calle o referencia" maxLength={200} className={campo} />
-          </div>
-          <div>
-            <label htmlFor="arr-notas" className={etiqueta}>
-              Notas (opcional)
-            </label>
-            <Textarea id="arr-notas" name="notas" defaultValue={arranque?.notas ?? ""} rows={2} maxLength={500} />
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-baseline justify-between gap-4">
-              <span className="text-[0.8rem] font-medium">Socios que abastece</span>
-              <span className="text-[0.8rem] text-muted-foreground tabular-nums">
-                {elegidos.size} {elegidos.size === 1 ? "socio" : "socios"}
+            <label className="flex flex-col gap-1.5 text-sm font-medium">
+              <span>
+                Dónde está <span className={cn("font-normal", GRIS)}>(opcional)</span>
               </span>
+              <div className="relative">
+                <MapPin className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8A8799]" aria-hidden />
+                <Input value={ubicacion} onChange={(e) => setUbicacion(e.target.value)} maxLength={200} placeholder="Sector, camino o referencia" className="h-11 rounded-lg border-[#E4E1F0] pl-9 shadow-none" />
+              </div>
+              <span className={cn("text-xs font-normal", GRIS)}>El punto exacto se marca en el mapa del detalle.</span>
+            </label>
+            {notas === null ? (
+              <button type="button" onClick={() => setNotas("")} className="flex items-center gap-1.5 self-start text-[13px] font-semibold text-[#2A07A8] hover:underline">
+                <MessageSquarePlus className="size-4" aria-hidden />
+                Agregar nota
+              </button>
+            ) : (
+              <label className="flex flex-col gap-1.5 text-sm font-medium">
+                <span className="flex items-center justify-between">
+                  Notas
+                  <button type="button" onClick={() => setNotas(null)} className={cn("text-xs font-normal hover:underline", GRIS)}>
+                    Quitar
+                  </button>
+                </span>
+                <Textarea autoFocus value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} placeholder="Ej.: llave de paso detrás del galpón" className="min-h-[88px] rounded-lg border-[#E4E1F0] text-sm shadow-none" />
+              </label>
+            )}
+
+            <div className="mt-auto hidden rounded-xl bg-[#F8F7FC] p-4 md:block">
+              <p className={cn("text-xs", GRIS)}>Abastece a</p>
+              <p className="mt-0.5 text-[26px] leading-none font-semibold tabular-nums">
+                {sel.length} <span className={cn("text-sm font-medium", GRIS)}>socio{sel.length === 1 ? "" : "s"}</span>
+              </p>
+              {(agregados > 0 || quitados > 0) && (
+                <p className="mt-2 flex gap-3 text-xs font-semibold">
+                  {agregados > 0 && (
+                    <span className="text-[#075A3C]">
+                      +{agregados} nuevo{agregados === 1 ? "" : "s"}
+                    </span>
+                  )}
+                  {quitados > 0 && (
+                    <span className="text-[#A32020]">
+                      −{quitados} quitado{quitados === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </p>
+              )}
             </div>
-            <div className="relative">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar socio por nombre, N.º o RUT" aria-label="Buscar socio" className={cn(campo, "pl-9")} />
+          </section>
+
+          {/* Socios */}
+          <section aria-label="Socios que abastece" className="flex min-h-0 flex-col">
+            <div className="flex shrink-0 flex-col gap-3 border-b border-[#F0EEF6] bg-white px-6 pt-6 pb-3 max-md:sticky max-md:top-0 max-md:z-10">
+              <div className="relative">
+                <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8A8799]" aria-hidden />
+                <Input aria-label="Buscar socio" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, N.° o RUT" className="h-10 rounded-lg border-[#E4E1F0] pl-9 shadow-none" />
+              </div>
+              <div role="tablist" aria-label="Mostrar" className="grid grid-cols-3 gap-1 rounded-lg bg-[#F4F3F9] p-1">
+                {filtros.map(([k, t, n]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="tab"
+                    aria-selected={filtro === k}
+                    onClick={() => setFiltro(k)}
+                    className={cn("h-8 truncate rounded-md px-1 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", filtro === k ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}
+                  >
+                    {t} <span className={cn("text-xs font-medium tabular-nums", filtro === k ? "text-[#6B46F5]" : "text-[#A19FB2]")}>{n}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-            <ul className="mt-2 max-h-56 divide-y divide-border overflow-y-auto rounded-lg border border-border">
-              {visibles.length === 0 ? (
-                <li className="px-3 py-3 text-[0.85rem] text-muted-foreground">{socios.length === 0 ? "Aún no hay socios cargados." : "Ningún socio coincide."}</li>
-              ) : (
-                visibles.map((s) => {
-                  const enOtro = s.arranqueId && s.arranqueId !== arranque?.id ? nombreDe.get(s.arranqueId) : null;
-                  return (
-                    <li key={s.id}>
-                      <label className="flex min-h-11 cursor-pointer items-center gap-3 px-3 py-2 hover:bg-muted/50">
-                        <input type="checkbox" checked={elegidos.has(s.id)} onChange={() => alternar(s.id)} className="size-4 accent-primary" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate text-[0.9rem] font-medium">
-                            {s.numero ? `N.º ${s.numero} · ` : ""}
-                            {s.nombre}
-                          </span>
-                          {enOtro && elegidos.has(s.id) ? (
-                            <span className="block text-[0.75rem] text-amber-700 dark:text-amber-300">Hoy está en «{enOtro}»: se moverá a este arranque</span>
-                          ) : enOtro ? (
-                            <span className="block text-[0.75rem] text-muted-foreground">Ya está en «{enOtro}»</span>
-                          ) : null}
+
+            <ul className="min-h-[240px] flex-1 px-3 py-2 md:overflow-y-auto">
+              {lista.slice(0, 300).map((s) => {
+                const marcado = sel.includes(s.id);
+                const otro = s.arranqueId && s.arranqueId !== arranque.id ? nombreDe.get(s.arranqueId) : null;
+                return (
+                  <li key={s.id}>
+                    <label className={cn("flex cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 transition-colors", marcado ? "bg-[#F5F3FE]" : "hover:bg-[#F8F7FC]")}>
+                      <AvatarSocio id={s.id} nombre={s.nombre} className="size-9 text-[11px]" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium">{s.nombre}</span>
+                        <span className={cn("block text-xs", GRIS)}>
+                          {!marcado && original.includes(s.id) && <span className="font-semibold text-[#A32020]">Se quitará · </span>}
+                          {s.numero ? `N.° ${s.numero}` : "Sin número"}
+                          {s.rut ? ` · ${formatearRut(s.rut)}` : ""}
+                          {otro && marcado ? <span className="text-[#B86400]"> · hoy en {otro}: se moverá aquí</span> : otro ? <span className="text-[#B86400]"> · hoy en {otro}</span> : null}
                         </span>
-                      </label>
-                    </li>
-                  );
-                })
+                      </span>
+                      <input type="checkbox" checked={marcado} onChange={() => alternar(s.id)} className="peer sr-only" />
+                      <span aria-hidden className={cn("flex size-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors peer-focus-visible:ring-2 peer-focus-visible:ring-[#B9A9F8] peer-focus-visible:ring-offset-1", marcado ? "border-primary bg-primary text-white" : "border-[#D6D3E3] bg-white")}>
+                        {marcado ? <Check className="size-4" strokeWidth={3} /> : null}
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+              {lista.length > 300 && <li className={cn("px-3 py-3 text-center text-xs", GRIS)}>Se muestran los primeros 300. Escribe en el buscador para acotar.</li>}
+              {lista.length === 0 && (
+                <li className={cn("px-3 py-12 text-center text-sm", GRIS)}>
+                  {q ? "Ningún socio coincide con la búsqueda." : filtro === "asignados" ? "Este arranque todavía no abastece a nadie." : filtro === "libres" ? "No hay socios sin arranque." : "Aún no hay socios cargados."}
+                </li>
               )}
             </ul>
-          </div>
-
-          {estado && !estado.ok && (
-            <p className="text-[0.8rem] text-destructive" role="alert">
-              {estado.error}
-            </p>
-          )}
-
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
-            {editando ? (
-              <Button type="button" variant="ghost" className="h-10 px-4 text-[0.95rem] text-destructive" onClick={borrar} disabled={borrando || pendiente}>
-                {borrando && <Loader2 className="animate-spin" />}
-                Borrar arranque
-              </Button>
-            ) : (
-              <span />
-            )}
-            <div className="flex flex-col-reverse gap-2 sm:flex-row">
-              <Button type="button" variant="outline" className="h-10 px-4 text-[0.95rem]" onClick={onCerrar}>
-                Cancelar
-              </Button>
-              <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente || borrando}>
-                {pendiente && <Loader2 className="animate-spin" />}
-                {editando ? "Guardar cambios" : "Registrar arranque"}
-              </Button>
-            </div>
-          </div>
+          </section>
         </form>
-        {dialogo}
+
+        {estado && !estado.ok && (
+          <p className="shrink-0 border-t border-[#F0EEF6] bg-[#FFF7F7] px-6 py-2 text-[13px] text-destructive" role="alert">
+            {estado.error}
+          </p>
+        )}
+
+        {/* Pie fijo */}
+        <div className="flex shrink-0 items-center justify-between gap-3 border-t border-[#F0EEF6] bg-[#FAFAFD] px-6 py-4">
+          <span className={cn("hidden text-sm sm:block", GRIS)}>
+            {cambios ? (
+              <>
+                <strong className="font-semibold text-[#15132B]">{cambios}</strong> cambio{cambios === 1 ? "" : "s"} sin guardar
+              </>
+            ) : (
+              "Sin cambios"
+            )}
+          </span>
+          <div className="flex flex-1 justify-end gap-2 sm:flex-none">
+            <Button type="button" variant="ghost" onClick={onCerrar} className="h-10 rounded-lg px-4 font-semibold">
+              Cancelar
+            </Button>
+            <Button type="submit" form="form-arranque" disabled={!cambios || !nombre.trim() || pendiente} className="h-10 rounded-lg px-5 font-semibold">
+              {pendiente && <Loader2 className="animate-spin" />}
+              Guardar cambios
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
