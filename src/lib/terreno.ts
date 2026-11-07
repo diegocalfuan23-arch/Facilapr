@@ -2,6 +2,7 @@ import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { lecturas, socios } from "@/lib/db/schema";
 import { anterioresDelComite } from "@/lib/lectura-anterior";
+import { aprobadasPorSocio, promedioDe, type LecturaCalculo } from "@/lib/lecturas-calculos";
 
 /**
  * Lo que necesita la vista de terreno (cargar lecturas en el celular) y la tabla
@@ -48,6 +49,25 @@ export async function datosTerreno(userId: string, aprId: string) {
     .innerJoin(socios, eq(socios.id, lecturas.socioId))
     .where(and(eq(socios.aprId, aprId), gte(lecturas.periodo, desdePeriodo), inArray(lecturas.estado, ["PENDIENTE", "APROBADA"])));
 
+  // Las lecturas aprobadas de los últimos meses: de ahí salen el promedio de consumo de cada socio (para avisar de
+  // un consumo muy alto) y lo que consumió cada lectura que cargó el operador.
+  const desdePromedio = new Date(hoy.getFullYear(), hoy.getMonth() - 8, 1);
+  const desdePromedioPeriodo = `${desdePromedio.getFullYear()}-${String(desdePromedio.getMonth() + 1).padStart(2, "0")}`;
+  const aprobadas = await db
+    .select({ id: lecturas.id, socioId: lecturas.socioId, periodo: lecturas.periodo, valor: lecturas.valor })
+    .from(lecturas)
+    .innerJoin(socios, eq(socios.id, lecturas.socioId))
+    .where(and(eq(socios.aprId, aprId), eq(lecturas.estado, "APROBADA"), gte(lecturas.periodo, desdePromedioPeriodo)))
+    .catch(() => []);
+  const aprobadasMap = aprobadasPorSocio<LecturaCalculo>(
+    aprobadas.map((l) => ({ ...l, estado: "APROBADA" as const, inicial: false, anterior: null }))
+  );
+  /** Lo que consumió una lectura: contra la última aprobada de un período anterior. */
+  const consumoDe = (socioId: string, periodo: string, valor: number) => {
+    const previas = (aprobadasMap.get(socioId) ?? []).filter((x) => x.periodo < periodo);
+    return previas.length ? valor - previas[previas.length - 1].valor : null;
+  };
+
   return {
     leidas: delComite.map((l) => ({ socioId: l.socioId, periodo: l.periodo, estado: l.estado as "PENDIENTE" | "APROBADA" })),
     socios: listaSocios.map((s) => {
@@ -59,11 +79,14 @@ export async function datosTerreno(userId: string, aprId: string) {
         numeroCliente: s.numeroCliente,
         tipo: s.tipo,
         anterior: a ? { valor: a.valor, periodo: a.periodo, origen: a.origen } : null,
+        promedio: promedioDe(s.id, aprobadasMap),
       };
     }),
     recientes: propias.map((l) => ({
       id: l.id,
+      socioId: l.socioId,
       socio: l.socio.nombre,
+      consumo: consumoDe(l.socioId, l.periodo, l.valor),
       periodo: l.periodo,
       valor: l.valor,
       estado: l.estado,

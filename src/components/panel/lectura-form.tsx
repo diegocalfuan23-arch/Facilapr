@@ -6,24 +6,29 @@ import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   CheckCircle2,
-  ChevronDown,
-  ChevronLeft,
   ChevronRight,
   ClipboardList,
-  Clock,
+  Clock3,
+  CloudOff,
+  CloudUpload,
+  CornerDownLeft,
   Droplets,
   Loader2,
   MessageSquarePlus,
   PartyPopper,
+  RefreshCw,
+  RotateCcw,
   Search,
   SkipForward,
+  Smartphone,
   Users,
-  WifiOff,
+  Wifi,
   X,
   XCircle,
 } from "lucide-react";
 import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
+import { AvatarSocio } from "@/components/panel/avatar-socio";
 import {
   COLA_VACIA,
   encolarLectura,
@@ -40,19 +45,27 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
-import { formatearRut, iniciales } from "@/lib/formato";
+import { formatearRut } from "@/lib/formato";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
+
+const GRIS = "text-[#5B5970]";
+const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 
 /** `anterior`: la última lectura aprobada del socio (o, si no tiene, la de su última boleta): la base del consumo. */
 type Socio = OpcionSocio & {
   anterior: { valor: number; periodo: string; origen: "LECTURA" | "BOLETA" } | null;
+  /** Su consumo típico (m³ por mes), si tiene lecturas aprobadas con las que calcularlo. */
+  promedio?: number | null;
 };
 
 type LecturaReciente = {
   id: string;
+  socioId: string;
   socio: string;
   periodo: string;
   valor: number;
+  /** Lo que consumió contra la lectura aprobada anterior; null si es la primera. */
+  consumo: number | null;
   estado: "PENDIENTE" | "APROBADA" | "RECHAZADA";
   motivoRechazo: string | null;
 };
@@ -65,12 +78,6 @@ type EstadoForm = { ok: true; enCola?: boolean } | { ok: false; error: string };
 /** Lecturas que el servidor rechazó al sincronizar (p. ej. período inválido). */
 type Rechazada = { lectura: LecturaEnCola; error: string };
 
-const ESTADO_META = {
-  PENDIENTE: { texto: "Por revisar", icono: Clock, color: "text-amber-700 dark:text-amber-300" },
-  APROBADA: { texto: "Aprobada", icono: CheckCircle2, color: "text-emerald-700 dark:text-emerald-400" },
-  RECHAZADA: { texto: "Rechazada", icono: XCircle, color: "text-destructive" },
-} as const;
-
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const miles = (n: number) => n.toLocaleString("es-CL");
 const clave = (socioId: string, periodo: string) => `${socioId}|${periodo}`;
@@ -79,10 +86,33 @@ const periodoActual = () => {
   const hoy = new Date();
   return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 };
+const nombreMes = (p: string) => formatearPeriodo(p).split(" ")[0];
 
-/** "6.688.154-7 · N.º 3 · Usuario": lo que distingue a un arranque de otro. */
-function detalle(s: OpcionSocio) {
-  return [s.rut ? formatearRut(s.rut) : "Sin RUT", s.numeroCliente ? `N.º ${s.numeroCliente}` : null, s.tipo === "USUARIO" ? "Usuario" : null].filter(Boolean).join(" · ");
+// ---- el borrador: si la app se cierra a mitad de una lectura, se recupera lo anotado
+const CLAVE_BORRADOR = "facilapr.terreno.borrador";
+type Borrador = { socioId: string; periodo: string; valor: string; obs: string | null };
+function leerBorrador(socioId: string, periodo: string): Borrador | null {
+  try {
+    const b = JSON.parse(localStorage.getItem(CLAVE_BORRADOR) ?? "null") as Borrador | null;
+    return b && b.socioId === socioId && b.periodo === periodo && (b.valor || b.obs) ? b : null;
+  } catch {
+    return null;
+  }
+}
+function guardarBorrador(b: Borrador) {
+  try {
+    if (b.valor || b.obs) localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(b));
+    else localStorage.removeItem(CLAVE_BORRADOR);
+  } catch {
+    /* sin almacenamiento: el borrador solo vive mientras la pantalla siga abierta */
+  }
+}
+function borrarBorrador() {
+  try {
+    localStorage.removeItem(CLAVE_BORRADOR);
+  } catch {
+    /* sin almacenamiento */
+  }
 }
 
 function SinSocios({ puedeCargar }: { puedeCargar: boolean }) {
@@ -93,9 +123,7 @@ function SinSocios({ puedeCargar }: { puedeCargar: boolean }) {
       </span>
       <h1 className="mt-4 text-[1.1rem] font-semibold">Aún no tienes socios cargados</h1>
       <p className="mt-2 max-w-[42ch] text-[0.92rem] leading-relaxed text-muted-foreground">
-        {puedeCargar
-          ? "Para tomar lecturas primero hay que cargar el padrón: los socios y usuarios de tu comité."
-          : "La directiva todavía no cargó los socios del comité. Avísale para poder tomar lecturas."}
+        {puedeCargar ? "Para tomar lecturas primero hay que cargar el padrón: los socios y usuarios de tu comité." : "La directiva todavía no cargó los socios del comité. Avísale para poder tomar lecturas."}
       </p>
       {puedeCargar && (
         <Link href="/panel/socios" className={cn(buttonVariants(), "mt-5")}>
@@ -103,6 +131,188 @@ function SinSocios({ puedeCargar }: { puedeCargar: boolean }) {
         </Link>
       )}
     </div>
+  );
+}
+
+/**
+ * La lectura de un socio: el número grande, lo anterior y el consumo en vivo, avisos si algo no cuadra y la
+ * observación. Se vuelve a montar con cada socio (por su `key`), así empieza limpio y recupera su borrador.
+ */
+function FormularioLectura({
+  socio,
+  periodo,
+  enLinea,
+  repetir,
+  bloqueado,
+  yaAprobada,
+  pendiente,
+  accion,
+  onSaltar,
+}: {
+  socio: Socio;
+  periodo: string;
+  enLinea: boolean;
+  /** La directiva rechazó una lectura anterior de este socio en el mes: hay que volver a leerlo. */
+  repetir: { valor: number; motivo: string | null } | null;
+  /** Este socio ya tiene una lectura por revisar: el servidor no admite otra mientras tanto. */
+  bloqueado: boolean;
+  yaAprobada: boolean;
+  pendiente: boolean;
+  accion: (formData: FormData) => void;
+  onSaltar: () => void;
+}) {
+  const borrador = useMemo(() => leerBorrador(socio.id, periodo), [socio.id, periodo]);
+  const [valor, setValor] = useState(borrador?.valor ?? "");
+  const [obs, setObs] = useState<string | null>(borrador?.obs ?? null);
+  const [confirmar, setConfirmar] = useState(false);
+  const recuperado = Boolean(borrador);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const anterior = socio.anterior;
+  const v = valor === "" ? null : Number(valor);
+  // Sin lectura anterior no hay consumo que mostrar: sería el medidor completo.
+  const consumo = v !== null && anterior ? v - anterior.valor : null;
+  const menor = consumo !== null && consumo < 0;
+  const alto = !menor && consumo !== null && socio.promedio != null && socio.promedio > 0 && consumo > socio.promedio * 2;
+  const aviso = menor || alto;
+  const puede = v !== null && !bloqueado;
+
+  function cambiar(nuevoValor: string, nuevaObs: string | null) {
+    setValor(nuevoValor);
+    setObs(nuevaObs);
+    setConfirmar(false);
+    guardarBorrador({ socioId: socio.id, periodo, valor: nuevoValor, obs: nuevaObs });
+  }
+
+  function alEnviar(e: React.FormEvent<HTMLFormElement>) {
+    // Una lectura dudosa (menor o muy alta) pide tocar una segunda vez antes de enviarla.
+    if (aviso && !confirmar) {
+      e.preventDefault();
+      setConfirmar(true);
+    }
+  }
+
+  return (
+    <form action={accion} onSubmit={alEnviar} className="px-4 pb-4 sm:px-5 sm:pb-5">
+      <input type="hidden" name="socioId" value={socio.id} />
+      <input type="hidden" name="periodo" value={periodo} />
+      <input type="hidden" name="valor" value={valor} />
+      <input type="hidden" name="observacion" value={obs ?? ""} />
+
+      {repetir && (
+        <p className="mb-3 flex items-start gap-2.5 rounded-xl border border-[#F6D3D2] bg-[#FFF5F5] px-3 py-2.5 text-[13px] text-[#8A1F1F]">
+          <RotateCcw className="mt-0.5 size-4 shrink-0" aria-hidden />
+          <span>
+            <b className="font-semibold">Repetir lectura.</b> La directiva rechazó {miles(repetir.valor)} m³{repetir.motivo ? `: «${repetir.motivo}»` : ""}.
+          </span>
+        </p>
+      )}
+      {recuperado && (
+        <p className="mb-2 flex items-center gap-1.5 rounded-lg bg-[#F1EEFD] px-3 py-2 text-xs font-medium text-[#2A07A8]">
+          <Smartphone className="size-3.5" aria-hidden />
+          Recuperamos lo que estabas anotando.
+        </p>
+      )}
+
+      {/* El medidor: el número grande, para leerlo de pie y con una mano. */}
+      <div className={cn("rounded-xl border p-4 transition-colors", menor ? "border-[#F2C1C0] bg-[#FFF7F7]" : alto ? "border-[#F6D9B8] bg-[#FFF9F1]" : "border-[#E9E6F4] bg-[#F9F8FD] focus-within:border-[#B9A9F8]")}>
+        <div className="flex items-center justify-between">
+          <label htmlFor="terreno-lectura" className="text-[13px] font-medium">
+            Lectura del medidor
+          </label>
+          <span className={cn("text-xs", GRIS)}>m³</span>
+        </div>
+        <input
+          id="terreno-lectura"
+          ref={inputRef}
+          autoFocus
+          inputMode="numeric"
+          autoComplete="off"
+          value={valor === "" ? "" : miles(Number(valor))}
+          onChange={(e) => cambiar(e.target.value.replace(/\D/g, "").slice(0, 7), obs)}
+          placeholder="Escribe el número"
+          className="mt-1 w-full bg-transparent text-center text-[46px] font-semibold tracking-tight text-[#15132B] tabular-nums outline-none placeholder:text-[22px] placeholder:font-medium placeholder:text-[#C9C6D8]"
+        />
+        <div className="mt-2 grid grid-cols-2 border-t border-[#E9E6F4] pt-3 text-center">
+          <div>
+            <p className={cn("text-xs", GRIS)}>Anterior</p>
+            <p className="font-semibold tabular-nums">{anterior ? miles(anterior.valor) : "—"}</p>
+            <p className={cn("text-[11px]", GRIS)}>{anterior ? `${formatearPeriodo(anterior.periodo)}${anterior.origen === "BOLETA" ? " · su boleta" : ""}` : "primera lectura"}</p>
+          </div>
+          <div className="border-l border-[#E9E6F4]">
+            <p className={cn("text-xs", GRIS)}>Consumo</p>
+            <p className={cn("font-semibold tabular-nums", menor ? "text-[#A32020]" : alto ? "text-[#B86400]" : consumo !== null ? "text-[#075A3C]" : "text-[#B4B2C4]")}>
+              {!anterior && v !== null ? "Inicial" : consumo === null ? "—" : `${consumo > 0 ? "+" : ""}${miles(consumo)} m³`}
+            </p>
+            <p className={cn("text-[11px]", GRIS)}>{socio.promedio != null ? `promedio ${miles(socio.promedio)} m³` : "sin promedio"}</p>
+          </div>
+        </div>
+      </div>
+
+      {bloqueado ? (
+        <p role="alert" className="mt-2 flex items-start gap-1.5 text-[13px] leading-snug text-[#A32020]">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          Este socio ya tiene una lectura por revisar en {formatearPeriodo(periodo)}. Espera a que se revise antes de cargar otra.
+        </p>
+      ) : yaAprobada ? (
+        <p className="mt-2 flex items-start gap-1.5 text-[13px] leading-snug text-[#8F4400]">
+          <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          Este socio ya tiene su lectura de {formatearPeriodo(periodo)} aprobada.
+        </p>
+      ) : (
+        <p role={aviso ? "alert" : undefined} className={cn("mt-2 flex items-start gap-1.5 text-[13px] leading-snug", menor ? "text-[#A32020]" : alto ? "text-[#8F4400]" : GRIS)}>
+          {menor ? (
+            <>
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>
+                Es menor que la anterior ({miles(anterior?.valor ?? 0)}). Revisa el número; si cambiaron el medidor, anótalo en la observación. {confirmar && "Toca otra vez para guardarla igual."}
+              </span>
+            </>
+          ) : alto ? (
+            <>
+              <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+              <span>
+                Consumo {Math.round((consumo ?? 0) / (socio.promedio ?? 1))}× su promedio. {confirmar ? "Toca otra vez para guardarla igual." : "Revisa el número."}
+              </span>
+            </>
+          ) : anterior ? (
+            `Debe ser ${miles(anterior.valor)} o más.`
+          ) : (
+            "Primera lectura de este socio: la directiva la usa como punto de partida."
+          )}
+        </p>
+      )}
+
+      {obs === null ? (
+        <button type="button" onClick={() => cambiar(valor, "")} className="mt-3 flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-[#2A07A8] hover:underline">
+          <MessageSquarePlus className="size-4" aria-hidden />
+          Agregar observación
+        </button>
+      ) : (
+        <div className="relative mt-3">
+          <Textarea autoFocus aria-label="Observación" value={obs} onChange={(e) => cambiar(valor, e.target.value)} rows={2} maxLength={300} placeholder="Ej.: medidor empañado, cambiaron el medidor, perro suelto…" className="min-h-[68px] rounded-lg border-[#E4E1F0] pr-9 text-base shadow-none md:text-sm" />
+          <button type="button" aria-label="Quitar observación" onClick={() => cambiar(valor, null)} className="absolute top-2 right-2 rounded-md p-1 text-[#8A8799] hover:bg-[#F2F1F7]">
+            <X className="size-3.5" />
+          </button>
+        </div>
+      )}
+
+      <div className="mt-4 grid grid-cols-[auto_1fr] gap-2">
+        <Button type="button" variant="outline" onClick={onSaltar} className="h-12 rounded-xl border-[#E4E1F0] px-4 font-semibold">
+          <SkipForward />
+          Saltar
+        </Button>
+        <Button type="submit" disabled={!puede || pendiente} className={cn("h-12 rounded-xl text-[15px] font-semibold", confirmar && "bg-[#B86400] hover:bg-[#B86400]/90")}>
+          {pendiente && <Loader2 className="animate-spin" />}
+          {confirmar ? "Guardar igual" : enLinea ? "Registrar y seguir" : "Guardar y seguir"}
+          <kbd className="ml-1 hidden items-center rounded bg-white/20 px-1.5 py-0.5 font-sans text-[11px] lg:inline-flex">
+            <CornerDownLeft className="size-3" aria-hidden />
+            <span className="sr-only">Enter</span>
+          </kbd>
+        </Button>
+      </div>
+      {!enLinea && <p className={cn("mt-2 text-center text-xs", GRIS)}>Sin señal: queda guardada en el teléfono.</p>}
+    </form>
   );
 }
 
@@ -121,27 +331,30 @@ export function LecturaForm({
 }) {
   const router = useRouter();
   const enviandoCola = useRef(false);
+  const [enviando, setEnviando] = useState(false);
   const [pestana, setPestana] = useState<"cargar" | "historial">("cargar");
   const [periodo, setPeriodo] = useState(periodoActual);
   const [elegidoId, setElegidoId] = useState<string | null>(null);
   const [saltados, setSaltados] = useState<string[]>([]);
-  const [valorTxt, setValorTxt] = useState("");
+  const [formKey, setFormKey] = useState(0);
   const [buscando, setBuscando] = useState(false);
   const [busca, setBusca] = useState("");
-  const [conObs, setConObs] = useState(false);
-  const [obs, setObs] = useState("");
   // Lo que se cargó en esta sesión: cuenta de inmediato en la ruta, sin esperar a recargar.
   const [marcados, setMarcados] = useState<string[]>([]);
   const [ultimo, setUltimo] = useState<{ nombre: string; enCola: boolean } | null>(null);
   const [rechazadas, setRechazadas] = useState<Rechazada[]>([]);
+  const [busquedaLecturas, setBusquedaLecturas] = useState("");
+  const [vista, setVista] = useState<"todas" | "local">("todas");
 
   const crudoCola = useSyncExternalStore(suscribirCola, snapshotCola, () => COLA_VACIA);
   const cola = useMemo(() => parsearCola(crudoCola), [crudoCola]);
   const enLinea = useSyncExternalStore(suscribirConexion, hayConexion, () => true);
-
-  // Buscador de "Tus lecturas": por socio, mes, estado o número de lectura.
-  const [busquedaLecturas, setBusquedaLecturas] = useState("");
-  const [vista, setVista] = useState<"todas" | "PENDIENTE">("todas");
+  // El formulario se arma solo en el navegador: recupera el borrador del teléfono sin desajustes con el servidor.
+  const enNavegador = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   // Quién ya tiene lectura en cada mes: lo del servidor, lo cargado ahora y lo que espera señal.
   const estadoPorClave = useMemo(() => {
@@ -155,56 +368,32 @@ export function LecturaForm({
   const periodoValido = /^\d{4}-(0[1-9]|1[0-2])$/.test(periodo);
   const leidosN = socios.filter((s) => estadoPorClave.has(clave(s.id, periodo))).length;
   const pendientes = socios.filter((s) => !estadoPorClave.has(clave(s.id, periodo)));
-  const ruta = pendientes.filter((s) => !saltados.includes(s.id));
+
+  // Las lecturas que la directiva rechazó este mes y todavía no se repiten: van primero en la ruta.
+  const porRepetirMap = useMemo(() => {
+    const m = new Map<string, { valor: number; motivo: string | null }>();
+    for (const l of recientes) {
+      if (l.estado === "RECHAZADA" && l.periodo === periodo && !estadoPorClave.has(clave(l.socioId, periodo)) && !m.has(l.socioId)) m.set(l.socioId, { valor: l.valor, motivo: l.motivoRechazo });
+    }
+    return m;
+  }, [recientes, periodo, estadoPorClave]);
+  const porRepetir = pendientes.filter((s) => porRepetirMap.has(s.id));
+  const ruta = [...pendientes.filter((s) => !saltados.includes(s.id) && porRepetirMap.has(s.id)), ...pendientes.filter((s) => !saltados.includes(s.id) && !porRepetirMap.has(s.id))];
+
   const elegido = elegidoId ? (socios.find((s) => s.id === elegidoId) ?? null) : null;
   const actual = elegido ?? ruta[0] ?? pendientes[0] ?? null;
   const pct = socios.length ? Math.round((leidosN / socios.length) * 100) : 0;
-
-  // Consumo en vivo: lo que se escribe menos la última aprobada. Solo orienta; la directiva revisa antes de generar la boleta.
-  const anterior = actual?.anterior ?? null;
-  const numeroActual = valorTxt === "" ? null : Number(valorTxt);
-  // Sin lectura anterior no hay consumo que mostrar: sería el medidor completo.
-  const consumo = numeroActual !== null && anterior ? numeroActual - anterior.valor : null;
-  const menor = consumo !== null && consumo < 0;
   const yaLeido = actual ? (estadoPorClave.get(clave(actual.id, periodo)) ?? null) : null;
-  // El servidor no admite una segunda lectura mientras la primera sigue por revisar.
-  const bloqueado = yaLeido === "PENDIENTE";
-  const puede = !!actual && numeroActual !== null && periodoValido && !bloqueado;
 
-  const encontrados = useMemo(() => {
-    const t = sinTildes(busca.trim());
-    if (!t) return [];
-    return socios.filter((s) => sinTildes(`${s.nombre} ${s.rut ?? ""} ${s.rut ? formatearRut(s.rut) : ""} ${s.numeroCliente ?? ""}`).includes(t)).slice(0, 6);
-  }, [socios, busca]);
-
-  const recientesFiltradas = useMemo(() => {
-    const q = sinTildes(busquedaLecturas.trim());
-    return recientes.filter((l) => (vista === "todas" || l.estado === "PENDIENTE") && (!q || sinTildes(`${l.socio} ${l.periodo} ${formatearPeriodo(l.periodo)} ${ESTADO_META[l.estado].texto} ${l.valor}`).includes(q)));
-  }, [recientes, busquedaLecturas, vista]);
-  // El carrusel de meses: el actual primero y, hacia la derecha, los anteriores que tengan lecturas.
-  const [mesVer, setMesVer] = useState(periodoActual);
-  const carrusel = useRef<HTMLDivElement>(null);
-  const meses = useMemo(() => {
-    const todos = new Set(recientes.map((l) => l.periodo));
-    todos.add(periodoActual());
-    return Array.from(todos).sort((a, b) => b.localeCompare(a));
-  }, [recientes]);
-  const buscandoLecturas = busquedaLecturas.trim() !== "";
-  // Buscando se mira en todos los meses; si no, solo el mes elegido en el carrusel.
-  const mostradas = buscandoLecturas ? recientesFiltradas : recientesFiltradas.filter((l) => l.periodo === mesVer);
-  function moverCarrusel(sentido: 1 | -1) {
-    const c = carrusel.current;
-    if (c) c.scrollBy({ left: sentido * c.clientWidth * 0.8, behavior: "smooth" });
-  }
-  const nPorRevisar = recientes.filter((l) => l.estado === "PENDIENTE").length;
+  const tBusca = sinTildes(busca.trim());
+  const encontrados = pendientes.filter((s) => !tBusca || sinTildes(`${s.nombre} ${s.rut ?? ""} ${s.rut ? formatearRut(s.rut) : ""} ${s.numeroCliente ?? ""}`).includes(tBusca));
 
   function limpiar() {
-    setValorTxt("");
-    setObs("");
-    setConObs(false);
     setElegidoId(null);
     setBuscando(false);
     setBusca("");
+    setFormKey((k) => k + 1);
+    borrarBorrador();
   }
 
   function saltar() {
@@ -212,6 +401,14 @@ export function LecturaForm({
     setSaltados((s) => (pendientes.every((p) => s.includes(p.id) || p.id === actual.id) ? [] : [...s, actual.id]));
     limpiar();
     setUltimo(null);
+  }
+
+  function irA(id: string) {
+    setElegidoId(id);
+    setBuscando(false);
+    setBusca("");
+    setFormKey((k) => k + 1);
+    setPestana("cargar");
   }
 
   function guardarSinConexion(formData: FormData): EstadoForm {
@@ -271,6 +468,7 @@ export function LecturaForm({
   async function enviarCola() {
     if (enviandoCola.current) return;
     enviandoCola.current = true;
+    setEnviando(true);
     let enviadas = 0;
     try {
       for (const lectura of parsearCola(snapshotCola())) {
@@ -291,6 +489,7 @@ export function LecturaForm({
       }
     } finally {
       enviandoCola.current = false;
+      setEnviando(false);
     }
     if (enviadas > 0) router.refresh();
   }
@@ -302,242 +501,203 @@ export function LecturaForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enLinea, cola.length]);
 
+  // Las lecturas que se ven en «Mis lecturas»: las que esperan señal y las del servidor.
+  type ItemLectura = { id: string; socioId: string; socio: string; periodo: string; valor: number; consumo: number | null; estado: "LOCAL" | "PENDIENTE" | "APROBADA" | "RECHAZADA"; motivo: string | null };
+  const items: ItemLectura[] = useMemo(() => {
+    const anteriorDe = new Map(socios.map((s) => [s.id, s.anterior?.valor ?? null]));
+    const locales: ItemLectura[] = [...cola].reverse().map((c) => {
+      const ant = anteriorDe.get(c.socioId) ?? null;
+      const valor = Number(c.valor);
+      return { id: c.idLocal, socioId: c.socioId, socio: c.socioNombre, periodo: c.periodo, valor, consumo: ant === null ? null : valor - ant, estado: "LOCAL", motivo: null };
+    });
+    const delServidor: ItemLectura[] = recientes.map((l) => ({ id: l.id, socioId: l.socioId, socio: l.socio, periodo: l.periodo, valor: l.valor, consumo: l.consumo, estado: l.estado, motivo: l.motivoRechazo }));
+    return [...locales, ...delServidor];
+  }, [cola, recientes, socios]);
+
+  const buscandoLecturas = busquedaLecturas.trim() !== "";
+  const mostradas = useMemo(() => {
+    const q = sinTildes(busquedaLecturas.trim());
+    return items.filter((l) => (vista === "todas" || l.estado === "LOCAL") && (q ? sinTildes(`${l.socio} ${formatearPeriodo(l.periodo)} ${l.valor}`).includes(q) : l.periodo === periodo));
+  }, [items, busquedaLecturas, vista, periodo]);
+  const delMes = items.filter((l) => l.periodo === periodo);
+  const nSinEnviar = items.filter((l) => l.estado === "LOCAL" && l.periodo === periodo).length;
+  const nBadge = porRepetir.length + cola.length;
+
   // Sin padrón no hay a quién tomarle la lectura: se dice claro, en vez de un
   // buscador que parece roto ("Ningún socio coincide").
   if (socios.length === 0) {
     return <SinSocios puedeCargar={puedeCargarSocios} />;
   }
 
-  const buscador = (
-    <div className="mt-4">
-      <div className="relative">
-        <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-        <Input aria-label="Buscar socio" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nombre, RUT o N.º" className="h-12 rounded-full pl-11 text-base md:h-11 md:text-sm" autoFocus={buscando} />
-      </div>
-      {encontrados.length > 0 && (
-        <ul className="mt-2 divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {encontrados.map((s) => (
-            <li key={s.id}>
-              <button
-                type="button"
-                onClick={() => {
-                  setElegidoId(s.id);
-                  setBuscando(false);
-                  setBusca("");
-                  setValorTxt("");
-                }}
-                className="flex min-h-12 w-full items-center justify-between gap-4 px-4 py-2 text-left hover:bg-muted"
-              >
-                <span className="min-w-0">
-                  <span className="block truncate text-[0.95rem] font-semibold">{s.nombre}</span>
-                  <span className="block truncate text-[0.75rem] text-muted-foreground">{detalle(s)}</span>
-                </span>
-                {estadoPorClave.has(clave(s.id, periodo)) && <span className="shrink-0 text-[0.75rem] font-semibold text-emerald-700 dark:text-emerald-400">Ya leído</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {busca.trim() && encontrados.length === 0 && <p className="mt-2 text-[0.85rem] text-muted-foreground">Ningún socio coincide.</p>}
-    </div>
-  );
-
   return (
     <>
-      {/* Celular: una pestaña a la vez, como app. Escritorio (md:): dos columnas, el
-          formulario a la izquierda y las últimas lecturas a la derecha, para que la
-          página no se alargue. */}
-      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-4 pb-20 md:grid md:max-w-[1080px] md:grid-cols-[minmax(0,540px)_minmax(0,1fr)] md:items-start md:gap-8 md:pb-0">
-        <div className={cn("flex-col gap-4", pestana === "cargar" ? "flex" : "hidden md:flex")}>
-          {!enLinea && (
-            <div className="flex items-start gap-4 rounded-xl border border-amber-300/60 bg-amber-50 px-4 py-3 dark:border-amber-500/30 dark:bg-amber-500/10">
-              <WifiOff className="mt-0.5 size-4 shrink-0 text-amber-700 dark:text-amber-300" />
-              <p className="text-[0.88rem] leading-relaxed">
-                <strong>Sin conexión.</strong> Sigue cargando lecturas: quedan guardadas en este teléfono y se envían solas cuando vuelva la señal.
-              </p>
-            </div>
-          )}
+      {/* Celular: una pestaña a la vez, como app. Escritorio (md:): dos columnas, para cargar a la izquierda y las
+          lecturas a la derecha. */}
+      <div className="mx-auto flex w-full max-w-[560px] flex-col gap-4 pb-24 md:grid md:max-w-[1080px] md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-start md:gap-6 md:pb-0">
+        <div className="flex items-center gap-3 md:col-span-2">
+          <div className="min-w-0 flex-1 leading-tight">
+            <h1 className="truncate text-[22px] font-semibold tracking-tight">Modo terreno</h1>
+            <p className={cn("truncate text-[13px]", GRIS)}>Carga lecturas aunque no haya señal · <span className="capitalize">{nombreMes(periodo)}</span></p>
+          </div>
+          <span className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold", enLinea ? "bg-[#E6F6EF] text-[#075A3C]" : "bg-[#FFF3E5] text-[#8F4400]")}>
+            {enLinea ? <Wifi className="size-3.5" aria-hidden /> : <CloudOff className="size-3.5" aria-hidden />}
+            {enLinea ? "En línea" : "Sin conexión"}
+          </span>
+        </div>
 
-          {/* La ruta del mes: cuántos socios llevas leídos. */}
-          <section aria-label="Ruta del mes" className="rounded-2xl bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] p-4 text-primary-foreground shadow-lg shadow-primary/30">
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <label htmlFor="terreno-periodo" className="text-[0.8rem] font-medium text-white/85">
-                  Ruta de {formatearPeriodo(periodo)}
+        {(cola.length > 0 || enviando) && (
+          <div className={cn("flex items-center gap-2 rounded-xl border px-4 py-2.5 text-[13px] md:col-span-2", enLinea ? "border-[#D7EFE4] bg-[#F3FBF7]" : "border-[#F6E2C8] bg-[#FFF9F1]")}>
+            {enviando ? <RefreshCw className="size-4 shrink-0 animate-spin text-[#0A7A52]" aria-hidden /> : <Smartphone className={cn("size-4 shrink-0", enLinea ? "text-[#0A7A52]" : "text-[#B86400]")} aria-hidden />}
+            <span className={cn("flex-1", enLinea ? "text-[#075A3C]" : "text-[#7A3B00]")} role="status">
+              {enviando ? (
+                "Enviando lecturas…"
+              ) : (
+                <>
+                  <b className="font-semibold">
+                    {cola.length} lectura{cola.length === 1 ? "" : "s"}
+                  </b>{" "}
+                  guardada{cola.length === 1 ? "" : "s"} en el teléfono. {enLinea ? "" : "Se enviarán solas cuando vuelva la señal."}
+                </>
+              )}
+            </span>
+            {enLinea && !enviando && (
+              <Button size="sm" onClick={() => void enviarCola()} className="h-8 rounded-lg bg-[#0A9B68] px-3 text-xs font-semibold hover:bg-[#0A9B68]/90">
+                <CloudUpload className="size-3.5" />
+                Enviar ahora
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* ─── Cargar ─── */}
+        <div className={cn("flex-col gap-4", pestana === "cargar" ? "flex" : "hidden md:flex")}>
+          <section aria-label="Ruta del mes" className={cn("rounded-2xl bg-card p-4 sm:p-5", SOMBRA)}>
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <label htmlFor="terreno-periodo" className={cn("text-[13px] font-medium", GRIS)}>
+                  Tu ruta de {nombreMes(periodo)}
                 </label>
-                <p className="text-[1.65rem] leading-tight font-bold tabular-nums">
-                  {leidosN} <span className="text-base font-semibold text-white/85">de {socios.length} socios</span>
+                <p className="mt-0.5 text-[26px] leading-none font-semibold tabular-nums">
+                  {leidosN} <span className={cn("text-base font-medium", GRIS)}>de {socios.length}</span>
                 </p>
               </div>
-              <div className="relative shrink-0">
-                <span className="flex h-11 items-center gap-1 rounded-full bg-white/20 px-4 text-[0.8rem] font-semibold">
-                  Cambiar mes
-                  <ChevronDown className="size-4" aria-hidden />
-                </span>
-                <input
-                  id="terreno-periodo"
-                  type="month"
-                  value={periodo}
-                  onChange={(e) => {
-                    if (e.target.value) setPeriodo(e.target.value);
-                    limpiar();
-                    setSaltados([]);
-                    setUltimo(null);
-                  }}
-                  // En el computador, tocar el campo invisible no abre el calendario solo: se abre a mano.
-                  onClick={(e) => {
-                    try {
-                      e.currentTarget.showPicker();
-                    } catch {
-                      /* el navegador lo abre por su cuenta */
-                    }
-                  }}
-                  className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                />
+              <div className={cn("text-right text-[13px]", GRIS)}>
+                {marcados.length > 0 && <span className="mb-0.5 block font-semibold text-[#075A3C]">+{marcados.length} hoy</span>}
+                <b className="font-semibold text-[#15132B] tabular-nums">{pct}%</b> · {pendientes.length === 0 ? "ruta completa" : `faltan ${pendientes.length}`}
               </div>
             </div>
-            <div role="img" aria-label={`${pct}% de la ruta leída`} className="mt-4 h-2.5 overflow-hidden rounded-full bg-white/25">
-              <div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
+            <div role="progressbar" aria-label="Avance de tu ruta" aria-valuenow={leidosN} aria-valuemin={0} aria-valuemax={socios.length} className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEEBF7]">
+              <span className="block h-full rounded-full bg-gradient-to-r from-[#6B46F5] to-[#3A0CE3]" style={{ width: `${leidosN > 0 ? Math.max(pct, 2) : 0}%` }} />
             </div>
-            <p className="mt-2 text-[0.8rem] font-medium text-white/90">{pendientes.length === 0 ? "Ruta completa" : `Faltan ${pendientes.length} socios`}</p>
+            <div className="relative mt-3 w-fit">
+              <span className="flex h-9 items-center gap-1 rounded-full bg-[#F4F3F9] px-3 text-xs font-semibold text-[#2A07A8]">Cambiar mes</span>
+              <input
+                id="terreno-periodo"
+                type="month"
+                value={periodo}
+                onChange={(e) => {
+                  if (e.target.value) setPeriodo(e.target.value);
+                  limpiar();
+                  setSaltados([]);
+                  setUltimo(null);
+                }}
+                // En el computador, tocar el campo invisible no abre el calendario solo: se abre a mano.
+                onClick={(e) => {
+                  try {
+                    e.currentTarget.showPicker();
+                  } catch {
+                    /* el navegador lo abre por su cuenta */
+                  }
+                }}
+                className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+              />
+            </div>
           </section>
 
           {ultimo && (
-            <p role="status" className="flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-2 text-[0.8rem] font-semibold text-emerald-800 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <p role="status" className="flex items-center gap-2 rounded-xl bg-[#E6F6EF] px-4 py-2 text-[13px] font-semibold text-[#075A3C]">
               <CheckCircle2 className="size-4 shrink-0" aria-hidden />
               <span className="truncate">{ultimo.enCola ? `${ultimo.nombre}: guardada en este teléfono, se envía al volver la señal` : `${ultimo.nombre} registrado, pendiente de revisión`}</span>
             </p>
           )}
 
           {estado && !estado.ok && (
-            <p role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[0.88rem] text-destructive">
+            <p role="alert" className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-[13px] text-destructive">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
               {estado.error}
             </p>
           )}
 
           {!actual ? (
-            <div className="flex flex-col items-center gap-2 rounded-2xl bg-card px-6 py-10 text-center shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
+            <div className={cn("flex flex-col items-center gap-2 rounded-2xl bg-card px-6 py-10 text-center", SOMBRA)}>
               <PartyPopper className="size-9 text-primary" aria-hidden />
-              <p className="text-lg font-bold">Ruta completa</p>
-              <p className="text-sm text-muted-foreground">Todos los socios tienen lectura en {formatearPeriodo(periodo)}.</p>
-              <div className="w-full text-left">{buscador}</div>
+              <p className="text-lg font-semibold">¡Ruta terminada!</p>
+              <p className={cn("text-sm", GRIS)}>{cola.length > 0 ? "Recuerda enviar las lecturas cuando tengas señal." : `Todos los socios tienen lectura en ${formatearPeriodo(periodo)}.`}</p>
             </div>
           ) : (
-            <form action={accion} className="rounded-2xl bg-card p-4 shadow-[0_8px_24px_rgba(58,12,227,0.1)]">
-              <input type="hidden" name="socioId" value={actual.id} />
-              <input type="hidden" name="periodo" value={periodo} />
-              <input type="hidden" name="valor" value={valorTxt} />
-              <input type="hidden" name="observacion" value={obs} />
-
-              <div className="flex items-center gap-4">
-                <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-sky-700 text-[0.95rem] font-bold text-white">
-                  {iniciales(actual.nombre)}
-                </span>
+            <div className={cn("overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+              <div className="flex items-center gap-3 p-4 pb-3 sm:p-5 sm:pb-3">
+                <AvatarSocio id={actual.id} nombre={actual.nombre} className="size-11 text-sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[0.8rem] font-semibold text-muted-foreground">{elegido ? "Socio elegido" : "Siguiente socio"}</p>
-                  <p className="text-[1.05rem] leading-snug font-bold">{actual.nombre}</p>
-                  <p className="truncate text-[0.75rem] text-muted-foreground">{detalle(actual)}</p>
+                  <p className={cn("text-xs font-medium", GRIS)}>{elegido ? "Socio elegido" : "Siguiente socio"}</p>
+                  <p className="truncate text-[17px] leading-tight font-semibold">{actual.nombre}</p>
+                  <p className={cn("mt-0.5 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[13px]", GRIS)}>
+                    {actual.numeroCliente ? `Cliente N° ${actual.numeroCliente}` : "Sin número"}
+                    {actual.rut ? (
+                      <span>· {formatearRut(actual.rut)}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-[#FFF3E5] px-1.5 py-px text-[11px] font-semibold text-[#8F4400]">
+                        <AlertTriangle className="size-3" aria-hidden />
+                        Sin RUT
+                      </span>
+                    )}
+                    {actual.tipo === "USUARIO" && <span>· Usuario</span>}
+                  </p>
                 </div>
-                <Button type="button" variant="outline" size="icon" aria-label={buscando ? "Cerrar búsqueda" : "Buscar otro socio"} aria-expanded={buscando} onClick={() => setBuscando((v) => !v)} className="size-11 shrink-0 rounded-full">
-                  {buscando ? <X /> : <Search />}
+                <Button type="button" variant="outline" size="icon" aria-label="Buscar otro socio de la ruta" onClick={() => setBuscando(true)} className="size-11 shrink-0 rounded-xl border-[#E4E1F0]">
+                  <Search className="size-5" />
                 </Button>
               </div>
 
-              {buscando && buscador}
-
-              {/* El medidor: el número grande, para leerlo de pie y con una mano. */}
-              <div className="mt-4 rounded-2xl bg-slate-900 p-4 text-white">
-                <div className="flex items-center justify-between text-[0.8rem] font-medium text-white/75">
-                  <label htmlFor="terreno-lectura">Lectura del medidor</label>
-                  <span>m³</span>
-                </div>
-                <input
-                  id="terreno-lectura"
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={valorTxt}
-                  onChange={(e) => setValorTxt(e.target.value.replace(/[^\d]/g, ""))}
-                  placeholder={anterior ? String(anterior.valor) : "0000"}
-                  className="mt-1 w-full bg-transparent text-center text-[2.75rem] leading-tight font-bold tracking-[0.12em] text-white tabular-nums caret-violet-300 outline-none placeholder:text-white/30"
+              {enNavegador ? (
+                <FormularioLectura
+                  key={`${actual.id}-${periodo}-${formKey}`}
+                  socio={actual}
+                  periodo={periodo}
+                  enLinea={enLinea}
+                  repetir={porRepetirMap.get(actual.id) ?? null}
+                  bloqueado={yaLeido === "PENDIENTE" || !periodoValido}
+                  yaAprobada={yaLeido === "APROBADA"}
+                  pendiente={pendiente}
+                  accion={accion}
+                  onSaltar={saltar}
                 />
-                <div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/15 pt-2 text-center">
-                  <div>
-                    <p className="text-[0.75rem] text-white/75">Anterior</p>
-                    <p className="text-[0.95rem] font-bold tabular-nums">{anterior ? miles(anterior.valor) : "Sin registro"}</p>
-                    {anterior && (
-                      <p className="text-[0.7rem] text-white/60">
-                        {formatearPeriodo(anterior.periodo)}
-                        {anterior.origen === "BOLETA" ? " · su boleta" : ""}
-                      </p>
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-[0.75rem] text-white/75">Consumo</p>
-                    <p className={cn("text-[0.95rem] font-bold tabular-nums", menor ? "text-red-300" : "text-emerald-300")}>{consumo === null ? "—" : `${miles(consumo)} m³`}</p>
-                  </div>
-                </div>
-              </div>
-
-              {!anterior && <p className="mt-2 text-[0.8rem] text-muted-foreground">Primera lectura: la directiva la usa como punto de partida.</p>}
-
-              {bloqueado ? (
-                <p role="alert" className="mt-4 flex items-start gap-2 rounded-xl bg-red-50 px-4 py-2 text-[0.8rem] font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  Este socio ya tiene una lectura por revisar en {formatearPeriodo(periodo)}. Espera a que se revise antes de cargar otra.
-                </p>
-              ) : yaLeido === "APROBADA" ? (
-                <p className="mt-4 flex items-start gap-2 rounded-xl bg-amber-50 px-4 py-2 text-[0.8rem] font-medium text-amber-800 dark:bg-amber-500/10 dark:text-amber-300">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  Este socio ya tiene su lectura de {formatearPeriodo(periodo)} aprobada.
-                </p>
-              ) : menor ? (
-                <p role="alert" className="mt-4 flex items-start gap-2 rounded-xl bg-red-50 px-4 py-2 text-[0.8rem] font-medium text-red-700 dark:bg-red-500/10 dark:text-red-400">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                  La lectura es menor que la anterior ({miles(anterior?.valor ?? 0)}). Revísala antes de enviar.
-                </p>
-              ) : null}
-
-              {conObs ? (
-                <Textarea aria-label="Observación" value={obs} onChange={(e) => setObs(e.target.value)} rows={2} maxLength={300} placeholder="Medidor con humedad, difícil de leer con precisión" className="mt-4 min-h-16 text-base md:text-sm" />
               ) : (
-                <button type="button" onClick={() => setConObs(true)} className="mt-2 flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">
-                  <MessageSquarePlus className="size-4" aria-hidden />
-                  Agregar observación
-                </button>
+                <div className="px-4 pb-4 sm:px-5 sm:pb-5" aria-hidden>
+                  <div className="h-[200px] rounded-xl bg-[#F9F8FD]" />
+                </div>
               )}
 
-              <div className="mt-2 grid grid-cols-[auto_1fr] gap-2">
-                <Button type="button" variant="outline" onClick={saltar} className="h-12 rounded-full px-4 font-semibold">
-                  <SkipForward />
-                  Saltar
-                </Button>
-                <Button type="submit" disabled={!puede || pendiente} className="h-12 rounded-full text-[0.95rem] font-semibold shadow-md shadow-primary/30">
-                  {pendiente && <Loader2 className="animate-spin" />}
-                  Registrar y seguir
-                </Button>
-              </div>
-            </form>
-          )}
-
-          {cola.length > 0 && (
-            <section className="rounded-2xl border border-amber-300/60 bg-amber-50 p-4 dark:border-amber-500/30 dark:bg-amber-500/10">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="text-[0.95rem] font-semibold">
-                  {cola.length} {cola.length === 1 ? "lectura esperando" : "lecturas esperando"} envío
-                </h2>
-                <Button type="button" variant="outline" disabled={!enLinea} onClick={() => void enviarCola()}>
-                  Enviar ahora
-                </Button>
-              </div>
-              <ul className="mt-2 flex flex-col gap-1 text-[0.85rem] text-muted-foreground">
-                {cola.map((l) => (
-                  <li key={l.idLocal}>
-                    {l.socioNombre} · {l.periodo} · lectura {l.valor}
-                  </li>
-                ))}
-              </ul>
-            </section>
+              {ruta.length > 1 && (
+                <div className="border-t border-[#F0EEF6] bg-[#FAFAFD] px-4 py-3 sm:px-5">
+                  <p className={cn("mb-1 text-xs font-semibold tracking-wide uppercase", GRIS)}>Próximos</p>
+                  <ul>
+                    {ruta
+                      .filter((s) => s.id !== actual.id)
+                      .slice(0, 3)
+                      .map((p) => (
+                        <li key={p.id}>
+                          <button type="button" onClick={() => irA(p.id)} className="-mx-2 flex w-[calc(100%+1rem)] items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                            <AvatarSocio id={p.id} nombre={p.nombre} className="size-8 text-[10px]" />
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.nombre}</span>
+                            <span className={cn("text-xs tabular-nums", porRepetirMap.has(p.id) ? "text-[#A32020]" : GRIS)}>{porRepetirMap.has(p.id) ? "por repetir" : p.numeroCliente ? `N° ${p.numeroCliente}` : ""}</span>
+                          </button>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
+            </div>
           )}
 
           <InstalarApp compacto titulo="Lleva la app a terreno" descripcion="Carga lecturas en terreno, aunque no haya señal." />
@@ -559,147 +719,163 @@ export function LecturaForm({
           )}
         </div>
 
-        <section className={cn("flex-col gap-4 md:sticky md:top-4 md:-m-1.5 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto md:p-1.5", pestana === "historial" ? "flex" : "hidden md:flex")}>
-          <h1 className="text-[1.75rem] leading-tight font-bold tracking-tight md:text-[1.1rem]">Tus lecturas</h1>
-          {recientes.length > 0 && (
-            <>
-              <div className="relative">
-                <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <Input
-                  value={busquedaLecturas}
-                  onChange={(e) => setBusquedaLecturas(e.target.value)}
-                  placeholder="Buscar por socio, mes o estado"
-                  aria-label="Buscar entre tus lecturas"
-                  className="h-12 rounded-full pl-11 text-base md:h-11 md:text-sm"
-                />
+        {/* ─── Mis lecturas ─── */}
+        <section className={cn("flex-col gap-4 md:sticky md:top-4 md:max-h-[calc(100vh-6rem)] md:overflow-y-auto", pestana === "historial" ? "flex" : "hidden md:flex")}>
+          {porRepetir.length > 0 && (
+            <div className={cn("overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+              <div className="flex items-center gap-2 border-b border-[#F6D3D2] bg-[#FFF5F5] px-4 py-3 sm:px-5">
+                <RotateCcw className="size-4 text-[#A32020]" aria-hidden />
+                <h2 className="flex-1 text-[15px] font-semibold text-[#8A1F1F]">
+                  Por repetir <span className="font-normal">· {porRepetir.length}</span>
+                </h2>
               </div>
-              <div role="group" aria-label="Filtrar lecturas" className="grid grid-cols-2 gap-1 rounded-full bg-muted p-1">
-                {[
-                  { id: "todas" as const, nombre: `Todas ${recientes.length}` },
-                  { id: "PENDIENTE" as const, nombre: `Por revisar ${nPorRevisar}` },
-                ].map((f) => (
-                  <button key={f.id} type="button" aria-pressed={vista === f.id} onClick={() => setVista(f.id)} className={cn("h-10 rounded-full text-sm font-semibold", vista === f.id ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
-                    {f.nombre}
+              <ul className="divide-y divide-[#F3F1F8]">
+                {porRepetir.map((p) => (
+                  <li key={p.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+                    <AvatarSocio id={p.id} nombre={p.nombre} className="size-9" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{p.nombre}</span>
+                      <span className="block truncate text-xs text-[#A32020]">{porRepetirMap.get(p.id)?.motivo ?? "La directiva rechazó la lectura"}</span>
+                    </span>
+                    <Button size="sm" onClick={() => irA(p.id)} className="h-9 shrink-0 rounded-lg px-3 text-xs font-semibold">
+                      Volver a leer
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className={cn("overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+            <div className="flex flex-col gap-3 border-b border-[#F0EEF6] p-4 sm:px-5">
+              <h2 className="text-[15px] font-semibold">
+                Tus lecturas de {nombreMes(periodo)} <span className={cn("font-normal", GRIS)}>· {delMes.length}</span>
+              </h2>
+              <div className="relative">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input aria-label="Buscar entre tus lecturas" value={busquedaLecturas} onChange={(e) => setBusquedaLecturas(e.target.value)} placeholder="Buscar socio o mes" className="h-11 rounded-xl border-[#E4E1F0] bg-white pl-9 text-base shadow-none md:text-sm" />
+              </div>
+              <div role="tablist" aria-label="Filtro" className="grid grid-cols-2 gap-1 rounded-lg bg-[#F4F3F9] p-1">
+                {(
+                  [
+                    ["todas", "Todas", delMes.length],
+                    ["local", "Sin enviar", nSinEnviar],
+                  ] as const
+                ).map(([k, t, n]) => (
+                  <button key={k} type="button" role="tab" aria-selected={vista === k} onClick={() => setVista(k)} className={cn("h-9 rounded-md text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", vista === k ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}>
+                    {t} <span className={cn("text-xs font-medium tabular-nums", vista === k ? "text-[#6B46F5]" : "text-[#A19FB2]")}>{n}</span>
                   </button>
                 ))}
               </div>
-              {!buscandoLecturas && (
-                <div className="relative">
-                  <div ref={carrusel} role="tablist" aria-label="Meses" className="flex snap-x snap-mandatory gap-2 overflow-x-auto scroll-smooth px-1 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                    {meses.map((m) => {
-                      const delMes = recientes.filter((l) => l.periodo === m);
-                      const porRevisar = delMes.filter((l) => l.estado === "PENDIENTE").length;
-                      const [anio, nro] = m.split("-");
-                      const nombre = formatearPeriodo(m).split(" ")[0];
-                      const activo = m === mesVer;
-                      return (
-                        <button
-                          key={m}
-                          type="button"
-                          role="tab"
-                          aria-selected={activo}
-                          onClick={() => setMesVer(m)}
-                          className={cn(
-                            "flex h-28 w-36 shrink-0 snap-start flex-col justify-between rounded-2xl border p-4 text-left transition-colors",
-                            activo ? "border-transparent bg-gradient-to-br from-[#3A0CE3] to-[#6B46F5] text-primary-foreground shadow-lg shadow-primary/30" : "border-border bg-card shadow-[0_6px_18px_rgba(58,12,227,0.1)] hover:bg-muted"
-                          )}
-                        >
-                          <span>
-                            <span className="block text-[1.15rem] leading-tight font-bold">{nombre}</span>
-                            <span className={cn("block text-[0.8rem]", activo ? "text-white/80" : "text-muted-foreground")}>{anio}</span>
+            </div>
+            {mostradas.length > 0 ? (
+              <ul className="divide-y divide-[#F3F1F8]">
+                {mostradas.map((l) => (
+                  <li key={l.id} className="flex items-center gap-3 px-4 py-3 sm:px-5">
+                    <AvatarSocio id={l.socioId} nombre={l.socio} className="size-9" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{l.socio}</span>
+                      <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+                        {l.estado === "LOCAL" ? (
+                          <span className="inline-flex items-center gap-1 font-semibold text-[#B86400]">
+                            <Smartphone className="size-3" aria-hidden />
+                            En el teléfono
                           </span>
-                          <span className="flex items-end justify-between gap-2">
-                            <span className="text-[1.5rem] leading-none font-bold tabular-nums">{delMes.length}</span>
-                            <span className={cn("text-[0.75rem] font-medium", activo ? "text-white/85" : porRevisar > 0 ? "text-amber-700 dark:text-amber-300" : "text-muted-foreground")}>
-                              {delMes.length === 0 ? `sin lecturas` : porRevisar > 0 ? `${porRevisar} por revisar` : delMes.length === 1 ? "lectura" : "lecturas"}
-                            </span>
+                        ) : l.estado === "APROBADA" ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-[#075A3C]">
+                            <CheckCircle2 className="size-3" aria-hidden />
+                            Aprobada
                           </span>
-                          <span className="sr-only">Mes {nro}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {meses.length > 2 && (
-                    <>
-                      <Button type="button" variant="outline" size="icon" aria-label="Meses anteriores a la izquierda" onClick={() => moverCarrusel(-1)} className="absolute top-1/2 -left-3 size-9 -translate-y-1/2 rounded-full bg-card shadow-md">
-                        <ChevronLeft />
-                      </Button>
-                      <Button type="button" variant="outline" size="icon" aria-label="Meses anteriores" onClick={() => moverCarrusel(1)} className="absolute top-1/2 -right-3 size-9 -translate-y-1/2 rounded-full bg-card shadow-md">
-                        <ChevronRight />
-                      </Button>
-                    </>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-          {recientes.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">Todavía no has cargado lecturas.</p>
-          ) : mostradas.length === 0 ? (
-            <p className="rounded-xl border border-dashed border-border px-4 py-10 text-center text-[0.9rem] text-muted-foreground">
-              {buscandoLecturas
-                ? "Ninguna lectura coincide con la búsqueda."
-                : vista === "PENDIENTE"
-                  ? `No tienes lecturas por revisar en ${formatearPeriodo(mesVer)}.`
-                  : `No hay lecturas tuyas en ${formatearPeriodo(mesVer)}.`}
-            </p>
-          ) : (
-            Array.from(new Set(mostradas.map((l) => l.periodo))).map((p) => (
-              <div key={p}>
-                <h2 className="px-1 pb-2 text-sm font-bold">
-                  {formatearPeriodo(p)} <span className="font-medium text-muted-foreground">· {mostradas.filter((l) => l.periodo === p).length}</span>
-                </h2>
-                <div className="flex flex-col gap-2">
-                  {mostradas
-                    .filter((l) => l.periodo === p)
-                    .map((l) => {
-                      const meta = ESTADO_META[l.estado];
-                      const Icono = meta.icono;
-                      return (
-                        <div key={l.id} className="flex items-center gap-4 rounded-2xl bg-card p-3 shadow-[0_6px_18px_rgba(58,12,227,0.1)]">
-                          <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[0.8rem] font-bold text-primary">
-                            {iniciales(l.socio)}
+                        ) : l.estado === "RECHAZADA" ? (
+                          <span className="inline-flex items-center gap-1 font-medium text-[#A32020]">
+                            <XCircle className="size-3" aria-hidden />
+                            Rechazada
                           </span>
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[0.95rem] font-semibold">{l.socio}</p>
-                            <p className={cn("flex items-center gap-1 text-[0.8rem] font-medium", meta.color)}>
-                              <Icono className="size-3.5" aria-hidden />
-                              {meta.texto}
-                            </p>
-                            {l.estado === "RECHAZADA" && l.motivoRechazo && <p className="mt-1 text-[0.8rem] text-muted-foreground">Motivo: {l.motivoRechazo}</p>}
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-[1.05rem] leading-tight font-bold tabular-nums">{miles(l.valor)}</p>
-                            <p className="text-[0.75rem] text-muted-foreground">m³ medidor</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-            ))
-          )}
+                        ) : (
+                          <span className="inline-flex items-center gap-1 font-medium text-[#B86400]">
+                            <Clock3 className="size-3" aria-hidden />
+                            Enviada · por revisar
+                          </span>
+                        )}
+                        {buscandoLecturas && <span className={GRIS}>{formatearPeriodo(l.periodo)}</span>}
+                      </span>
+                      {l.estado === "RECHAZADA" && l.motivo && <span className="mt-1 block text-xs text-[#A32020]">Motivo: {l.motivo}</span>}
+                    </span>
+                    <span className="shrink-0 text-right">
+                      <span className="block text-[15px] font-semibold tabular-nums">{miles(l.valor)}</span>
+                      <span className={cn("block text-xs tabular-nums", GRIS)}>{l.consumo === null ? "inicial" : `${l.consumo > 0 ? "+" : ""}${miles(l.consumo)} m³`}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className={cn("px-6 py-12 text-center text-sm", GRIS)}>
+                {items.length === 0 ? "Todavía no has cargado lecturas." : vista === "local" ? "Todo enviado." : buscandoLecturas ? "Ninguna lectura coincide con la búsqueda." : `No hay lecturas tuyas en ${formatearPeriodo(periodo)}.`}
+              </p>
+            )}
+          </div>
         </section>
       </div>
 
+      {buscando && (
+        <div className="fixed inset-0 z-50">
+          <button type="button" aria-label="Cerrar búsqueda" onClick={() => setBuscando(false)} className="absolute inset-0 bg-[#15132B]/35" />
+          <div role="dialog" aria-modal="true" aria-label="Buscar socio de la ruta" className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl bg-white sm:inset-x-auto sm:top-24 sm:bottom-auto sm:left-1/2 sm:w-[460px] sm:-translate-x-1/2 sm:rounded-2xl">
+            <div className="flex items-center gap-2 border-b border-[#F0EEF6] p-3">
+              <div className="relative flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input autoFocus aria-label="Buscar socio" value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Nombre, RUT o N° de cliente" className="h-11 rounded-xl border-[#E4E1F0] pl-9 text-base shadow-none md:text-sm" />
+              </div>
+              <Button variant="ghost" onClick={() => setBuscando(false)} className="h-11 rounded-xl px-3 font-semibold">
+                Cerrar
+              </Button>
+            </div>
+            <p className={cn("px-4 pt-3 text-xs font-semibold tracking-wide uppercase", GRIS)}>Pendientes en tu ruta · {pendientes.length}</p>
+            <ul className="min-h-0 flex-1 overflow-y-auto px-2 pt-1 pb-4">
+              {encontrados.slice(0, 80).map((p) => (
+                <li key={p.id}>
+                  <button type="button" onClick={() => irA(p.id)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-[#F8F7FC] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                    <AvatarSocio id={p.id} nombre={p.nombre} className="size-9" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{p.nombre}</span>
+                      <span className={cn("block text-xs", porRepetirMap.has(p.id) ? "text-[#A32020]" : GRIS)}>
+                        {p.numeroCliente ? `N° ${p.numeroCliente}` : "Sin número"}
+                        {porRepetirMap.has(p.id) ? " · por repetir" : p.anterior ? ` · ant. ${miles(p.anterior.valor)}` : " · primera lectura"}
+                      </span>
+                    </span>
+                    {p.id === actual?.id ? <span className="text-xs font-semibold text-[#2A07A8]">Actual</span> : <ChevronRight className="size-4 text-[#B4B2C4]" aria-hidden />}
+                  </button>
+                </li>
+              ))}
+              {encontrados.length === 0 && <li className={cn("px-3 py-8 text-center text-sm", GRIS)}>{busca.trim() ? "Ningún socio pendiente coincide." : "No quedan socios pendientes."}</li>}
+              {encontrados.length > 80 && <li className={cn("px-3 py-3 text-center text-xs", GRIS)}>Se muestran los primeros 80. Escribe para acotar.</li>}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Barra de pestañas fija abajo, como una app nativa. El relleno inferior
           respeta la barra de gestos de iPhone. */}
-      <nav aria-label="Secciones" className="fixed inset-x-0 bottom-0 z-30 border-t border-border/60 bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav aria-label="Secciones" className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E4E0F2] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto grid w-full max-w-[480px] grid-cols-2">
           {(
             [
-              { id: "cargar", label: "Cargar", icono: Droplets },
-              { id: "historial", label: "Mis lecturas", icono: ClipboardList },
+              { id: "cargar", label: "Cargar", icono: Droplets, badge: 0 },
+              { id: "historial", label: "Mis lecturas", icono: ClipboardList, badge: nBadge },
             ] as const
-          ).map(({ id, label, icono: Icono }) => (
+          ).map(({ id, label, icono: Icono, badge }) => (
             <button
               key={id}
               type="button"
               onClick={() => setPestana(id)}
               aria-current={pestana === id ? "page" : undefined}
-              className={cn("flex h-16 flex-col items-center justify-center gap-1 text-[0.75rem] font-medium transition-colors", pestana === id ? "text-primary" : "text-muted-foreground")}
+              className={cn("relative flex min-h-[62px] flex-col items-center justify-center gap-0.5 text-xs font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset", pestana === id ? "text-primary" : "text-[#55526A]")}
             >
-              <Icono className="size-5.5" />
+              {pestana === id && <span aria-hidden className="absolute inset-x-10 top-0 h-[3px] rounded-b-full bg-primary" />}
+              <span className="relative">
+                <Icono className="size-5" aria-hidden />
+                {badge > 0 && <span className="absolute -top-1.5 -right-2.5 flex size-4 items-center justify-center rounded-full bg-[#E58200] text-[10px] font-bold text-white">{badge}</span>}
+              </span>
               {label}
             </button>
           ))}
