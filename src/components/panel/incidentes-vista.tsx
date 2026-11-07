@@ -2,10 +2,11 @@
 
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowRight, Check, ChevronDown, ChevronRight, MapPin, Pencil, Plus, Search, User, X } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, Plus, Search, X } from "lucide-react";
 import { cambiarEstadoIncidente } from "@/app/panel/incidentes/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IncidenteDialog } from "@/components/panel/incidente-dialog";
 import { TEXTO_PRIORIDAD, textoTipoIncidente, type EstadoIncidente, type IncidenteFila, type PrioridadIncidente } from "@/lib/incidentes-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
@@ -87,18 +88,14 @@ function Detalle({
   return (
     <div className="flex h-full max-h-[85vh] flex-col lg:max-h-none">
       <div className="flex items-start justify-between gap-3 border-b border-[#F0EEF6] px-5 py-4">
-        <div className="min-w-0">
+        {/* Tocar el título abre el formulario para editar: no hay un botón aparte, como en la maqueta. */}
+        <button type="button" onClick={onEditar} title="Editar incidente" className="min-w-0 rounded-md text-left hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
           <p className={cn("text-xs font-semibold tabular-nums", GRIS)}>I-{inc.numero}</p>
           <h2 className="mt-0.5 text-lg leading-snug font-semibold tracking-tight">{capitalizar(inc.titulo)}</h2>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <Button variant="ghost" size="icon" aria-label="Editar incidente" title="Editar" onClick={onEditar} className="size-9 rounded-lg">
-            <Pencil />
-          </Button>
-          <Button variant="ghost" size="icon" aria-label="Cerrar detalle" onClick={onCerrar} className="size-9 rounded-lg lg:hidden">
-            <X />
-          </Button>
-        </div>
+        </button>
+        <Button variant="ghost" size="icon" aria-label="Cerrar detalle" onClick={onCerrar} className="size-9 shrink-0 rounded-lg lg:hidden">
+          <X />
+        </Button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-4">
@@ -129,36 +126,6 @@ function Detalle({
             <dt className={GRIS}>Costo</dt>
             <dd className="mt-0.5 font-semibold tabular-nums">{inc.costo ? clp(inc.costo) : "Sin costo"}</dd>
           </div>
-          {inc.lugar && (
-            <div className="col-span-2">
-              <dt className={GRIS}>Lugar</dt>
-              <dd className="mt-0.5 flex items-center gap-2 font-medium">
-                <MapPin className="size-4 shrink-0" aria-hidden />
-                {inc.lugar}
-              </dd>
-            </div>
-          )}
-          {inc.responsable && (
-            <div className="col-span-2">
-              <dt className={GRIS}>Responsable</dt>
-              <dd className="mt-0.5 flex items-center gap-2 font-medium">
-                <User className="size-4 shrink-0" aria-hidden />
-                {inc.responsable}
-              </dd>
-            </div>
-          )}
-          {inc.descripcion && (
-            <div className="col-span-2">
-              <dt className={GRIS}>Qué pasó</dt>
-              <dd className="mt-0.5 whitespace-pre-line">{inc.descripcion}</dd>
-            </div>
-          )}
-          {inc.solucion && (
-            <div className="col-span-2">
-              <dt className={GRIS}>Cómo se resolvió</dt>
-              <dd className="mt-0.5 whitespace-pre-line">{inc.solucion}</dd>
-            </div>
-          )}
         </dl>
 
         <h3 className={cn("mt-6 text-[13px] font-semibold", GRIS)}>Seguimiento</h3>
@@ -310,20 +277,17 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input aria-label="Buscar incidente" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar incidente" className="h-10 rounded-lg border-[#E4E1F0] bg-white pl-9 shadow-none" />
           </div>
-          <div className="relative w-[150px] shrink-0">
-            <select
-              aria-label="Filtrar por prioridad"
-              value={prioridad}
-              onChange={(e) => setPrioridad(e.target.value as typeof prioridad)}
-              className="h-10 w-full appearance-none rounded-lg border border-[#E4E1F0] bg-white pr-8 pl-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="todas">Prioridad</option>
-              <option value="ALTA">Alta</option>
-              <option value="MEDIA">Media</option>
-              <option value="BAJA">Baja</option>
-            </select>
-            <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
-          </div>
+          <Select value={prioridad} onValueChange={(v) => setPrioridad(v as typeof prioridad)}>
+            <SelectTrigger aria-label="Filtrar por prioridad" className="h-10 w-[150px] shrink-0 rounded-lg border-[#E4E1F0] px-3">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Prioridad</SelectItem>
+              <SelectItem value="ALTA">Alta</SelectItem>
+              <SelectItem value="MEDIA">Media</SelectItem>
+              <SelectItem value="BAJA">Baja</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -393,7 +357,7 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
       {seleccionado && detalleMovil && (
         <div className="fixed inset-0 z-50 lg:hidden">
           <button type="button" aria-label="Cerrar detalle" onClick={() => setDetalleMovil(false)} className="absolute inset-0 bg-[#15132B]/40" />
-          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-card">
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-white">
             <Detalle
               inc={seleccionado}
               estado={estadoDe(seleccionado)}
