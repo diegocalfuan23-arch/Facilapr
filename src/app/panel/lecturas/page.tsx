@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, lecturas, socios } from "@/lib/db/schema";
+import { arranqueSocios, arranques, boletas, lecturas, socios } from "@/lib/db/schema";
 import { user as userTable } from "@/lib/db/auth-schema";
 import { requireApr } from "@/lib/apr-session";
 import { formatearRut } from "@/lib/formato";
@@ -52,8 +52,22 @@ export default async function LecturasPage() {
     .orderBy(desc(lecturas.createdAt))
     .limit(1500);
 
+  // El arranque (nodo de la red) de cada socio ordena la ruta. Si la tabla todavía no existe, la ruta se ordena solo por número.
+  const arranquePorSocio: Record<string, string> = {};
+  try {
+    const filas = await db
+      .select({ socioId: arranqueSocios.socioId, nombre: arranques.nombre })
+      .from(arranqueSocios)
+      .innerJoin(arranques, eq(arranqueSocios.arranqueId, arranques.id))
+      .where(eq(arranques.aprId, apr.id));
+    for (const f of filas) arranquePorSocio[f.socioId] = f.nombre;
+  } catch (e) {
+    console.error("Lecturas: no se pudieron leer los arranques:", e);
+  }
+
   return (
     <LecturasTabla
+      arranquePorSocio={arranquePorSocio}
       socios={listaSocios.map((s) => ({
         id: s.id,
         nombre: s.nombre,
@@ -75,6 +89,7 @@ export default async function LecturasPage() {
         registradaPor: l.registradaPor,
         createdAt: l.createdAt,
         anterior: anteriorPorSocio.get(l.socioId)?.valor ?? null,
+        socioId: l.socioId,
         inicial: l.estado === "APROBADA" && l.boletaId === null,
       }))}
     />

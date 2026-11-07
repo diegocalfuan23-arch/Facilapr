@@ -1,13 +1,15 @@
 "use client";
 
 import { toast } from "sonner";
-import { useActionState, useMemo, useState, useTransition } from "react";
+import { useActionState, useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertCircle,
+  ArrowRight,
   Check,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Droplets,
   FileUp,
@@ -16,10 +18,10 @@ import {
   Pencil,
   Trash2,
   Plus,
+  MapPinned,
   Search,
-  Smartphone,
+  UserCog,
   Users,
-  X,
   XCircle,
 } from "lucide-react";
 import {
@@ -50,17 +52,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
-import { Paginador } from "@/components/panel/paginador";
+import { AvatarSocio } from "@/components/panel/avatar-socio";
+import { PanelCargaLectura, type ItemRuta } from "@/components/panel/panel-carga-lectura";
+import { SelectorMesLecturas, largoDeMes } from "@/components/panel/selector-mes-lecturas";
+import { aprobadasPorSocio, anteriorDe, consumoDe, ordenarRuta, promedioDe, type SocioDeRuta } from "@/lib/lecturas-calculos";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
 import { LecturasMasivasDialog } from "@/components/panel/lecturas-masivas-dialog";
 
@@ -79,6 +76,7 @@ export type LecturaFila = {
   createdAt: Date;
   /** Última lectura aprobada del arranque (la base del consumo); null si es la primera. */
   anterior: number | null;
+  socioId: string;
   /** Aprobada como punto de partida: no generó boleta. */
   inicial: boolean;
 };
@@ -87,7 +85,7 @@ type Motivo = "primera" | "menor";
 
 export type SocioOpcion = OpcionSocio;
 
-const POR_PAGINA = 12;
+const LIMITE = 15;
 
 const numero = new Intl.NumberFormat("es-CL");
 
@@ -98,75 +96,159 @@ const fechaHora = new Intl.DateTimeFormat("es-CL", {
   minute: "2-digit",
 });
 
-const ESTILO_ESTADO: Record<
-  Estado,
-  { texto: string; clase: string; icono: typeof Clock }
-> = {
-  PENDIENTE: {
-    texto: "Por revisar",
-    clase: "bg-tertiary/15 text-tertiary",
-    icono: Clock,
-  },
-  APROBADA: {
-    texto: "Aprobada",
-    clase: "bg-forest/10 text-forest",
-    icono: CheckCircle2,
-  },
-  RECHAZADA: {
-    texto: "Rechazada",
-    clase: "bg-destructive/10 text-destructive",
-    icono: XCircle,
-  },
-};
+const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
+const GRIS = "text-[#5B5970]";
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+const ORDEN_ESTADO: Record<Estado, number> = { PENDIENTE: 0, RECHAZADA: 1, APROBADA: 2 };
+const ETIQUETA_ESTADO: Record<Estado, string> = { PENDIENTE: "Por revisar", APROBADA: "Aprobada", RECHAZADA: "Rechazada" };
 
-function TarjetaResumen({
-  icono,
-  color,
-  etiqueta,
-  valor,
+/** Las acciones de una lectura: corregirla, rechazarla (si espera revisión) o borrarla. */
+function MenuAccionesLectura({
+  l,
+  onEditar,
+  onRechazar,
+  onEliminar,
 }: {
-  icono: React.ReactNode;
-  color: string;
-  etiqueta: string;
-  valor: number;
+  l: LecturaFila;
+  onEditar: () => void;
+  onRechazar: () => void;
+  onEliminar: () => void;
 }) {
   return (
-    <div className="min-w-0 rounded-xl border border-border bg-card p-3 shadow-[0_1px_2px_rgba(15,23,42,0.04)] sm:p-4">
-      <span
-        className={cn(
-          "flex size-7 items-center justify-center rounded-lg sm:size-9 [&_svg]:size-4 sm:[&_svg]:size-4.5",
-          color
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button variant="ghost" size="icon" aria-label={`Acciones para la lectura de ${l.socio}`} className="size-8 rounded-lg">
+            <MoreHorizontal />
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        {l.estado !== "RECHAZADA" && (
+          <DropdownMenuItem onClick={onEditar}>
+            <Pencil />
+            Editar
+          </DropdownMenuItem>
         )}
-      >
-        {icono}
-      </span>
-      <div className="mt-2 truncate text-[0.74rem] text-muted-foreground sm:mt-4 sm:text-[0.87rem]">
-        {etiqueta}
-      </div>
-      <div className="mt-0.5 truncate text-[1.25rem] leading-none font-semibold tabular-nums sm:mt-1 sm:text-[1.6rem]">
-        {valor}
-      </div>
-    </div>
+        {l.estado === "PENDIENTE" && (
+          <DropdownMenuItem onClick={onRechazar}>
+            <XCircle />
+            Rechazar
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem variant="destructive" onClick={onEliminar}>
+          <Trash2 />
+          Eliminar
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
+type AccionesFila = {
+  lectura: LecturaFila;
+  /** El consumo en m³ contra la lectura anterior; null si es la primera. */
+  consumo: number | null;
+  /** La lectura anterior contra la que se midió. */
+  anteriorMedida: number | null;
+  onRechazar: () => void;
+  onAprobada: () => void;
+  onConfirmar: (motivo: Motivo) => void;
+  onEditar: () => void;
+  onEliminar: () => void;
+};
+
+function FilaLectura({ lectura: l, consumo, anteriorMedida, onRechazar, onAprobada, onConfirmar, onEditar, onEliminar }: AccionesFila) {
+  const { aprobando, error, aprobar } = useAprobarLectura(l, onAprobada, onConfirmar);
+  const pendiente = l.estado === "PENDIENTE";
+  const inicial = l.estado === "APROBADA" ? l.inicial : consumo === null;
+  const atras = consumo !== null && consumo < 0;
+
+  return (
+    <li
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1.5 px-4 py-3 md:grid-cols-[minmax(0,1fr)_104px_88px_132px_36px] md:px-5",
+        pendiente ? "bg-[#FFFCF7]" : l.estado === "RECHAZADA" ? "bg-[#FFFAFA]" : "hover:bg-[#FBFAFF]"
+      )}
+    >
+      <span className="flex min-w-0 items-start gap-3">
+        <AvatarSocio id={l.socioId} nombre={l.socio} className="mt-0.5 size-9" />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold">{l.socio}</span>
+          <span className={cn("block text-xs", GRIS)}>
+            {[l.rut, formatearPeriodo(l.periodo), anteriorMedida !== null ? `ant. ${numero.format(anteriorMedida)}` : null].filter(Boolean).join(" · ")}
+          </span>
+          {l.observacion && l.observacion !== "Lectura inicial" && (
+            <span title={l.observacion} className={cn("mt-0.5 block max-w-xs truncate text-xs", GRIS)}>
+              &ldquo;{l.observacion}&rdquo;
+            </span>
+          )}
+          {l.estado === "RECHAZADA" && l.motivoRechazo && <span className="mt-1 block text-xs text-[#A32020]">Motivo: {l.motivoRechazo}</span>}
+          <span className={cn("mt-0.5 block text-[11px]", GRIS)}>
+            Registrada por {l.registradaPor ?? "—"} · {fechaHora.format(l.createdAt)}
+          </span>
+        </span>
+      </span>
+
+      <span className="text-right">
+        {inicial ? (
+          <span className="inline-flex rounded-md bg-[#F0EFF4] px-1.5 py-0.5 text-xs font-semibold text-[#4A4760]" title={l.estado === "APROBADA" ? "Punto de partida del medidor: no genera boleta." : "Primera lectura del arranque: al aprobarla se usa como inicial."}>
+            {l.estado === "APROBADA" ? "Inicial" : "Primera"}
+          </span>
+        ) : (
+          <span className={cn("block text-[15px] font-semibold tabular-nums", atras && "text-[#A32020]")}>
+            {consumo! > 0 ? "+" : ""}
+            {numero.format(consumo!)} <span className={cn("text-xs font-medium", GRIS)}>m³</span>
+          </span>
+        )}
+        {atras && <span className="block text-[11px] font-semibold text-[#A32020]">Retrocede</span>}
+        <span className={cn("block text-xs tabular-nums md:hidden", GRIS)}>lectura {numero.format(l.valor)}</span>
+      </span>
+
+      <span className={cn("hidden text-right text-sm tabular-nums md:block", GRIS)}>{numero.format(l.valor)}</span>
+
+      <span className="flex flex-col items-start gap-1 md:items-end">
+        {pendiente ? (
+          <Button size="sm" aria-label={`Aprobar lectura de ${l.socio}`} disabled={aprobando} onClick={aprobar} className="h-8 rounded-lg bg-[#0A9B68] px-2.5 text-xs font-semibold hover:bg-[#0A9B68]/90">
+            {aprobando ? <Loader2 className="animate-spin" /> : <Check className="size-3.5" />}
+            Aprobar
+          </Button>
+        ) : (
+          <span className={cn("inline-flex items-center gap-1 text-[13px] font-medium", l.estado === "APROBADA" ? "text-[#075A3C]" : "text-[#A32020]")}>
+            {l.estado === "APROBADA" ? <CheckCircle2 className="size-4" aria-hidden /> : <XCircle className="size-4" aria-hidden />}
+            {ETIQUETA_ESTADO[l.estado]}
+          </span>
+        )}
+        {error && <span className="text-xs text-destructive">{error}</span>}
+      </span>
+
+      <span className="col-start-2 row-start-1 justify-self-end md:col-start-auto md:row-start-auto">
+        <MenuAccionesLectura l={l} onEditar={onEditar} onRechazar={onRechazar} onEliminar={onEliminar} />
+      </span>
+    </li>
+  );
+}
+
+/** Las lecturas del comité: carga siguiendo la ruta del mes (panel lateral) y revisión con filtros por mes y estado. */
 export function LecturasTabla({
   lecturas,
   socios,
+  arranquePorSocio,
 }: {
   lecturas: LecturaFila[];
   socios: SocioOpcion[];
+  /** El nombre del arranque (nodo de la red) de cada socio, para ordenar la ruta. */
+  arranquePorSocio: Record<string, string>;
 }) {
   const router = useRouter();
-  const porRevisar = lecturas.filter((l) => l.estado === "PENDIENTE").length;
+  const [hoy] = useState(() => new Date());
+  const actual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 
+  const [mes, setMes] = useState(actual);
+  const [filtro, setFiltro] = useState<"todas" | Estado>("todas");
   const [busqueda, setBusqueda] = useState("");
-  // Lo primero que necesita la directiva es lo que espera su revisión.
-  const [pestana, setPestana] = useState<"todas" | Estado>(
-    porRevisar > 0 ? "PENDIENTE" : "todas"
-  );
-  const [periodo, setPeriodo] = useState("todos");
-  const [pagina, setPagina] = useState(1);
+  const [limiteDe, setLimiteDe] = useState({ clave: "", n: LIMITE });
+  const [panel, setPanel] = useState(false);
   const [creando, setCreando] = useState(false);
   const [rechazando, setRechazando] = useState<LecturaFila | null>(null);
   const [iniciales, setIniciales] = useState(false);
@@ -177,81 +259,127 @@ export function LecturasTabla({
     lectura: LecturaFila;
     motivo: Motivo;
   } | null>(null);
+  // La ruta: a quién se saltó (va al final), a quién se eligió ir primero y a quién ya se le cargó (mientras llega la lista nueva).
+  const [saltos, setSaltos] = useState<string[]>([]);
+  const [primero, setPrimero] = useState<string | null>(null);
+  const [registrados, setRegistrados] = useState<string[]>([]);
 
-  const periodos = useMemo(
-    () => [...new Set(lecturas.map((l) => l.periodo))].sort().reverse(),
-    [lecturas]
-  );
+  const aprobadas = useMemo(() => aprobadasPorSocio(lecturas), [lecturas]);
+
+  const conteoPorMes = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of lecturas) m.set(l.periodo, (m.get(l.periodo) ?? 0) + 1);
+    return m;
+  }, [lecturas]);
+
+  const enMes = useMemo(() => lecturas.filter((l) => mes === "todos" || l.periodo === mes), [lecturas, mes]);
+  const cuenta = (e: Estado) => enMes.filter((l) => l.estado === e).length;
+  const porRevisar = cuenta("PENDIENTE");
+  const pendientesFuera = mes === "todos" ? 0 : lecturas.filter((l) => l.estado === "PENDIENTE" && l.periodo !== mes).length;
 
   const filtradas = useMemo(() => {
-    const termino = busqueda.trim().toLowerCase();
-    return lecturas.filter((l) => {
-      if (pestana !== "todas" && l.estado !== pestana) return false;
-      if (periodo !== "todos" && l.periodo !== periodo) return false;
-      if (!termino) return true;
-      return [l.socio, l.rut, l.periodo].join(" ").toLowerCase().includes(termino);
-    });
-  }, [lecturas, busqueda, pestana, periodo]);
-
-  const totalPaginas = Math.max(1, Math.ceil(filtradas.length / POR_PAGINA));
-  const paginaActual = Math.min(pagina, totalPaginas);
-  const visibles = filtradas.slice(
-    (paginaActual - 1) * POR_PAGINA,
-    paginaActual * POR_PAGINA
-  );
+    const t = sinTildes(busqueda.trim());
+    return enMes
+      .filter((l) => (filtro === "todas" || l.estado === filtro) && (!t || sinTildes([l.socio, l.rut, l.periodo].join(" ")).includes(t)))
+      .sort((a, b) => ORDEN_ESTADO[a.estado] - ORDEN_ESTADO[b.estado]);
+  }, [enMes, filtro, busqueda]);
 
   // Las que se pueden aprobar sin preguntar: tienen una anterior y no retroceden.
-  const listas = lecturas.filter(
-    (l) => l.estado === "PENDIENTE" && l.anterior !== null && l.valor >= l.anterior
-  );
-  const aprobadas = lecturas.filter((l) => l.estado === "APROBADA").length;
-  const rechazadas = lecturas.filter((l) => l.estado === "RECHAZADA").length;
+  const listas = enMes.filter((l) => l.estado === "PENDIENTE" && l.anterior !== null && l.valor >= l.anterior);
+  const claveFiltro = `${mes}|${filtro}|${busqueda}`;
+  const limite = limiteDe.clave === claveFiltro ? limiteDe.n : LIMITE;
 
-  const pestanas: { id: "todas" | Estado; label: string; cuenta?: number }[] = [
-    { id: "todas", label: "Todas" },
-    { id: "PENDIENTE", label: "Por revisar", cuenta: porRevisar },
-    { id: "APROBADA", label: "Aprobadas" },
-    { id: "RECHAZADA", label: "Rechazadas" },
-  ];
+  // La ruta del mes: los socios que todavía no tienen lectura este mes, por arranque y número.
+  const leidosSet = useMemo(() => {
+    const s = new Set(lecturas.filter((l) => l.periodo === actual && l.estado !== "RECHAZADA").map((l) => l.socioId));
+    for (const id of registrados) s.add(id);
+    return s;
+  }, [lecturas, actual, registrados]);
+  const leidos = socios.filter((s) => leidosSet.has(s.id)).length;
+  const pct = socios.length ? Math.round((leidos / socios.length) * 100) : 0;
 
-  function cambiarFiltro(fn: () => void) {
-    fn();
-    setPagina(1);
+  const ruta: ItemRuta[] = useMemo(() => {
+    const sinLeer: SocioDeRuta[] = socios
+      .filter((s) => !leidosSet.has(s.id))
+      .map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente ?? null, rut: s.rut, arranque: arranquePorSocio[s.id] ?? null }));
+    const ordenada = ordenarRuta(sinLeer);
+    const porId = new Map(ordenada.map((s) => [s.id, s]));
+    const alFinal = saltos.map((id) => porId.get(id)).filter((s): s is SocioDeRuta => Boolean(s));
+    const ini = primero ? porId.get(primero) : undefined;
+    const resto = ordenada.filter((s) => s.id !== primero && !saltos.includes(s.id));
+    const anteriorDe = new Map(socios.map((s) => [s.id, s.ultimaLectura ?? null]));
+    return [...(ini ? [ini] : []), ...resto, ...alFinal].map((s) => {
+      const previas = aprobadas.get(s.id);
+      return {
+        id: s.id,
+        nombre: s.nombre,
+        numeroCliente: s.numeroCliente,
+        rut: s.rut,
+        anterior: anteriorDe.get(s.id) ?? null,
+        periodoAnterior: previas?.length ? previas[previas.length - 1].periodo : null,
+        promedio: promedioDe(s.id, aprobadas),
+      };
+    });
+  }, [socios, leidosSet, arranquePorSocio, saltos, primero, aprobadas]);
+
+  function abrirPanel() {
+    setMes(actual);
+    setPanel(true);
   }
 
+  const cerrarPanel = useCallback(() => setPanel(false), []);
+
+  function saltar(id: string) {
+    setSaltos((s) => [...s.filter((x) => x !== id), id]);
+    setPrimero((p) => (p === id ? null : p));
+  }
+
+  function irA(id: string) {
+    setSaltos((s) => s.filter((x) => x !== id));
+    setPrimero(id);
+  }
+
+  function registrada(id: string) {
+    setRegistrados((r) => [...r, id]);
+    setPrimero((p) => (p === id ? null : p));
+    toast.success("Lectura registrada");
+    router.refresh();
+  }
+
+  const tarjetas = [
+    ["PENDIENTE", "Por revisar", Clock, "bg-[#FFF3E5] text-[#B86400]"],
+    ["APROBADA", "Aprobadas", CheckCircle2, "bg-[#E6F6EF] text-[#0A7A52]"],
+    ["RECHAZADA", "Rechazadas", XCircle, "bg-[#FDEFEF] text-[#C03A37]"],
+  ] as const;
+
+  const pestanas = [
+    ["todas", "Todas", enMes.length],
+    ["PENDIENTE", "Por revisar", porRevisar],
+    ["APROBADA", "Aprobadas", cuenta("APROBADA")],
+    ["RECHAZADA", "Rechazadas", cuenta("RECHAZADA")],
+  ] as const;
+
   return (
-    <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 className="text-[1.35rem] font-semibold tracking-tight">
-            Lecturas
-          </h1>
-          <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-            Al aprobar una lectura se genera su boleta.
-          </p>
+          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Lecturas</h1>
+          <p className={cn("mt-0.5 hidden text-[15px] sm:block", GRIS)}>Revisa y aprueba las lecturas del mes. Al aprobar se genera la boleta.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            data-tour="lec-tecnicos"
-            href="/panel/tecnicos"
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            <Users />
+        <div className="flex flex-wrap gap-2">
+          <Link data-tour="lec-tecnicos" href="/panel/tecnicos" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold")}>
+            <UserCog />
             Operadores
           </Link>
-          <Link
-            data-tour="lec-terreno"
-            href="/panel/lecturas/terreno"
-            className={cn(buttonVariants({ variant: "outline" }))}
-          >
-            <Smartphone />
+          <Link data-tour="lec-terreno" href="/panel/lecturas/terreno" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold")}>
+            <MapPinned />
             Modo terreno
           </Link>
-          <Button variant="outline" data-tour="lec-archivo" onClick={() => setIniciales(true)}>
+          <Button variant="outline" data-tour="lec-archivo" onClick={() => setIniciales(true)} className="h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold">
             <FileUp />
             Cargar desde archivo
           </Button>
-          <Button data-tour="lec-nueva" onClick={() => setCreando(true)} disabled={socios.length === 0}>
+          <Button data-tour="lec-nueva" onClick={abrirPanel} disabled={socios.length === 0} className="h-10 rounded-lg px-4 font-semibold">
             <Plus />
             Nueva lectura
           </Button>
@@ -262,186 +390,135 @@ export function LecturasTabla({
         <div className="flex items-start gap-2.5 rounded-xl border border-tertiary/40 bg-tertiary/10 px-4 py-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-tertiary" />
           <p className="text-[0.88rem] leading-relaxed">
-            <strong>Primero carga a tus socios.</strong> Las lecturas se toman
-            por arranque.{" "}
-            <Link
-              href="/panel/socios"
-              className="font-medium text-primary hover:underline"
-            >
+            <strong>Primero carga a tus socios.</strong> Las lecturas se toman por arranque.{" "}
+            <Link href="/panel/socios" className="font-medium text-primary hover:underline">
               Ir a Socios
             </Link>
           </p>
         </div>
       )}
 
-      <div data-tour="lec-kpis" className="grid grid-cols-3 gap-2 sm:gap-4">
-        <TarjetaResumen
-          icono={<Clock />}
-          color="bg-tertiary/15 text-tertiary"
-          etiqueta="Por revisar"
-          valor={porRevisar}
-        />
-        <TarjetaResumen
-          icono={<CheckCircle2 />}
-          color="bg-forest/10 text-forest"
-          etiqueta="Aprobadas"
-          valor={aprobadas}
-        />
-        <TarjetaResumen
-          icono={<XCircle />}
-          color="bg-destructive/10 text-destructive"
-          etiqueta="Rechazadas"
-          valor={rechazadas}
-        />
+      <div data-tour="lec-kpis" className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.25fr)_repeat(3,minmax(0,1fr))]">
+        <div className="flex flex-col gap-2 sm:col-span-2 xl:col-span-1">
+          <SelectorMesLecturas mes={mes} actual={actual} onCambio={setMes} conteo={(k) => conteoPorMes.get(k) ?? 0} total={lecturas.length} />
+          <div className="flex items-center gap-3 rounded-xl bg-white/80 px-4 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className={cn("flex justify-between text-xs", GRIS)}>
+                <span>
+                  Ruta de {largoDeMes(actual)} · <b className="font-semibold text-[#15132B] tabular-nums">{leidos}</b> de {socios.length}
+                </span>
+                <span className="tabular-nums">{pct}%</span>
+              </div>
+              <div role="progressbar" aria-label="Avance de la ruta" aria-valuenow={leidos} aria-valuemin={0} aria-valuemax={socios.length} className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EEEBF7]">
+                <span className="block h-full rounded-full bg-[#6B46F5]" style={{ width: `${leidos > 0 ? Math.max(pct, 2) : 0}%` }} />
+              </div>
+            </div>
+            {ruta.length > 0 && (
+              <Button size="sm" variant="ghost" onClick={abrirPanel} className="h-8 shrink-0 rounded-lg px-2.5 text-xs font-semibold text-[#2A07A8] hover:bg-[#F1EEFD]">
+                Continuar ruta
+                <ArrowRight className="size-3.5" />
+              </Button>
+            )}
+          </div>
+        </div>
+        {tarjetas.map(([e, t, Icono, c]) => (
+          <button key={e} type="button" onClick={() => setFiltro(filtro === e ? "todas" : e)} aria-pressed={filtro === e} className={cn("flex items-center gap-3 rounded-2xl bg-card p-4 text-left transition-shadow focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", SOMBRA, filtro === e ? "ring-2 ring-[#B9A9F8]" : "hover:shadow-[0_10px_28px_rgba(58,12,227,0.12)]")}>
+            <span aria-hidden className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", c)}>
+              <Icono className="size-5" />
+            </span>
+            <span>
+              <span className={cn("block text-[13px]", GRIS)}>{t}</span>
+              <span className="block text-[24px] leading-tight font-semibold tabular-nums">{cuenta(e)}</span>
+            </span>
+          </button>
+        ))}
       </div>
 
+      {pendientesFuera > 0 && (
+        <p className="flex flex-wrap items-center gap-2 rounded-xl bg-[#FFF3E5] px-4 py-2.5 text-[13px] text-[#8F4400]">
+          <Clock className="size-4 shrink-0" aria-hidden />
+          Hay {pendientesFuera} lectura{pendientesFuera === 1 ? "" : "s"} por revisar en otros meses.
+          <button type="button" onClick={() => { setMes("todos"); setFiltro("PENDIENTE"); }} className="font-semibold underline underline-offset-2">
+            Verlas
+          </button>
+        </p>
+      )}
+
       {lecturas.length === 0 ? (
-        <div className="flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
-          <span className="flex size-11 items-center justify-center rounded-full bg-muted">
-            <Droplets className="size-5 text-muted-foreground" />
+        <div className={cn("flex flex-col items-center rounded-2xl bg-card px-6 py-14 text-center", SOMBRA)}>
+          <span className="flex size-11 items-center justify-center rounded-full bg-[#F4F3F9]">
+            <Droplets className="size-5 text-[#5B5970]" />
           </span>
-          <h2 className="mt-4 text-[1rem] font-semibold">
-            Aún no hay lecturas
-          </h2>
-          <p className="mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed text-muted-foreground">
-            Los operadores cargan las lecturas desde terreno y llegan aquí para
-            tu revisión. También puedes cargar una tú misma.
+          <h2 className="mt-4 text-[1rem] font-semibold">Aún no hay lecturas</h2>
+          <p className={cn("mt-2 max-w-[48ch] text-[0.92rem] leading-relaxed", GRIS)}>
+            Los operadores cargan las lecturas desde terreno y llegan aquí para tu revisión. También puedes cargar una tú misma.
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
-            <Link
-              href="/panel/tecnicos"
-              className={cn(buttonVariants({ variant: "outline" }))}
-            >
+            <Link href="/panel/tecnicos" className={cn(buttonVariants({ variant: "outline" }), "rounded-lg border-[#E4E1F0] font-semibold")}>
               <Users />
               Invitar operador
             </Link>
-            <Button onClick={() => setCreando(true)} disabled={socios.length === 0}>
+            <Button onClick={abrirPanel} disabled={socios.length === 0} className="rounded-lg font-semibold">
               <Plus />
               Nueva lectura
             </Button>
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-          <div data-tour="lec-pestanas" className="flex gap-4 overflow-x-auto overflow-y-hidden border-b border-border/60 px-3 sm:gap-6 sm:px-5">
-            {pestanas.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => cambiarFiltro(() => setPestana(p.id))}
-                className={cn(
-                  "flex shrink-0 items-center gap-2 border-b-2 py-3.5 text-[0.82rem] font-medium transition-colors sm:text-[0.9rem]",
-                  pestana === p.id
-                    ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+        <div className={cn("min-w-0 overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+          <div className="flex flex-col gap-3 border-b border-[#F0EEF6] p-4 sm:px-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-[15px] font-semibold">{mes === "todos" ? "Lecturas de todos los meses" : `Lecturas de ${largoDeMes(mes)}`}</h2>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="ghost" onClick={() => setCreando(true)} disabled={socios.length === 0} className="h-9 rounded-lg px-3 font-semibold text-[#2A07A8]">
+                  Lectura de otro mes
+                </Button>
+                {listas.length > 0 && (
+                  <Button size="sm" onClick={() => setAprobandoListas(true)} className="h-9 rounded-lg bg-[#0A9B68] px-3 font-semibold hover:bg-[#0A9B68]/90">
+                    <Check className="size-4" />
+                    Aprobar las {listas.length} listas
+                  </Button>
                 )}
-              >
-                {p.label}
-                {p.cuenta !== undefined && p.cuenta > 0 && (
-                  <span className="rounded-full bg-tertiary/20 px-1.5 text-[0.72rem] font-semibold tabular-nums text-tertiary">
-                    {p.cuenta}
-                  </span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-3 p-3 sm:p-5">
-            <div className="relative w-full sm:min-w-60 sm:flex-1">
-              <Search className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={busqueda}
-                onChange={(e) => cambiarFiltro(() => setBusqueda(e.target.value))}
-                placeholder="Buscar por socio, RUT o período…"
-                aria-label="Buscar lecturas"
-                className="h-10 border-transparent bg-muted/60 pl-10"
-              />
+              </div>
             </div>
-            <select
-              value={periodo}
-              onChange={(e) => cambiarFiltro(() => setPeriodo(e.target.value))}
-              aria-label="Filtrar por período"
-              className="h-10 w-full rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 sm:w-auto"
-            >
-              <option value="todos">Todos los períodos</option>
-              {periodos.map((p) => (
-                <option key={p} value={p}>
-                  {formatearPeriodo(p)}
-                </option>
-              ))}
-            </select>
-            {listas.length > 0 && (
-              <Button
-                variant="outline"
-                className="h-10 w-full sm:w-auto"
-                onClick={() => setAprobandoListas(true)}
-              >
-                <Check />
-                Aprobar las {listas.length} listas
-              </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <div data-tour="lec-pestanas" role="tablist" aria-label="Estado" className="grid grid-cols-4 gap-1 rounded-lg bg-[#F4F3F9] p-1 sm:w-[440px]">
+                {pestanas.map(([k, t, n]) => (
+                  <button key={k} type="button" role="tab" aria-selected={filtro === k} onClick={() => setFiltro(k)} className={cn("h-8 truncate rounded-md px-1 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", filtro === k ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}>
+                    {t} <span className={cn("text-xs font-medium tabular-nums", filtro === k ? "text-[#6B46F5]" : "text-[#A19FB2]")}>{n}</span>
+                  </button>
+                ))}
+              </div>
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input aria-label="Buscar lecturas" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Socio, RUT o período" className="h-10 rounded-lg border-[#E4E1F0] bg-white pl-9 shadow-none" />
+              </div>
+            </div>
+            {porRevisar > listas.length && (
+              <p className={cn("text-xs", GRIS)}>
+                {porRevisar - listas.length} por revisar no entran en «listas»: no tienen anterior o retroceden. Revísalas una a una.
+              </p>
             )}
           </div>
 
-          {/* Escritorio: tabla. Celular: una tarjeta por lectura, porque seis
-              columnas no caben y quedaban cortadas. */}
-          <div data-tour="lec-tabla" className="hidden overflow-x-auto md:block">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-b-border/40 hover:bg-transparent">
-                  {["Socio", "Período", "Tipo", "Lectura", "Registrada por", "Estado"].map(
-                    (h) => (
-                      <TableHead
-                        key={h}
-                        className="h-11 px-4 text-[0.87rem] font-medium text-muted-foreground"
-                      >
-                        {h}
-                      </TableHead>
-                    )
-                  )}
-                  <TableHead className="h-11 pr-5 text-right text-[0.87rem] font-medium text-muted-foreground">
-                    Acción
-                  </TableHead>
-                  <TableHead className="h-11 w-12" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visibles.length === 0 ? (
-                  <TableRow className="hover:bg-transparent">
-                    <TableCell
-                      colSpan={8}
-                      className="py-12 text-center text-[0.92rem] text-muted-foreground"
-                    >
-                      Ninguna lectura coincide con el filtro.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  visibles.map((l) => (
-                    <FilaLectura
-                      key={l.id}
-                      lectura={l}
-                      onRechazar={() => setRechazando(l)}
-                      onAprobada={() => router.refresh()}
-                      onConfirmar={(motivo) => setConfirmando({ lectura: l, motivo })}
-                      onEditar={() => setEditando(l)}
-                      onEliminar={() => setEliminando(l)}
-                    />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          <div className="md:hidden">
-            {visibles.length === 0 ? (
-              <p className="py-12 text-center text-[0.92rem] text-muted-foreground">
-                Ninguna lectura coincide con el filtro.
-              </p>
-            ) : (
-              <ul className="divide-y divide-border/60 border-t border-border/60">
-                {visibles.map((l) => (
-                  <TarjetaLectura
+          {filtradas.length === 0 ? (
+            <p className={cn("px-6 py-14 text-center text-sm", GRIS)}>{enMes.length === 0 ? `Sin lecturas en ${mes === "todos" ? "este comité" : largoDeMes(mes)}.` : "Ninguna lectura coincide con el filtro."}</p>
+          ) : (
+            <>
+              <div data-tour="lec-tabla" className={cn("hidden grid-cols-[minmax(0,1fr)_104px_88px_132px_36px] gap-3 border-b border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2 text-xs font-medium md:grid", GRIS)}>
+                <span>Socio</span>
+                <span className="text-right">Consumo</span>
+                <span className="text-right">Lectura</span>
+                <span className="text-right">Estado</span>
+                <span />
+              </div>
+              <ul className="divide-y divide-[#F3F1F8]">
+                {filtradas.slice(0, limite).map((l) => (
+                  <FilaLectura
                     key={l.id}
                     lectura={l}
+                    consumo={consumoDe(l, aprobadas)}
+                    anteriorMedida={anteriorDe(l, aprobadas)}
                     onRechazar={() => setRechazando(l)}
                     onAprobada={() => router.refresh()}
                     onConfirmar={(motivo) => setConfirmando({ lectura: l, motivo })}
@@ -450,36 +527,31 @@ export function LecturasTabla({
                   />
                 ))}
               </ul>
-            )}
-          </div>
-
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-3 px-5 py-3.5">
-            <p className="text-[0.87rem] text-muted-foreground">
-              <span className="font-medium tabular-nums text-foreground">
-                {filtradas.length}
-              </span>{" "}
-              {filtradas.length === 1 ? "lectura" : "lecturas"}
-            </p>
-            <Paginador pagina={paginaActual} total={totalPaginas} onCambiar={setPagina} />
-          </div>
+              {filtradas.length > limite && (
+                <div className="border-t border-[#F0EEF6] p-2.5 text-center">
+                  <Button variant="ghost" onClick={() => setLimiteDe({ clave: claveFiltro, n: limite + LIMITE })} className="h-9 rounded-lg font-semibold text-[#2A07A8]">
+                    <ChevronDown />
+                    Mostrar {Math.min(LIMITE, filtradas.length - limite)} más · quedan {filtradas.length - limite}
+                  </Button>
+                </div>
+              )}
+              <div className={cn("border-t border-[#F0EEF6] bg-[#FAFAFD] px-5 py-3 text-sm", GRIS)}>
+                <span className="font-medium text-foreground tabular-nums">{filtradas.length}</span> {filtradas.length === 1 ? "lectura" : "lecturas"}
+              </div>
+            </>
+          )}
         </div>
       )}
 
-      <NuevaLecturaDialog
-        abierto={creando}
-        onAbiertoChange={setCreando}
-        socios={socios}
-        onRegistrada={() => router.refresh()}
-      />
+      {panel && (
+        <PanelCargaLectura periodo={actual} totalSocios={socios.length} leidos={leidos} ruta={ruta} onCerrar={cerrarPanel} onSaltar={saltar} onIrA={irA} onRegistrada={registrada} />
+      )}
+
+      <NuevaLecturaDialog abierto={creando} onAbiertoChange={setCreando} socios={socios} onRegistrada={() => router.refresh()} />
 
       <LecturasMasivasDialog abierto={iniciales} onAbiertoChange={setIniciales} />
 
-      <AprobarListasDialog
-        abierto={aprobandoListas}
-        onAbiertoChange={setAprobandoListas}
-        listas={listas}
-        onHecho={() => router.refresh()}
-      />
+      <AprobarListasDialog abierto={aprobandoListas} onAbiertoChange={setAprobandoListas} listas={listas} onHecho={() => router.refresh()} />
 
       <EditarLecturaDialog
         lectura={editando}
@@ -508,12 +580,8 @@ export function LecturasTabla({
         }}
       />
 
-      <RechazarDialog
-        lectura={rechazando}
-        onOpenChange={(abierto) => !abierto && setRechazando(null)}
-        onRechazada={() => router.refresh()}
-      />
-    </>
+      <RechazarDialog lectura={rechazando} onOpenChange={(abierto) => !abierto && setRechazando(null)} onRechazada={() => router.refresh()} />
+    </div>
   );
 }
 
@@ -544,266 +612,6 @@ function useAprobarLectura(
   }
 
   return { aprobando, error, aprobar };
-}
-
-/** El valor de la lectura y lo que conviene saber de ella (anterior, consumo, nota). */
-function DetalleValor({ l }: { l: LecturaFila }) {
-  return (
-    <>
-      <div className="font-medium">{numero.format(l.valor)}</div>
-      {l.estado === "PENDIENTE" && (
-        <div
-          className={cn(
-            "text-[0.78rem]",
-            l.anterior === null
-              ? "text-tertiary-texto"
-              : l.valor < l.anterior
-                ? "text-destructive"
-                : "text-muted-foreground"
-          )}
-        >
-          {l.anterior === null
-            ? "Primera lectura: sin anterior"
-            : l.valor < l.anterior
-              ? `Menor que la anterior (${numero.format(l.anterior)})`
-              : `Anterior ${numero.format(l.anterior)} · +${numero.format(l.valor - l.anterior)} m³`}
-        </div>
-      )}
-      {l.observacion && l.observacion !== "Lectura inicial" && (
-        <div
-          title={l.observacion}
-          className="max-w-48 truncate text-[0.78rem] text-muted-foreground"
-        >
-          &ldquo;{l.observacion}&rdquo;
-        </div>
-      )}
-    </>
-  );
-}
-
-/**
- * Qué clase de lectura es. La "inicial" es el punto de partida de un medidor:
- * queda aprobada y no genera boleta; la de "consumo" sí. Sin acento de color a
- * propósito: es información de apoyo, el estado ya lleva el color.
- */
-function TipoLectura({ l }: { l: LecturaFila }) {
-  if (l.estado === "RECHAZADA") return <span className="text-muted-foreground">—</span>;
-
-  const { texto, ayuda } =
-    l.estado === "APROBADA"
-      ? l.inicial
-        ? { texto: "Inicial", ayuda: "Punto de partida del medidor: no genera boleta." }
-        : { texto: "Consumo", ayuda: "Generó la boleta del período." }
-      : l.anterior === null
-        ? { texto: "Primera", ayuda: "Primera lectura del arranque: al aprobarla se usa como inicial." }
-        : { texto: "Consumo", ayuda: "Al aprobarla genera la boleta del período." };
-
-  return (
-    <span
-      title={ayuda}
-      className="inline-flex rounded-md bg-muted px-2 py-0.5 text-[0.78rem] font-medium text-muted-foreground"
-    >
-      {texto}
-    </span>
-  );
-}
-
-function EstadoLectura({ l }: { l: LecturaFila }) {
-  const estilo = ESTILO_ESTADO[l.estado];
-  const Icono = estilo.icono;
-  return (
-    <>
-      <span
-        className={cn(
-          "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.78rem] font-medium whitespace-nowrap",
-          estilo.clase
-        )}
-      >
-        <Icono className="size-3.5" />
-        {estilo.texto}
-      </span>
-      {l.estado === "RECHAZADA" && l.motivoRechazo && (
-        <div
-          title={l.motivoRechazo}
-          className="mt-1 max-w-52 truncate text-[0.78rem] text-muted-foreground"
-        >
-          {l.motivoRechazo}
-        </div>
-      )}
-    </>
-  );
-}
-
-function MenuAccionesLectura({
-  l,
-  onEditar,
-  onEliminar,
-}: {
-  l: LecturaFila;
-  onEditar: () => void;
-  onEliminar: () => void;
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={`Acciones para la lectura de ${l.socio}`}
-          >
-            <MoreHorizontal />
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end">
-        {l.estado !== "RECHAZADA" && (
-          <DropdownMenuItem onClick={onEditar}>
-            <Pencil />
-            Editar
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuItem variant="destructive" onClick={onEliminar}>
-          <Trash2 />
-          Eliminar
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
-
-type AccionesFila = {
-  lectura: LecturaFila;
-  onRechazar: () => void;
-  onAprobada: () => void;
-  onConfirmar: (motivo: Motivo) => void;
-  onEditar: () => void;
-  onEliminar: () => void;
-};
-
-function FilaLectura({
-  lectura: l,
-  onRechazar,
-  onAprobada,
-  onConfirmar,
-  onEditar,
-  onEliminar,
-}: AccionesFila) {
-  const { aprobando, error, aprobar } = useAprobarLectura(l, onAprobada, onConfirmar);
-
-  return (
-    <TableRow>
-      <TableCell className="px-4 py-3.5">
-        <div className="font-medium">{l.socio}</div>
-        <div className="text-[0.78rem] tabular-nums text-muted-foreground">
-          {l.rut}
-        </div>
-      </TableCell>
-      <TableCell className="px-4 py-3.5 whitespace-nowrap">
-        {formatearPeriodo(l.periodo)}
-      </TableCell>
-      <TableCell className="px-4 py-3.5">
-        <TipoLectura l={l} />
-      </TableCell>
-      <TableCell className="px-4 py-3.5 tabular-nums">
-        <DetalleValor l={l} />
-      </TableCell>
-      <TableCell className="px-4 py-3.5">
-        <div>{l.registradaPor ?? "—"}</div>
-        <div className="text-[0.78rem] text-muted-foreground">
-          {fechaHora.format(l.createdAt)}
-        </div>
-      </TableCell>
-      <TableCell className="px-4 py-3.5">
-        <EstadoLectura l={l} />
-      </TableCell>
-      <TableCell className="py-3.5 pr-5 text-right">
-        {l.estado === "PENDIENTE" ? (
-          <div className="flex items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={aprobando}
-              onClick={onRechazar}
-            >
-              <X />
-              Rechazar
-            </Button>
-            <Button type="button" size="sm" disabled={aprobando} onClick={aprobar}>
-              {aprobando ? <Loader2 className="animate-spin" /> : <Check />}
-              Aprobar
-            </Button>
-          </div>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-        {error && (
-          <p className="mt-1 text-[0.78rem] text-destructive">{error}</p>
-        )}
-      </TableCell>
-      <TableCell className="w-12 py-3.5 pr-4">
-        <MenuAccionesLectura l={l} onEditar={onEditar} onEliminar={onEliminar} />
-      </TableCell>
-    </TableRow>
-  );
-}
-
-/** La misma lectura como tarjeta, para pantallas angostas. */
-function TarjetaLectura({
-  lectura: l,
-  onRechazar,
-  onAprobada,
-  onConfirmar,
-  onEditar,
-  onEliminar,
-}: AccionesFila) {
-  const { aprobando, error, aprobar } = useAprobarLectura(l, onAprobada, onConfirmar);
-
-  return (
-    <li className="flex flex-col gap-3 px-4 py-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <div className="font-medium">{l.socio}</div>
-          <div className="text-[0.78rem] tabular-nums text-muted-foreground">
-            {[l.rut, formatearPeriodo(l.periodo)].filter(Boolean).join(" · ")}
-          </div>
-        </div>
-        <MenuAccionesLectura l={l} onEditar={onEditar} onEliminar={onEliminar} />
-      </div>
-
-      <div>
-        <TipoLectura l={l} />
-      </div>
-
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 tabular-nums">
-          <DetalleValor l={l} />
-        </div>
-        <div className="shrink-0 text-right">
-          <EstadoLectura l={l} />
-        </div>
-      </div>
-
-      <div className="text-[0.78rem] text-muted-foreground">
-        Registrada por {l.registradaPor ?? "—"} · {fechaHora.format(l.createdAt)}
-      </div>
-
-      {l.estado === "PENDIENTE" && (
-        <div className="grid grid-cols-2 gap-2">
-          <Button type="button" variant="outline" disabled={aprobando} onClick={onRechazar}>
-            <X />
-            Rechazar
-          </Button>
-          <Button type="button" disabled={aprobando} onClick={aprobar}>
-            {aprobando ? <Loader2 className="animate-spin" /> : <Check />}
-            Aprobar
-          </Button>
-        </div>
-      )}
-      {error && <p className="text-[0.78rem] text-destructive">{error}</p>}
-    </li>
-  );
 }
 
 /**
