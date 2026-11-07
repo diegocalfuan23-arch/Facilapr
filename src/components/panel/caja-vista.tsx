@@ -100,7 +100,7 @@ const deCompra = (l: { automatico: boolean; categoria: string; concepto: string 
 const origenDe = (l: LineaLibro) => (l.automatico ? "Pago de socio" : (moduloDe(l) ?? "Manual"));
 
 /** El disponible de los últimos días, como una línea con área. */
-function Tendencia({ puntos }: { puntos: PuntoTendencia[] }) {
+function Tendencia({ puntos, esDia }: { puntos: PuntoTendencia[]; esDia: boolean }) {
   const W = 300;
   const H = 92;
   const P = 6;
@@ -113,7 +113,7 @@ function Tendencia({ puntos }: { puntos: PuntoTendencia[] }) {
   return (
     <figure className="hidden w-[300px] shrink-0 sm:block">
       <figcaption className={cn("mb-1 flex justify-between text-xs", GRIS)}>
-        <span>Últimos {puntos.length} días</span>
+        <span>{esDia ? `Últimos ${puntos.length} días` : "Día a día"}</span>
         <span className="tabular-nums">máx. {clp(max)}</span>
       </figcaption>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-[92px] w-full overflow-visible" role="img" aria-label={`Disponible diario: ${puntos.map((x) => `${diaCorto(x.dia)} ${clp(x.disponible)}`).join(", ")}`}>
@@ -128,8 +128,10 @@ function Tendencia({ puntos }: { puntos: PuntoTendencia[] }) {
         <circle cx={ux} cy={uy} r="4.5" fill="#fff" stroke="#3A0CE3" strokeWidth="2" />
       </svg>
       <div className={cn("mt-1 flex justify-between text-[11px]", GRIS)}>
-        {puntos.map((x) => (
-          <span key={x.dia}>{Number(x.dia.slice(8))}</span>
+        {puntos.map((x, i) => (
+          <span key={x.dia} className={cn(puntos.length > 10 && i !== 0 && i !== puntos.length - 1 && i !== Math.floor((puntos.length - 1) / 2) && "invisible")}>
+            {Number(x.dia.slice(8))}
+          </span>
         ))}
       </div>
     </figure>
@@ -330,7 +332,7 @@ type Props = {
   /** Las categorías que creó el comité, de ingresos y de egresos. */
   categoriasPropias: CategoriaMovimientoPropia[];
   saldoInicial: { monto: number; fecha: string; banco: number } | null;
-  /** El disponible de los últimos días (solo en la vista del día). */
+  /** El disponible día a día: los últimos 7 días, o el mes hasta hoy. */
   tendencia: PuntoTendencia[] | null;
 };
 
@@ -599,7 +601,7 @@ export function CajaVista({
                 </button>
               )}
             </div>
-            {esDia && tendencia && tendencia.length >= 2 && <Tendencia puntos={tendencia} />}
+            {tendencia && tendencia.length >= 2 && <Tendencia puntos={tendencia} esDia={esDia} />}
           </div>
           <p className={cn("-mt-2 flex flex-wrap gap-x-3 gap-y-1 rounded-xl bg-[#F8F7FC] px-3 py-2.5 text-[13px] tabular-nums sm:hidden", GRIS)}>
             <span>

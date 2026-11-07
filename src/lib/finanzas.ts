@@ -399,7 +399,8 @@ export async function resumenPeriodo(
 
 /**
  * El disponible al cierre de cada uno de los `dias` últimos días hasta `hasta` (incluido), para el gráfico.
- * Null si no hay saldo inicial. Los días anteriores al saldo inicial se omiten.
+ * Null si no hay saldo inicial. Los días anteriores al saldo inicial se omiten. Usa dos consultas
+ * agrupadas por día, sin importar cuántos días se pidan.
  */
 export async function tendenciaDisponible(aprId: string, hasta: string, dias = 7): Promise<PuntoTendencia[] | null> {
   const base = await saldoInicialDe(aprId);
@@ -408,11 +409,37 @@ export async function tendenciaDisponible(aprId: string, hasta: string, dias = 7
   for (let i = dias - 1; i >= 0; i--) lista.push(diaVecino(hasta, -i));
   const validos = lista.filter((d) => d >= base.fecha);
   if (validos.length === 0) return null;
-  const antes = validos[0] > base.fecha ? await netoEntre(aprId, base.fecha, validos[0]) : { ingresos: 0, egresos: 0 };
-  const netos = await Promise.all(validos.map((d) => netoEntre(aprId, d, diaVecino(d, 1))));
+  const primero = validos[0];
+  const fin = diaVecino(hasta, 1);
+
+  const antes = primero > base.fecha ? await netoEntre(aprId, base.fecha, primero) : { ingresos: 0, egresos: 0 };
+
+  const porDia = new Map<string, number>();
+  const sumar = (dia: string, monto: number) => porDia.set(dia, (porDia.get(dia) ?? 0) + monto);
+
+  const movs = await db
+    .select({
+      dia: movimientos.fecha,
+      neto: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'INGRESO' then ${movimientos.monto} when ${movimientos.tipo} = 'EGRESO' then -${movimientos.monto} else 0 end), 0)::int`,
+    })
+    .from(movimientos)
+    .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${primero}`, sql`${movimientos.fecha} < ${fin}`))
+    .groupBy(movimientos.fecha);
+  for (const m of movs) sumar(m.dia, m.neto);
+
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const deSocios = await db
+    .select({ dia: diaChile, total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
+    .from(pagos)
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${primero}`, sql`${diaChile} < ${fin}`))
+    .groupBy(diaChile);
+  for (const p of deSocios) sumar(p.dia, p.total);
+
   let acumulado = base.monto + antes.ingresos - antes.egresos;
-  return validos.map((dia, i) => {
-    acumulado += netos[i].ingresos - netos[i].egresos;
+  return validos.map((dia) => {
+    acumulado += porDia.get(dia) ?? 0;
     return { dia, disponible: acumulado };
   });
 }

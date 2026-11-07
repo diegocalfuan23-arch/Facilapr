@@ -24,6 +24,16 @@ export const metadata: Metadata = {
   title: "Caja",
 };
 
+/** El disponible día a día: los últimos 7 días en la vista del día, o el mes entero (hasta hoy) en la del mes. */
+async function tendenciaDelPeriodo(aprId: string, esDia: boolean, dia: string, mes: string) {
+  if (esDia) return tendenciaDisponible(aprId, dia, 7);
+  const ultimo = diaVecino(`${mesVecino(mes, 1)}-01`, -1);
+  const hoy = hoyEnChile();
+  const hasta = ultimo < hoy ? ultimo : hoy;
+  if (hasta < `${mes}-01`) return null;
+  return tendenciaDisponible(aprId, hasta, Number(hasta.slice(8)));
+}
+
 export default async function CajaPage({
   searchParams,
 }: {
@@ -48,7 +58,7 @@ export default async function CajaPage({
     saldoInicialDe(apr.id),
     listarCategoriasMovimiento(apr.id),
     saldoBancoDe(apr.id),
-    esDia ? tendenciaDisponible(apr.id, dia, 7).catch(() => null) : Promise.resolve(null),
+    tendenciaDelPeriodo(apr.id, esDia, dia, mes).catch(() => null),
   ]);
   const saldoInicial = saldoInicialBase ? { ...saldoInicialBase, banco: Math.min(saldoBanco, saldoInicialBase.monto) } : null;
 
