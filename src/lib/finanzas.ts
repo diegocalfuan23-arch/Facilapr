@@ -18,6 +18,7 @@ import {
   type TraspasoFila,
   type ResumenPeriodo,
   type ResumenMes,
+  type PuntoTendencia,
   type TipoMovimiento,
 } from "@/lib/finanzas-comun";
 
@@ -64,13 +65,19 @@ export function libroDelDia(aprId: string, dia: string): Promise<LineaLibro[]> {
   return lineasEntre(aprId, dia, diaVecino(dia, 1));
 }
 
+/** HH:MM en Chile de un instante. */
+function horaChile(d: Date) {
+  return new Intl.DateTimeFormat("es-CL", { timeZone: "America/Santiago", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+}
+
 /** Lo que entró y salió de `desde` (incluido) a `hasta` (excluido), AAAA-MM-DD. */
 async function lineasEntre(aprId: string, desde: string, hasta: string): Promise<LineaLibro[]> {
 
   // Si la tabla de movimientos todavía no existe en la base, el libro sigue mostrando los pagos de socios.
   const deMovimientos = await db
-    .select()
+    .select({ m: movimientos, registradoPor: usuarios.name })
     .from(movimientos)
+    .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
     .where(
       and(
         eq(movimientos.aprId, aprId),
@@ -92,6 +99,8 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
     .select({
       id: pagos.id,
       dia: diaChile,
+      hora: sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'HH24:MI')`,
+      registradoPor: usuarios.name,
       monto: pagos.monto,
       medio: pagos.medio,
       referencia: pagos.referencia,
@@ -103,6 +112,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
     .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    .leftJoin(usuarios, eq(usuarios.id, pagos.registradoPorId))
     .where(
       and(
         eq(socios.aprId, aprId),
@@ -113,7 +123,9 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
     .orderBy(asc(pagos.fecha));
 
   const lineas: LineaLibro[] = [
-    ...deMovimientos.map((m) => ({
+    ...deMovimientos.map(({ m, registradoPor }) => ({
+      hora: horaChile(m.createdAt),
+      registradoPor,
       id: `mov:${m.id}`,
       tipo: m.tipo as TipoMovimiento,
       fecha: m.fecha,
@@ -126,6 +138,8 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
       automatico: false,
     })),
     ...deSocios.map((p) => ({
+      hora: p.hora,
+      registradoPor: p.registradoPor,
       id: `pago:${p.id}`,
       tipo: "INGRESO" as const,
       fecha: p.dia,
@@ -347,7 +361,13 @@ export async function resumenPeriodo(
   const esUnDia = diaVecino(desde, 1) === hasta;
   const [cierre] = esUnDia
     ? await db
-        .select({ comentario: movimientos.concepto, disponible: movimientos.monto, cerradoPor: usuarios.name })
+        .select({
+          comentario: movimientos.concepto,
+          disponible: movimientos.monto,
+          cerradoPor: usuarios.name,
+          efectivoContado: movimientos.efectivoContado,
+          diferenciaArqueo: movimientos.diferenciaArqueo,
+        })
         .from(movimientos)
         .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
         .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, desde)))
@@ -370,9 +390,31 @@ export async function resumenPeriodo(
           // Un cierre sin comentario guarda un texto fijo: solo se muestra lo que escribió la persona.
           comentario: cierre.comentario === "Cierre de caja" ? null : cierre.comentario,
           disponible: cierre.disponible,
+          efectivoContado: cierre.efectivoContado,
+          diferenciaArqueo: cierre.diferenciaArqueo,
         }
       : null,
   };
+}
+
+/**
+ * El disponible al cierre de cada uno de los `dias` últimos días hasta `hasta` (incluido), para el gráfico.
+ * Null si no hay saldo inicial. Los días anteriores al saldo inicial se omiten.
+ */
+export async function tendenciaDisponible(aprId: string, hasta: string, dias = 7): Promise<PuntoTendencia[] | null> {
+  const base = await saldoInicialDe(aprId);
+  if (!base) return null;
+  const lista: string[] = [];
+  for (let i = dias - 1; i >= 0; i--) lista.push(diaVecino(hasta, -i));
+  const validos = lista.filter((d) => d >= base.fecha);
+  if (validos.length === 0) return null;
+  const antes = validos[0] > base.fecha ? await netoEntre(aprId, base.fecha, validos[0]) : { ingresos: 0, egresos: 0 };
+  const netos = await Promise.all(validos.map((d) => netoEntre(aprId, d, diaVecino(d, 1))));
+  let acumulado = base.monto + antes.ingresos - antes.egresos;
+  return validos.map((dia, i) => {
+    acumulado += netos[i].ingresos - netos[i].egresos;
+    return { dia, disponible: acumulado };
+  });
 }
 
 /**

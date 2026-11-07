@@ -126,7 +126,14 @@ export type LineaLibro = {
   contraparte: string | null;
   /** true: viene de los pagos de socios y no se edita aquí. */
   automatico: boolean;
+  /** HH:MM en Chile, de cuando se anotó. */
+  hora: string | null;
+  /** Quién del comité lo anotó; null en los antiguos. */
+  registradoPor: string | null;
 };
+
+/** El disponible al cierre de un día, para el gráfico de tendencia. */
+export type PuntoTendencia = { dia: string; disponible: number };
 
 export type ResumenMes = {
   ingresos: number;
@@ -161,7 +168,14 @@ export type ResumenPeriodo = {
   bolsillosAnterior: Bolsillos | null;
   bolsillos: Bolsillos | null;
   /** Solo en un día: si ya se cerró la caja, quién y con qué comentario. */
-  cierre: { cerradoPor: string | null; comentario: string | null; disponible: number } | null;
+  cierre: {
+    cerradoPor: string | null;
+    comentario: string | null;
+    disponible: number;
+    /** El efectivo que se contó al cerrar y la diferencia con el sistema; null si se cerró sin contar. */
+    efectivoContado: number | null;
+    diferenciaArqueo: number | null;
+  } | null;
 };
 
 /** Hoy en Chile, AAAA-MM-DD. */

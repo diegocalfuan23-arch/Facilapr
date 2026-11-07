@@ -246,6 +246,11 @@ export async function cerrarCaja(
     return { ok: false, error: "Para cerrar la caja define antes el saldo inicial, anterior o igual a este día." };
   }
 
+  // Arqueo: el efectivo que se contó a mano. Si no se contó, el cierre queda sin esos datos.
+  const contadoTexto = String(formData.get("efectivoContado") ?? "").replace(/\D/g, "");
+  const efectivoContado = contadoTexto ? Math.min(Number(contadoTexto), 2_000_000_000) : null;
+  const diferenciaArqueo = efectivoContado !== null && resumen.bolsillos ? efectivoContado - resumen.bolsillos.efectivo : null;
+
   try {
     await db.insert(movimientos).values({
       aprId: apr.id,
@@ -255,6 +260,8 @@ export async function cerrarCaja(
       categoria: TIPO_CIERRE,
       concepto: comentario || "Cierre de caja",
       registradoPorId: user.id,
+      efectivoContado: diferenciaArqueo === null ? null : efectivoContado,
+      diferenciaArqueo,
     });
   } catch (e) {
     console.error("Finanzas: no se pudo cerrar la caja:", e);

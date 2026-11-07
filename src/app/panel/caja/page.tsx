@@ -16,6 +16,7 @@ import {
   listarCategoriasMovimiento,
   saldoBancoDe,
   saldoInicialDe,
+  tendenciaDisponible,
 } from "@/lib/finanzas";
 import { CajaVista } from "@/components/panel/caja-vista";
 
@@ -42,19 +43,20 @@ export default async function CajaPage({
   const hasta = esDia ? diaVecino(dia, 1) : `${mesVecino(mes, 1)}-01`;
 
   const lineas = await (esDia ? libroDelDia(apr.id, dia) : libroDelMes(apr.id, mes));
-  const [resumen, saldoInicialBase, categoriasPropias, saldoBanco] = await Promise.all([
+  const [resumen, saldoInicialBase, categoriasPropias, saldoBanco, tendencia] = await Promise.all([
     resumenPeriodo(apr.id, desde, hasta, lineas),
     saldoInicialDe(apr.id),
     listarCategoriasMovimiento(apr.id),
     saldoBancoDe(apr.id),
+    esDia ? tendenciaDisponible(apr.id, dia, 7).catch(() => null) : Promise.resolve(null),
   ]);
   const saldoInicial = saldoInicialBase ? { ...saldoInicialBase, banco: Math.min(saldoBanco, saldoInicialBase.monto) } : null;
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Caja</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">La plata de tu comité: lo que entra, lo que sale y cuánta hay.</p>
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Caja</h1>
+        <p className="mt-0.5 text-[15px] text-[#5B5970]">Lo que entra, lo que sale y cuánta plata hay en tu APR.</p>
       </div>
 
       <CajaVista
@@ -74,6 +76,7 @@ export default async function CajaPage({
         porCategoria={resumir(lineas, categoriasPropias).porCategoria}
         categoriasPropias={categoriasPropias}
         saldoInicial={saldoInicial}
+        tendencia={tendencia}
       />
     </div>
   );

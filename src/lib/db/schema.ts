@@ -537,6 +537,10 @@ export const movimientos = pgTable(
     /** A quién se pagó o de quién vino (proveedor, institución). */
     contraparte: text("contraparte"),
     registradoPorId: text("registradoPorId"),
+    /** Solo en un cierre de caja: el efectivo que se contó a mano (arqueo). */
+    efectivoContado: integer("efectivoContado"),
+    /** Solo en un cierre de caja: lo contado menos lo que decía el sistema. */
+    diferenciaArqueo: integer("diferenciaArqueo"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [index("Movimiento_aprId_fecha_idx").on(table.aprId, table.fecha)]
