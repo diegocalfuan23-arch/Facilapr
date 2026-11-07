@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { ArrowDownRight, ArrowUpRight, Banknote, CheckCircle2, Download, Landmark, Link2, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Store, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, Banknote, CheckCircle2, Download, Landmark, Link2, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Store, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { eliminarPago } from "@/app/panel/boletas/actions";
@@ -75,6 +75,15 @@ const colorDe = (medio: string) => COLOR_MEDIO[medio] ?? "bg-[#A5A3B5]";
 /** Lo que no es uno de los cuatro medios (Mercado Pago, Flow) cuenta como "Otro". */
 const medioAgrupado = (m: string) => (MEDIOS_PAGO.some((x) => x.valor === m) ? m : "OTRO");
 
+const claveMes = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+const mesAnteriorDe = (m: string) => {
+  const [a, n] = m.split("-").map(Number);
+  return n === 1 ? `${a - 1}-12` : `${a}-${String(n - 1).padStart(2, "0")}`;
+};
+const nombreMes = (m: string) => {
+  const [a, n] = m.split("-").map(Number);
+  return `${MESES[n - 1][0].toUpperCase()}${MESES[n - 1].slice(1, 3)} ${a}`;
+};
 const claveDia = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 const diaLargo = (iso: string) => {
   const d = new Date(iso);
@@ -91,7 +100,7 @@ const sinTildes = (t: string) =>
   t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** El comprobante de un pago: encabezado con el monto y el detalle, y sus acciones. */
-function Comprobante({ p, onCerrar, onCorregir, onEliminar }: { p: PagoFila; onCerrar: () => void; onCorregir: () => void; onEliminar: () => void }) {
+function Comprobante({ p, onCerrar, onCorregir, onEliminar, onVerSocio }: { p: PagoFila; onCerrar: () => void; onCorregir: () => void; onEliminar: () => void; onVerSocio: () => void }) {
   const filas: [string, string][] = [
     ["Socio", p.socioNombre],
     ["Tipo", p.socioTipo === "USUARIO" ? "Usuario" : "Socio"],
@@ -132,6 +141,10 @@ function Comprobante({ p, onCerrar, onCorregir, onEliminar }: { p: PagoFila; onC
           </div>
         ))}
       </dl>
+      <button type="button" onClick={onVerSocio} className="mx-5 mb-3 flex items-center justify-between rounded-lg bg-[#F7F6FB] px-3 py-2.5 text-left text-[13px] font-semibold text-[#2A07A8] hover:bg-[#F0EDFC] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <span className="min-w-0 truncate">Ver todos los pagos de {p.socioNombre}</span>
+        <ArrowRight className="size-4 shrink-0" aria-hidden />
+      </button>
       <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-2 border-t border-[#F0EEF6] p-4">
         <Button className="h-10 rounded-lg px-3 font-semibold" render={<a href={p.comprobanteUrl} target="_blank" rel="noopener" />}>
           <Download />
@@ -189,70 +202,103 @@ export function PagosTabla({
   const [conLink, setConLink] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [medio, setMedio] = useState<string>("todos");
-  const [visibles, setVisibles] = useState(POR_PAGINA);
+  const [limiteDe, setLimiteDe] = useState({ clave: "", n: POR_PAGINA });
   const [sel, setSel] = useState<string | null>(null);
   const [movil, setMovil] = useState(false);
+  const listaRef = useRef<HTMLDivElement>(null);
 
   const ahora = new Date();
-  const mesActual = ahora.getFullYear() * 12 + ahora.getMonth();
-  const delMes = pagos.filter((p) => {
-    const f = new Date(p.fecha);
-    return f.getFullYear() * 12 + f.getMonth() === mesActual;
-  });
-  const delMesAnterior = pagos.filter((p) => {
-    const f = new Date(p.fecha);
-    return f.getFullYear() * 12 + f.getMonth() === mesActual - 1;
-  });
+  const mesActualClave = claveMes(ahora);
+  const [mes, setMes] = useState<string>(mesActualClave);
+
+  /** Los meses con pagos (y el actual, aunque aún no tenga), del más reciente al más antiguo. */
+  const meses = useMemo(() => [...new Set([mesActualClave, ...pagos.map((p) => claveMes(new Date(p.fecha)))])].sort().reverse(), [pagos, mesActualClave]);
+  const base = useMemo(() => pagos.filter((p) => mes === "todos" || claveMes(new Date(p.fecha)) === mes), [pagos, mes]);
+
+  // El mes de referencia del resumen y del gráfico: el elegido, o el actual si se ven todos.
+  const mesRef = mes === "todos" ? mesActualClave : mes;
+  const mesPrev = mesAnteriorDe(mesRef);
+  const [anioRef, numRef] = mesRef.split("-").map(Number);
+  const delMes = pagos.filter((p) => claveMes(new Date(p.fecha)) === mesRef);
+  const delMesAnterior = pagos.filter((p) => claveMes(new Date(p.fecha)) === mesPrev);
   const totalMes = delMes.reduce((acc, p) => acc + p.monto, 0);
   const totalAnterior = delMesAnterior.reduce((acc, p) => acc + p.monto, 0);
   const diferencia = totalMes - totalAnterior;
-  const nombreMesAnterior = MESES[(ahora.getMonth() + 11) % 12];
+  const nombreMesAnterior = MESES[Number(mesPrev.slice(5)) - 1];
 
   const filtrados = useMemo(() => {
-    const q = sinTildes(busqueda.trim());
-    return pagos.filter((p) => {
+    const t = sinTildes(busqueda.trim());
+    const numero = t.replace(/[$.\s]/g, "");
+    return base.filter((p) => {
       if (medio !== "todos" && medioAgrupado(p.medio) !== medio) return false;
-      if (!q) return true;
-      return sinTildes(
-        `${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${queSePago(p)} ${p.pagadoPor ?? ""} ${p.registradoPor ?? ""}`
-      ).includes(q);
+      if (!t) return true;
+      return (
+        sinTildes(`${p.socioNombre} ${p.socioRut ?? ""} ${p.referencia ?? ""} ${queSePago(p)} ${p.pagadoPor ?? ""} ${p.registradoPor ?? ""}`).includes(t) ||
+        (/^\d+$/.test(numero) && String(p.monto).includes(numero))
+      );
     });
-  }, [pagos, busqueda, medio]);
+  }, [base, busqueda, medio]);
 
   const totalFiltrado = filtrados.reduce((acc, p) => acc + p.monto, 0);
+  // Cada vez que cambia un filtro se vuelve a la primera página.
+  const claveFiltro = `${busqueda}|${medio}|${mes}`;
+  const limite = limiteDe.clave === claveFiltro ? limiteDe.n : POR_PAGINA;
+  const mostrados = filtrados.slice(0, limite);
 
   const grupos = useMemo(() => {
     const m = new Map<string, PagoFila[]>();
-    for (const p of filtrados.slice(0, visibles)) {
+    for (const p of mostrados) {
       const k = claveDia(new Date(p.fecha));
       m.set(k, [...(m.get(k) ?? []), p]);
     }
     return [...m.entries()];
-  }, [filtrados, visibles]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filtrados, limite]);
 
   const porMedio = useMemo(
     () =>
       MEDIOS_PAGO.map((m) => {
-        const ps = pagos.filter((p) => medioAgrupado(p.medio) === m.valor);
+        const ps = base.filter((p) => medioAgrupado(p.medio) === m.valor);
         return { m: m.valor as string, v: ps.reduce((t, p) => t + p.monto, 0), n: ps.length };
       }),
-    [pagos]
+    [base]
   );
-  const totalTodo = pagos.reduce((t, p) => t + p.monto, 0);
+  const totalBase = base.reduce((t, p) => t + p.monto, 0);
 
-  // Los últimos 30 días, uno por barra.
-  const dias = useMemo(() => {
+  // El mes entero, un día por barra; los días que aún no llegan se ven más claros.
+  const largoMes = new Date(anioRef, numRef, 0).getDate();
+  const dias = (() => {
     const hoy = new Date();
-    return Array.from({ length: 30 }, (_, i) => {
-      const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 29 + i);
+    return Array.from({ length: largoMes }, (_, i) => {
+      const d = new Date(anioRef, numRef - 1, i + 1);
       const k = claveDia(d);
-      return { k, d, v: pagos.filter((p) => claveDia(new Date(p.fecha)) === k).reduce((t, p) => t + p.monto, 0) };
+      return { k, d, futuro: d > hoy, v: pagos.filter((p) => claveDia(new Date(p.fecha)) === k).reduce((t, p) => t + p.monto, 0) };
     });
-  }, [pagos]);
+  })();
   const maxDia = Math.max(...dias.map((x) => x.v), 1);
   const etiquetaDia = (d: Date) => `${d.getDate()} ${MESES_CORTOS[d.getMonth()]}`;
 
   const pago = filtrados.find((p) => p.id === sel) ?? filtrados[0] ?? null;
+
+  /** Recorrer la lista con ↑ ↓. */
+  function mover(dir: 1 | -1) {
+    const i = mostrados.findIndex((p) => p.id === pago?.id);
+    const sig = mostrados[Math.min(Math.max(i + dir, 0), mostrados.length - 1)];
+    if (sig) {
+      setSel(sig.id);
+      listaRef.current?.querySelector<HTMLButtonElement>(`[data-id="${sig.id}"]`)?.focus();
+    }
+  }
+
+  /** Todos los pagos de un socio, de cualquier mes. */
+  function verPagosDe(p: PagoFila) {
+    setBusqueda(p.socioRut ?? p.socioNombre);
+    setMes("todos");
+    setMedio("todos");
+    setMovil(false);
+  }
+
+  const hayFiltro = busqueda.trim() !== "" || medio !== "todos";
 
   async function borrar(p: PagoFila) {
     const aviso = p.periodo ? "La boleta volverá a deber ese monto." : "Se quita también de la Caja.";
@@ -268,7 +314,7 @@ export function PagosTabla({
   }
 
   const filtros = [
-    { valor: "todos", texto: "Todos", n: pagos.length },
+    { valor: "todos", texto: "Todos", n: base.length },
     ...MEDIOS_PAGO.map((m) => ({ valor: m.valor as string, texto: m.texto as string, n: porMedio.find((x) => x.m === m.valor)?.n ?? 0 })),
   ];
 
@@ -319,7 +365,7 @@ export function PagosTabla({
             <div className={cn("flex flex-col rounded-2xl bg-card p-5 sm:p-6 lg:col-span-8", SOMBRA)}>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className={cn("text-[13px] font-medium", GRIS)}>Recaudado en {MESES[ahora.getMonth()]}</p>
+                  <p className={cn("text-[13px] font-medium", GRIS)}>Recaudado en {MESES[numRef - 1]}</p>
                   <p className="mt-1.5 text-[34px] leading-none font-semibold tracking-tight tabular-nums sm:text-[40px]">{clp.format(totalMes)}</p>
                   <p className={cn("mt-2 flex items-center gap-1.5 text-[13px]", GRIS)}>
                     <span className={cn("inline-flex items-center gap-0.5 rounded-md px-1.5 py-0.5 font-semibold", diferencia >= 0 ? "bg-[#DFF4EB] text-[#075A3C]" : "bg-[#FDECEC] text-[#A32020]")}>
@@ -329,17 +375,17 @@ export function PagosTabla({
                     {diferencia >= 0 ? "más" : "menos"} que {nombreMesAnterior}
                   </p>
                 </div>
-                <span className={cn("hidden rounded-full bg-[#F4F3F9] px-3 py-1 text-xs font-medium sm:inline", GRIS)}>Últimos 30 días</span>
+                <span className={cn("hidden rounded-full bg-[#F4F3F9] px-3 py-1 text-xs font-medium sm:inline", GRIS)}>Por día · {MESES[numRef - 1]}</span>
               </div>
               <div className="relative mt-6 flex-1">
                 <div aria-hidden className="pointer-events-none absolute inset-x-0 top-0 h-[96px] border-t border-dashed border-[#ECEAF4]" />
                 <div aria-hidden className="pointer-events-none absolute inset-x-0 top-[48px] border-t border-dashed border-[#ECEAF4]" />
-                <div role="img" aria-label="Recaudación diaria de los últimos 30 días" className="relative flex h-[96px] items-end gap-[3px] border-b border-[#E4E1F0]">
+                <div role="img" aria-label={`Recaudación diaria de ${MESES[numRef - 1]}`} className="relative flex h-[96px] items-end gap-[3px] border-b border-[#E4E1F0]">
                   {dias.map((x) => (
                     <span
                       key={x.k}
                       title={`${etiquetaDia(x.d)}: ${clp.format(x.v)}`}
-                      className={cn("relative min-w-0 flex-1 rounded-t-[4px]", x.v ? (x.v === maxDia ? "bg-primary" : "bg-[#8F78F2]") : "bg-[#F0EEF7]")}
+                      className={cn("relative min-w-0 flex-1 rounded-t-[4px]", x.v ? (x.v === maxDia ? "bg-primary" : "bg-[#8F78F2]") : x.futuro ? "bg-[#F7F6FB]" : "bg-[#ECE9F5]")}
                       style={{ height: x.v ? `${Math.max((x.v / maxDia) * 100, 8)}%` : "3px" }}
                     >
                       {x.v === maxDia && x.v > 0 ? (
@@ -350,8 +396,8 @@ export function PagosTabla({
                 </div>
                 <div className={cn("mt-1.5 flex justify-between text-[11px]", GRIS)}>
                   <span>{etiquetaDia(dias[0].d)}</span>
-                  <span>{etiquetaDia(dias[15].d)}</span>
-                  <span>{etiquetaDia(dias[29].d)}</span>
+                  <span>{etiquetaDia(dias[14].d)}</span>
+                  <span>{etiquetaDia(dias[largoMes - 1].d)}</span>
                 </div>
               </div>
               <dl className="mt-5 grid grid-cols-2 gap-y-3 border-t border-[#F0EEF6] pt-4 sm:grid-cols-4">
@@ -371,53 +417,84 @@ export function PagosTabla({
             </div>
 
             <div className={cn("rounded-2xl bg-card p-5 sm:p-6 lg:col-span-4", SOMBRA)}>
-              <p className={cn("text-[13px] font-medium", GRIS)}>Por medio de pago</p>
-              <div aria-hidden className="mt-3 flex h-3 gap-0.5 overflow-hidden rounded-full bg-[#F0EEF7]">
-                {porMedio.filter((x) => x.v > 0).map((x) => (
-                  <span key={x.m} className={colorDe(x.m)} style={{ width: `${(x.v / (totalTodo || 1)) * 100}%`, minWidth: 6 }} />
-                ))}
+              <div className="flex items-center justify-between">
+                <p className={cn("text-[13px] font-medium", GRIS)}>Por medio de pago</p>
+                {medio !== "todos" ? (
+                  <button type="button" onClick={() => setMedio("todos")} className="text-xs font-semibold text-[#2A07A8] hover:underline">
+                    Quitar filtro
+                  </button>
+                ) : (
+                  <span className={cn("text-xs", GRIS)}>{mes === "todos" ? "Todos los meses" : MESES[numRef - 1]}</span>
+                )}
               </div>
-              <ul className="mt-5 flex flex-col gap-3.5">
-                {porMedio.map((x) => {
-                  return (
-                    <li key={x.m} className="flex items-center gap-3 text-sm">
+              <div aria-hidden className="mt-3 flex h-3 gap-0.5 overflow-hidden rounded-full bg-[#F0EEF7]">
+                {porMedio
+                  .filter((x) => x.v > 0)
+                  .map((x) => (
+                    <span key={x.m} className={cn(colorDe(x.m), "transition-opacity", medio !== "todos" && medio !== x.m && "opacity-25")} style={{ width: `${(x.v / (totalBase || 1)) * 100}%`, minWidth: 6 }} />
+                  ))}
+              </div>
+              <ul className="-mx-2 mt-4 flex flex-col gap-1">
+                {porMedio.map((x) => (
+                  <li key={x.m} className={cn(!x.n && "max-sm:hidden")}>
+                    <button
+                      type="button"
+                      disabled={!x.n}
+                      aria-pressed={medio === x.m}
+                      onClick={() => setMedio(medio === x.m ? "todos" : x.m)}
+                      className={cn("flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:cursor-default disabled:opacity-50", medio === x.m ? "bg-[#F3F0FE]" : "enabled:hover:bg-[#F8F7FC]")}
+                    >
                       <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", tinteDe(x.m))}>
                         <IconoMedio medio={x.m} className="size-4" />
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block font-medium">{textoMedioPago(x.m)}</span>
                         <span className={cn("block text-xs", GRIS)}>
-                          {x.n} pago{x.n === 1 ? "" : "s"} · {totalTodo ? Math.round((x.v / totalTodo) * 100) : 0}%
+                          {x.n} pago{x.n === 1 ? "" : "s"} · {!totalBase ? 0 : x.v && x.v / totalBase < 0.01 ? "<1" : Math.round((x.v / totalBase) * 100)}%
                         </span>
                       </span>
                       <span className="font-semibold tabular-nums">{clp.format(x.v)}</span>
-                    </li>
-                  );
-                })}
+                    </button>
+                  </li>
+                ))}
               </ul>
             </div>
           </div>
 
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="relative min-w-0 sm:w-[340px]">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input
-                aria-label="Buscar pagos"
-                value={busqueda}
-                onChange={(e) => {
-                  setBusqueda(e.target.value);
-                  setVisibles(POR_PAGINA);
-                }}
-                placeholder="Socio, RUT, período u operación"
-                className="h-10 rounded-lg border-[#E4E1F0] bg-white pl-9 shadow-none"
-              />
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex gap-2">
+              <Select value={mes} onValueChange={(v) => setMes(v as string)}>
+                <SelectTrigger aria-label="Mes" className="h-10 w-[128px] shrink-0 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold sm:w-[140px]">
+                  <SelectValue>{(v) => (v === "todos" ? "Todos" : v ? nombreMes(String(v)) : "")}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {meses.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {nombreMes(m)}
+                    </SelectItem>
+                  ))}
+                  <SelectItem value="todos">Todos</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative min-w-0 flex-1 lg:w-[320px] lg:flex-none">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input
+                  aria-label="Buscar pagos"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder="Socio, RUT, monto u operación"
+                  className="h-10 rounded-lg border-[#E4E1F0] bg-white pr-8 pl-9 shadow-none"
+                />
+                {busqueda && (
+                  <button type="button" aria-label="Limpiar búsqueda" onClick={() => setBusqueda("")} className="absolute top-1/2 right-2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-[#8A8799] hover:bg-[#F2F1F7]">
+                    <X className="size-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
             <Select
               value={medio}
-              onValueChange={(v) => {
-                setMedio(v as string);
-                setVisibles(POR_PAGINA);
-              }}
+              onValueChange={(v) => setMedio(v as string)}
             >
               <SelectTrigger aria-label="Filtrar por medio" className="h-10 w-full rounded-lg border-[#E4E1F0] bg-white px-3 sm:hidden">
                 <SelectValue>
@@ -429,7 +506,7 @@ export function PagosTabla({
               </SelectTrigger>
               <SelectContent>
                 {filtros.map((f) => (
-                  <SelectItem key={f.valor} value={f.valor}>
+                  <SelectItem key={f.valor} value={f.valor} disabled={!f.n}>
                     {f.valor === "todos" ? "Todos los medios" : f.texto} ({f.n})
                   </SelectItem>
                 ))}
@@ -441,11 +518,9 @@ export function PagosTabla({
                   key={f.valor}
                   type="button"
                   aria-pressed={medio === f.valor}
-                  onClick={() => {
-                    setMedio(f.valor);
-                    setVisibles(POR_PAGINA);
-                  }}
-                  className={cn("h-9 truncate rounded-md px-3 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", medio === f.valor ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}
+                  disabled={!f.n}
+                  onClick={() => setMedio(f.valor)}
+                  className={cn("h-9 truncate rounded-md px-3 text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-40", medio === f.valor ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}
                 >
                   {f.texto}
                   <span className={cn("ml-1.5 text-xs font-medium tabular-nums", medio === f.valor ? "text-[#6B46F5]" : "text-[#A19FB2]")}>{f.n}</span>
@@ -455,23 +530,48 @@ export function PagosTabla({
           </div>
 
           <div data-tour="pag-lista" className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className={cn("min-w-0 overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+            <div
+              ref={listaRef}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                  e.preventDefault();
+                  mover(e.key === "ArrowDown" ? 1 : -1);
+                }
+              }}
+              className={cn("min-w-0 overflow-clip rounded-2xl bg-card", SOMBRA)}
+            >
               {filtrados.length === 0 ? (
-                <p className={cn("px-6 py-14 text-center text-sm", GRIS)}>No hay pagos con ese filtro.</p>
+                <div className="px-6 py-14 text-center">
+                  <p className="font-semibold">No hay pagos</p>
+                  <p className={cn("mt-1 text-sm", GRIS)}>{hayFiltro ? "Prueba con otro filtro o búsqueda." : "Este mes todavía no se registran pagos."}</p>
+                  {hayFiltro && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setBusqueda("");
+                        setMedio("todos");
+                      }}
+                      className="mt-4 h-9 rounded-lg border-[#E4E1F0] font-semibold"
+                    >
+                      Limpiar filtros
+                    </Button>
+                  )}
+                </div>
               ) : (
                 grupos.map(([k, ps]) => (
                   <section key={k} aria-label={diaLargo(ps[0].fecha)}>
-                    <h2 className={cn("flex justify-between border-y border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2 text-xs font-semibold tracking-wide uppercase first:border-t-0", GRIS)}>
+                    <h2 className={cn("sticky top-0 z-10 flex justify-between border-b border-[#F3F1F8] bg-[#FAFAFD]/95 px-5 py-2 text-xs font-semibold tracking-wide uppercase backdrop-blur", GRIS)}>
                       <span>{diaLargo(ps[0].fecha)}</span>
                       <span className="tabular-nums">{clp.format(ps.reduce((t, p) => t + p.monto, 0))}</span>
                     </h2>
-                    <ul>
+                    <ul className="divide-y divide-[#F6F5FA]">
                       {ps.map((p) => {
                         const activo = pago?.id === p.id;
                         return (
                           <li key={p.id}>
                             <button
                               type="button"
+                              data-id={p.id}
                               onClick={() => {
                                 setSel(p.id);
                                 setMovil(true);
@@ -500,15 +600,20 @@ export function PagosTabla({
                   </section>
                 ))
               )}
+              {filtrados.length > limite && (
+                <div className="border-t border-[#F0EEF6] p-2.5 text-center">
+                  <Button variant="ghost" onClick={() => setLimiteDe({ clave: claveFiltro, n: limite + POR_PAGINA })} className="h-9 rounded-lg font-semibold text-[#2A07A8]">
+                    <ChevronDown />
+                    Mostrar {Math.min(POR_PAGINA, filtrados.length - limite)} más · quedan {filtrados.length - limite}
+                  </Button>
+                </div>
+              )}
               <div className={cn("flex flex-wrap items-center justify-between gap-3 border-t border-[#F0EEF6] bg-[#FAFAFD] px-5 py-3 text-sm", GRIS)}>
                 <span>
                   {filtrados.length} pago{filtrados.length === 1 ? "" : "s"}
+                  {mes !== "todos" ? ` en ${MESES[numRef - 1]}` : ""}
+                  <span className="hidden lg:inline"> · usa ↑ ↓ para recorrer</span>
                 </span>
-                {visibles < filtrados.length && (
-                  <Button variant="outline" size="sm" onClick={() => setVisibles((v) => v + POR_PAGINA)}>
-                    Ver más
-                  </Button>
-                )}
                 <span>
                   Total <strong className="font-semibold text-[#15132B] tabular-nums">{clp.format(totalFiltrado)}</strong>
                 </span>
@@ -517,7 +622,7 @@ export function PagosTabla({
 
             {pago && (
               <div className={cn("hidden overflow-hidden rounded-2xl bg-card lg:sticky lg:top-4 lg:block", SOMBRA)}>
-                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} />
+                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} onVerSocio={() => verPagosDe(pago)} />
               </div>
             )}
           </div>
@@ -526,7 +631,7 @@ export function PagosTabla({
             <div className="fixed inset-0 z-50 lg:hidden">
               <button type="button" aria-label="Cerrar comprobante" onClick={() => setMovil(false)} className="absolute inset-0 bg-[#15132B]/40" />
               <div className="absolute inset-x-0 bottom-0 max-h-[88vh] overflow-y-auto rounded-t-2xl bg-white">
-                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} />
+                <Comprobante p={pago} onCerrar={() => setMovil(false)} onCorregir={() => setCorrigiendo(pago)} onEliminar={() => void borrar(pago)} onVerSocio={() => verPagosDe(pago)} />
               </div>
             </div>
           )}
