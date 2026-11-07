@@ -240,7 +240,7 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
           <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Incidentes</h1>
           <p className={cn("mt-1 text-[15px]", GRIS)}>Fugas, fallas y cortes del sistema de agua, y lo que costó repararlos.</p>
         </div>
-        <Button className="h-10 rounded-lg px-4 font-semibold" onClick={() => setCreando(true)}>
+        <Button className="h-11 w-full rounded-full px-4 font-semibold sm:h-10 sm:w-auto sm:rounded-lg" onClick={() => setCreando(true)}>
           <Plus />
           Nuevo incidente
         </Button>
@@ -253,7 +253,41 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
         <Stat label="Costo este mes" valor={clp(costoMes)} detalle={`${delMes.filter((i) => i.costo > 0).length} incidentes con gasto`} />
       </section>
 
-      <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+      {/* Celular: el buscador y, debajo, dos selectores (estado y prioridad). */}
+      <div className="flex flex-col gap-2 md:hidden">
+        <div className="relative">
+          <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <Input aria-label="Buscar incidente" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar incidente" className="h-11 rounded-full border-[#E4E1F0] bg-white pl-10 shadow-none" />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Select value={filtro} onValueChange={(v) => setFiltro(v as Filtro)}>
+            <SelectTrigger aria-label="Filtrar por estado" className="h-11 w-full rounded-full border-[#E4E1F0] bg-white px-4">
+              <SelectValue>{(v: Filtro | null) => { const p = pestanas.find(([x]) => x === v); return p ? `${p[1]} (${p[2]})` : ""; }}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {pestanas.map(([v, n, c]) => (
+                <SelectItem key={v} value={v}>
+                  {n} ({c})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={prioridad} onValueChange={(v) => setPrioridad(v as typeof prioridad)}>
+            <SelectTrigger aria-label="Filtrar por prioridad" className="h-11 w-full rounded-full border-[#E4E1F0] bg-white px-4">
+              <SelectValue>{(v: string | null) => (v && v !== "todas" ? TEXTO_PRIORIDAD[v as PrioridadIncidente] : "Prioridad")}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todas">Prioridad</SelectItem>
+              <SelectItem value="ALTA">Alta</SelectItem>
+              <SelectItem value="MEDIA">Media</SelectItem>
+              <SelectItem value="BAJA">Baja</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Computador y tableta: las pestañas con contador, el buscador y el filtro de prioridad. */}
+      <div className="mt-2 hidden flex-col gap-3 md:flex xl:flex-row xl:items-center xl:justify-between">
         <div role="tablist" aria-label="Estado" className="flex gap-1 overflow-x-auto rounded-lg bg-white/80 p-1">
           {pestanas.map(([v, n, c]) => (
             <button
@@ -279,7 +313,7 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
           </div>
           <Select value={prioridad} onValueChange={(v) => setPrioridad(v as typeof prioridad)}>
             <SelectTrigger aria-label="Filtrar por prioridad" className="h-10 w-[150px] shrink-0 rounded-lg border-[#E4E1F0] px-3">
-              <SelectValue />
+              <SelectValue>{(v: string | null) => (v && v !== "todas" ? TEXTO_PRIORIDAD[v as PrioridadIncidente] : "Prioridad")}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="todas">Prioridad</SelectItem>
@@ -330,7 +364,7 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
                         <EstadoTexto e={e} />
                       </span>
                       <span className={cn("hidden text-[13px] sm:block", atrasado ? "font-semibold text-[#8F4400]" : GRIS)}>{e === "RESUELTO" && i.fechaResolucion ? `Resuelto ${corto(i.fechaResolucion)}` : hace(antiguedad)}</span>
-                      <span className="flex items-center gap-2 justify-self-end">
+                      <span className="mt-6 flex items-center gap-2 justify-self-end self-start sm:mt-0 sm:self-center">
                         <span className={cn("text-sm font-semibold tabular-nums", !i.costo && "text-[#A5A3B5]")}>{i.costo ? clp(i.costo) : "—"}</span>
                         <ChevronRight className="size-4 text-[#A5A3B5]" aria-hidden />
                       </span>
