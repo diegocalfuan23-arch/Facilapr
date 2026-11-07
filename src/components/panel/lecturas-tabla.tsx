@@ -649,9 +649,9 @@ function AprobarListasDialog({
 
   return (
     <Dialog open={abierto} onOpenChange={cambiar}>
-      <DialogContent className="sm:max-w-110">
+      <DialogContent className="rounded-2xl p-6 sm:max-w-110">
         <DialogHeader>
-          <DialogTitle>Aprobar y generar boletas</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Aprobar y generar boletas</DialogTitle>
           <DialogDescription>
             {resultado
               ? "Listo."
@@ -684,12 +684,12 @@ function AprobarListasDialog({
         {error && <p className="text-[0.88rem] text-destructive">{error}</p>}
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => cambiar(false)} disabled={trabajando}>
+          <Button variant="ghost" onClick={() => cambiar(false)} disabled={trabajando} className="h-10 rounded-lg px-4 font-semibold">
             {resultado ? "Cerrar" : "Cancelar"}
           </Button>
           {!resultado && (
             <Button
-              disabled={trabajando || listas.length === 0}
+              className="h-10 rounded-lg px-4 font-semibold bg-[#0A9B68] text-white hover:bg-[#0A9B68]/90" disabled={trabajando || listas.length === 0}
               onClick={() => {
                 setError(null);
                 iniciar(async () => {
@@ -728,7 +728,7 @@ function EditarLecturaDialog({
 
   return (
     <Dialog open={lectura !== null} onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="sm:max-w-110">
+      <DialogContent className="rounded-2xl p-6 sm:max-w-110">
         {/* key: al abrir otra lectura el formulario parte con sus datos. */}
         {lectura && (
           <form
@@ -750,7 +750,7 @@ function EditarLecturaDialog({
             }}
           >
             <DialogHeader>
-              <DialogTitle>Editar lectura</DialogTitle>
+              <DialogTitle className="text-lg font-semibold">Editar lectura</DialogTitle>
               <DialogDescription>
                 {lectura.socio} · {formatearPeriodo(lectura.periodo)}
               </DialogDescription>
@@ -791,10 +791,10 @@ function EditarLecturaDialog({
             {error && <p className="text-[0.85rem] text-destructive">{error}</p>}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={onCerrar}>
+              <Button type="button" variant="ghost" onClick={onCerrar} className="h-10 rounded-lg px-4 font-semibold">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={trabajando}>
+              <Button type="submit" disabled={trabajando} className="h-10 rounded-lg px-4 font-semibold">
                 {trabajando && <Loader2 className="animate-spin" />}
                 Guardar cambios
               </Button>
@@ -846,9 +846,9 @@ function EliminarLecturaDialog({
 
   return (
     <Dialog open={lectura !== null} onOpenChange={(v) => !v && cerrar()}>
-      <DialogContent className="sm:max-w-110">
+      <DialogContent className="rounded-2xl p-6 sm:max-w-110">
         <DialogHeader>
-          <DialogTitle>Eliminar lectura</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Eliminar lectura</DialogTitle>
           <DialogDescription>
             {lectura &&
               `${lectura.socio} · ${formatearPeriodo(lectura.periodo)} · lectura ${numero.format(lectura.valor)}`}
@@ -868,10 +868,10 @@ function EliminarLecturaDialog({
         )}
 
         <DialogFooter>
-          <Button variant="outline" onClick={cerrar} disabled={trabajando}>
+          <Button variant="ghost" onClick={cerrar} disabled={trabajando} className="h-10 rounded-lg px-4 font-semibold">
             Cancelar
           </Button>
-          <Button variant="destructive" onClick={eliminar} disabled={trabajando}>
+          <Button onClick={eliminar} disabled={trabajando} className="h-10 rounded-lg px-4 font-semibold bg-[#C03A37] text-white hover:bg-[#C03A37]/90">
             {trabajando && <Loader2 className="animate-spin" />}
             {conBoleta ? "Eliminar lectura y boleta" : "Eliminar"}
           </Button>
@@ -913,9 +913,9 @@ function PrimeraLecturaDialog({
 
   return (
     <Dialog open={pendiente !== null} onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent className="sm:max-w-120">
+      <DialogContent className="rounded-2xl p-6 sm:max-w-120">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="text-lg font-semibold">
             {primera ? "Primera lectura de este arranque" : "Lectura menor que la anterior"}
           </DialogTitle>
           <DialogDescription>
@@ -944,20 +944,20 @@ function PrimeraLecturaDialog({
         </div>
 
         <DialogFooter className="sm:flex-wrap">
-          <Button variant="outline" onClick={onCerrar} disabled={trabajando}>
+          <Button variant="ghost" onClick={onCerrar} disabled={trabajando} className="h-10 rounded-lg px-4 font-semibold">
             Cancelar
           </Button>
           {primera && (
             <Button
               variant="outline"
-              disabled={trabajando}
+              className="h-10 rounded-lg px-4 font-semibold border-[#E4E1F0]" disabled={trabajando}
               onClick={() => l && correr(() => aprobarLectura(l.id, { cobrarDesdeCero: true }))}
             >
               Cobrar desde 0
             </Button>
           )}
           <Button
-            disabled={trabajando}
+            className="h-10 rounded-lg px-4 font-semibold" disabled={trabajando}
             onClick={() => l && correr(() => aprobarComoLecturaInicial(l.id))}
           >
             {trabajando && <Loader2 className="animate-spin" />}
@@ -1006,9 +1006,9 @@ function NuevaLecturaDialog({
 
   return (
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
-      <DialogContent className="sm:max-w-130">
+      <DialogContent className="rounded-2xl p-6 sm:max-w-130">
         <DialogHeader>
-          <DialogTitle>Nueva lectura</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Nueva lectura</DialogTitle>
           <DialogDescription>
             Queda por revisar hasta que la apruebes; recién ahí se genera la
             boleta.
@@ -1087,14 +1087,10 @@ function NuevaLecturaDialog({
           )}
 
           <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onAbiertoChange(false)}
-            >
+            <Button type="button" variant="ghost" onClick={() => onAbiertoChange(false)} className="h-10 rounded-lg px-4 font-semibold">
               Cancelar
             </Button>
-            <Button type="submit" disabled={pendiente}>
+            <Button type="submit" disabled={pendiente} className="h-10 rounded-lg px-4 font-semibold">
               {pendiente && <Loader2 className="animate-spin" />}
               Registrar lectura
             </Button>
@@ -1135,9 +1131,9 @@ function RechazarDialog({
 
   return (
     <Dialog open={lectura !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-110">
+      <DialogContent className="rounded-2xl p-6 sm:max-w-110">
         <DialogHeader>
-          <DialogTitle>Rechazar lectura</DialogTitle>
+          <DialogTitle className="text-lg font-semibold">Rechazar lectura</DialogTitle>
           <DialogDescription>
             {lectura &&
               `${lectura.socio} · ${formatearPeriodo(lectura.periodo)} · lectura ${lectura.valor}`}
@@ -1147,6 +1143,7 @@ function RechazarDialog({
         <Textarea
           rows={3}
           maxLength={300}
+          className="min-h-[88px] rounded-lg border-[#E4E1F0] text-sm shadow-none"
           value={motivo}
           onChange={(e) => setMotivo(e.target.value)}
           placeholder="Ej: la lectura anterior era 1400, esta parece un error de tipeo."
@@ -1155,14 +1152,10 @@ function RechazarDialog({
         {error && <p className="text-[0.85rem] text-destructive">{error}</p>}
 
         <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-          >
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} className="h-10 rounded-lg px-4 font-semibold">
             Cancelar
           </Button>
-          <Button type="button" disabled={pendiente} onClick={enviar}>
+          <Button type="button" disabled={pendiente || motivo.trim() === ""} onClick={enviar} className="h-10 rounded-lg px-4 font-semibold bg-[#C03A37] text-white hover:bg-[#C03A37]/90">
             {pendiente && <Loader2 className="animate-spin" />}
             Rechazar lectura
           </Button>
