@@ -7,9 +7,18 @@ export type ArranqueFila = {
   id: string;
   nombre: string;
   ubicacion: string | null;
+  /** Su punto en el mapa, si se marcó. */
+  lat: number | null;
+  lng: number | null;
   notas: string | null;
   socios: SocioDeArranque[];
 };
+
+/** Un punto en el mapa. */
+export type Punto = { lat: number; lng: number };
+
+/** Enlace de ruta: abre Google Maps (o la app instalada) sin costo de API. */
+export const linkRuta = (p: Punto) => `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
 
 /** Un socio que se puede asignar a un arranque, con el arranque que ya lo abastece (si tiene uno). */
 export type SocioAsignable = {

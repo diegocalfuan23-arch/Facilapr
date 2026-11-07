@@ -22,6 +22,7 @@
     "driver.js": "^1.9.0",
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.12",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.26.0",
     "next": "16.2.11",
     "openai": "^7.2.0",
@@ -29,6 +30,7 @@
     "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "react-leaflet": "^5.0.0",
     "read-excel-file": "^9.3.12",
     "recharts": "3.8.0",
     "resend": "^6.25.0",
@@ -39,6 +41,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/qrcode": "^1.5.6",

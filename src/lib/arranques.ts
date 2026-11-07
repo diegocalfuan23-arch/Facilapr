@@ -38,7 +38,7 @@ export async function listarArranques(aprId: string): Promise<DatosArranques> {
 
     return {
       sinTablas: false,
-      arranques: filas.map((a) => ({ id: a.id, nombre: a.nombre, ubicacion: a.ubicacion, notas: a.notas, socios: delArranque.get(a.id) ?? [] })),
+      arranques: filas.map((a) => ({ id: a.id, nombre: a.nombre, ubicacion: a.ubicacion, lat: a.lat, lng: a.lng, notas: a.notas, socios: delArranque.get(a.id) ?? [] })),
       socios: todosLosSocios.map((s) => ({ ...s, arranqueId: arranquePorSocio.get(s.id) ?? null })),
     };
   } catch (e) {

@@ -17,14 +17,5 @@ export default async function ArranquesPage() {
 
   const datos = await listarArranques(apr.id);
 
-  return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Arranques</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">Los arranques de tu red y los socios que abastece cada uno.</p>
-      </div>
-
-      <ArranquesVista arranques={datos.arranques} socios={datos.socios} sinTablas={datos.sinTablas} />
-    </div>
-  );
+  return <ArranquesVista arranques={datos.arranques} socios={datos.socios} sinTablas={datos.sinTablas} />;
 }

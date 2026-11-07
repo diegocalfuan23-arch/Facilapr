@@ -1486,6 +1486,9 @@ export const arranques = pgTable(
     /** Cómo lo nombra el comité: «Arranque 12», «Pasaje Los Aromos», etc. */
     nombre: text("nombre").notNull(),
     ubicacion: text("ubicacion"),
+    /** Dónde está en el mapa (latitud y longitud), si el comité lo marcó. */
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
     notas: text("notas"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
