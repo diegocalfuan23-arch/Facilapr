@@ -1,58 +1,226 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { MapPin, User } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, ChevronRight, MapPin, Pencil, Plus, Search, User, X } from "lucide-react";
 import { cambiarEstadoIncidente } from "@/app/panel/incidentes/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { IncidenteDialog } from "@/components/panel/incidente-dialog";
-import { TEXTO_PRIORIDAD, textoTipoIncidente, type EstadoIncidente, type IncidenteFila } from "@/lib/incidentes-comun";
+import { TEXTO_PRIORIDAD, textoTipoIncidente, type EstadoIncidente, type IncidenteFila, type PrioridadIncidente } from "@/lib/incidentes-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
-const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
-const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
-const alto = "h-10";
-const etiquetaKpi = "text-[0.8rem] font-medium tracking-wide uppercase";
+const clp = (n: number) => "$" + n.toLocaleString("es-CL");
+const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
+const GRIS = "text-[#5B5970]";
 
-const COLUMNAS: { estado: EstadoIncidente; titulo: string; punto: string; vacio: string }[] = [
-  { estado: "ABIERTO", titulo: "Abiertos", punto: "bg-red-500", vacio: "Sin incidentes abiertos" },
-  { estado: "EN_REPARACION", titulo: "En reparación", punto: "bg-amber-500", vacio: "Nada en reparación" },
-  { estado: "RESUELTO", titulo: "Resueltos", punto: "bg-emerald-500", vacio: "Aún no hay resueltos" },
-];
-
-const COLOR_PRIORIDAD: Record<string, string> = {
-  ALTA: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
-  MEDIA: "bg-amber-50 text-amber-800 dark:bg-amber-500/10 dark:text-amber-300",
-  BAJA: "bg-muted text-muted-foreground",
+const TEXTO_ESTADO: Record<EstadoIncidente, string> = { ABIERTO: "Abierto", EN_REPARACION: "En reparación", RESUELTO: "Resuelto" };
+const PUNTO: Record<EstadoIncidente, string> = { ABIERTO: "bg-[#D6403D]", EN_REPARACION: "bg-[#E58200]", RESUELTO: "bg-[#0A9B68]" };
+const SIGUIENTE: Partial<Record<EstadoIncidente, { a: EstadoIncidente; texto: string }>> = {
+  ABIERTO: { a: "EN_REPARACION", texto: "Iniciar reparación" },
+  EN_REPARACION: { a: "RESUELTO", texto: "Marcar resuelto" },
 };
+const ESTADOS: EstadoIncidente[] = ["ABIERTO", "EN_REPARACION", "RESUELTO"];
+const ORDEN_PRIORIDAD: Record<PrioridadIncidente, number> = { ALTA: 0, MEDIA: 1, BAJA: 2 };
+const MESES = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+// ---- fechas como texto AAAA-MM-DD
+const aUtc = (iso: string) => {
+  const [a, m, d] = iso.split("-").map(Number);
+  return Date.UTC(a, m - 1, d);
+};
+const diasEntre = (desde: string, hasta: string) => Math.round((aUtc(hasta) - aUtc(desde)) / 86_400_000);
+const hace = (n: number) => (n <= 0 ? "hoy" : n === 1 ? "hace 1 día" : `hace ${n} días`);
+const corto = (iso: string) => `${Number(iso.slice(8))} ${MESES[Number(iso.slice(5, 7)) - 1]}`;
+const capitalizar = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+type Filtro = "activos" | EstadoIncidente | "todos";
+
+function Stat({ label, valor, detalle, aviso = false }: { label: string; valor: string; detalle: string; aviso?: boolean }) {
+  return (
+    <div className={cn("min-w-0 rounded-2xl bg-card p-4 lg:p-5", SOMBRA)}>
+      <p className={cn("text-[13px] font-medium", GRIS)}>{label}</p>
+      <p className="mt-1 text-[24px] leading-tight font-semibold tracking-tight tabular-nums lg:text-[28px]">{valor}</p>
+      <p className={cn("mt-1 text-[13px]", aviso ? "font-medium text-[#A32020]" : GRIS)}>{detalle}</p>
+    </div>
+  );
+}
+
+function Prioridad({ p }: { p: PrioridadIncidente }) {
+  const estilo = p === "ALTA" ? "bg-[#FDECEC] text-[#A32020]" : p === "MEDIA" ? "bg-[#FFEEDC] text-[#8F4400]" : "bg-[#F1F0F7] text-[#55526A]";
+  return <span className={cn("inline-flex rounded-md px-2 py-0.5 text-xs font-semibold", estilo)}>{TEXTO_PRIORIDAD[p]}</span>;
+}
+
+function EstadoTexto({ e }: { e: EstadoIncidente }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-[13px] font-medium text-[#3F3C55]">
+      <span aria-hidden className={cn("size-2 rounded-full", PUNTO[e])} />
+      {TEXTO_ESTADO[e]}
+    </span>
+  );
+}
+
+/** El detalle de un incidente: sus datos, su seguimiento y el botón que lo lleva a la siguiente etapa. */
+function Detalle({
+  inc,
+  estado,
+  hoy,
+  onAvanzar,
+  onEditar,
+  onCerrar,
+}: {
+  inc: IncidenteFila;
+  estado: EstadoIncidente;
+  hoy: string;
+  onAvanzar: (a: EstadoIncidente) => void;
+  onEditar: () => void;
+  onCerrar: () => void;
+}) {
+  const sig = SIGUIENTE[estado];
+  const actual = ESTADOS.indexOf(estado);
+  const pasos: { e: EstadoIncidente; f?: string | null }[] = [
+    { e: "ABIERTO", f: inc.fecha },
+    { e: "EN_REPARACION" },
+    { e: "RESUELTO", f: estado === "RESUELTO" ? inc.fechaResolucion : null },
+  ];
+  return (
+    <div className="flex h-full max-h-[85vh] flex-col lg:max-h-none">
+      <div className="flex items-start justify-between gap-3 border-b border-[#F0EEF6] px-5 py-4">
+        <div className="min-w-0">
+          <p className={cn("text-xs font-semibold tabular-nums", GRIS)}>I-{inc.numero}</p>
+          <h2 className="mt-0.5 text-lg leading-snug font-semibold tracking-tight">{capitalizar(inc.titulo)}</h2>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <Button variant="ghost" size="icon" aria-label="Editar incidente" title="Editar" onClick={onEditar} className="size-9 rounded-lg">
+            <Pencil />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Cerrar detalle" onClick={onCerrar} className="size-9 rounded-lg lg:hidden">
+            <X />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-5 py-4">
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <div>
+            <dt className={GRIS}>Estado</dt>
+            <dd className="mt-0.5">
+              <EstadoTexto e={estado} />
+            </dd>
+          </div>
+          <div>
+            <dt className={GRIS}>Prioridad</dt>
+            <dd className="mt-0.5">
+              <Prioridad p={inc.prioridad} />
+            </dd>
+          </div>
+          <div className="col-span-2">
+            <dt className={GRIS}>Tipo</dt>
+            <dd className="mt-0.5 font-medium">{textoTipoIncidente(inc.tipo)}</dd>
+          </div>
+          <div>
+            <dt className={GRIS}>Reportado</dt>
+            <dd className="mt-0.5 font-medium">
+              {corto(inc.fecha)} · {hace(diasEntre(inc.fecha, hoy))}
+            </dd>
+          </div>
+          <div>
+            <dt className={GRIS}>Costo</dt>
+            <dd className="mt-0.5 font-semibold tabular-nums">{inc.costo ? clp(inc.costo) : "Sin costo"}</dd>
+          </div>
+          {inc.lugar && (
+            <div className="col-span-2">
+              <dt className={GRIS}>Lugar</dt>
+              <dd className="mt-0.5 flex items-center gap-2 font-medium">
+                <MapPin className="size-4 shrink-0" aria-hidden />
+                {inc.lugar}
+              </dd>
+            </div>
+          )}
+          {inc.responsable && (
+            <div className="col-span-2">
+              <dt className={GRIS}>Responsable</dt>
+              <dd className="mt-0.5 flex items-center gap-2 font-medium">
+                <User className="size-4 shrink-0" aria-hidden />
+                {inc.responsable}
+              </dd>
+            </div>
+          )}
+          {inc.descripcion && (
+            <div className="col-span-2">
+              <dt className={GRIS}>Qué pasó</dt>
+              <dd className="mt-0.5 whitespace-pre-line">{inc.descripcion}</dd>
+            </div>
+          )}
+          {inc.solucion && (
+            <div className="col-span-2">
+              <dt className={GRIS}>Cómo se resolvió</dt>
+              <dd className="mt-0.5 whitespace-pre-line">{inc.solucion}</dd>
+            </div>
+          )}
+        </dl>
+
+        <h3 className={cn("mt-6 text-[13px] font-semibold", GRIS)}>Seguimiento</h3>
+        <ol className="mt-2">
+          {pasos.map((p, i) => {
+            const hecho = i <= actual;
+            return (
+              <li key={p.e} className="relative flex gap-3 pb-4 last:pb-0">
+                {i < pasos.length - 1 && <span aria-hidden className={cn("absolute top-4 left-[7px] h-full w-px", i < actual ? "bg-primary" : "bg-[#E4E1F0]")} />}
+                <span aria-hidden className={cn("relative mt-0.5 flex size-[15px] shrink-0 items-center justify-center rounded-full", hecho ? "bg-primary" : "border-2 border-[#DAD6E6] bg-white")}>
+                  {hecho && <Check className="size-2.5 text-white" strokeWidth={4} />}
+                </span>
+                <span className="text-sm">
+                  <span className={hecho ? "font-semibold" : GRIS}>{TEXTO_ESTADO[p.e]}</span>
+                  {p.f && <span className={cn("block text-[13px]", GRIS)}>{corto(p.f)}</span>}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      {sig && (
+        <div className="border-t border-[#F0EEF6] p-4">
+          <Button onClick={() => onAvanzar(sig.a)} className="h-11 w-full rounded-lg font-semibold">
+            {sig.a === "RESUELTO" ? <Check /> : <ArrowRight />}
+            {sig.texto}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 /**
- * Los incidentes del sistema de agua como tablero: una columna por estado. Se arrastra una tarjeta a
- * otra columna para cambiar su estado (o se usa el botón de la tarjeta, que sirve en el celular).
+ * Los incidentes del sistema de agua: una lista ordenada por prioridad y antigüedad, con el detalle y
+ * el seguimiento del elegido al lado. Se cambia su estado con el botón del detalle.
  */
 export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] }) {
   const [busqueda, setBusqueda] = useState("");
+  const [prioridad, setPrioridad] = useState<"todas" | PrioridadIncidente>("todas");
+  const [filtro, setFiltro] = useState<Filtro>("activos");
+  const [sel, setSel] = useState<string | null>(null);
+  const [detalleMovil, setDetalleMovil] = useState(false);
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<IncidenteFila | null>(null);
-  const [arrastrando, setArrastrando] = useState<string | null>(null);
-  const [sobre, setSobre] = useState<EstadoIncidente | null>(null);
   // El estado se ve cambiar al instante; si el servidor falla, se vuelve atrás.
   const [movidos, setMovidos] = useState<Record<string, EstadoIncidente>>({});
   const [, iniciar] = useTransition();
   const cerrar = useCallback(() => {
     setCreando(false);
     setEditando(null);
-    // Lo que se editó en el diálogo manda sobre lo que se movió antes en el tablero.
+    // Lo que se editó en el diálogo manda sobre lo que se movió antes.
     setMovidos({});
   }, []);
 
+  const hoy = hoyEnChile();
+  const mes = hoy.slice(0, 7);
   const estadoDe = (i: IncidenteFila) => movidos[i.id] ?? i.estado;
 
-  function mover(i: IncidenteFila, destino: EstadoIncidente) {
+  function avanzar(i: IncidenteFila, destino: EstadoIncidente) {
     const origen = estadoDe(i);
-    if (origen === destino) return;
     setMovidos((m) => ({ ...m, [i.id]: destino }));
     iniciar(async () => {
       const r = await cambiarEstadoIncidente(i.id, destino);
@@ -63,152 +231,183 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
     });
   }
 
-  const mes = hoyEnChile().slice(0, 7);
-  const abiertos = incidentes.filter((i) => estadoDe(i) === "ABIERTO").length;
-  const enReparacion = incidentes.filter((i) => estadoDe(i) === "EN_REPARACION").length;
-  const resueltosMes = incidentes.filter((i) => estadoDe(i) === "RESUELTO" && (i.fechaResolucion ?? i.fecha).startsWith(mes)).length;
-  const costoMes = incidentes.filter((i) => (i.fechaResolucion ?? i.fecha).startsWith(mes)).reduce((s, i) => s + i.costo, 0);
+  const de = (e: EstadoIncidente) => incidentes.filter((i) => estadoDe(i) === e);
+  const activos = incidentes.filter((i) => estadoDe(i) !== "RESUELTO");
+  const altas = activos.filter((i) => i.prioridad === "ALTA").length;
+  const masAntiguo = activos.reduce((m, i) => Math.max(m, diasEntre(i.fecha, hoy)), 0);
+  const delMes = incidentes.filter((i) => (i.fechaResolucion ?? i.fecha).startsWith(mes));
+  const resueltosMes = delMes.filter((i) => estadoDe(i) === "RESUELTO");
+  const costoMes = delMes.reduce((s, i) => s + i.costo, 0);
+  const promedio = (() => {
+    const con = resueltosMes.filter((i) => i.fechaResolucion);
+    return con.length ? Math.round(con.reduce((t, i) => t + diasEntre(i.fecha, i.fechaResolucion as string), 0) / con.length) : 0;
+  })();
 
-  const q = busqueda.trim().toLowerCase();
-  const filtrados = incidentes.filter(
-    (i) =>
-      !q ||
-      `i-${i.numero}`.includes(q) ||
-      i.titulo.toLowerCase().includes(q) ||
-      (i.lugar ?? "").toLowerCase().includes(q) ||
-      (i.responsable ?? "").toLowerCase().includes(q)
-  );
+  const visibles = useMemo(() => {
+    const t = busqueda.trim().toLowerCase();
+    return incidentes
+      .filter((i) => {
+        const e = movidos[i.id] ?? i.estado;
+        if (filtro !== "todos" && (filtro === "activos" ? e === "RESUELTO" : e !== filtro)) return false;
+        if (prioridad !== "todas" && i.prioridad !== prioridad) return false;
+        if (!t) return true;
+        return `i-${i.numero}`.includes(t) || i.titulo.toLowerCase().includes(t) || textoTipoIncidente(i.tipo).toLowerCase().includes(t) || (i.lugar ?? "").toLowerCase().includes(t) || (i.responsable ?? "").toLowerCase().includes(t);
+      })
+      .sort((a, b) => ORDEN_PRIORIDAD[a.prioridad] - ORDEN_PRIORIDAD[b.prioridad] || (a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0));
+  }, [incidentes, busqueda, prioridad, filtro, movidos]);
+
+  const seleccionado = incidentes.find((i) => i.id === sel) ?? visibles[0] ?? null;
+
+  const pestanas: [Filtro, string, number][] = [
+    ["activos", "Sin resolver", activos.length],
+    ["ABIERTO", "Abiertos", de("ABIERTO").length],
+    ["EN_REPARACION", "En reparación", de("EN_REPARACION").length],
+    ["RESUELTO", "Resueltos", de("RESUELTO").length],
+    ["todos", "Todos", incidentes.length],
+  ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-4">
-        <div className={cn("rounded-xl border p-5", abiertos > 0 ? "border-red-200 bg-red-50 dark:border-red-500/30 dark:bg-red-500/10" : "border-border bg-card")}>
-          <p className={cn(etiquetaKpi, abiertos > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>Abiertos</p>
-          <p className={cn("mt-3 text-[2rem] leading-none font-bold tabular-nums", abiertos > 0 && "text-red-600 dark:text-red-400")}>{abiertos}</p>
+    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Incidentes</h1>
+          <p className={cn("mt-1 text-[15px]", GRIS)}>Fugas, fallas y cortes del sistema de agua, y lo que costó repararlos.</p>
         </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>En reparación</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{enReparacion}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Resueltos este mes</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{resueltosMes}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-5">
-          <p className={cn(etiquetaKpi, "text-muted-foreground")}>Costo este mes</p>
-          <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{clp.format(costoMes)}</p>
-        </div>
-      </section>
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          value={busqueda}
-          onChange={(e) => setBusqueda(e.target.value)}
-          placeholder="Buscar por número, título, lugar o responsable…"
-          className={cn(alto, "rounded-full px-5 text-[0.95rem] sm:w-96")}
-          aria-label="Buscar"
-        />
-        <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
-          + Nuevo incidente
+        <Button className="h-10 rounded-lg px-4 font-semibold" onClick={() => setCreando(true)}>
+          <Plus />
+          Nuevo incidente
         </Button>
       </div>
 
-      <div className="grid items-start gap-4 lg:grid-cols-3">
-        {COLUMNAS.map((col) => {
-          const tarjetas = filtrados.filter((i) => estadoDe(i) === col.estado);
-          const alReceptor = sobre === col.estado && arrastrando !== null;
-          return (
-            <section
-              key={col.estado}
-              aria-label={col.titulo}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setSobre(col.estado);
-              }}
-              onDragLeave={() => setSobre((s) => (s === col.estado ? null : s))}
-              onDrop={(e) => {
-                e.preventDefault();
-                const inc = incidentes.find((i) => i.id === arrastrando);
-                if (inc) mover(inc, col.estado);
-                setArrastrando(null);
-                setSobre(null);
-              }}
-              className={cn("flex min-h-48 flex-col gap-3 rounded-xl border bg-card/40 p-3 transition-colors", alReceptor ? "border-primary bg-primary/5" : "border-border")}
-            >
-              <header className="flex items-center gap-2 px-1.5 pt-1">
-                <span className={cn("size-2.5 rounded-full", col.punto)} />
-                <h2 className="text-[0.95rem] font-semibold">{col.titulo}</h2>
-                <span className="ml-auto rounded-full bg-muted px-2.5 py-0.5 text-[0.8rem] font-medium text-muted-foreground tabular-nums">{tarjetas.length}</span>
-              </header>
+      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+        <Stat label="Sin resolver" valor={String(activos.length)} detalle={altas ? `${altas} de prioridad alta` : "Ninguno de prioridad alta"} aviso={altas > 0} />
+        <Stat label="Más antiguo abierto" valor={activos.length ? `${masAntiguo} ${masAntiguo === 1 ? "día" : "días"}` : "—"} detalle={activos.length ? "Desde que se reportó" : "Todo al día"} />
+        <Stat label="Resueltos este mes" valor={String(resueltosMes.length)} detalle={resueltosMes.length ? `${promedio} ${promedio === 1 ? "día" : "días"} en promedio` : "Aún ninguno"} />
+        <Stat label="Costo este mes" valor={clp(costoMes)} detalle={`${delMes.filter((i) => i.costo > 0).length} incidentes con gasto`} />
+      </section>
 
-              {tarjetas.length === 0 ? (
-                <p className="px-2 py-8 text-center text-[0.85rem] text-muted-foreground">{col.vacio}</p>
-              ) : (
-                tarjetas.map((i) => (
-                  <article
-                    key={i.id}
-                    draggable
-                    onDragStart={() => setArrastrando(i.id)}
-                    onDragEnd={() => {
-                      setArrastrando(null);
-                      setSobre(null);
-                    }}
-                    onClick={() => setEditando(i)}
-                    className={cn(
-                      "cursor-grab rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-opacity hover:border-foreground/30 active:cursor-grabbing",
-                      arrastrando === i.id && "opacity-40",
-                      col.estado === "RESUELTO" && "opacity-80"
-                    )}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[0.8rem] font-medium text-muted-foreground">I-{i.numero}</span>
-                      <span className={cn("rounded-full px-2.5 py-0.5 text-[0.75rem] font-medium", COLOR_PRIORIDAD[i.prioridad])}>{TEXTO_PRIORIDAD[i.prioridad]}</span>
-                    </div>
-                    <h3 className="mt-2 text-[0.95rem] leading-snug font-medium">{i.titulo}</h3>
-                    <p className="mt-1 text-[0.8rem] text-muted-foreground">{textoTipoIncidente(i.tipo)}</p>
-
-                    <div className="mt-3 flex flex-col gap-1 text-[0.8rem] text-muted-foreground">
-                      {i.lugar && (
-                        <span className="flex items-center gap-1.5">
-                          <MapPin className="size-3.5 shrink-0" />
-                          <span className="truncate">{i.lugar}</span>
-                        </span>
-                      )}
-                      {i.responsable && (
-                        <span className="flex items-center gap-1.5">
-                          <User className="size-3.5 shrink-0" />
-                          <span className="truncate">{i.responsable}</span>
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mt-3 flex items-center justify-between gap-2 border-t border-border pt-3 text-[0.8rem]">
-                      <span className="text-muted-foreground tabular-nums">
-                        {col.estado === "RESUELTO" && i.fechaResolucion ? `Resuelto ${fechaCorta(i.fechaResolucion)}` : fechaCorta(i.fecha)}
-                      </span>
-                      {i.costo > 0 && <span className="font-medium tabular-nums">{clp.format(i.costo)}</span>}
-                    </div>
-
-                    {/* El botón sirve donde no se puede arrastrar (celular) y lleva a la siguiente etapa. */}
-                    {col.estado !== "RESUELTO" && (
-                      <Button
-                        variant="outline"
-                        className="mt-3 h-8 w-full rounded-full text-[0.8rem] lg:hidden"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          mover(i, col.estado === "ABIERTO" ? "EN_REPARACION" : "RESUELTO");
-                        }}
-                      >
-                        {col.estado === "ABIERTO" ? "Pasar a en reparación" : "Marcar resuelto"}
-                      </Button>
-                    )}
-                  </article>
-                ))
+      <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+        <div role="tablist" aria-label="Estado" className="flex gap-1 overflow-x-auto rounded-lg bg-white/80 p-1">
+          {pestanas.map(([v, n, c]) => (
+            <button
+              key={v}
+              type="button"
+              role="tab"
+              aria-selected={filtro === v}
+              onClick={() => setFiltro(v)}
+              className={cn(
+                "flex h-9 shrink-0 items-center gap-2 rounded-md px-3 text-sm font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                filtro === v ? "bg-white text-[#2A07A8] shadow-sm" : GRIS
               )}
-            </section>
-          );
-        })}
+            >
+              {n}
+              <span className={cn("text-xs tabular-nums", filtro === v ? "text-[#2A07A8]" : "text-[#8A8799]")}>{c}</span>
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1 xl:w-[300px] xl:flex-none">
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input aria-label="Buscar incidente" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar incidente" className="h-10 rounded-lg border-[#E4E1F0] bg-white pl-9 shadow-none" />
+          </div>
+          <div className="relative w-[150px] shrink-0">
+            <select
+              aria-label="Filtrar por prioridad"
+              value={prioridad}
+              onChange={(e) => setPrioridad(e.target.value as typeof prioridad)}
+              className="h-10 w-full appearance-none rounded-lg border border-[#E4E1F0] bg-white pr-8 pl-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="todas">Prioridad</option>
+              <option value="ALTA">Alta</option>
+              <option value="MEDIA">Media</option>
+              <option value="BAJA">Baja</option>
+            </select>
+            <ChevronDown aria-hidden className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-muted-foreground" />
+          </div>
+        </div>
       </div>
+
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className={cn("min-w-0 overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+          {visibles.length === 0 ? (
+            <p className={cn("px-6 py-14 text-center text-sm", GRIS)}>
+              {incidentes.length === 0 ? "Todavía no hay incidentes. Registra el primero con «Nuevo incidente»." : busqueda || prioridad !== "todas" ? "No hay incidentes con ese filtro." : "No hay incidentes aquí."}
+            </p>
+          ) : (
+            <ul className="divide-y divide-[#F0EEF6]">
+              {visibles.map((i) => {
+                const e = estadoDe(i);
+                const activo = seleccionado?.id === i.id;
+                const antiguedad = diasEntre(i.fecha, hoy);
+                const atrasado = e !== "RESUELTO" && antiguedad >= 3;
+                return (
+                  <li key={i.id}>
+                    <button
+                      type="button"
+                      aria-current={activo ? "true" : undefined}
+                      onClick={() => {
+                        setSel(i.id);
+                        setDetalleMovil(true);
+                      }}
+                      className={cn(
+                        "grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-4 text-left transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none focus-visible:ring-inset sm:grid-cols-[minmax(0,1fr)_130px_110px_auto] sm:px-5",
+                        activo ? "bg-[#F4F2FD]" : "hover:bg-[#FBFAFF]"
+                      )}
+                    >
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-2">
+                          <span className={cn("text-xs font-semibold tabular-nums", GRIS)}>I-{i.numero}</span>
+                          <Prioridad p={i.prioridad} />
+                        </span>
+                        <span className="mt-1 block truncate text-[15px] font-semibold">{capitalizar(i.titulo)}</span>
+                        <span className={cn("block truncate text-[13px]", GRIS)}>{textoTipoIncidente(i.tipo)}</span>
+                      </span>
+                      <span className="hidden sm:block">
+                        <EstadoTexto e={e} />
+                      </span>
+                      <span className={cn("hidden text-[13px] sm:block", atrasado ? "font-semibold text-[#8F4400]" : GRIS)}>{e === "RESUELTO" && i.fechaResolucion ? `Resuelto ${corto(i.fechaResolucion)}` : hace(antiguedad)}</span>
+                      <span className="flex items-center gap-2 justify-self-end">
+                        <span className={cn("text-sm font-semibold tabular-nums", !i.costo && "text-[#A5A3B5]")}>{i.costo ? clp(i.costo) : "—"}</span>
+                        <ChevronRight className="size-4 text-[#A5A3B5]" aria-hidden />
+                      </span>
+                      <span className={cn("col-span-2 text-[13px] sm:hidden", atrasado ? "font-semibold text-[#8F4400]" : GRIS)}>
+                        {TEXTO_ESTADO[e]} · {e === "RESUELTO" && i.fechaResolucion ? `resuelto ${corto(i.fechaResolucion)}` : hace(antiguedad)}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+
+        {seleccionado ? (
+          <div className={cn("hidden overflow-hidden rounded-2xl bg-card lg:sticky lg:top-4 lg:block", SOMBRA)}>
+            <Detalle inc={seleccionado} estado={estadoDe(seleccionado)} hoy={hoy} onAvanzar={(a) => avanzar(seleccionado, a)} onEditar={() => setEditando(seleccionado)} onCerrar={() => setSel(null)} />
+          </div>
+        ) : (
+          <div className={cn("hidden rounded-2xl bg-card px-6 py-14 text-center text-sm lg:block", GRIS, SOMBRA)}>Elige un incidente para ver su detalle.</div>
+        )}
+      </div>
+
+      {seleccionado && detalleMovil && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button type="button" aria-label="Cerrar detalle" onClick={() => setDetalleMovil(false)} className="absolute inset-0 bg-[#15132B]/40" />
+          <div className="absolute inset-x-0 bottom-0 max-h-[85vh] overflow-hidden rounded-t-2xl bg-card">
+            <Detalle
+              inc={seleccionado}
+              estado={estadoDe(seleccionado)}
+              hoy={hoy}
+              onAvanzar={(a) => avanzar(seleccionado, a)}
+              onEditar={() => {
+                setDetalleMovil(false);
+                setEditando(seleccionado);
+              }}
+              onCerrar={() => setDetalleMovil(false)}
+            />
+          </div>
+        </div>
+      )}
 
       {(creando || editando) && <IncidenteDialog key={editando?.id ?? "nuevo"} incidente={editando} onCerrar={cerrar} />}
     </div>

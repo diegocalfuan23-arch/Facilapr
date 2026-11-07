@@ -17,14 +17,5 @@ export default async function IncidentesPage() {
 
   const incidentes = await listarIncidentes(apr.id);
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Incidentes</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Fugas, fallas y cortes del sistema de agua, y lo que costó repararlos.</p>
-      </div>
-
-      <IncidentesVista incidentes={incidentes} />
-    </div>
-  );
+  return <IncidentesVista incidentes={incidentes} />;
 }
