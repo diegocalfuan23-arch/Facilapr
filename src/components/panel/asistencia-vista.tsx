@@ -3,14 +3,14 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { CalendarCheck2, CalendarCog, CalendarDays, CalendarRange, CalendarX2, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Loader2, Minus, Plus, Trash2, TriangleAlert } from "lucide-react";
-import { guardarCalendarioLaboral, guardarHorasExtra, marcarAsistencia } from "@/app/panel/asistencia/actions";
+import { CalendarCheck2, CalendarCog, Clock3, CalendarDays, CalendarRange, CalendarX2, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Loader2, Minus, Plus, Trash2, TriangleAlert } from "lucide-react";
+import { guardarCalendarioLaboral, guardarHoraLlegada, guardarHorasExtra, marcarAsistencia } from "@/app/panel/asistencia/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { FERIADOS_NACIONALES } from "@/lib/feriados";
 import { hoyEnChile } from "@/lib/finanzas-comun";
-import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, TEXTO_ESTADO_ASISTENCIA, resumenDias, type AsistenciaDia, type DiaEspecial, type EstadoAsistencia } from "@/lib/rrhh-comun";
+import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, TEXTO_ESTADO_ASISTENCIA, aMinutos, duracionTramo, resumenDias, type AsistenciaDia, type DiaEspecial, type EstadoAsistencia, type HorarioComite, type HorarioPersona, type TramoComite } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
 
 type Estado = EstadoAsistencia;
@@ -34,6 +34,14 @@ type Contexto = {
   especial: (iso: string) => DiaEspecial | null;
   horario: (id: string) => number[];
   debe: (id: string, iso: string) => boolean;
+  /** Cuándo funciona el comité ese día; null si está cerrado (o si el comité no definió su horario). */
+  comite: (iso: string) => TramoComite | null;
+  /** El comité definió su horario y ese día está cerrado. */
+  cerrado: (iso: string) => boolean;
+  /** A qué hora entra esa persona ese día: la suya o, si no tiene, cuando abre el comité. */
+  ingreso: (id: string, iso: string) => string | null;
+  /** Minutos que se esperan antes de sugerir un atraso. */
+  tolerancia: number;
 };
 
 const ESTILO_ESPECIAL: Record<DiaEspecial["tipo"], { celda: string; chip: string; etiqueta: string }> = {
@@ -229,8 +237,12 @@ function FilaPersona({
   futuro,
   debe,
   horario,
+  ingreso,
+  llegada,
+  tolerancia,
   onEstado,
   onExtras,
+  onLlegada,
 }: {
   persona: Persona;
   estado: Estado | null;
@@ -240,10 +252,17 @@ function FilaPersona({
   /** Le toca trabajar ese día según su horario (y no es feriado ni día sin operación). */
   debe: boolean;
   horario: number[];
+  /** A qué hora le toca entrar ese día, si se sabe. */
+  ingreso: string | null;
+  /** A qué hora llegó, si se anotó. */
+  llegada: string | null;
+  tolerancia: number;
   onEstado: (e: Estado | null) => void;
   onExtras: (n: number) => void;
+  onLlegada: (hora: string | null) => void;
 }) {
   const trabaja = estado === "PRESENTE" || estado === "ATRASO";
+  const minutosTarde = llegada && ingreso ? aMinutos(llegada) - aMinutos(ingreso) : null;
   return (
     <li className={cn("px-4 py-4 lg:px-5", !debe && !estado && "bg-[#FBFBFD]")}>
       <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -251,7 +270,16 @@ function FilaPersona({
           <p className="truncate text-[15px] font-semibold">{persona.nombre}</p>
           <p className={cn("flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]", GRIS)}>
             {persona.cargo}
-            {!debe && <span className="rounded-md bg-[#F0EFF4] px-1.5 py-0.5 text-xs font-semibold text-[#5B5970]">Libre hoy · trabaja {resumenDias(horario)}</span>}
+            {debe ? (
+              ingreso ? (
+                <span className="inline-flex items-center gap-1 rounded-md bg-[#F1EEFD] px-1.5 py-0.5 text-xs font-semibold text-[#2A07A8]">
+                  <Clock3 className="size-3" aria-hidden />
+                  Ingresa {ingreso}
+                </span>
+              ) : null
+            ) : (
+              <span className="rounded-md bg-[#F0EFF4] px-1.5 py-0.5 text-xs font-semibold text-[#5B5970]">Libre hoy · trabaja {resumenDias(horario)}</span>
+            )}
           </p>
         </div>
         {automatico && estado ? (
@@ -282,7 +310,24 @@ function FilaPersona({
         )}
       </div>
       {trabaja && !automatico && (
-        <div className="mt-3 flex items-center justify-between gap-3 xl:justify-end">
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 xl:justify-end">
+          <label className={cn("flex items-center gap-2 text-[13px]", GRIS)}>
+            Llegó
+            <Input type="time" value={llegada ?? ""} onChange={(e) => onLlegada(e.target.value || null)} aria-label={`Hora de llegada de ${persona.nombre}`} className="h-9 w-[118px] rounded-lg border-[#E4E1F0] bg-white px-2 text-[#15132B] tabular-nums shadow-none" />
+          </label>
+          {minutosTarde !== null && minutosTarde > tolerancia ? (
+            <span className="flex items-center gap-2 text-[13px] font-medium text-[#8F4400]">
+              {minutosTarde} min tarde
+              {estado === "PRESENTE" && (
+                <button type="button" onClick={() => onEstado("ATRASO")} className="rounded-md bg-[#FFF3E5] px-2 py-1 text-xs font-semibold hover:bg-[#FFE9D1]">
+                  Marcar atraso
+                </button>
+              )}
+            </span>
+          ) : minutosTarde !== null ? (
+            <span className="text-[13px] font-medium text-[#075A3C]">A tiempo</span>
+          ) : null}
+          <span className="flex items-center gap-3">
           <span className={cn("text-[13px]", GRIS)}>Horas extras</span>
           <div className="flex items-center gap-1">
             <Button variant="outline" size="icon" aria-label={`Restar hora extra a ${persona.nombre}`} disabled={extras <= 0} onClick={() => onExtras(Math.max(0, extras - 1))} className="size-9 rounded-lg border-[#E4E1F0]">
@@ -293,6 +338,7 @@ function FilaPersona({
               <Plus />
             </Button>
           </div>
+          </span>
         </div>
       )}
     </li>
@@ -527,26 +573,34 @@ function VistaMes({
   );
 }
 
-/** Define quién trabaja cada día de la semana y los feriados locales o días sin operación del comité. */
+/** Define cuándo funciona el comité, quién trabaja cada día (y a qué hora entra) y los feriados locales o días sin operación. */
 function ConfigLaboral({
   personas,
   horarios,
   dias,
+  comite,
+  toleranciaMin,
   hoy,
   tabInicial,
   onCerrar,
 }: {
   personas: Persona[];
-  horarios: Record<string, number[]>;
+  horarios: Record<string, HorarioPersona>;
   dias: DiaEspecial[];
+  /** El horario del comité por día; null si todavía no lo definió. */
+  comite: HorarioComite | null;
+  toleranciaMin: number;
   hoy: string;
-  tabInicial: "horario" | "feriados";
+  tabInicial: "comite" | "horario" | "feriados";
   onCerrar: () => void;
 }) {
   const router = useRouter();
   const [guardando, iniciar] = useTransition();
   const [tab, setTab] = useState(tabInicial);
-  const [h, setH] = useState<Record<string, number[] | undefined>>(horarios);
+  const [h, setH] = useState<Record<string, number[] | undefined>>(() => Object.fromEntries(Object.entries(horarios).map(([id, x]) => [id, x.dias])));
+  const [ing, setIng] = useState<Record<string, string | undefined>>(() => Object.fromEntries(Object.entries(horarios).map(([id, x]) => [id, x.ingreso ?? undefined])));
+  const [com, setCom] = useState<HorarioComite | null>(comite);
+  const [tol, setTol] = useState(String(toleranciaMin));
   const [cal, setCal] = useState<DiaEspecial[]>(dias);
   const [nuevo, setNuevo] = useState(false);
   const [fecha, setFecha] = useState("");
@@ -561,8 +615,16 @@ function ConfigLaboral({
     const igual = sig.length === HORARIO_POR_DEFECTO.length && HORARIO_POR_DEFECTO.every((x) => sig.includes(x));
     setH((x) => ({ ...x, [id]: igual ? undefined : sig }));
   };
+  const fijarTramo = (d: number, t: TramoComite | null) => setCom((c) => ({ ...(c ?? {}), [d]: t }));
+  const tramoMalo = com ? ORDEN_SEMANA.some((d) => com[d] && aMinutos(com[d]!.cierra) <= aMinutos(com[d]!.abre)) : false;
+  const tolNum = tol === "" ? null : Number(tol);
+  const tolMala = tolNum === null || !Number.isInteger(tolNum) || tolNum < 0 || tolNum > 120;
   const sinDias = personas.some((p) => diasDe(p.id).length === 0);
-  const cambios = JSON.stringify(personas.map((p) => h[p.id] ?? null)) !== JSON.stringify(personas.map((p) => horarios[p.id] ?? null)) || JSON.stringify(cal) !== JSON.stringify(dias);
+  const cambios =
+    JSON.stringify(personas.map((p) => [h[p.id] ?? null, ing[p.id] ?? null])) !== JSON.stringify(personas.map((p) => [horarios[p.id]?.dias ?? null, horarios[p.id]?.ingreso ?? null])) ||
+    JSON.stringify(cal) !== JSON.stringify(dias) ||
+    JSON.stringify(com) !== JSON.stringify(comite) ||
+    tol !== String(toleranciaMin);
   const nacional = (f: string) => Object.prototype.hasOwnProperty.call(FERIADOS_NACIONALES, f);
   const repetida = !!fecha && (cal.some((d) => d.fecha === fecha) || nacional(fecha));
   const anio = hoy.slice(0, 4);
@@ -586,8 +648,10 @@ function ConfigLaboral({
   function guardar() {
     iniciar(async () => {
       const r = await guardarCalendarioLaboral({
-        horarios: Object.fromEntries(personas.map((p) => [p.id, h[p.id] ?? null])),
+        horarios: Object.fromEntries(personas.map((p) => [p.id, { dias: h[p.id] ?? null, ingreso: ing[p.id] ?? null }])),
         dias: cal.map((d) => ({ fecha: d.fecha, tipo: d.tipo, nombre: d.nombre })),
+        comite: com ? Object.fromEntries(ORDEN_SEMANA.map((d) => [String(d), com[d] ?? null])) : null,
+        toleranciaMin: tolNum,
       });
       if (r.ok) {
         toast.success("Calendario laboral guardado");
@@ -599,6 +663,8 @@ function ConfigLaboral({
     });
   }
 
+  const columnasPersona = "sm:grid-cols-[minmax(0,1fr)_104px_repeat(7,36px)]";
+
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
       <DialogContent className="flex max-h-[92vh] max-w-[620px] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[620px]">
@@ -608,7 +674,8 @@ function ConfigLaboral({
           <div role="tablist" aria-label="Sección" className="mt-4 flex gap-6">
             {(
               [
-                ["horario", "Horario por persona", "Horario"],
+                ["comite", "Horario del comité", "Comité"],
+                ["horario", "Personas", "Personas"],
                 ["feriados", "Feriados y sin operación", "Feriados"],
               ] as const
             ).map(([k, t, c]) => (
@@ -628,10 +695,86 @@ function ConfigLaboral({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {tab === "horario" ? (
+          {tab === "comite" ? (
             <div className="px-6 py-4">
-              <div className={cn("mb-1 hidden grid-cols-[minmax(0,1fr)_repeat(7,36px)] items-center gap-1.5 text-center text-xs font-semibold sm:grid", GRIS)}>
+              {com === null ? (
+                <div className="rounded-xl bg-[#F8F7FC] p-5 text-center">
+                  <p className="text-sm font-semibold">Todavía no definiste el horario del comité</p>
+                  <p className={cn("mx-auto mt-1 max-w-sm text-[13px]", GRIS)}>Sin horario, la asistencia solo mira los días de cada persona. Con horario, sabe cuándo abre el comité y puede avisar de los atrasos.</p>
+                  <Button
+                    type="button"
+                    onClick={() => setCom({ 0: null, 1: { abre: "08:00", cierra: "17:00" }, 2: { abre: "08:00", cierra: "17:00" }, 3: { abre: "08:00", cierra: "17:00" }, 4: { abre: "08:00", cierra: "17:00" }, 5: { abre: "08:00", cierra: "17:00" }, 6: null })}
+                    className="mt-3 h-9 rounded-lg px-4 font-semibold"
+                  >
+                    Definir horario del comité
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <p className={cn("mb-3 text-[13px]", GRIS)}>Días y horas en que funciona el comité. Los días cerrados nadie queda pendiente.</p>
+                  <ul className="divide-y divide-[#F3F1F8]">
+                    {ORDEN_SEMANA.map((d) => {
+                      const t = com[d] ?? null;
+                      const malo = t && aMinutos(t.cierra) <= aMinutos(t.abre);
+                      return (
+                        <li key={d} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2.5">
+                          <button
+                            type="button"
+                            role="switch"
+                            aria-checked={!!t}
+                            aria-label={`${DIAS_LARGOS[d]} abierto`}
+                            onClick={() => fijarTramo(d, t ? null : { abre: "08:00", cierra: "17:00" })}
+                            className={cn("relative h-6 w-10 shrink-0 rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", t ? "bg-primary" : "bg-[#DCD9E8]")}
+                          >
+                            <span className={cn("absolute top-0.5 size-5 rounded-full bg-white shadow transition-all", t ? "left-[18px]" : "left-0.5")} />
+                          </button>
+                          <span className="w-[86px] text-sm font-semibold">{DIAS_LARGOS[d]}</span>
+                          {t ? (
+                            <span className="flex flex-1 flex-wrap items-center gap-2">
+                              <Input type="time" aria-label={`${DIAS_LARGOS[d]} abre`} value={t.abre} onChange={(e) => fijarTramo(d, { ...t, abre: e.target.value })} className="h-9 w-[118px] rounded-lg border-[#E4E1F0] px-2 tabular-nums shadow-none" />
+                              <span className={GRIS}>a</span>
+                              <Input type="time" aria-label={`${DIAS_LARGOS[d]} cierra`} value={t.cierra} onChange={(e) => fijarTramo(d, { ...t, cierra: e.target.value })} className={cn("h-9 w-[118px] rounded-lg px-2 tabular-nums shadow-none", malo ? "border-[#F2C1C0]" : "border-[#E4E1F0]")} />
+                              <span className={cn("text-xs", malo ? "text-[#A32020]" : GRIS)}>{malo ? "Cierre antes de abrir" : duracionTramo(t)}</span>
+                            </span>
+                          ) : (
+                            <span className={cn("flex-1 text-sm", GRIS)}>Cerrado</span>
+                          )}
+                        </li>
+                      );
+                    })}
+                  </ul>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      const lunes = com[1];
+                      if (lunes) setCom((c) => Object.fromEntries(ORDEN_SEMANA.map((d) => [d, c && c[d] ? { ...lunes } : null])) as HorarioComite);
+                    }}
+                    className="mt-2 h-8 rounded-lg px-2 text-xs font-semibold text-[#2A07A8]"
+                  >
+                    Copiar el horario del lunes a los días abiertos
+                  </Button>
+                </>
+              )}
+
+              <div className="mt-4 rounded-xl border border-[#E4E1F0] p-4">
+                <label htmlFor="tolerancia" className="text-sm font-semibold">
+                  Tolerancia de atraso
+                </label>
+                <p className={cn("mt-0.5 text-xs", GRIS)}>Cuántos minutos después de su hora de ingreso se le puede esperar a alguien antes de sugerir marcar un atraso. Nunca se marca solo.</p>
+                <div className="mt-2.5 flex items-center gap-2">
+                  <Input id="tolerancia" inputMode="numeric" value={tol} onChange={(e) => setTol(e.target.value.replace(/\D/g, "").slice(0, 3))} className={cn("h-9 w-[84px] rounded-lg px-2 text-right tabular-nums shadow-none", tolMala ? "border-[#F2C1C0]" : "border-[#E4E1F0]")} />
+                  <span className={cn("text-sm", GRIS)}>minutos</span>
+                  {tolMala && <span className="text-xs text-[#A32020]">Entre 0 y 120.</span>}
+                </div>
+              </div>
+            </div>
+          ) : tab === "horario" ? (
+            <div className="px-6 py-4">
+              <div className={cn("mb-1 hidden grid-cols-[minmax(0,1fr)_104px_repeat(7,36px)] items-center gap-1.5 text-center text-xs font-semibold sm:grid", GRIS)}>
                 <span />
+                <span>Ingresa</span>
                 {ORDEN_SEMANA.map((d) => (
                   <span key={d}>{CORTO[d]}</span>
                 ))}
@@ -640,14 +783,22 @@ function ConfigLaboral({
                 {personas.map((p) => {
                   const ds = diasDe(p.id);
                   return (
-                    <li key={p.id} className="grid grid-cols-1 gap-2 py-3 sm:grid-cols-[minmax(0,1fr)_repeat(7,36px)] sm:items-center sm:gap-1.5">
+                    <li key={p.id} className={cn("grid grid-cols-[minmax(0,1fr)_auto] gap-2 py-3 sm:items-center sm:gap-1.5", columnasPersona)}>
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">{p.nombre}</span>
                         <span className={cn("block text-xs", GRIS)}>
                           {p.cargo} · {resumenDias(ds)}
                         </span>
                       </span>
-                      <span role="group" aria-label={`Días que trabaja ${p.nombre}`} className="grid grid-cols-7 gap-1.5 sm:contents">
+                      <Input
+                        type="time"
+                        aria-label={`Hora de ingreso de ${p.nombre}`}
+                        title="Vacío = cuando abre el comité"
+                        value={ing[p.id] ?? ""}
+                        onChange={(e) => setIng((x) => ({ ...x, [p.id]: e.target.value || undefined }))}
+                        className="h-9 w-[124px] rounded-lg border-[#E4E1F0] px-2 tabular-nums shadow-none sm:w-[104px]"
+                      />
+                      <span role="group" aria-label={`Días que trabaja ${p.nombre}`} className="col-span-2 grid grid-cols-7 gap-1.5 sm:contents">
                         {ORDEN_SEMANA.map((d) => {
                           const on = ds.includes(d);
                           return (
@@ -665,12 +816,12 @@ function ConfigLaboral({
                           );
                         })}
                       </span>
-                      {ds.length === 0 && <span className="text-xs text-[#A32020] sm:col-span-8">Elige al menos un día.</span>}
+                      {ds.length === 0 && <span className="col-span-2 text-xs text-[#A32020] sm:col-span-9">Elige al menos un día.</span>}
                     </li>
                   );
                 })}
               </ul>
-              <p className={cn("mt-3 rounded-lg bg-[#F8F7FC] px-3 py-2.5 text-xs", GRIS)}>Si no cambias nada, cada persona trabaja de lunes a viernes, como hasta ahora.</p>
+              <p className={cn("mt-3 rounded-lg bg-[#F8F7FC] px-3 py-2.5 text-xs", GRIS)}>Sin días marcados a mano = lunes a viernes. Sin hora de ingreso = entra cuando abre el comité. Los días que el comité está cerrado no cuentan aunque estén marcados.</p>
             </div>
           ) : (
             <div className="px-6 py-4">
@@ -774,7 +925,7 @@ function ConfigLaboral({
             <Button type="button" variant="ghost" onClick={onCerrar} className="h-10 rounded-lg px-4 font-semibold">
               Cancelar
             </Button>
-            <Button type="button" disabled={!cambios || sinDias || guardando} onClick={guardar} className="h-10 rounded-lg px-5 font-semibold">
+            <Button type="button" disabled={!cambios || sinDias || tramoMalo || tolMala || guardando} onClick={guardar} className="h-10 rounded-lg px-5 font-semibold">
               {guardando && <Loader2 className="animate-spin" />}
               Guardar
             </Button>
@@ -797,21 +948,26 @@ export function AsistenciaVista({
   horasExtraMes,
   horarios,
   diasComite,
+  comite,
+  toleranciaMin,
 }: {
   dia: string;
   filas: AsistenciaDia[];
   grilla: Grilla;
   horasExtraMes: Record<string, number>;
-  /** Los días de la semana de quien tiene un horario cargado (el resto trabaja de lunes a viernes). */
-  horarios: Record<string, number[]>;
+  /** Los días y la hora de ingreso de quien tiene un horario cargado (el resto trabaja de lunes a viernes). */
+  horarios: Record<string, HorarioPersona>;
   /** Los feriados locales y días sin operación del comité. */
   diasComite: DiaEspecial[];
+  /** Cuándo funciona el comité cada día; null si todavía no lo definió. */
+  comite: HorarioComite | null;
+  toleranciaMin: number;
 }) {
   const router = useRouter();
   const [, navegar] = useTransition();
   const [vista, setVista] = useState<"dia" | "semana" | "mes">("dia");
   const [calendario, setCalendario] = useState(false);
-  const [config, setConfig] = useState<null | "horario" | "feriados">(null);
+  const [config, setConfig] = useState<null | "comite" | "horario" | "feriados">(null);
   const cerrarConfig = useCallback(() => setConfig(null), []);
 
   const ctx: Contexto = useMemo(() => {
@@ -819,9 +975,19 @@ export function AsistenciaVista({
       if (Object.prototype.hasOwnProperty.call(FERIADOS_NACIONALES, iso)) return { fecha: iso, tipo: "FERIADO", nombre: FERIADOS_NACIONALES[iso], nacional: true };
       return diasComite.find((d) => d.fecha === iso) ?? null;
     };
-    const horario = (id: string) => horarios[id] ?? HORARIO_POR_DEFECTO;
-    return { especial, horario, debe: (id, iso) => !especial(iso) && horario(id).includes(diaSem(iso)) };
-  }, [horarios, diasComite]);
+    const horario = (id: string) => horarios[id]?.dias ?? HORARIO_POR_DEFECTO;
+    const tramo = (iso: string): TramoComite | null => (comite ? (comite[diaSem(iso)] ?? null) : null);
+    const cerrado = (iso: string) => comite !== null && !tramo(iso);
+    return {
+      especial,
+      horario,
+      comite: tramo,
+      cerrado,
+      ingreso: (id, iso) => horarios[id]?.ingreso ?? tramo(iso)?.abre ?? null,
+      tolerancia: toleranciaMin,
+      debe: (id, iso) => !especial(iso) && !cerrado(iso) && horario(id).includes(diaSem(iso)),
+    };
+  }, [horarios, diasComite, comite, toleranciaMin]);
 
   const ir = (d: string) => navegar(() => router.push(`/panel/asistencia?dia=${d}`));
   const personas: Persona[] = filas.map((f) => ({ id: f.trabajadorId, nombre: f.nombre, cargo: f.cargo }));
@@ -834,7 +1000,7 @@ export function AsistenciaVista({
           <p className={cn("mt-0.5 text-[15px]", GRIS)}>Quién vino cada día según su horario. Feriados, vacaciones y licencias se marcan solos.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={() => setConfig("horario")} disabled={personas.length === 0} className="h-11 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
+          <Button variant="outline" onClick={() => setConfig("comite")} disabled={personas.length === 0} className="h-11 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
             <CalendarCog />
             Calendario laboral
           </Button>
@@ -871,7 +1037,7 @@ export function AsistenciaVista({
         <Cuerpo key={dia} dia={dia} filas={filas} grilla={grilla} horasExtraMes={horasExtraMes} ctx={ctx} vista={vista} setVista={setVista} calendario={calendario} setCalendario={setCalendario} ir={ir} abrirFeriados={() => setConfig("feriados")} />
       )}
 
-      {config && <ConfigLaboral personas={personas} horarios={horarios} dias={diasComite} hoy={hoyEnChile()} tabInicial={config} onCerrar={cerrarConfig} />}
+      {config && <ConfigLaboral personas={personas} horarios={horarios} dias={diasComite} comite={comite} toleranciaMin={toleranciaMin} hoy={hoyEnChile()} tabInicial={config} onCerrar={cerrarConfig} />}
     </div>
   );
 }
@@ -907,6 +1073,7 @@ function Cuerpo({
   // Lo que se marcó en este día y todavía no vuelve del servidor.
   const [marcas, setMarcas] = useState<Record<string, Estado | null>>({});
   const [extras, setExtras] = useState<Record<string, number>>({});
+  const [llegadas, setLlegadas] = useState<Record<string, string | null>>({});
 
   const delDia = (id: string) => filas.find((f) => f.trabajadorId === id);
   const estadoDelDia = (id: string): Estado | null => (id in marcas ? marcas[id] : (delDia(id)?.estado ?? null));
@@ -923,7 +1090,10 @@ function Cuerpo({
   function marcar(p: Persona, nuevo: Estado | null) {
     const antes = estadoDelDia(p.id);
     setMarcas((m) => ({ ...m, [p.id]: nuevo }));
-    if (nuevo !== "PRESENTE" && nuevo !== "ATRASO") setExtras((x) => ({ ...x, [p.id]: 0 }));
+    if (nuevo !== "PRESENTE" && nuevo !== "ATRASO") {
+      setExtras((x) => ({ ...x, [p.id]: 0 }));
+      setLlegadas((x) => ({ ...x, [p.id]: null }));
+    }
     iniciar(async () => {
       const r = await marcarAsistencia(p.id, dia, nuevo);
       if (!r.ok) {
@@ -943,6 +1113,19 @@ function Cuerpo({
         toast.error(fallo.error);
         const falladas = lista.filter((_, i) => !resultados[i].ok);
         setMarcas((m) => ({ ...m, ...Object.fromEntries(falladas.map((p) => [p.id, null])) }));
+      }
+    });
+  }
+
+  function llegada(p: Persona, hora: string | null) {
+    const antes = p.id in llegadas ? llegadas[p.id] : (delDia(p.id)?.horaLlegada ?? null);
+    setLlegadas((x) => ({ ...x, [p.id]: hora }));
+    // Una hora a medio escribir (un campo de hora a medias) no se envía: solo la hora completa o vacía.
+    iniciar(async () => {
+      const r = await guardarHoraLlegada(p.id, dia, hora);
+      if (!r.ok) {
+        toast.error(r.error);
+        setLlegadas((x) => ({ ...x, [p.id]: antes }));
       }
     });
   }
@@ -1022,7 +1205,13 @@ function Cuerpo({
                   </span>
                   <span className={cn("block text-[13px]", GRIS)}>
                     {dia === hoy ? "Hoy · " : ""}
-                    {esp ? esp.nombre : conTurno.length ? `${conTurno.length - sinMarcar.length} de ${conTurno.length} que trabajan este día` : "Nadie trabaja este día"}
+                    {esp
+                      ? esp.nombre
+                      : ctx.cerrado(dia)
+                        ? "Comité cerrado"
+                        : conTurno.length
+                          ? `${ctx.comite(dia) ? `Comité ${ctx.comite(dia)!.abre}–${ctx.comite(dia)!.cierra} · ` : ""}${conTurno.length - sinMarcar.length} de ${conTurno.length} marcados`
+                          : "Nadie trabaja este día"}
                   </span>
                 </button>
                 <Button variant="ghost" size="icon" aria-label="Día siguiente" onClick={() => mover(1)} className="size-10 rounded-lg">
@@ -1046,7 +1235,7 @@ function Cuerpo({
               ) : futuro || conTurno.length === 0 ? (
                 <p className={cn("flex items-center gap-2 bg-[#F7F6FC] px-4 py-2 text-[13px] lg:px-5", GRIS)}>
                   <CalendarCheck2 className="size-4 shrink-0" aria-hidden />
-                  {futuro ? "Día futuro: solo puedes registrar permisos." : "A nadie le toca trabajar este día según su horario. Marca solo si alguien trabajó."}
+                  {futuro ? "Día futuro: solo puedes registrar permisos." : ctx.cerrado(dia) ? "El comité no funciona este día. Marca solo si alguien trabajó." : "A nadie le toca trabajar este día según su horario. Marca solo si alguien trabajó."}
                 </p>
               ) : null}
 
@@ -1061,8 +1250,12 @@ function Cuerpo({
                     futuro={futuro}
                     debe={ctx.debe(p.id, dia)}
                     horario={ctx.horario(p.id)}
+                    ingreso={ctx.ingreso(p.id, dia)}
+                    llegada={p.id in llegadas ? llegadas[p.id] : (delDia(p.id)?.horaLlegada ?? null)}
+                    tolerancia={ctx.tolerancia}
                     onEstado={(e) => marcar(p, e)}
                     onExtras={(n) => horasExtra(p, n)}
+                    onLlegada={(h) => llegada(p, h)}
                   />
                 ))}
               </ul>

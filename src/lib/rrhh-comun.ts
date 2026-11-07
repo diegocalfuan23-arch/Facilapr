@@ -140,6 +140,8 @@ export type AsistenciaDia = {
   nota: string | null;
   /** Las horas extras de ese día (0 si no hubo). */
   horasExtra: number;
+  /** HH:MM: a qué hora llegó, si se anotó. */
+  horaLlegada: string | null;
 };
 
 const aFecha = (iso: string) => {
@@ -209,3 +211,28 @@ export function resumenDias(dias: number[]) {
   const seguidos = o.every((d, i) => i === 0 || orden.indexOf(d) === orden.indexOf(o[i - 1]) + 1);
   return o.length > 2 && seguidos ? `${corto[o[0]]} a ${corto[o[o.length - 1]]}` : o.map((d) => corto[d]).join(", ");
 }
+
+/** A qué hora abre y cierra el comité un día (HH:MM). */
+export type TramoComite = { abre: string; cierra: string };
+
+/** El horario del comité por día de la semana (0 = domingo … 6 = sábado); null = cerrado ese día. */
+export type HorarioComite = Record<number, TramoComite | null>;
+
+/** Los minutos que tolera el comité antes de contar un atraso, si no eligió otro valor. */
+export const TOLERANCIA_POR_DEFECTO = 10;
+
+/** Los minutos desde la medianoche de una hora HH:MM. */
+export const aMinutos = (hora: string) => {
+  const [h, m] = hora.split(":").map(Number);
+  return h * 60 + m;
+};
+
+/** Cuánto dura un tramo, en texto: «9 h», «4 h 30 min». Vacío si el cierre no es posterior a la apertura. */
+export function duracionTramo(t: TramoComite) {
+  const m = aMinutos(t.cierra) - aMinutos(t.abre);
+  if (!(m > 0)) return "";
+  return `${Math.floor(m / 60)}${m % 60 ? ` h ${m % 60} min` : " h"}`;
+}
+
+/** Un horario de persona: los días en que trabaja y, si la tiene, su hora de ingreso. */
+export type HorarioPersona = { dias: number[]; ingreso: string | null };

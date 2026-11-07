@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asistencias, ausencias, diasCalendario, horariosLaborales, horasExtras, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { asistencias, ausencias, configAsistencia, diasCalendario, horariosComite, horariosLaborales, horasExtras, remuneraciones, trabajadores } from "@/lib/db/schema";
 import type {
   AsistenciaDia,
   AusenciaFila,
@@ -8,11 +8,13 @@ import type {
   EstadoAsistencia,
   EstadoAusencia,
   EstadoRemuneracion,
+  HorarioComite,
+  HorarioPersona,
   RemuneracionFila,
   ResumenAusenciasMes,
   TipoAusencia,
 } from "@/lib/rrhh-comun";
-import { SIN_AUSENCIAS } from "@/lib/rrhh-comun";
+import { SIN_AUSENCIAS, TOLERANCIA_POR_DEFECTO } from "@/lib/rrhh-comun";
 import { esFeriado } from "@/lib/feriados";
 
 export * from "@/lib/rrhh-comun";
@@ -131,7 +133,7 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
         .where(and(eq(trabajadores.aprId, aprId), eq(trabajadores.activo, true)))
         .orderBy(asc(trabajadores.nombre)),
       db
-        .select({ trabajadorId: asistencias.trabajadorId, estado: asistencias.estado, nota: asistencias.nota })
+        .select({ trabajadorId: asistencias.trabajadorId, estado: asistencias.estado, nota: asistencias.nota, horaLlegada: asistencias.horaLlegada })
         .from(asistencias)
         .where(and(eq(asistencias.aprId, aprId), eq(asistencias.fecha, dia))),
       db
@@ -151,7 +153,7 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
     return personas.map((p) => {
       const cubierta = cubiertaDe.get(p.id);
       if (cubierta === "VACACIONES" || cubierta === "LICENCIA") {
-        return { trabajadorId: p.id, nombre: p.nombre, cargo: p.cargo, estado: cubierta as EstadoAsistencia, automatico: true, nota: null, horasExtra: 0 };
+        return { trabajadorId: p.id, nombre: p.nombre, cargo: p.cargo, estado: cubierta as EstadoAsistencia, automatico: true, nota: null, horasExtra: 0, horaLlegada: null };
       }
       const marca = marcaDe.get(p.id);
       return {
@@ -162,6 +164,7 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
         automatico: false,
         nota: marca?.nota ?? null,
         horasExtra: extraDe.get(p.id) ?? 0,
+        horaLlegada: marca?.horaLlegada ?? null,
       };
     });
   } catch (e) {
@@ -170,14 +173,39 @@ export async function asistenciaDelDia(aprId: string, dia: string): Promise<Asis
   }
 }
 
-/** Los días de la semana en que trabaja cada persona que tiene un horario cargado. Si la tabla aún no existe, devuelve vacío. */
-export async function horariosDelComite(aprId: string): Promise<Record<string, number[]>> {
+/** Los días y la hora de ingreso de cada persona que tiene un horario cargado. Si la tabla aún no existe, devuelve vacío. */
+export async function horariosDelComite(aprId: string): Promise<Record<string, HorarioPersona>> {
   try {
-    const filas = await db.select({ trabajadorId: horariosLaborales.trabajadorId, dias: horariosLaborales.dias }).from(horariosLaborales).where(eq(horariosLaborales.aprId, aprId));
-    return Object.fromEntries(filas.map((f) => [f.trabajadorId, f.dias]));
+    const filas = await db
+      .select({ trabajadorId: horariosLaborales.trabajadorId, dias: horariosLaborales.dias, ingreso: horariosLaborales.horaIngreso })
+      .from(horariosLaborales)
+      .where(eq(horariosLaborales.aprId, aprId));
+    return Object.fromEntries(filas.map((f) => [f.trabajadorId, { dias: f.dias, ingreso: f.ingreso }]));
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer los horarios:", e);
     return {};
+  }
+}
+
+/**
+ * Cuándo funciona el comité cada día de la semana y cuántos minutos de tolerancia da antes de contar un atraso.
+ * `horario` es null si el comité no definió su horario. Si las tablas aún no existen, también.
+ */
+export async function horarioDelComite(aprId: string): Promise<{ horario: HorarioComite | null; toleranciaMin: number }> {
+  try {
+    const [filas, config] = await Promise.all([
+      db.select({ dia: horariosComite.dia, abre: horariosComite.abre, cierra: horariosComite.cierra }).from(horariosComite).where(eq(horariosComite.aprId, aprId)),
+      db.select({ toleranciaMin: configAsistencia.toleranciaMin }).from(configAsistencia).where(eq(configAsistencia.aprId, aprId)).limit(1),
+    ]);
+    const toleranciaMin = config[0]?.toleranciaMin ?? TOLERANCIA_POR_DEFECTO;
+    if (filas.length === 0) return { horario: null, toleranciaMin };
+    const horario: HorarioComite = {};
+    for (let d = 0; d < 7; d++) horario[d] = null;
+    for (const f of filas) horario[f.dia] = f.abre && f.cierra ? { abre: f.abre, cierra: f.cierra } : null;
+    return { horario, toleranciaMin };
+  } catch (e) {
+    console.error("RR.HH.: no se pudo leer el horario del comité:", e);
+    return { horario: null, toleranciaMin: TOLERANCIA_POR_DEFECTO };
   }
 }
 

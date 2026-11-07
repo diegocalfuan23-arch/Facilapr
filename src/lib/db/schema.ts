@@ -1470,6 +1470,8 @@ export const asistencias = pgTable(
     /** PRESENTE | ATRASO | AUSENTE | PERMISO */
     estado: text("estado").notNull(),
     nota: text("nota"),
+    /** HH:MM: a qué hora llegó ese día, si se anotó. */
+    horaLlegada: text("horaLlegada"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("Asistencia_trabajador_fecha_key").on(table.trabajadorId, table.fecha)]
@@ -1490,10 +1492,46 @@ export const horariosLaborales = pgTable(
       .notNull()
       .references(() => trabajadores.id, { onDelete: "cascade" }),
     dias: integer("dias").array().notNull(),
+    /** HH:MM: a qué hora entra. Sin dato, entra cuando abre el comité. */
+    horaIngreso: text("horaIngreso"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("HorarioLaboral_trabajador_key").on(table.trabajadorId)]
+);
+
+/**
+ * Cuándo funciona el comité cada día de la semana (0 = domingo … 6 = sábado): a qué hora abre y cierra, o cerrado
+ * (sin horas). Si el comité no tiene filas, no definió su horario y la asistencia solo mira el horario de cada persona.
+ */
+export const horariosComite = pgTable(
+  "HorarioComite",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    dia: integer("dia").notNull(),
+    /** HH:MM; null si ese día el comité está cerrado. */
+    abre: text("abre"),
+    cierra: text("cierra"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("HorarioComite_apr_dia_key").on(table.aprId, table.dia)]
+);
+
+/** Los ajustes de la asistencia de cada comité: cuántos minutos de tolerancia se dan antes de contar un atraso. */
+export const configAsistencia = pgTable(
+  "ConfigAsistencia",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    toleranciaMin: integer("toleranciaMin").notNull().default(10),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("ConfigAsistencia_apr_key").on(table.aprId)]
 );
 
 /**
