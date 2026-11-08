@@ -1093,6 +1093,9 @@ function Cuerpo({
         toast.error(fallo.error);
         const falladas = cambios.filter((_, i) => !resultados[i].ok).map((c) => c.id);
         poner((f) => (falladas.includes(f.trabajadorId) ? (antes?.filas.find((x) => x.trabajadorId === f.trabajadorId) ?? f) : f));
+      } else {
+        // Con el mismo id, un aviso reemplaza al anterior: no se apilan aunque se marque a varias personas seguidas.
+        toast.success("Guardado", { id: "asistencia-guardado", duration: 1500 });
       }
     } finally {
       if (--enCurso.current === 0) void cliente.invalidateQueries({ queryKey: ["asistencia"] });
