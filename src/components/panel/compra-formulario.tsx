@@ -4,187 +4,147 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ChevronDown, Loader2, Search, X } from "lucide-react";
+import { Banknote, Box, Check, FileText, Landmark, Loader2, Minus, PackagePlus, Plus, Receipt, Search, Trash2, Truck, X, type LucideIcon } from "lucide-react";
 import { crearCompra } from "@/app/panel/compras/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { InsumoDialog } from "@/components/panel/insumo-dialog";
 import { ProveedorDialog } from "@/components/panel/proveedor-dialog";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
-import {
-  formatoCantidad,
-  textoCategoriaInsumo,
-  UNIDADES_INSUMO,
-  unidadCorta,
-  type Insumo,
-  type OpcionCategoria,
-} from "@/lib/inventario-comun";
-import { TASA_IVA, totalesDe, type OrigenItem, type ProveedorFila } from "@/lib/compras-comun";
+import { UNIDADES_INSUMO, formatoCantidad, unidadCorta, type Insumo } from "@/lib/inventario-comun";
+import { DOCUMENTOS_COMPRA, sumarDias, textoCondicionPago, totalesDe, type OrigenItem, type ProveedorFila, type TipoDocumento } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
 
-const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
+const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
+const GRIS = "text-[#5B5970]";
+const clp = (n: number) => "$" + Math.round(n).toLocaleString("es-CL");
+const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
+const aCantidad = (t: string) => Number(t.replace(/\s/g, "").replace(",", ".")) || 0;
+const aPesos = (t: string) => Number(t.replace(/\D/g, "")) || 0;
+const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
-/** Los campos de esta pantalla son de 44 px y en píldora, como en MecánicoApp. */
-const campo = "h-11 rounded-full px-5 text-[0.95rem]";
-const selectClase =
-  "h-11 w-full appearance-none rounded-2xl border border-input bg-transparent pr-10 pl-5 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
-const etiqueta = "mb-2 block text-[0.9rem] font-medium";
-const tituloSeccion = "text-[0.85rem] font-medium tracking-wide text-muted-foreground uppercase";
+const campo = "h-11 rounded-xl border-[#E4E1F0] bg-white shadow-none";
+const ICONO_MEDIO: Record<string, LucideIcon> = { EFECTIVO: Banknote, TRANSFERENCIA: Landmark, CHEQUE: FileText, OTRO: Receipt };
 
 type Linea = {
   clave: number;
   origen: OrigenItem;
-  insumoId: string;
-  descripcion: string;
+  insumoId: string | null;
+  nombre: string;
+  /** Lo que se muestra junto al nombre: código y unidad. */
+  detalle: string;
+  /** Solo en un material nuevo: la unidad con que se cuenta. */
   unidad: string;
   cantidad: string;
-  costo: string;
+  precio: number;
+  /** El stock de hoy del material del inventario, para mostrar cómo queda. */
+  stock: number | null;
 };
 
-const lineaVacia = (clave: number): Linea => ({
-  clave,
-  origen: "INVENTARIO",
-  insumoId: "",
-  descripcion: "",
-  unidad: "UNIDAD",
-  cantidad: "1",
-  costo: "",
-});
+const ETIQUETA_ORIGEN: Record<OrigenItem, { texto: string; clase: string }> = {
+  INVENTARIO: { texto: "Suma stock", clase: "bg-[#E6F6EF] text-[#075A3C]" },
+  NUEVO: { texto: "Material nuevo", clase: "bg-[#ECE8FD] text-[#2A07A8]" },
+  GASTO: { texto: "Solo gasto", clase: "bg-[#F0EFF4] text-[#4A4760]" },
+};
 
-const aCantidad = (t: string) => Number(t.replace(/\s/g, "").replace(",", ".")) || 0;
-const aPesos = (t: string) => Number(t.replace(/\D/g, "")) || 0;
-
-const PESTANAS: { origen: OrigenItem; texto: string }[] = [
-  { origen: "INVENTARIO", texto: "Desde inventario" },
-  { origen: "NUEVO", texto: "Material nuevo" },
-  { origen: "GASTO", texto: "Solo gasto" },
-];
-
-/** Un campo de búsqueda con lista de resultados: se escribe, se elige uno y queda elegido. */
-function Buscador({
-  items,
-  valor,
-  onElegir,
-  placeholder,
-  sinResultados,
-}: {
-  items: { id: string; titulo: string; detalle?: string }[];
-  valor: string;
-  onElegir: (id: string) => void;
-  placeholder: string;
-  sinResultados: string;
-}) {
-  const [q, setQ] = useState("");
-  const [abierto, setAbierto] = useState(false);
-  const elegido = items.find((i) => i.id === valor);
-  const texto = q.trim().toLowerCase();
-  const resultados = items.filter((i) => !texto || `${i.titulo} ${i.detalle ?? ""}`.toLowerCase().includes(texto)).slice(0, 8);
-
+function Seccion({ n, titulo, desc, children }: { n: number; titulo: string; desc?: string; children: React.ReactNode }) {
   return (
-    <div className="relative">
-      <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        value={abierto ? q : (elegido?.titulo ?? "")}
-        onChange={(e) => setQ(e.target.value)}
-        onFocus={() => {
-          setQ("");
-          setAbierto(true);
-        }}
-        // Un instante de espera: si no, el clic en un resultado llega después de cerrarse la lista.
-        onBlur={() => setTimeout(() => setAbierto(false), 120)}
-        placeholder={placeholder}
-        className={cn(campo, "pl-11", elegido && "pr-11")}
-        autoComplete="off"
-      />
-      {elegido && !abierto && (
-        <button
-          type="button"
-          aria-label="Quitar la selección"
-          onClick={() => onElegir("")}
-          className="absolute top-1/2 right-4 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-        >
-          <X className="size-4" />
-        </button>
-      )}
-      {abierto && (
-        <ul className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-border bg-popover p-1 shadow-md">
-          {resultados.length === 0 ? (
-            <li className="px-3 py-2 text-[0.9rem] text-muted-foreground">{sinResultados}</li>
-          ) : (
-            resultados.map((i) => (
-              <li key={i.id}>
-                <button
-                  type="button"
-                  // mousedown y no click: se ejecuta antes de que el campo pierda el foco y cierre la lista.
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onElegir(i.id);
-                    setAbierto(false);
-                  }}
-                  className="flex w-full items-baseline justify-between gap-3 rounded-lg px-3 py-2 text-left text-[0.9rem] hover:bg-muted"
-                >
-                  <span className="truncate">{i.titulo}</span>
-                  {i.detalle && <span className="shrink-0 text-[0.8rem] text-muted-foreground">{i.detalle}</span>}
-                </button>
-              </li>
-            ))
-          )}
-        </ul>
-      )}
-    </div>
+    <section className={cn("rounded-2xl bg-card", SOMBRA)}>
+      <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-5 py-4 sm:px-6">
+        <span aria-hidden className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-[#ECE8FD] text-xs font-bold text-[#2A07A8]">
+          {n}
+        </span>
+        <div>
+          <h2 className="text-[15px] font-semibold">{titulo}</h2>
+          {desc && <p className={cn("mt-0.5 text-[13px]", GRIS)}>{desc}</p>}
+        </div>
+      </div>
+      <div className="px-5 py-5 sm:px-6">{children}</div>
+    </section>
   );
 }
 
-/** Un selector con la flecha a la derecha. */
-function Selector({ id, valor, onCambiar, children }: { id: string; valor: string; onCambiar: (v: string) => void; children: React.ReactNode }) {
+const Etiqueta = ({ children, opcional }: { children: React.ReactNode; opcional?: boolean }) => (
+  <span className="text-[13px] font-medium">
+    {children}
+    {opcional && <span className={cn("font-normal", GRIS)}> (opcional)</span>}
+  </span>
+);
+
+/** Un grupo de opciones en píldoras, para elegir una (documento, pago, tipo de ítem). */
+function Opciones<T extends string>({ valor, opciones, onElegir, etiqueta, className }: { valor: T; opciones: { valor: T; texto: string; icono?: LucideIcon }[]; onElegir: (v: T) => void; etiqueta: string; className?: string }) {
   return (
-    <div className="relative">
-      <select id={id} value={valor} onChange={(e) => onCambiar(e.target.value)} className={selectClase}>
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute top-1/2 right-4 size-4 -translate-y-1/2 text-muted-foreground" />
+    <div role="radiogroup" aria-label={etiqueta} className={cn("grid gap-1 rounded-xl bg-[#F4F3F9] p-1", className)} style={{ gridTemplateColumns: `repeat(${opciones.length}, minmax(0, 1fr))` }}>
+      {opciones.map((o) => (
+        <button
+          key={o.valor}
+          type="button"
+          role="radio"
+          aria-checked={valor === o.valor}
+          onClick={() => onElegir(o.valor)}
+          className={cn("flex h-9 items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", valor === o.valor ? "bg-white text-[#2A07A8] shadow-sm" : GRIS)}
+        >
+          {o.icono && <o.icono className="hidden size-4 sm:block" aria-hidden />}
+          {o.texto}
+        </button>
+      ))}
     </div>
   );
 }
 
 /**
- * Registrar una compra, con el formulario de MecánicoApp: datos generales arriba y las líneas
- * abajo, cada una desde el inventario (suma stock), un material nuevo (lo crea) o solo un gasto.
- * Además lleva lo que le sirve a un comité: vencimiento, medio de pago, IVA y la unidad.
- * Si se marca pagada, el egreso queda en Caja; si no, queda como una cuenta por pagar.
+ * Registrar una compra: proveedor y documento, los ítems (desde el inventario, material nuevo o solo gasto) y un
+ * resumen fijo con el total. Si se marca pagada, el egreso queda en Caja; si no, queda como una cuenta por pagar.
+ * La factura suma IVA a los precios (van netos); la boleta y los otros documentos ya lo traen incluido.
  */
-export function CompraFormulario({
-  proveedores,
-  insumos,
-  categorias,
-}: {
-  proveedores: ProveedorFila[];
-  insumos: Insumo[];
-  /** Las categorías del inventario, para registrar un material nuevo desde aquí. */
-  categorias: OpcionCategoria[];
-}) {
+export function CompraFormulario({ proveedores, insumos, proveedorInicial }: { proveedores: ProveedorFila[]; insumos: Insumo[]; proveedorInicial?: string }) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  const [proveedorId, setProveedorId] = useState("");
-  const [proveedorTexto, setProveedorTexto] = useState("");
+  const inicial = proveedores.find((p) => p.id === proveedorInicial) ?? null;
+  const [proveedorId, setProveedorId] = useState(inicial?.id ?? "");
+  const [libre, setLibre] = useState("");
+  const [qProv, setQProv] = useState("");
+  const [abrirProv, setAbrirProv] = useState(false);
   const [fecha, setFecha] = useState(hoyEnChile());
-  const [vencimiento, setVencimiento] = useState("");
+  const [venceManual, setVenceManual] = useState<string | null>(null);
+  const [documento, setDocumento] = useState<TipoDocumento>("FACTURA");
   const [folio, setFolio] = useState("");
-  const [notas, setNotas] = useState("");
-  const [conIva, setConIva] = useState(true);
-  const [estado, setEstado] = useState<"PENDIENTE" | "PAGADA">("PENDIENTE");
+  // Quien se paga al contado (o no tiene plazo) suele pagarse al momento; con plazo, queda por pagar.
+  const [pagada, setPagada] = useState(inicial ? inicial.diasPago === 0 : false);
   const [medio, setMedio] = useState("TRANSFERENCIA");
-  const [lineas, setLineas] = useState<Linea[]>([lineaVacia(1)]);
-  const [siguiente, setSiguiente] = useState(2);
+  const [notas, setNotas] = useState<string | null>(null);
+  const [lineas, setLineas] = useState<Linea[]>([]);
+  const [siguiente, setSiguiente] = useState(1);
+  const [tipo, setTipo] = useState<OrigenItem>("INVENTARIO");
+  const [qMat, setQMat] = useState("");
+  const [nuevo, setNuevo] = useState({ nombre: "", unidad: "UNIDAD", cantidad: "1", precio: "" });
+
+  const proveedor = proveedores.find((p) => p.id === proveedorId) ?? null;
+  const nombreProveedor = proveedor?.nombre ?? libre.trim();
+  const conIva = documento === "FACTURA";
+  const totales = totalesDe(
+    lineas.map((l) => ({ cantidad: aCantidad(l.cantidad), costoUnitario: l.precio })),
+    conIva
+  );
+  // El vencimiento se calcula con el plazo del proveedor, y se puede corregir a mano.
+  const venceAuto = proveedor && proveedor.diasPago > 0 ? sumarDias(fecha, proveedor.diasPago) : "";
+  const vence = venceManual ?? venceAuto;
+
+  const faltas = [
+    !nombreProveedor && "Elige o escribe un proveedor",
+    lineas.length === 0 && "Agrega al menos un ítem",
+    lineas.some((l) => aCantidad(l.cantidad) <= 0) && "Revisa las cantidades",
+    documento !== "OTRO" && !folio.trim() && `Falta el N.° de ${documento.toLowerCase()}`,
+  ].filter(Boolean) as string[];
 
   // Crear un proveedor sin salir de la compra: al cerrarse el modal se recarga la lista y se elige el nuevo.
   const [creandoProveedor, setCreandoProveedor] = useState(false);
   const idsAntes = useRef<string[] | null>(null);
   const abrirNuevoProveedor = () => {
     idsAntes.current = proveedores.map((p) => p.id);
+    setAbrirProv(false);
     setCreandoProveedor(true);
   };
   const cerrarNuevoProveedor = useCallback(() => {
@@ -193,86 +153,74 @@ export function CompraFormulario({
   }, [router]);
   useEffect(() => {
     if (!idsAntes.current) return;
-    const nuevo = proveedores.find((p) => !idsAntes.current?.includes(p.id));
-    if (nuevo) {
-      setProveedorId(nuevo.id);
+    const creado = proveedores.find((p) => !idsAntes.current?.includes(p.id));
+    if (creado) {
       idsAntes.current = null;
+      setProveedorId(creado.id);
+      setPagada(creado.diasPago === 0);
     }
   }, [proveedores]);
 
-  // Igual con un material que todavía no está en el inventario: se registra sin salir de la compra
-  // y queda elegido en la línea desde la que se pidió.
-  const [lineaNuevoMaterial, setLineaNuevoMaterial] = useState<number | null>(null);
-  const insumosAntes = useRef<string[] | null>(null);
-  const lineaEsperando = useRef<number | null>(null);
-  const abrirNuevoMaterial = (clave: number) => {
-    insumosAntes.current = insumos.map((i) => i.id);
-    lineaEsperando.current = clave;
-    setLineaNuevoMaterial(clave);
-  };
-  const cerrarNuevoMaterial = useCallback(() => {
-    setLineaNuevoMaterial(null);
-    router.refresh();
-  }, [router]);
-  useEffect(() => {
-    if (!insumosAntes.current || lineaEsperando.current === null) return;
-    const nuevo = insumos.find((i) => !insumosAntes.current?.includes(i.id));
-    if (nuevo) {
-      const clave = lineaEsperando.current;
-      setLineas((ls) =>
-        ls.map((l) => (l.clave === clave ? { ...l, insumoId: nuevo.id, costo: nuevo.costo > 0 ? String(nuevo.costo) : l.costo } : l))
-      );
-      insumosAntes.current = null;
-      lineaEsperando.current = null;
-    }
-  }, [insumos]);
-
-  const totales = totalesDe(
-    lineas.map((l) => ({ cantidad: aCantidad(l.cantidad), costoUnitario: aPesos(l.costo) })),
-    conIva
-  );
-
-  function cambiar(clave: number, parcial: Partial<Linea>) {
-    setLineas((ls) => ls.map((l) => (l.clave === clave ? { ...l, ...parcial } : l)));
+  function elegirProveedor(p: ProveedorFila) {
+    setProveedorId(p.id);
+    setLibre("");
+    setAbrirProv(false);
+    setQProv("");
+    setVenceManual(null);
+    setPagada(p.diasPago === 0);
   }
 
-  function agregarLinea() {
-    setLineas((ls) => [...ls, lineaVacia(siguiente)]);
+  const textoQ = sinTildes(qProv.trim());
+  const provFiltrados = proveedores.filter((p) => !textoQ || sinTildes(`${p.nombre} ${p.rut ?? ""}`).includes(textoQ)).slice(0, 8);
+  const textoMat = sinTildes(qMat.trim());
+  const matFiltrados = textoMat ? insumos.filter((i) => sinTildes(`${i.nombre} ${i.codigo ?? ""}`).includes(textoMat)).slice(0, 8) : [];
+
+  function agregarMaterial(i: Insumo) {
+    setLineas((ls) =>
+      ls.some((l) => l.insumoId === i.id)
+        ? ls.map((l) => (l.insumoId === i.id ? { ...l, cantidad: String(aCantidad(l.cantidad) + 1).replace(".", ",") } : l))
+        : [...ls, { clave: siguiente, origen: "INVENTARIO", insumoId: i.id, nombre: i.nombre, detalle: [i.codigo, UNIDADES_INSUMO.find((u) => u.valor === i.unidad)?.texto.toLowerCase()].filter(Boolean).join(" · "), unidad: i.unidad, cantidad: "1", precio: i.costo, stock: i.stock }]
+    );
     setSiguiente((n) => n + 1);
+    setQMat("");
   }
 
-  function quitar(clave: number) {
-    setLineas((ls) => (ls.length > 1 ? ls.filter((l) => l.clave !== clave) : ls));
+  function agregarNuevo() {
+    const precio = aPesos(nuevo.precio);
+    if (!nuevo.nombre.trim() || !nuevo.precio) return;
+    const unidadTexto = tipo === "GASTO" ? "servicio" : (UNIDADES_INSUMO.find((u) => u.valor === nuevo.unidad)?.texto.toLowerCase() ?? "");
+    setLineas((ls) => [...ls, { clave: siguiente, origen: tipo, insumoId: null, nombre: nuevo.nombre.trim(), detalle: unidadTexto, unidad: nuevo.unidad, cantidad: nuevo.cantidad || "1", precio, stock: null }]);
+    setSiguiente((n) => n + 1);
+    setNuevo({ nombre: "", unidad: "UNIDAD", cantidad: "1", precio: "" });
   }
+
+  const cambiar = (clave: number, parcial: Partial<Linea>) => setLineas((ls) => ls.map((l) => (l.clave === clave ? { ...l, ...parcial } : l)));
+  const sumarCantidad = (l: Linea, d: number) => cambiar(l.clave, { cantidad: String(Math.max(0, Math.round((aCantidad(l.cantidad) + d) * 1000) / 1000)).replace(".", ",") });
 
   function guardar(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-
-    const items = lineas.map((l) => {
-      const insumo = l.origen === "INVENTARIO" ? insumos.find((i) => i.id === l.insumoId) : undefined;
-      return {
-        origen: l.origen,
-        insumoId: l.origen === "INVENTARIO" ? l.insumoId || null : null,
-        descripcion: l.origen === "INVENTARIO" ? (insumo?.nombre ?? "") : l.descripcion,
-        unidad: l.origen === "NUEVO" ? l.unidad : null,
-        cantidad: aCantidad(l.cantidad),
-        costoUnitario: aPesos(l.costo),
-      };
-    });
+    if (faltas.length > 0) return;
 
     iniciar(async () => {
       const r = await crearCompra({
-        proveedorId: proveedorId || null,
-        proveedorNombre: proveedorId ? "" : proveedorTexto,
+        proveedorId: proveedor?.id ?? null,
+        proveedorNombre: proveedor ? "" : libre.trim(),
         fecha,
-        vencimiento: estado === "PENDIENTE" ? vencimiento || null : null,
+        vencimiento: pagada ? null : vence || null,
         folio,
-        notas,
-        conIva,
-        estado,
+        documento,
+        notas: notas ?? "",
+        estado: pagada ? "PAGADA" : "PENDIENTE",
         medio,
-        items,
+        items: lineas.map((l) => ({
+          origen: l.origen,
+          insumoId: l.origen === "INVENTARIO" ? l.insumoId : null,
+          descripcion: l.nombre,
+          unidad: l.origen === "NUEVO" ? l.unidad : null,
+          cantidad: aCantidad(l.cantidad),
+          costoUnitario: l.precio,
+        })),
       });
       if (!r.ok) {
         setError(r.error);
@@ -283,332 +231,397 @@ export function CompraFormulario({
     });
   }
 
+  const conStock = lineas.filter((l) => l.origen !== "GASTO").length;
+  const medioTexto = MEDIOS_MOVIMIENTO.find((m) => m.valor === medio)?.texto.toLowerCase() ?? "";
+
   return (
     <>
-    <form onSubmit={guardar} className="flex flex-col gap-10">
-      <section className="flex flex-col gap-5">
-        <h2 className={tituloSeccion}>Datos generales</h2>
+      <form onSubmit={guardar} className="grid grid-cols-1 items-start gap-4 pb-24 lg:grid-cols-[minmax(0,1fr)_360px] lg:pb-0">
+        <div className="flex min-w-0 flex-col gap-4">
+          <Seccion n={1} titulo="Proveedor y documento">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="relative md:col-span-2">
+                <Etiqueta>Proveedor</Etiqueta>
+                {proveedor ? (
+                  <div className="mt-1.5 flex items-center gap-3 rounded-xl border border-[#D9D1FB] bg-[#F7F5FE] px-3 py-2.5">
+                    <span aria-hidden className="flex size-9 items-center justify-center rounded-lg bg-white text-[#3A0CE3]">
+                      <Truck className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold">{proveedor.nombre}</span>
+                      <span className={cn("block text-xs", GRIS)}>
+                        {proveedor.rut ?? "Sin RUT"} · pago {textoCondicionPago(proveedor.diasPago).toLowerCase()}
+                      </span>
+                    </span>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setProveedorId("")} className="h-8 rounded-lg px-2.5 text-xs font-semibold text-[#2A07A8]">
+                      Cambiar
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="relative mt-1.5">
+                      <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                      <Input
+                        value={qProv}
+                        onFocus={() => setAbrirProv(true)}
+                        onChange={(e) => {
+                          setQProv(e.target.value);
+                          setAbrirProv(true);
+                        }}
+                        // Un instante de espera: si no, el clic en un resultado llega después de cerrarse la lista.
+                        onBlur={() => setTimeout(() => setAbrirProv(false), 150)}
+                        placeholder="Buscar por nombre o RUT"
+                        autoComplete="off"
+                        className={cn(campo, "pl-9")}
+                      />
+                    </div>
+                    {abrirProv && (
+                      <div className="absolute inset-x-0 top-[74px] z-20 rounded-xl border border-[#ECEAF4] bg-white p-1.5 shadow-[0_12px_32px_rgba(21,19,43,0.14)]">
+                        {provFiltrados.length === 0 && <p className={cn("px-2.5 py-2 text-sm", GRIS)}>Ningún proveedor coincide.</p>}
+                        {provFiltrados.map((p) => (
+                          <button
+                            key={p.id}
+                            type="button"
+                            // mousedown y no click: se ejecuta antes de que el campo pierda el foco y cierre la lista.
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              elegirProveedor(p);
+                            }}
+                            className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-[#F5F4FA]"
+                          >
+                            <Truck className="size-4 text-[#8A8799]" aria-hidden />
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">{p.nombre}</span>
+                              <span className={cn("block text-xs", GRIS)}>
+                                {p.rut ?? "Sin RUT"} · {textoCondicionPago(p.diasPago)}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                        <div className="mt-1 flex gap-1 border-t border-[#F0EEF6] pt-1.5">
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              abrirNuevoProveedor();
+                            }}
+                            className="flex flex-1 items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm font-semibold text-[#2A07A8] hover:bg-[#F5F3FE]"
+                          >
+                            <Plus className="size-4" aria-hidden />
+                            Crear proveedor
+                          </button>
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              if (qProv.trim()) setLibre(qProv.trim());
+                              setAbrirProv(false);
+                            }}
+                            className={cn("rounded-lg px-2.5 py-2 text-sm font-medium hover:bg-[#F5F4FA]", GRIS)}
+                          >
+                            Usar sin registrar
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {libre && (
+                      <p className="mt-1.5 flex items-center gap-1.5 text-xs text-[#8F4400]">
+                        Proveedor sin registrar: <b className="font-semibold">{libre}</b>
+                        <button type="button" onClick={() => setLibre("")} aria-label="Quitar">
+                          <X className="size-3.5" />
+                        </button>
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <div>
-            <span className={etiqueta}>Proveedor</span>
-            <div className="flex gap-3">
-              <div className="min-w-0 flex-1">
-                <Buscador
-                  items={proveedores.map((p) => ({ id: p.id, titulo: p.nombre, detalle: p.rut ?? undefined }))}
-                  valor={proveedorId}
-                  onElegir={setProveedorId}
-                  placeholder="Buscar proveedor…"
-                  sinResultados="Ningún proveedor coincide."
+              <div>
+                <Etiqueta>Documento</Etiqueta>
+                <Opciones className="mt-1.5" etiqueta="Documento" valor={documento} opciones={DOCUMENTOS_COMPRA} onElegir={setDocumento} />
+                <p className={cn("mt-1.5 text-xs", GRIS)}>{conIva ? "Factura: los precios son netos y se suma IVA 19 %." : "Sin IVA desglosado: los precios son el total."}</p>
+              </div>
+              <label className="block">
+                <Etiqueta opcional={documento === "OTRO"}>N.° {documento === "OTRO" ? "de referencia" : documento.toLowerCase()}</Etiqueta>
+                <Input value={folio} onChange={(e) => setFolio(e.target.value)} maxLength={60} placeholder={documento === "FACTURA" ? "Ej.: 4523" : "N.° del documento"} className={cn("mt-1.5", campo)} />
+              </label>
+              <label className="block">
+                <Etiqueta>Fecha de compra</Etiqueta>
+                <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required className={cn("mt-1.5", campo)} />
+              </label>
+              <div>
+                <Etiqueta>Pago</Etiqueta>
+                <Opciones
+                  className="mt-1.5"
+                  etiqueta="Pago"
+                  valor={pagada ? "pagada" : "pendiente"}
+                  opciones={[
+                    { valor: "pendiente", texto: "Por pagar" },
+                    { valor: "pagada", texto: "Ya pagada" },
+                  ]}
+                  onElegir={(v) => setPagada(v === "pagada")}
                 />
               </div>
-              <Button type="button" className="h-11 shrink-0 rounded-full px-5 text-[0.95rem]" onClick={abrirNuevoProveedor}>
-                + Nuevo proveedor
-              </Button>
+              {pagada ? (
+                <div className="md:col-span-2">
+                  <Etiqueta>Pagada con</Etiqueta>
+                  <Opciones
+                    className="mt-1.5 sm:max-w-[480px]"
+                    etiqueta="Medio de pago"
+                    valor={medio}
+                    opciones={MEDIOS_MOVIMIENTO.map((m) => ({ valor: m.valor as string, texto: m.texto, icono: ICONO_MEDIO[m.valor] }))}
+                    onElegir={setMedio}
+                  />
+                </div>
+              ) : (
+                <label className="block md:col-span-2 md:max-w-[calc(50%-8px)]">
+                  <Etiqueta opcional>Vence el</Etiqueta>
+                  <Input type="date" value={vence} onChange={(e) => setVenceManual(e.target.value)} className={cn("mt-1.5", campo)} />
+                  {proveedor && proveedor.diasPago > 0 && venceManual === null && <span className={cn("mt-1 block text-xs", GRIS)}>Calculado con su condición de {textoCondicionPago(proveedor.diasPago)}.</span>}
+                </label>
+              )}
             </div>
-          </div>
-          <div>
-            <label htmlFor="cmp-proveedor-texto" className={etiqueta}>
-              Nombre del proveedor (sin registro)
-            </label>
-            <Input
-              id="cmp-proveedor-texto"
-              value={proveedorTexto}
-              onChange={(e) => setProveedorTexto(e.target.value)}
-              placeholder="Opcional si no eliges proveedor"
-              maxLength={120}
-              disabled={proveedorId !== ""}
-              className={campo}
+            {notas === null ? (
+              <button type="button" onClick={() => setNotas("")} className="mt-4 flex items-center gap-1.5 text-[13px] font-semibold text-[#2A07A8] hover:underline">
+                <Plus className="size-4" aria-hidden />
+                Agregar nota
+              </button>
+            ) : (
+              <label className="mt-4 block">
+                <Etiqueta opcional>Notas</Etiqueta>
+                <Textarea autoFocus value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} placeholder="Ej.: entregado en bodega del estanque" className="mt-1.5 min-h-[72px] rounded-xl border-[#E4E1F0] bg-white text-sm shadow-none" />
+              </label>
+            )}
+          </Seccion>
+
+          <Seccion n={2} titulo="Ítems" desc="Elige de dónde viene cada ítem: suma stock, crea un material o es solo un gasto.">
+            <Opciones
+              className="sm:w-[420px]"
+              etiqueta="Tipo de ítem"
+              valor={tipo}
+              opciones={[
+                { valor: "INVENTARIO", texto: "Del inventario", icono: Box },
+                { valor: "NUEVO", texto: "Material nuevo", icono: PackagePlus },
+                { valor: "GASTO", texto: "Solo gasto", icono: Receipt },
+              ]}
+              onElegir={setTipo}
             />
-          </div>
 
-          <div>
-            <label htmlFor="cmp-fecha" className={etiqueta}>
-              Fecha de compra
-            </label>
-            <Input id="cmp-fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={campo} required />
-          </div>
-          <div>
-            <label htmlFor="cmp-estado" className={etiqueta}>
-              Estado
-            </label>
-            <Selector id="cmp-estado" valor={estado} onCambiar={(v) => setEstado(v as "PENDIENTE" | "PAGADA")}>
-              <option value="PENDIENTE">Pendiente (por pagar)</option>
-              <option value="PAGADA">Pagada</option>
-            </Selector>
-          </div>
+            {tipo === "INVENTARIO" ? (
+              <div className="relative mt-3">
+                <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input value={qMat} onChange={(e) => setQMat(e.target.value)} placeholder="Buscar material por nombre o código" autoComplete="off" className={cn(campo, "pl-9")} />
+                {matFiltrados.length > 0 ? (
+                  <div className="absolute inset-x-0 top-[50px] z-20 rounded-xl border border-[#ECEAF4] bg-white p-1.5 shadow-[0_12px_32px_rgba(21,19,43,0.14)]">
+                    {matFiltrados.map((m) => (
+                      <button key={m.id} type="button" onClick={() => agregarMaterial(m)} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-[#F5F4FA]">
+                        <Box className="size-4 text-[#8A8799]" aria-hidden />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{m.nombre}</span>
+                          <span className={cn("block text-xs", GRIS)}>
+                            {m.codigo ? `${m.codigo} · ` : ""}stock {formatoCantidad(m.stock)} {unidadCorta(m.unidad)}
+                          </span>
+                        </span>
+                        <span className="text-sm tabular-nums">{m.costo > 0 ? clp(m.costo) : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  qMat.trim() && (
+                    <p className={cn("mt-2 text-xs", GRIS)}>
+                      No está en el inventario.{" "}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTipo("NUEVO");
+                          setNuevo({ ...nuevo, nombre: qMat.trim() });
+                          setQMat("");
+                        }}
+                        className="font-semibold text-[#2A07A8] underline"
+                      >
+                        Crearlo como material nuevo
+                      </button>
+                    </p>
+                  )
+                )}
+              </div>
+            ) : (
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-[minmax(0,1fr)_120px_90px_130px_auto]">
+                <Input value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} maxLength={160} placeholder={tipo === "GASTO" ? "Ej.: flete, mano de obra" : "Nombre del material"} aria-label="Descripción" className={cn(campo, "col-span-2 sm:col-span-1")} />
+                {tipo === "NUEVO" ? (
+                  <select
+                    aria-label="Unidad"
+                    value={nuevo.unidad}
+                    onChange={(e) => setNuevo({ ...nuevo, unidad: e.target.value })}
+                    className="h-11 rounded-xl border border-[#E4E1F0] bg-white px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {UNIDADES_INSUMO.map((u) => (
+                      <option key={u.valor} value={u.valor}>
+                        {u.texto}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="hidden sm:block" />
+                )}
+                <Input inputMode="decimal" value={nuevo.cantidad} onChange={(e) => setNuevo({ ...nuevo, cantidad: e.target.value.replace(/[^\d,.]/g, "") })} aria-label="Cantidad" placeholder="Cant." className={cn(campo, "text-right")} />
+                <Input
+                  inputMode="numeric"
+                  value={nuevo.precio ? aPesos(nuevo.precio).toLocaleString("es-CL") : ""}
+                  onChange={(e) => setNuevo({ ...nuevo, precio: e.target.value })}
+                  aria-label="Precio unitario"
+                  placeholder={conIva ? "Precio neto" : "Precio"}
+                  className={cn(campo, "text-right")}
+                />
+                <Button type="button" onClick={agregarNuevo} disabled={!nuevo.nombre.trim() || !nuevo.precio} className="col-span-2 h-11 rounded-xl font-semibold sm:col-span-1">
+                  <Plus />
+                  Agregar
+                </Button>
+              </div>
+            )}
 
-          {estado === "PENDIENTE" ? (
-            <div>
-              <label htmlFor="cmp-vence" className={etiqueta}>
-                Vence el (opcional)
-              </label>
-              <Input id="cmp-vence" type="date" value={vencimiento} onChange={(e) => setVencimiento(e.target.value)} className={campo} />
+            {lineas.length > 0 ? (
+              <div className="mt-5 overflow-hidden rounded-xl border border-[#ECEAF4]">
+                <div className={cn("hidden grid-cols-[minmax(0,1fr)_140px_130px_120px_40px] gap-3 bg-[#FAFAFD] px-4 py-2 text-xs font-medium md:grid", GRIS)}>
+                  <span>Ítem</span>
+                  <span className="text-center">Cantidad</span>
+                  <span className="text-right">Precio {conIva ? "neto" : "unit."}</span>
+                  <span className="text-right">Subtotal</span>
+                  <span />
+                </div>
+                <ul className="divide-y divide-[#F3F1F8]">
+                  {lineas.map((l) => {
+                    const e = ETIQUETA_ORIGEN[l.origen];
+                    const cant = aCantidad(l.cantidad);
+                    return (
+                      <li key={l.clave} className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-2 px-4 py-3 md:grid-cols-[minmax(0,1fr)_140px_130px_120px_40px] md:gap-x-3">
+                        <span className="col-span-2 min-w-0 md:col-span-1">
+                          <span className="block truncate text-sm font-semibold">{l.nombre}</span>
+                          <span className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs">
+                            <span className={cn("rounded px-1.5 py-px font-semibold", e.clase)}>{e.texto}</span>
+                            <span className={GRIS}>
+                              {l.detalle}
+                              {l.stock !== null ? ` · stock ${formatoCantidad(l.stock)} → ${formatoCantidad(l.stock + cant)}` : ""}
+                            </span>
+                          </span>
+                        </span>
+                        <Button type="button" variant="ghost" size="icon" aria-label={`Quitar ${l.nombre}`} onClick={() => setLineas((ls) => ls.filter((x) => x.clave !== l.clave))} className="size-9 justify-self-end rounded-lg text-[#8A8799] hover:bg-[#FDECEC] hover:text-[#A32020] md:order-last">
+                          <Trash2 className="size-4" />
+                        </Button>
+                        <span className="flex shrink-0 items-center justify-center gap-1">
+                          <Button type="button" variant="outline" size="icon" aria-label="Restar" disabled={cant <= 1} onClick={() => sumarCantidad(l, -1)} className="size-8 rounded-lg border-[#E4E1F0]">
+                            <Minus className="size-3.5" />
+                          </Button>
+                          <Input inputMode="decimal" aria-label={`Cantidad de ${l.nombre}`} value={l.cantidad} onChange={(ev) => cambiar(l.clave, { cantidad: ev.target.value.replace(/[^\d,.]/g, "") })} className="h-8 w-14 rounded-lg border-[#E4E1F0] px-1 text-center tabular-nums shadow-none" />
+                          <Button type="button" variant="outline" size="icon" aria-label="Sumar" onClick={() => sumarCantidad(l, 1)} className="size-8 rounded-lg border-[#E4E1F0]">
+                            <Plus className="size-3.5" />
+                          </Button>
+                        </span>
+                        <span className="relative min-w-0">
+                          <span className={cn("absolute top-1/2 left-2.5 -translate-y-1/2 text-sm", GRIS)}>$</span>
+                          <Input inputMode="numeric" aria-label={`Precio de ${l.nombre}`} value={l.precio.toLocaleString("es-CL")} onChange={(ev) => cambiar(l.clave, { precio: aPesos(ev.target.value) })} className="h-8 rounded-lg border-[#E4E1F0] pl-6 text-right tabular-nums shadow-none" />
+                        </span>
+                        <span className="text-right text-sm font-semibold tabular-nums">{clp(cant * l.precio)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-xl border border-dashed border-[#DCD7EE] px-4 py-8 text-center">
+                <FileText className="mx-auto size-6 text-[#B4B2C4]" aria-hidden />
+                <p className="mt-2 text-sm font-medium">Aún no hay ítems</p>
+                <p className={cn("text-xs", GRIS)}>Busca un material del inventario o agrega uno nuevo.</p>
+              </div>
+            )}
+          </Seccion>
+        </div>
+
+        <aside className="lg:sticky lg:top-4">
+          <div className={cn("overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+            <div className="border-b border-[#F0EEF6] px-5 py-4">
+              <p className={cn("text-xs font-medium", GRIS)}>Resumen</p>
+              <p className="truncate text-[15px] font-semibold">{nombreProveedor || "Sin proveedor"}</p>
+              <p className={cn("text-xs", GRIS)}>
+                {DOCUMENTOS_COMPRA.find((d) => d.valor === documento)?.texto}
+                {folio ? ` N.° ${folio}` : ""} · {fechaCorta(fecha)}
+              </p>
             </div>
-          ) : (
-            <div>
-              <label htmlFor="cmp-medio" className={etiqueta}>
-                Medio de pago
-              </label>
-              <Selector id="cmp-medio" valor={medio} onCambiar={setMedio}>
-                {MEDIOS_MOVIMIENTO.map((m) => (
-                  <option key={m.valor} value={m.valor}>
-                    {m.texto}
-                  </option>
-                ))}
-              </Selector>
+            <dl className="flex flex-col gap-2 px-5 py-4 text-sm">
+              <div className="flex justify-between">
+                <dt className={GRIS}>
+                  {lineas.length} ítem{lineas.length === 1 ? "" : "s"} · {conIva ? "neto" : "subtotal"}
+                </dt>
+                <dd className="tabular-nums">{clp(totales.subtotal)}</dd>
+              </div>
+              {conIva && (
+                <div className="flex justify-between">
+                  <dt className={GRIS}>IVA 19 %</dt>
+                  <dd className="tabular-nums">{clp(totales.impuesto)}</dd>
+                </div>
+              )}
+              <div className="mt-1 flex items-baseline justify-between border-t border-dashed border-[#DCD9E8] pt-3">
+                <dt className="font-semibold">Total</dt>
+                <dd className="text-[26px] font-semibold tabular-nums">{clp(totales.total)}</dd>
+              </div>
+            </dl>
+            <div className="flex flex-col gap-2 border-t border-[#F0EEF6] bg-[#FAFAFD] px-5 py-4 text-[13px]">
+              <p className="flex items-start gap-2">
+                <Box className="mt-0.5 size-4 shrink-0 text-[#0A7A52]" aria-hidden />
+                <span>{conStock > 0 ? `${conStock} material${conStock === 1 ? "" : "es"} ${conStock === 1 ? "suma" : "suman"} stock al inventario` : "No cambia el inventario"}</span>
+              </p>
+              <p className="flex items-start gap-2">
+                {pagada ? <Check className="mt-0.5 size-4 shrink-0 text-[#0A7A52]" aria-hidden /> : <Receipt className="mt-0.5 size-4 shrink-0 text-[#B86400]" aria-hidden />}
+                <span>{pagada ? `Egreso de ${clp(totales.total)} en Caja (${medioTexto})` : `Queda por pagar${vence ? ` · vence ${fechaCorta(vence)}` : ""}`}</span>
+              </p>
             </div>
-          )}
-          <div className="flex items-end pb-3">
-            <label className="flex items-center gap-2 text-[0.95rem]">
-              <input type="checkbox" checked={conIva} onChange={(e) => setConIva(e.target.checked)} className="size-4" />
-              Agregar IVA ({Math.round(TASA_IVA * 100)}%) al total
-            </label>
+            <div className="hidden flex-col gap-2 border-t border-[#F0EEF6] p-4 lg:flex">
+              {faltas.length > 0 && (
+                <ul className="mb-1 flex flex-col gap-1 text-xs text-[#8F4400]">
+                  {faltas.map((f) => (
+                    <li key={f}>· {f}</li>
+                  ))}
+                </ul>
+              )}
+              {error && (
+                <p className="text-xs text-destructive" role="alert">
+                  {error}
+                </p>
+              )}
+              <Button type="submit" disabled={faltas.length > 0 || pendiente} className="h-11 rounded-xl font-semibold">
+                {pendiente && <Loader2 className="animate-spin" />}
+                Registrar compra
+              </Button>
+              <Link href="/panel/compras" className="inline-flex h-10 items-center justify-center rounded-xl text-sm font-semibold hover:bg-muted">
+                Cancelar
+              </Link>
+            </div>
           </div>
-        </div>
+        </aside>
 
-        <div>
-          <label htmlFor="cmp-folio" className={etiqueta}>
-            Folio / referencia
-          </label>
-          <Input
-            id="cmp-folio"
-            value={folio}
-            onChange={(e) => setFolio(e.target.value)}
-            placeholder="N° factura, boleta u otra referencia del proveedor"
-            maxLength={60}
-            className={campo}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="cmp-notas" className={etiqueta}>
-            Notas
-          </label>
-          <Textarea id="cmp-notas" value={notas} onChange={(e) => setNotas(e.target.value)} rows={3} maxLength={500} className="rounded-2xl px-5 py-3" />
-        </div>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h2 className={tituloSeccion}>Ítems</h2>
-            <p className="mt-2 text-[0.9rem] text-muted-foreground">
-              Desde inventario (suma stock), material nuevo (lo crea en el inventario) o solo gasto (no toca el inventario).
-            </p>
+        {/* Barra fija en celular */}
+        <div className="fixed inset-x-0 bottom-0 z-30 flex items-center gap-3 border-t border-[#E4E0F2] bg-white/95 px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] backdrop-blur lg:hidden">
+          <div className="min-w-0 flex-1">
+            <p className={cn("text-xs", GRIS)}>Total{conIva ? " con IVA" : ""}</p>
+            <p className="text-lg font-semibold tabular-nums">{clp(totales.total)}</p>
+            {error && (
+              <p className="truncate text-xs text-destructive" role="alert">
+                {error}
+              </p>
+            )}
           </div>
-          <Button type="button" variant="outline" className="h-10 shrink-0 rounded-xl px-4 text-[0.95rem]" onClick={agregarLinea}>
-            + Agregar línea
+          <Button type="submit" disabled={faltas.length > 0 || pendiente} className="h-11 rounded-xl px-5 font-semibold">
+            {pendiente && <Loader2 className="animate-spin" />}
+            Registrar compra
           </Button>
         </div>
+      </form>
 
-        {lineas.map((l, idx) => {
-          const insumo = insumos.find((i) => i.id === l.insumoId);
-          return (
-            <div key={l.clave} className="flex flex-col gap-4 rounded-xl border border-border p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex w-fit gap-1 rounded-xl border border-border p-1" role="tablist" aria-label={`Tipo de la línea ${idx + 1}`}>
-                  {PESTANAS.map((p) => (
-                    <button
-                      key={p.origen}
-                      type="button"
-                      role="tab"
-                      aria-selected={l.origen === p.origen}
-                      onClick={() => cambiar(l.clave, { origen: p.origen })}
-                      className={cn(
-                        "rounded-lg px-4 py-1.5 text-[0.9rem] font-medium whitespace-nowrap transition-colors",
-                        l.origen === p.origen ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      {p.texto}
-                    </button>
-                  ))}
-                </div>
-                {lineas.length > 1 && (
-                  <button
-                    type="button"
-                    aria-label={`Quitar la línea ${idx + 1}`}
-                    onClick={() => quitar(l.clave)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="size-5" />
-                  </button>
-                )}
-              </div>
-
-              {l.origen === "INVENTARIO" && (
-                <div className="flex gap-3">
-                  <div className="min-w-0 flex-1">
-                    <Buscador
-                      items={insumos.map((i) => ({ id: i.id, titulo: i.nombre, detalle: i.codigo ?? undefined }))}
-                      valor={l.insumoId}
-                      onElegir={(id) => {
-                        // El precio ya viene del inventario; solo se corrige si esta vez salió distinto.
-                        const elegido = insumos.find((i) => i.id === id);
-                        cambiar(l.clave, { insumoId: id, costo: elegido && elegido.costo > 0 ? String(elegido.costo) : "" });
-                      }}
-                      placeholder="Buscar por nombre o código del material…"
-                      sinResultados={
-                        insumos.length === 0
-                          ? "Todavía no hay materiales. Crea uno con «+ Nuevo material»."
-                          : "Ningún material coincide. Si es nuevo, usa «+ Nuevo material»."
-                      }
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="h-11 shrink-0 rounded-full px-5 text-[0.95rem]"
-                    onClick={() => abrirNuevoMaterial(l.clave)}
-                  >
-                    + Nuevo material
-                  </Button>
-                </div>
-              )}
-
-              {/* Ya elegido, el inventario sabe todo del material: aquí solo se muestra, no se vuelve a escribir. */}
-              {l.origen === "INVENTARIO" && insumo && (
-                <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 rounded-xl bg-muted/50 px-4 py-3 text-[0.9rem]">
-                  <span className="font-medium">
-                    {insumo.nombre}
-                    {[insumo.codigo, textoCategoriaInsumo(insumo.categoria, categorias)].filter(Boolean).length > 0 && (
-                      <span className="ml-2 text-[0.8rem] font-normal text-muted-foreground">
-                        {[insumo.codigo, textoCategoriaInsumo(insumo.categoria, categorias)].filter(Boolean).join(" · ")}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-muted-foreground">
-                    Hay{" "}
-                    <strong className="font-semibold text-foreground tabular-nums">
-                      {formatoCantidad(insumo.stock)} {unidadCorta(insumo.unidad)}
-                    </strong>
-                    {aCantidad(l.cantidad) > 0 && (
-                      <>
-                        {" "}
-                        · con esta compra quedarán{" "}
-                        <strong className="font-semibold text-foreground tabular-nums">
-                          {formatoCantidad(insumo.stock + aCantidad(l.cantidad))} {unidadCorta(insumo.unidad)}
-                        </strong>
-                      </>
-                    )}
-                  </span>
-                </div>
-              )}
-
-              {/* Un material del inventario sin elegir todavía no tiene nada que completar. */}
-              {(l.origen !== "INVENTARIO" || insumo) && (
-              <div className="grid gap-4 sm:grid-cols-12">
-                {l.origen !== "INVENTARIO" && (
-                  <div className={l.origen === "NUEVO" ? "sm:col-span-8" : "sm:col-span-12"}>
-                    <label htmlFor={`lin-desc-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
-                      Descripción
-                    </label>
-                    <Input
-                      id={`lin-desc-${l.clave}`}
-                      value={l.descripcion}
-                      onChange={(e) => cambiar(l.clave, { descripcion: e.target.value })}
-                      placeholder={l.origen === "NUEVO" ? "Cloro granulado" : "Reparación de la bomba"}
-                      maxLength={160}
-                      className={campo}
-                    />
-                  </div>
-                )}
-                {l.origen === "NUEVO" && (
-                  <div className="sm:col-span-4">
-                    <label htmlFor={`lin-unidad-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
-                      Se cuenta en
-                    </label>
-                    <Selector id={`lin-unidad-${l.clave}`} valor={l.unidad} onCambiar={(v) => cambiar(l.clave, { unidad: v })}>
-                      {UNIDADES_INSUMO.map((u) => (
-                        <option key={u.valor} value={u.valor}>
-                          {u.texto}
-                        </option>
-                      ))}
-                    </Selector>
-                  </div>
-                )}
-
-                <div className="sm:col-span-4">
-                  <label htmlFor={`lin-cant-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
-                    Cantidad{insumo ? ` (${unidadCorta(insumo.unidad)})` : ""}
-                  </label>
-                  <Input
-                    id={`lin-cant-${l.clave}`}
-                    value={l.cantidad}
-                    onChange={(e) => cambiar(l.clave, { cantidad: e.target.value.replace(/[^\d,.]/g, "") })}
-                    inputMode="decimal"
-                    className={campo}
-                  />
-                </div>
-                <div className="sm:col-span-4">
-                  <label htmlFor={`lin-costo-${l.clave}`} className="mb-2 block text-[0.85rem] text-muted-foreground">
-                    Precio de compra (sin IVA)
-                  </label>
-                  <Input
-                    id={`lin-costo-${l.clave}`}
-                    value={l.costo ? aPesos(l.costo).toLocaleString("es-CL") : ""}
-                    onChange={(e) => cambiar(l.clave, { costo: e.target.value })}
-                    placeholder="0"
-                    inputMode="numeric"
-                    className={campo}
-                  />
-                  {insumo && insumo.costo > 0 && (
-                    <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Costo en el inventario: {clp.format(insumo.costo)}</p>
-                  )}
-                </div>
-                <div className="sm:col-span-4">
-                  <span className="mb-2 block text-[0.85rem] text-muted-foreground">Total línea</span>
-                  <div className="flex h-11 items-center rounded-2xl border border-border px-5 text-[0.95rem] tabular-nums">
-                    {clp.format(Math.round(aCantidad(l.cantidad) * aPesos(l.costo)))}
-                  </div>
-                </div>
-              </div>
-              )}
-            </div>
-          );
-        })}
-      </section>
-
-      <section className="flex flex-col gap-1 border-t border-border pt-6 sm:ml-auto sm:w-full sm:max-w-sm">
-        <div className="flex justify-between py-1 text-[0.95rem]">
-          <span className="text-muted-foreground">Subtotal</span>
-          <span className="tabular-nums">{clp.format(totales.subtotal)}</span>
-        </div>
-        <div className="flex justify-between py-1 text-[0.95rem]">
-          <span className="text-muted-foreground">Impuesto</span>
-          <span className="tabular-nums">{clp.format(totales.impuesto)}</span>
-        </div>
-        <div className="flex items-baseline justify-between pt-1">
-          <span className="text-[1.25rem] font-bold">Total</span>
-          <span className="text-[1.5rem] font-bold tabular-nums">{clp.format(totales.total)}</span>
-        </div>
-      </section>
-
-      {error && (
-        <p className="text-[0.9rem] text-destructive" role="alert">
-          {error}
-        </p>
-      )}
-
-      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Link href="/panel/compras" className="inline-flex h-11 items-center justify-center rounded-xl border border-border px-5 text-[0.95rem] hover:bg-muted">
-          Cancelar
-        </Link>
-        <Button type="submit" className="h-11 rounded-full px-6 text-[0.95rem]" disabled={pendiente}>
-          {pendiente && <Loader2 className="animate-spin" />}
-          Registrar compra
-        </Button>
-      </div>
-
-    </form>
-
-    {/*
-      El modal va FUERA del formulario de la compra. Aunque se dibuja encima, para React un hijo es
-      parte de su padre: dentro del formulario, el envío del proveedor subía hasta el de la compra,
-      que lo interceptaba y no dejaba guardar al proveedor.
-    */}
-    {creandoProveedor && <ProveedorDialog proveedor={null} onCerrar={cerrarNuevoProveedor} />}
-    {lineaNuevoMaterial !== null && <InsumoDialog insumo={null} categorias={categorias} onCerrar={cerrarNuevoMaterial} />}
+      {/*
+        El modal va FUERA del formulario de la compra: dentro, el envío del proveedor subía hasta el de la compra,
+        que lo interceptaba y no dejaba guardar al proveedor.
+      */}
+      {creandoProveedor && <ProveedorDialog proveedor={null} onCerrar={cerrarNuevoProveedor} />}
     </>
   );
 }

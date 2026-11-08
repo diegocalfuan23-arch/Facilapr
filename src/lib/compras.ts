@@ -1,7 +1,7 @@
 import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { compras, comprasItems, movimientos, proveedores } from "@/lib/db/schema";
-import type { CompraFila, EstadoCompra, ItemCompraFila, OrigenItem, ProveedorFila } from "@/lib/compras-comun";
+import type { CompraFila, EstadoCompra, ItemCompraFila, OrigenItem, ProveedorFila, TipoDocumento } from "@/lib/compras-comun";
 
 export * from "@/lib/compras-comun";
 
@@ -16,6 +16,9 @@ export async function listarProveedores(aprId: string): Promise<ProveedorFila[]>
       telefono: proveedores.telefono,
       direccion: proveedores.direccion,
       notas: proveedores.notas,
+      rubro: proveedores.rubro,
+      contacto: proveedores.contacto,
+      diasPago: proveedores.diasPago,
     })
     .from(proveedores)
     .where(eq(proveedores.aprId, aprId))
@@ -34,7 +37,9 @@ export async function listarCompras(aprId: string): Promise<CompraFila[]> {
         id: compras.id,
         numero: compras.numero,
         proveedor: compras.proveedorNombre,
+        proveedorId: compras.proveedorId,
         folio: compras.folio,
+        documento: compras.documento,
         fecha: compras.fecha,
         vencimiento: compras.vencimiento,
         estado: compras.estado,
@@ -79,6 +84,7 @@ export async function listarCompras(aprId: string): Promise<CompraFila[]> {
     return filas.map((f) => ({
       ...f,
       estado: f.estado as EstadoCompra,
+      documento: f.documento as TipoDocumento | null,
       items: porCompra.get(f.id) ?? [],
     }));
   } catch (e) {

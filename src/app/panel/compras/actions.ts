@@ -9,7 +9,8 @@ import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
 import { UNIDADES_INSUMO } from "@/lib/inventario-comun";
-import { totalesDe } from "@/lib/compras-comun";
+import { CONDICIONES_PAGO, totalesDe } from "@/lib/compras-comun";
+import { formatearRut, normalizarRut, rutValido } from "@/lib/formato";
 import { anotarCambioStock } from "@/lib/inventario-historial";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 
@@ -32,6 +33,9 @@ const proveedorSchema = z.object({
   telefono: z.string().trim().max(30).nullable(),
   direccion: z.string().trim().max(200).nullable(),
   notas: z.string().trim().max(500).nullable(),
+  rubro: z.string().trim().max(80).nullable(),
+  contacto: z.string().trim().max(120).nullable(),
+  diasPago: z.number().int().refine((d) => CONDICIONES_PAGO.some((c) => c.dias === d), "La condición de pago no es válida."),
 });
 
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
@@ -51,8 +55,16 @@ export async function guardarProveedor(
     telefono: aTexto(formData.get("telefono")),
     direccion: aTexto(formData.get("direccion")),
     notas: aTexto(formData.get("notas")),
+    rubro: aTexto(formData.get("rubro")),
+    contacto: aTexto(formData.get("contacto")),
+    diasPago: Number(formData.get("diasPago") ?? 0),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+  // Un RUT que se escribe tiene que ser real; queda siempre con puntos y guion.
+  if (parsed.data.rut) {
+    if (!rutValido(parsed.data.rut)) return { ok: false, error: "El RUT no es válido. Revisa el dígito verificador." };
+    parsed.data.rut = formatearRut(normalizarRut(parsed.data.rut));
+  }
 
   const id = String(formData.get("id") ?? "");
   try {
@@ -80,9 +92,12 @@ export async function guardarProveedor(
   return { ok: true };
 }
 
-/** Borra un proveedor. Sus compras se quedan con el nombre que tenía. */
+/** Borra un proveedor que no tiene compras registradas. */
 export async function eliminarProveedor(id: string): Promise<ResultadoCompras> {
   const { apr } = await requireFinanzas();
+
+  const [conCompras] = await db.select({ id: compras.id }).from(compras).where(and(eq(compras.aprId, apr.id), eq(compras.proveedorId, id))).limit(1);
+  if (conCompras) return { ok: false, error: "Tiene compras registradas: no se puede eliminar." };
 
   const borrados = await db
     .delete(proveedores)
@@ -111,8 +126,9 @@ const compraSchema = z.object({
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
   vencimiento: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
   folio: z.string().trim().max(60),
+  /** La factura suma IVA a los precios (van netos); la boleta y los otros documentos ya lo traen incluido. */
+  documento: z.enum(["FACTURA", "BOLETA", "OTRO"]),
   notas: z.string().trim().max(500),
-  conIva: z.boolean(),
   estado: z.enum(["PENDIENTE", "PAGADA"]),
   medio: z.string(),
   items: z.array(itemSchema).min(1, "Agrega al menos una línea.").max(100, "Máximo 100 líneas por compra."),
@@ -145,7 +161,7 @@ export async function crearCompra(
   // Una compra pagada deja su egreso en Caja el día de la compra: ese día no puede estar cerrado.
   if (d.estado === "PAGADA" && (await diaCerrado(db, apr.id, d.fecha))) return { ok: false, error: mensajeDiaCerrado(d.fecha) };
 
-  const { subtotal, impuesto, total } = totalesDe(d.items, d.conIva);
+  const { subtotal, impuesto, total } = totalesDe(d.items, d.documento === "FACTURA");
 
   try {
     const numero = await db.transaction(async (tx) => {
@@ -237,6 +253,7 @@ export async function crearCompra(
           vencimiento: d.vencimiento,
           estado: d.estado,
           folio: d.folio || null,
+          documento: d.documento,
           notas: d.notas || null,
           subtotal,
           impuesto,

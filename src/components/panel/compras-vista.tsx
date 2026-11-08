@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CompraDetalleDialog } from "@/components/panel/compra-detalle-dialog";
 import { ProveedorDialog } from "@/components/panel/proveedor-dialog";
-import { TEXTO_ESTADO_COMPRA, type CompraFila, type ProveedorFila } from "@/lib/compras-comun";
+import { ProveedoresTabla } from "@/components/panel/proveedores-tabla";
+import { TEXTO_ESTADO_COMPRA, textoDocumento, type CompraFila, type ProveedorFila } from "@/lib/compras-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
@@ -211,7 +212,7 @@ export function ComprasVista({ compras, proveedores }: { compras: CompraFila[]; 
                 <thead>
                   <tr className="bg-[#F7F6FC] text-[13px] text-[#3F3C55]">
                     <th scope="col" className="px-5 py-3 font-semibold">N.°</th>
-                    <th scope="col" className="px-4 py-3 font-semibold">Factura</th>
+                    <th scope="col" className="px-4 py-3 font-semibold">Documento</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Proveedor</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Fecha</th>
                     <th scope="col" className="px-4 py-3 font-semibold">Vence</th>
@@ -225,7 +226,7 @@ export function ComprasVista({ compras, proveedores }: { compras: CompraFila[]; 
                     return (
                       <tr key={c.id} onClick={() => setViendoId(c.id)} className="cursor-pointer border-t border-[#F0EEF6] hover:bg-[#FBFAFF]">
                         <td className="px-5 py-4 text-[15px] font-semibold">C-{c.numero}</td>
-                        <td className="truncate px-4 py-4 text-[15px] text-[#3F3C55] tabular-nums" title={c.folio ?? undefined}>{c.folio ?? "—"}</td>
+                        <td className="truncate px-4 py-4 text-[15px] text-[#3F3C55] tabular-nums" title={c.folio ?? undefined}>{c.folio ? `${textoDocumento(c.documento) ?? "N.°"} ${c.folio}` : "—"}</td>
                         <td className="px-4 py-4">
                           <Proveedor compra={c} proveedores={proveedores} />
                         </td>
@@ -251,7 +252,7 @@ export function ComprasVista({ compras, proveedores }: { compras: CompraFila[]; 
                       <p className="text-[15px] font-semibold tabular-nums">{clp(c.total)}</p>
                     </div>
                     <p className={`truncate text-[13px] tabular-nums ${GRIS}`}>
-                      {c.folio ? `Factura ${c.folio} · ` : ""}
+                      {c.folio ? `${textoDocumento(c.documento) ?? "N.°"} ${c.folio} · ` : ""}
                       {fechaCorta(c.fecha)}
                     </p>
                     <div className="mt-1 flex items-center justify-between gap-3">
@@ -272,30 +273,8 @@ export function ComprasVista({ compras, proveedores }: { compras: CompraFila[]; 
               </div>
             </>
           )
-        ) : proveedores.length === 0 ? (
-          <div className="px-6 py-12 text-center">
-            <p className="font-medium">Sin proveedores</p>
-            <p className={`mx-auto mt-1 max-w-xl text-sm ${GRIS}`}>Registra a quién le compras para asociarlo a tus compras.</p>
-          </div>
         ) : (
-          <ul className="divide-y divide-[#F0EEF6]">
-            {proveedores.map((p) => {
-              const suyas = vigentes.filter((c) => c.proveedor === p.nombre);
-              return (
-                <li key={p.id}>
-                  <button type="button" onClick={() => setEditandoProveedor(p)} className="flex w-full items-center justify-between gap-3 px-5 py-3 text-left hover:bg-[#FBFAFF]">
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">{p.nombre}</span>
-                      <span className={`block text-[13px] ${GRIS}`}>
-                        {suyas.length} compra{suyas.length === 1 ? "" : "s"}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-sm font-semibold tabular-nums">{clp(suyas.reduce((t, c) => t + c.total, 0))}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <ProveedoresTabla proveedores={proveedores} compras={compras} onNuevo={() => setCreandoProveedor(true)} onEditar={setEditandoProveedor} />
         )}
       </div>
 

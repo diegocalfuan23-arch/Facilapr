@@ -23,6 +23,34 @@ export const TEXTO_ORIGEN_ITEM: Record<OrigenItem, string> = {
   GASTO: "Solo un gasto",
 };
 
+/** El documento con que el proveedor respalda la compra. La factura lleva IVA aparte; la boleta y los otros ya lo traen incluido. */
+export type TipoDocumento = "FACTURA" | "BOLETA" | "OTRO";
+
+export const DOCUMENTOS_COMPRA: { valor: TipoDocumento; texto: string }[] = [
+  { valor: "FACTURA", texto: "Factura" },
+  { valor: "BOLETA", texto: "Boleta" },
+  { valor: "OTRO", texto: "Otro" },
+];
+
+export const textoDocumento = (d: string | null) => DOCUMENTOS_COMPRA.find((x) => x.valor === d)?.texto ?? null;
+
+/** En cuántos días se le paga a un proveedor (0 = contado). */
+export const CONDICIONES_PAGO = [
+  { dias: 0, texto: "Contado" },
+  { dias: 15, texto: "15 días" },
+  { dias: 30, texto: "30 días" },
+  { dias: 60, texto: "60 días" },
+] as const;
+
+export const textoCondicionPago = (dias: number) => CONDICIONES_PAGO.find((c) => c.dias === dias)?.texto ?? `${dias} días`;
+
+/** La fecha (AAAA-MM-DD) que queda al sumar días a otra. */
+export function sumarDias(iso: string, dias: number) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
 export type ProveedorFila = {
   id: string;
   nombre: string;
@@ -31,6 +59,10 @@ export type ProveedorFila = {
   telefono: string | null;
   direccion: string | null;
   notas: string | null;
+  rubro: string | null;
+  contacto: string | null;
+  /** 0 = contado. */
+  diasPago: number;
 };
 
 export type ItemCompraFila = {
@@ -45,7 +77,11 @@ export type CompraFila = {
   id: string;
   numero: number;
   proveedor: string | null;
+  /** El proveedor registrado; null si se escribió solo un nombre, o si el proveedor se borró. */
+  proveedorId: string | null;
   folio: string | null;
+  /** Null en las compras anteriores a que se pidiera el tipo de documento. */
+  documento: TipoDocumento | null;
   /** AAAA-MM-DD */
   fecha: string;
   vencimiento: string | null;

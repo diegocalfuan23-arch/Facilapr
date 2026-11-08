@@ -659,6 +659,12 @@ export const proveedores = pgTable(
     telefono: text("telefono"),
     direccion: text("direccion"),
     notas: text("notas"),
+    /** A qué se dedica: ferretería, químicos… */
+    rubro: text("rubro"),
+    /** La persona con quien se habla en el proveedor. */
+    contacto: text("contacto"),
+    /** En cuántos días se le paga: 0 = contado, o 15, 30, 60. Sirve para calcular el vencimiento de sus compras. */
+    diasPago: integer("diasPago").notNull().default(0),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [index("Proveedor_aprId_idx").on(table.aprId)]
@@ -688,6 +694,8 @@ export const compras = pgTable(
     estado: text("estado").notNull().default("PENDIENTE"),
     /** N.° de la factura o boleta del proveedor. */
     folio: text("folio"),
+    /** FACTURA | BOLETA | OTRO. Las compras antiguas no lo traen. */
+    documento: text("documento"),
     notas: text("notas"),
     subtotal: integer("subtotal").notNull().default(0),
     impuesto: integer("impuesto").notNull().default(0),
