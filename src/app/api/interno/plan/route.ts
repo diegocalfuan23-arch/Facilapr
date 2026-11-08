@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aprs } from "@/lib/db/schema";
 import { exigirSecreto, respuesta } from "@/lib/interno";
+import { finDePrueba } from "@/lib/prueba";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export const dynamic = "force-dynamic";
 const cuerpoSchema = z.object({
   aprId: z.string().min(1).max(64),
   plan: z.enum(["BASICO", "ESTANDAR", "PREMIUM"]),
+  /** true: en vez de cambiar el plan para siempre, inicia la prueba gratuita de 10 días (todas las funciones del plan Grande). */
+  prueba: z.boolean().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -30,15 +33,22 @@ export async function POST(req: NextRequest) {
     return respuesta(400, { error: "Datos inválidos." });
   }
 
+  // Una prueba deja el plan Grande con fecha de término; un cambio de plan normal borra cualquier prueba pendiente,
+  // para que el cierre automático no baje después a un comité al que se le asignó un plan a mano.
+  const enPrueba = parsed.data.prueba === true;
   const [actualizado] = await db
     .update(aprs)
-    .set({ plan: parsed.data.plan, updatedAt: new Date() })
+    .set({
+      plan: enPrueba ? "PREMIUM" : parsed.data.plan,
+      pruebaHasta: enPrueba ? finDePrueba() : null,
+      updatedAt: new Date(),
+    })
     .where(eq(aprs.id, parsed.data.aprId))
-    .returning({ id: aprs.id, plan: aprs.plan });
+    .returning({ id: aprs.id, plan: aprs.plan, pruebaHasta: aprs.pruebaHasta });
 
   if (!actualizado) {
     return respuesta(404, { error: "Comité no encontrado." });
   }
 
-  return respuesta(200, { ok: true, plan: actualizado.plan });
+  return respuesta(200, { ok: true, plan: actualizado.plan, pruebaHasta: actualizado.pruebaHasta });
 }
