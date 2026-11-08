@@ -7,17 +7,17 @@ import { aprs } from "@/lib/db/schema";
 import { Logo } from "@/components/marca/logo";
 
 export const metadata: Metadata = {
-  title: "Paga tu cuenta del agua potable rural: encuentra tu comité (APR)",
+  title: "Cómo pagar tu cuenta del agua potable rural: encuentra tu comité (APR)",
   description:
-    "Si eres socio de un comité de agua potable rural (APR o SSR), busca tu comité y entra a tu cuenta para ver tus boletas y pagarlas en línea.",
+    "Si eres socio de un comité de agua potable rural (APR o SSR), busca tu comité y entra a tu cuenta para ver tus boletas y cómo pagarlas.",
   alternates: { canonical: "/socios" },
   openGraph: {
     type: "website",
     siteName: "Facilapr",
     locale: "es_CL",
     url: "/socios",
-    title: "Paga tu cuenta del agua potable rural: encuentra tu comité",
-    description: "Busca tu comité de agua potable rural y entra a tu cuenta para ver y pagar tus boletas.",
+    title: "Cómo pagar tu cuenta del agua potable rural: encuentra tu comité",
+    description: "Busca tu comité de agua potable rural y entra a tu cuenta para ver tus boletas y cómo pagarlas.",
   },
 };
 
@@ -66,11 +66,11 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
           Para socios
         </span>
         <h1 className="mt-3 text-[clamp(1.7rem,3vw,2.2rem)] leading-tight font-semibold tracking-tight">
-          Encuentra tu comité y paga tu boleta
+          Encuentra tu comité y mira tu boleta
         </h1>
         <p className="mt-3 text-[1rem] text-muted-foreground">
-          Busca el nombre de tu comité de agua potable rural o tu comuna. Entras con tu RUT y tu clave, ves tus boletas
-          y las pagas en línea si tu comité lo tiene activado.
+          Busca el nombre de tu comité de agua potable rural o tu comuna. Entras con tu RUT y tu clave, ves tus boletas,
+          tus pagos y cómo pagar en tu comité.
         </p>
 
         <form action="/socios" className="mt-7 flex gap-2">
