@@ -8,6 +8,7 @@ import { user as userTable } from "@/lib/db/auth-schema";
 import { enviarCorreoResetPassword } from "@/lib/correo/reset-password";
 import { slugUnico } from "@/lib/slug";
 import { finDePrueba } from "@/lib/prueba";
+import { avisarNuevoComite } from "@/lib/correo/nuevo-comite";
 
 /**
  * Orígenes aceptados. Sin esto, Better Auth solo confía en BETTER_AUTH_URL y
@@ -128,9 +129,9 @@ export const auth = betterAuth({
             where: eq(aprs.rut, datos.rutComite),
           });
 
-          const aprId =
-            existente?.id ??
-            (
+          const creado = existente
+            ? null
+            : (
               await db
                 .insert(aprs)
                 .values({
@@ -149,12 +150,21 @@ export const auth = betterAuth({
                   email: nuevoUsuario.email,
                 })
                 .returning()
-            )[0].id;
+            )[0];
+          const aprId = (existente ?? creado!).id;
 
           await db
             .update(userTable)
             .set({ aprId })
             .where(eq(userTable.id, nuevoUsuario.id));
+
+          // Un comité que se registra por primera vez: aviso inmediato al dueño. Si el correo falla, el registro sigue igual.
+          if (creado) {
+            await Promise.race([
+              avisarNuevoComite({ comite: datos.apr, comuna: datos.comuna, persona: nuevoUsuario.name, cargo: (nuevoUsuario as typeof nuevoUsuario & { cargo?: string }).cargo ?? "", correo: nuevoUsuario.email }),
+              new Promise<void>((r) => setTimeout(r, 4000)),
+            ]);
+          }
         },
       },
     },
