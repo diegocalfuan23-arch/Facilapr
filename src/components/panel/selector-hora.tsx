@@ -15,6 +15,18 @@ const aHora = (m: number) => `${dosDigitos(Math.floor(m / 60))}:${dosDigitos(m %
 /** Al aparecer el elemento elegido, la lista se centra en él. */
 const alMontar = (el: HTMLElement | null) => el?.scrollIntoView({ block: "center" });
 
+/** El área visible más cercana que recorta lo que se sale de ella (una ventana con scroll, una tarjeta), o la pantalla. */
+function areaVisible(el: HTMLElement) {
+  for (let p = el.parentElement; p; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY;
+    if (o === "auto" || o === "scroll" || o === "hidden" || o === "clip") {
+      const r = p.getBoundingClientRect();
+      return { top: Math.max(r.top, 0), bottom: Math.min(r.bottom, window.innerHeight), right: Math.min(r.right, window.innerWidth) };
+    }
+  }
+  return { top: 0, bottom: window.innerHeight, right: window.innerWidth };
+}
+
 /** Lo escrito en el buscador como hora completa (HH:MM), o null si todavía no lo es: «845» → 08:45, «8:45» → 08:45. */
 function horaEscrita(q: string): string | null {
   const solo = q.replace(/\D/g, "");
@@ -53,8 +65,10 @@ export function SelectorHora({
   invalido?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
-  // Si no hay lugar debajo (las últimas filas de la pantalla), la lista se abre hacia arriba.
+  // Hacia dónde se abre la lista y cuánto mide, según el espacio que haya dentro del área visible (no solo en la pantalla).
   const [arriba, setArriba] = useState(false);
+  const [altoLista, setAltoLista] = useState(224);
+  const [aDerecha, setADerecha] = useState(false);
   const [q, setQ] = useState("");
 
   const desde = Math.floor(aMinutos(inicio) / 60) * 60;
@@ -82,8 +96,15 @@ export function SelectorHora({
         aria-expanded={abierto}
         onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
-          // La lista mide unos 300 px: arriba solo si abajo no cabe y arriba sí.
-          setArriba(window.innerHeight - r.bottom < 320 && r.top > 320);
+          const area = areaVisible(e.currentTarget);
+          // El buscador y los bordes ocupan unos 70 px; el resto es para la lista, entre 96 y 224 px.
+          const abajo = area.bottom - r.bottom - 12 - 70;
+          const encima = r.top - area.top - 12 - 70;
+          const haciaArriba = abajo < 180 && encima > abajo;
+          setArriba(haciaArriba);
+          setAltoLista(Math.max(96, Math.min(224, haciaArriba ? encima : abajo)));
+          // Si a la derecha no cabe el ancho de la lista, se alinea con el borde derecho del botón.
+          setADerecha(r.left + 220 > area.right - 8);
           setAbierto((v) => !v);
         }}
         className={cn(
@@ -100,7 +121,7 @@ export function SelectorHora({
       {abierto && (
         <>
           <button type="button" aria-label="Cerrar" onClick={() => setAbierto(false)} className="fixed inset-0 z-40 cursor-default bg-transparent" />
-          <div role="listbox" aria-label={etiqueta} className={cn("absolute left-0 z-50 w-[220px] overflow-hidden rounded-xl border border-[#ECEAF4] bg-white shadow-[0_12px_32px_rgba(21,19,43,0.18)]", arriba ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
+          <div role="listbox" aria-label={etiqueta} className={cn("absolute z-50 w-[220px] overflow-hidden rounded-xl border border-[#ECEAF4] bg-white shadow-[0_12px_32px_rgba(21,19,43,0.18)]", aDerecha ? "right-0" : "left-0", arriba ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
             <div className="relative border-b border-[#F0EEF6] p-2">
               <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <input
@@ -121,7 +142,7 @@ export function SelectorHora({
                 className="h-9 w-full rounded-lg border border-[#E4E1F0] pr-2 pl-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </div>
-            <ul className="max-h-56 overflow-y-auto p-1">
+            <ul style={{ maxHeight: altoLista }} className="overflow-y-auto p-1">
               {vacio && !solo && (
                 <li>
                   <button type="button" onClick={() => elegir(null)} className="flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-sm hover:bg-[#F5F4FA]">
