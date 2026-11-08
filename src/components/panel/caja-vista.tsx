@@ -20,6 +20,7 @@ import {
   MoreHorizontal,
   PiggyBank,
   Plus,
+  RefreshCw,
   Search,
   Tags,
   Trash2,
@@ -199,6 +200,29 @@ function TipoPill({ tipo }: { tipo: TipoMovimiento }) {
   );
 }
 
+/** Cuántos segundos pasaron desde un instante. */
+const segundosDesde = (t: number) => Math.max(0, Math.round((Date.now() - t) / 1000));
+
+/** «Actualizado hace 12 s» y un botón para actualizar a mano: así se ve que la Caja se mantiene al día sola. */
+function Actualizado({ actualizadoEn, cargando, onActualizar }: { actualizadoEn: number; cargando: boolean; onActualizar: () => void }) {
+  // Solo para que el texto se vuelva a calcular cada pocos segundos.
+  const [, marcar] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => marcar((n) => n + 1), 5000);
+    return () => clearInterval(t);
+  }, []);
+  const s = segundosDesde(actualizadoEn);
+  const texto = s < 5 ? "ahora" : s < 60 ? `hace ${s} s` : `hace ${Math.floor(s / 60)} min`;
+  return (
+    <span className="flex items-center gap-1.5 text-xs text-[#5B5970]">
+      Actualizado {texto}
+      <button type="button" onClick={onActualizar} aria-label="Actualizar la Caja" title="Actualizar ahora" className="flex size-7 items-center justify-center rounded-md hover:bg-[#F4F3F9] focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+        <RefreshCw className={cn("size-3.5", cargando && "animate-spin")} aria-hidden />
+      </button>
+    </span>
+  );
+}
+
 /** Contar el efectivo de la caja y cerrar el día: queda anotado lo que se contó y la diferencia con el sistema. */
 function Arqueo({ resumen, onVerCierre, onDefinirSaldo }: { resumen: ResumenPeriodo; onVerCierre: () => void; onDefinirSaldo: () => void }) {
   const [abierto, setAbierto] = useState(false);
@@ -354,7 +378,7 @@ export function CajaVista({
   const cliente = useQueryClient();
   // Se vuelve a pedir cada 30 segundos y al volver a la pestaña: los pagos, compras y sueldos que se registran en otras
   // pantallas, o por otra persona, aparecen solos.
-  const { data } = useQuery({ queryKey: ["caja", modo, desde], queryFn: () => consultarCaja(modo, desde), initialData: datos, refetchInterval: 30_000 });
+  const { data, dataUpdatedAt, isFetching } = useQuery({ queryKey: ["caja", modo, desde], queryFn: () => consultarCaja(modo, desde), initialData: datos, refetchInterval: 30_000 });
   const { resumen, lineas, porCategoria, categoriasPropias, saldoInicial, tendencia } = data;
   /** Después de cualquier cambio hecho aquí, la Caja se vuelve a pedir enseguida. */
   const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["caja"] }), [cliente]);
@@ -719,9 +743,12 @@ export function CajaVista({
 
           <div className={cn("flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card", SOMBRA)}>
             <div className="flex flex-col gap-3 border-b border-[#F0EEF6] p-4 sm:px-5 xl:flex-row xl:items-center">
-              <h2 className="text-[15px] font-semibold">
-                Movimientos <span className={cn("font-normal", GRIS)}>· {filtradas.length}</span>
-              </h2>
+              <div className="flex flex-col gap-0.5">
+                <h2 className="text-[15px] font-semibold">
+                  Movimientos <span className={cn("font-normal", GRIS)}>· {filtradas.length}</span>
+                </h2>
+                <Actualizado actualizadoEn={dataUpdatedAt} cargando={isFetching} onActualizar={volverAPedir} />
+              </div>
               <div className="flex flex-1 flex-col gap-2 sm:flex-row xl:justify-end">
                 <div className="relative min-w-0 sm:flex-1 xl:max-w-[260px]">
                   <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
