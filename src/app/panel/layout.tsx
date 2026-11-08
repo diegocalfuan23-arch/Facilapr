@@ -174,16 +174,6 @@ export default async function PanelLayout({
               esOperador && "p-4 pb-28 md:p-6"
             )}
           >
-            {rol === "ADMIN" && diasPrueba > 0 && (
-              <div className="flex flex-col gap-2 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 text-[0.9rem] sm:flex-row sm:items-center sm:justify-between">
-                <span>
-                  <strong className="font-semibold">Prueba gratuita:</strong> te {diasPrueba === 1 ? "queda 1 día" : `quedan ${diasPrueba} días`} con todas las funciones. Después vuelves al plan Pequeño y no pierdes tus datos.
-                </span>
-                <Link href="/panel/plan" className="shrink-0 font-semibold text-primary underline underline-offset-2">
-                  Ver planes
-                </Link>
-              </div>
-            )}
             {children}
           </div>
         </SidebarInset>
