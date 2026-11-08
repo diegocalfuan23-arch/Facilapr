@@ -2,6 +2,7 @@
 
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import {
   cambiarRevision,
+  consultarRemuneraciones,
   deshacerPago,
   eliminarRemuneracion,
   generarMes,
@@ -41,7 +43,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Input } from "@/components/ui/input";
 import { MEDIOS_MOVIMIENTO, hoyEnChile, textoMedioLinea } from "@/lib/finanzas-comun";
 import { descuentosLegales } from "@/lib/personal-comun";
-import { descuentoPorDias, desfaseConAsistencia, valorDelDia, type EstadoRemuneracion, type RemuneracionFila } from "@/lib/rrhh-comun";
+import { descuentoPorDias, desfaseConAsistencia, valorDelDia, type DatosRemuneraciones, type EstadoRemuneracion, type RemuneracionFila } from "@/lib/rrhh-comun";
 import { horasPorDia, valorDeHoraExtra, valorHoraOrdinaria } from "@/lib/personal-comun";
 import { montoEnPalabras } from "@/lib/monto-en-palabras";
 import { cn } from "@/lib/utils";
@@ -830,16 +832,14 @@ type Filtro = "todas" | EstadoRemuneracion;
  * préstamos, se revisa, y al pagarla queda como egreso en la Caja.
  */
 export function RemuneracionesVista({
-  filas,
-  faltan,
+  datos,
   periodo,
   anterior,
   siguiente,
   mesTexto,
   mesEnCurso,
 }: {
-  filas: RemuneracionFila[];
-  faltan: { id: string; nombre: string; cargo: string }[];
+  datos: DatosRemuneraciones;
   periodo: string;
   anterior: string;
   siguiente: string;
@@ -848,6 +848,13 @@ export function RemuneracionesVista({
 }) {
   const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 30 segundos y al volver a la pestaña.
+  const clave = ["remuneraciones", periodo];
+  const { data } = useQuery({ queryKey: clave, queryFn: () => consultarRemuneraciones(periodo), initialData: datos, refetchInterval: 30_000 });
+  const { filas, faltan } = data;
+  /** Después de cualquier cambio, la lista se vuelve a pedir enseguida. */
+  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["remuneraciones"] }), [cliente]);
   const [ocupado, iniciar] = useTransition();
   const [editando, setEditando] = useState<RemuneracionFila | null>(null);
   const [pagando, setPagando] = useState<RemuneracionFila[] | null>(null);
@@ -856,8 +863,14 @@ export function RemuneracionesVista({
   const [movil, setMovil] = useState(false);
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todas");
-  const cerrarEdicion = useCallback(() => setEditando(null), []);
-  const cerrarPago = useCallback(() => setPagando(null), []);
+  const cerrarEdicion = useCallback(() => {
+    setEditando(null);
+    volverAPedir();
+  }, [volverAPedir]);
+  const cerrarPago = useCallback(() => {
+    setPagando(null);
+    volverAPedir();
+  }, [volverAPedir]);
 
   const imponibleTotal = filas.reduce((s, f) => s + imponibleDe(f), 0);
   const descuentosTotal = filas.reduce((s, f) => s + f.descuentos, 0);
@@ -885,6 +898,7 @@ export function RemuneracionesVista({
       const r = await generarMes(periodo);
       if (r.ok) toast.success("Liquidaciones armadas");
       else toast.error(r.error);
+      volverAPedir();
     });
   }
   async function recalcular(objetivo: RemuneracionFila[]) {
@@ -901,13 +915,22 @@ export function RemuneracionesVista({
       const r = await recalcularRemuneraciones(pendientes.map((f) => f.id));
       if (r.ok) toast.success(r.cantidad === 1 ? "Liquidación recalculada" : `${r.cantidad} liquidaciones recalculadas`);
       else toast.error(r.error);
+      volverAPedir();
     });
   }
   function revisar(f: RemuneracionFila, lista: boolean) {
+    // El cambio de estado se ve al instante; si el servidor lo rechaza, vuelve a como estaba.
+    const antes = cliente.getQueryData<DatosRemuneraciones>(clave);
+    void cliente.cancelQueries({ queryKey: clave });
+    cliente.setQueryData<DatosRemuneraciones>(clave, (d) => d && { ...d, filas: d.filas.map((x) => (x.id === f.id ? { ...x, estado: lista ? "LISTA" : "PENDIENTE" } : x)) });
     iniciar(async () => {
       const r = await cambiarRevision(f.id, lista);
       if (r.ok) toast.success(lista ? "Lista para pagar" : "Vuelve a «por revisar»");
-      else toast.error(r.error);
+      else {
+        toast.error(r.error);
+        cliente.setQueryData(clave, antes);
+      }
+      volverAPedir();
     });
   }
   async function deshacer(f: RemuneracionFila) {
@@ -916,6 +939,7 @@ export function RemuneracionesVista({
       const r = await deshacerPago(f.id);
       if (r.ok) toast.success("Pago deshecho");
       else toast.error(r.error);
+      volverAPedir();
     });
   }
   async function borrar(f: RemuneracionFila) {
@@ -924,6 +948,7 @@ export function RemuneracionesVista({
       const r = await eliminarRemuneracion(f.id);
       if (r.ok) toast.success("Liquidación quitada");
       else toast.error(r.error);
+      volverAPedir();
     });
   }
 

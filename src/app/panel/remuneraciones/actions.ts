@@ -10,9 +10,9 @@ import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
-import { PREFIJO_CONCEPTO_REMUNERACION, descuentoPorDias, type ResumenAusenciasMes } from "@/lib/rrhh-comun";
+import { PREFIJO_CONCEPTO_REMUNERACION, descuentoPorDias, type DatosRemuneraciones, type ResumenAusenciasMes } from "@/lib/rrhh-comun";
 import { horasPorDia, valorDeHoraExtra } from "@/lib/personal-comun";
-import { resumenAusenciasMes } from "@/lib/rrhh";
+import { listarRemuneraciones, personasSinLiquidacion, resumenAusenciasMes } from "@/lib/rrhh";
 import { descuentosLegales } from "@/lib/personal-comun";
 import type { Contrato } from "@/lib/personal-comun";
 
@@ -23,6 +23,15 @@ const SIN_PLAN = "Remuneraciones está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/[^\d]/g, "")) || 0;
 const periodoOk = (p: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(p);
+
+/** Las liquidaciones de un mes y quién falta, para que la pantalla las vuelva a pedir sin recargar la página (la usa TanStack Query). */
+export async function consultarRemuneraciones(periodo: string): Promise<DatosRemuneraciones> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) throw new Error(SIN_PLAN);
+  if (!periodoOk(periodo)) throw new Error("El mes no es válido.");
+  const [filas, faltan] = await Promise.all([listarRemuneraciones(apr.id, periodo), personasSinLiquidacion(apr.id, periodo)]);
+  return { filas, faltan };
+}
 
 function refrescar() {
   revalidatePath("/panel/remuneraciones");

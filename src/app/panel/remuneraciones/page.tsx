@@ -6,6 +6,7 @@ import { listarRemuneraciones, personasSinLiquidacion } from "@/lib/rrhh";
 import { mesValido, mesVecino, nombreMes } from "@/lib/finanzas";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { RemuneracionesVista } from "@/components/panel/remuneraciones-vista";
+import { ConsultasProvider } from "@/components/panel/consultas-provider";
 
 export const metadata: Metadata = {
   title: "Remuneraciones",
@@ -30,15 +31,16 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
         </p>
       </div>
 
-      <RemuneracionesVista
-        filas={filas}
-        faltan={faltan}
-        periodo={periodo}
-        anterior={mesVecino(periodo, -1)}
-        siguiente={mesVecino(periodo, 1)}
-        mesTexto={nombreMes(periodo)}
-        mesEnCurso={hoyEnChile().slice(0, 7) === periodo}
-      />
+      <ConsultasProvider>
+        <RemuneracionesVista
+          datos={{ filas, faltan }}
+          periodo={periodo}
+          anterior={mesVecino(periodo, -1)}
+          siguiente={mesVecino(periodo, 1)}
+          mesTexto={nombreMes(periodo)}
+          mesEnCurso={hoyEnChile().slice(0, 7) === periodo}
+        />
+      </ConsultasProvider>
     </div>
   );
 }

@@ -169,6 +169,12 @@ export type AsistenciaDia = {
   horaLlegada: string | null;
 };
 
+/** Todo lo que necesita la pantalla de Remuneraciones para un mes: sus liquidaciones y quién todavía no tiene una. */
+export type DatosRemuneraciones = {
+  filas: RemuneracionFila[];
+  faltan: { id: string; nombre: string; cargo: string }[];
+};
+
 /** Todo lo que necesita la pantalla de Asistencia para un día: lo del día, la planilla de los meses vecinos y la configuración. */
 export type DatosAsistencia = {
   filas: AsistenciaDia[];
