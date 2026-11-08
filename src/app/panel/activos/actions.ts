@@ -8,10 +8,18 @@ import { activosFijos, movimientos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
-import { CATEGORIAS_ACTIVO, PREFIJO_CONCEPTO_ACTIVO } from "@/lib/activos-comun";
+import { CATEGORIAS_ACTIVO, PREFIJO_CONCEPTO_ACTIVO, type ActivoFila } from "@/lib/activos-comun";
+import { listarActivos } from "@/lib/activos";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 
 export type ResultadoActivos = { ok: true } | { ok: false; error: string };
+
+/** Los activos del comité, para que la pantalla los vuelva a pedir sin recargar la página (la usa TanStack Query). */
+export async function consultarActivos(): Promise<ActivoFila[]> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "activos")) return [];
+  return listarActivos(apr.id);
+}
 
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
 const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace(/[^\d]/g, "")) || 0;

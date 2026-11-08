@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { listarActivos } from "@/lib/activos";
 import { ActivosVista } from "@/components/panel/activos-vista";
+import { ConsultasProvider } from "@/components/panel/consultas-provider";
 
 export const metadata: Metadata = {
   title: "Activos fijos",
@@ -24,7 +25,9 @@ export default async function ActivosPage() {
         <p className="mt-1 text-[15px] text-muted-foreground">Los bienes del comité: qué tienes, cuánto costó y cuánto vale hoy.</p>
       </div>
 
-      <ActivosVista activos={activos} />
+      <ConsultasProvider>
+        <ActivosVista activos={activos} />
+      </ConsultasProvider>
     </div>
   );
 }

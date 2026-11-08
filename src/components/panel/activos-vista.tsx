@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Boxes, Building2, CalendarDays, Coins, Cog, Droplets, Gauge, Landmark, Mountain, Plus, ReceiptText, Search, Truck, Waves, Wrench, type LucideIcon } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { flexRender, getCoreRowModel, getFilteredRowModel, getSortedRowModel, useReactTable, type ColumnDef, type ColumnFiltersState, type FilterFn, type SortingState } from "@tanstack/react-table";
+import { ArrowDown, ArrowUp, ArrowUpDown, Boxes, Building2, CalendarDays, Coins, Cog, Droplets, Gauge, Landmark, Mountain, Plus, ReceiptText, Search, Truck, Waves, Wrench, type LucideIcon } from "lucide-react";
+import { consultarActivos } from "@/app/panel/activos/actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ActivoDialog } from "@/components/panel/activo-dialog";
@@ -106,29 +109,100 @@ function ValorHoy({ a, hoy }: { a: ActivoFila; hoy: string }) {
   );
 }
 
+/** La búsqueda: por nombre, código o ubicación. */
+const buscar: FilterFn<ActivoFila> = (fila, _columna, valor: string) => {
+  const a = fila.original;
+  const q = valor.trim().toLowerCase();
+  return a.nombre.toLowerCase().includes(q) || (a.codigo ?? "").toLowerCase().includes(q) || (a.ubicacion ?? "").toLowerCase().includes(q);
+};
+
+/** Las columnas de la tabla: lo que se ordena y cómo se dibuja cada celda. */
+const COLUMNAS: ColumnDef<ActivoFila>[] = [
+  {
+    accessorKey: "nombre",
+    header: "Bien",
+    cell: ({ row: { original: a } }) => (
+      <div className="flex items-center gap-4">
+        <IconoBien categoria={a.categoria} />
+        <div className="min-w-0">
+          <p className="font-semibold">{a.nombre}</p>
+          {(a.codigo || a.ubicacion) && <p className="text-[0.8rem] text-muted-foreground">{[a.codigo, a.ubicacion].filter(Boolean).join(" · ")}</p>}
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: "categoria",
+    header: "Categoría",
+    accessorFn: (a) => textoCategoriaActivo(a.categoria),
+    // El filtro de categoría compara con el valor interno, no con el texto que se ve.
+    filterFn: (fila, _columna, valor: string) => fila.original.categoria === valor,
+    cell: ({ getValue }) => <span className="text-muted-foreground">{getValue<string>()}</span>,
+  },
+  {
+    accessorKey: "fechaAdquisicion",
+    header: "Adquirido",
+    cell: ({ getValue }) => <span className="text-muted-foreground tabular-nums">{fechaCorta(getValue<string>())}</span>,
+  },
+  {
+    accessorKey: "costo",
+    header: "Costo",
+    cell: ({ getValue }) => <span className="tabular-nums">{clp.format(getValue<number>())}</span>,
+  },
+  {
+    id: "valorActual",
+    header: "Valor actual",
+    // Los dados de baja van al final al ordenar de mayor a menor.
+    accessorFn: (a) => (a.estado === "BAJA" ? -1 : valorActual(a, hoyEnChile()).valorLibro),
+    cell: ({ row }) => <ValorHoy a={row.original} hoy={hoyEnChile()} />,
+  },
+  {
+    id: "estado",
+    header: "Estado",
+    accessorFn: (a) => TEXTO_ESTADO_ACTIVO[a.estado],
+    cell: ({ row }) => <EstadoInsignia estado={row.original.estado} />,
+  },
+];
+
 /** Los activos fijos del comité y cuánto vale cada uno hoy (depreciación lineal según su vida útil). */
-export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
+export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
+  // TanStack Table devuelve funciones que React Compiler no puede memoizar sin dejar datos viejos: este componente queda fuera.
+  "use no memo";
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 30 segundos y al volver a la pestaña.
+  const { data: activos } = useQuery({ queryKey: ["activos"], queryFn: () => consultarActivos(), initialData: inicial, refetchInterval: 30_000 });
+
   const [busqueda, setBusqueda] = useState("");
   const [categoria, setCategoria] = useState("todas");
+  const [orden, setOrden] = useState<SortingState>([]);
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<ActivoFila | null>(null);
   const cerrar = useCallback(() => {
     setCreando(false);
     setEditando(null);
-  }, []);
+    // Si se guardó algo, la lista se vuelve a pedir enseguida.
+    void cliente.invalidateQueries({ queryKey: ["activos"] });
+  }, [cliente]);
+
+  const filtros: ColumnFiltersState = categoria === "todas" ? [] : [{ id: "categoria", value: categoria }];
+  const tabla = useReactTable({
+    data: activos,
+    columns: COLUMNAS,
+    state: { sorting: orden, globalFilter: busqueda, columnFilters: filtros },
+    onSortingChange: setOrden,
+    globalFilterFn: buscar,
+    getColumnCanGlobalFilter: () => true,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+  });
+  const filas = tabla.getRowModel().rows;
 
   const hoy = hoyEnChile();
   const vigentes = activos.filter((a) => a.estado !== "BAJA");
   const costoTotal = vigentes.reduce((s, a) => s + a.costo, 0);
   const valorTotal = vigentes.reduce((s, a) => s + valorActual(a, hoy).valorLibro, 0);
   const enReparacion = vigentes.filter((a) => a.estado === "EN_REPARACION").length;
-
-  const q = busqueda.trim().toLowerCase();
-  const filtrados = activos.filter((a) => {
-    if (categoria !== "todas" && a.categoria !== categoria) return false;
-    if (!q) return true;
-    return a.nombre.toLowerCase().includes(q) || (a.codigo ?? "").toLowerCase().includes(q) || (a.ubicacion ?? "").toLowerCase().includes(q);
-  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -174,7 +248,7 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
         </div>
       </div>
 
-      {filtrados.length === 0 ? (
+      {filas.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-border py-20 text-center">
           <p className="text-[1.05rem] font-medium">{activos.length === 0 ? "Sin bienes registrados" : "Nada coincide con la búsqueda"}</p>
           {activos.length === 0 && (
@@ -188,35 +262,31 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
           <div className="scroll-fino hidden overflow-x-auto rounded-2xl bg-card shadow-[0_10px_26px_rgba(58,12,227,0.14)] md:block">
             <table className="w-full min-w-200 border-collapse text-[0.95rem]">
               <thead>
-                <tr className="bg-gradient-to-r from-[#3A0CE3] to-[#6B46F5] text-primary-foreground">
-                  {["Bien", "Categoría", "Adquirido", "Costo", "Valor actual", "Estado"].map((c) => (
-                    <th key={c} className="px-5 py-3 text-left text-[0.85rem] font-semibold whitespace-nowrap">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
+                {tabla.getHeaderGroups().map((grupo) => (
+                  <tr key={grupo.id} className="bg-gradient-to-r from-[#3A0CE3] to-[#6B46F5] text-primary-foreground">
+                    {grupo.headers.map((h) => {
+                      const sentido = h.column.getIsSorted();
+                      const Flecha = sentido === "asc" ? ArrowUp : sentido === "desc" ? ArrowDown : ArrowUpDown;
+                      return (
+                        <th key={h.id} aria-sort={sentido === "asc" ? "ascending" : sentido === "desc" ? "descending" : "none"} className="px-5 py-3 text-left text-[0.85rem] font-semibold whitespace-nowrap">
+                          <button type="button" onClick={h.column.getToggleSortingHandler()} className="inline-flex items-center gap-1.5 rounded focus-visible:ring-2 focus-visible:ring-white focus-visible:outline-none">
+                            {flexRender(h.column.columnDef.header, h.getContext())}
+                            <Flecha aria-hidden className={cn("size-3.5", !sentido && "opacity-50")} />
+                          </button>
+                        </th>
+                      );
+                    })}
+                  </tr>
+                ))}
               </thead>
               <tbody>
-                {filtrados.map((a) => (
-                  <tr key={a.id} onClick={() => setEditando(a)} className={cn("cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-primary/5", a.estado === "BAJA" && "opacity-60")}>
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-4">
-                        <IconoBien categoria={a.categoria} />
-                        <div className="min-w-0">
-                          <p className="font-semibold">{a.nombre}</p>
-                          {(a.codigo || a.ubicacion) && <p className="text-[0.8rem] text-muted-foreground">{[a.codigo, a.ubicacion].filter(Boolean).join(" · ")}</p>}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground">{textoCategoriaActivo(a.categoria)}</td>
-                    <td className="px-5 py-4 whitespace-nowrap text-muted-foreground tabular-nums">{fechaCorta(a.fechaAdquisicion)}</td>
-                    <td className="px-5 py-4 whitespace-nowrap tabular-nums">{clp.format(a.costo)}</td>
-                    <td className="px-5 py-4">
-                      <ValorHoy a={a} hoy={hoy} />
-                    </td>
-                    <td className="px-5 py-4 whitespace-nowrap">
-                      <EstadoInsignia estado={a.estado} />
-                    </td>
+                {filas.map((fila) => (
+                  <tr key={fila.id} onClick={() => setEditando(fila.original)} className={cn("cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-primary/5", fila.original.estado === "BAJA" && "opacity-60")}>
+                    {fila.getVisibleCells().map((celda) => (
+                      <td key={celda.id} className={cn("px-5 py-4", celda.column.id !== "nombre" && celda.column.id !== "valorActual" && "whitespace-nowrap")}>
+                        {flexRender(celda.column.columnDef.cell, celda.getContext())}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -224,7 +294,7 @@ export function ActivosVista({ activos }: { activos: ActivoFila[] }) {
           </div>
 
           <div className="flex flex-col gap-3 md:hidden">
-            {filtrados.map((a) => (
+            {filas.map(({ original: a }) => (
               <button
                 key={a.id}
                 type="button"
