@@ -7,11 +7,21 @@ import { asistencias, configAsistencia, diasCalendario, horariosComite, horarios
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
-import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, aMinutos, type EstadoAsistencia } from "@/lib/rrhh-comun";
+import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, aMinutos, type DatosAsistencia, type EstadoAsistencia } from "@/lib/rrhh-comun";
+import { datosAsistencia } from "@/lib/asistencia-datos";
+import { hoyEnChile } from "@/lib/finanzas-comun";
 import { FERIADOS_NACIONALES } from "@/lib/feriados";
 import { z } from "zod";
 
 export type ResultadoAsistencia = { ok: true } | { ok: false; error: string };
+
+/** Los datos de Asistencia para un día, para que la pantalla los vuelva a pedir sin recargar la página (la usa TanStack Query). */
+export async function consultarAsistencia(dia: string): Promise<DatosAsistencia> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) throw new Error("RR.HH. está disponible en el plan Grande.");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dia)) throw new Error("La fecha no es válida.");
+  return datosAsistencia(apr.id, dia, hoyEnChile());
+}
 
 /** Marca (o cambia) el estado de una persona en un día. Con `estado` null, quita la marca. */
 export async function marcarAsistencia(

@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useMemo, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { CalendarCheck2, CalendarCog, Clock3, CalendarDays, CalendarRange, CalendarX2, Check, CheckCheck, ChevronDown, ChevronLeft, ChevronRight, Loader2, Minus, Plus, Trash2, TriangleAlert } from "lucide-react";
-import { guardarCalendarioLaboral, guardarHoraLlegada, guardarHorasExtra, marcarAsistencia } from "@/app/panel/asistencia/actions";
+import { consultarAsistencia, guardarCalendarioLaboral, guardarHoraLlegada, guardarHorasExtra, marcarAsistencia, type ResultadoAsistencia } from "@/app/panel/asistencia/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { FERIADOS_NACIONALES } from "@/lib/feriados";
 import { hoyEnChile } from "@/lib/finanzas-comun";
-import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, TEXTO_ESTADO_ASISTENCIA, aMinutos, duracionTramo, resumenDias, type AsistenciaDia, type DiaEspecial, type EstadoAsistencia, type HorarioComite, type HorarioPersona, type TramoComite } from "@/lib/rrhh-comun";
+import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, TEXTO_ESTADO_ASISTENCIA, aMinutos, duracionTramo, resumenDias, type AsistenciaDia, type DatosAsistencia, type DiaEspecial, type EstadoAsistencia, type HorarioComite, type HorarioPersona, type TramoComite } from "@/lib/rrhh-comun";
 import { cn } from "@/lib/utils";
 
 type Estado = EstadoAsistencia;
@@ -594,7 +595,7 @@ function ConfigLaboral({
   tabInicial: "comite" | "horario" | "feriados";
   onCerrar: () => void;
 }) {
-  const router = useRouter();
+  const cliente = useQueryClient();
   const [guardando, iniciar] = useTransition();
   const [tab, setTab] = useState(tabInicial);
   const [h, setH] = useState<Record<string, number[] | undefined>>(() => Object.fromEntries(Object.entries(horarios).map(([id, x]) => [id, x.dias])));
@@ -655,7 +656,7 @@ function ConfigLaboral({
       });
       if (r.ok) {
         toast.success("Calendario laboral guardado");
-        router.refresh();
+        void cliente.invalidateQueries({ queryKey: ["asistencia"] });
         onCerrar();
       } else {
         toast.error(r.error);
@@ -941,28 +942,10 @@ function ConfigLaboral({
  * Cada persona tiene su horario (por defecto de lunes a viernes) y el comité sus feriados y días sin operación:
  * los días en que no toca trabajar no quedan pendientes. Las vacaciones y licencias aprobadas se marcan solas.
  */
-export function AsistenciaVista({
-  dia,
-  filas,
-  grilla,
-  horasExtraMes,
-  horarios,
-  diasComite,
-  comite,
-  toleranciaMin,
-}: {
-  dia: string;
-  filas: AsistenciaDia[];
-  grilla: Grilla;
-  horasExtraMes: Record<string, number>;
-  /** Los días y la hora de ingreso de quien tiene un horario cargado (el resto trabaja de lunes a viernes). */
-  horarios: Record<string, HorarioPersona>;
-  /** Los feriados locales y días sin operación del comité. */
-  diasComite: DiaEspecial[];
-  /** Cuándo funciona el comité cada día; null si todavía no lo definió. */
-  comite: HorarioComite | null;
-  toleranciaMin: number;
-}) {
+export function AsistenciaVista({ dia, datos }: { dia: string; datos: DatosAsistencia }) {
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 30 segundos y al volver a la pestaña.
+  const { data } = useQuery({ queryKey: ["asistencia", dia], queryFn: () => consultarAsistencia(dia), initialData: datos, refetchInterval: 30_000 });
+  const { filas, grilla, horasExtraMes, horarios, diasComite, comite, toleranciaMin } = data;
   const router = useRouter();
   const [, navegar] = useTransition();
   const [vista, setVista] = useState<"dia" | "semana" | "mes">("dia");
@@ -1067,16 +1050,14 @@ function Cuerpo({
   ir: (d: string) => void;
   abrirFeriados: () => void;
 }) {
-  const [, iniciar] = useTransition();
+  const cliente = useQueryClient();
+  const enCurso = useRef(0);
+  const clave = ["asistencia", dia];
   const hoy = hoyEnChile();
   const personas: Persona[] = filas.map((f) => ({ id: f.trabajadorId, nombre: f.nombre, cargo: f.cargo }));
-  // Lo que se marcó en este día y todavía no vuelve del servidor.
-  const [marcas, setMarcas] = useState<Record<string, Estado | null>>({});
-  const [extras, setExtras] = useState<Record<string, number>>({});
-  const [llegadas, setLlegadas] = useState<Record<string, string | null>>({});
 
   const delDia = (id: string) => filas.find((f) => f.trabajadorId === id);
-  const estadoDelDia = (id: string): Estado | null => (id in marcas ? marcas[id] : (delDia(id)?.estado ?? null));
+  const estadoDelDia = (id: string): Estado | null => delDia(id)?.estado ?? null;
   /** Lo que pasó ese día con esa persona: en el día abierto, lo que se acaba de marcar; en los demás, la planilla. */
   const estadoDe = (id: string, fecha: string): Estado | null => (fecha === dia ? estadoDelDia(id) : (grilla[id]?.[fecha] ?? null));
 
@@ -1087,59 +1068,50 @@ function Cuerpo({
   const sinMarcar = conTurno.filter((p) => estadoDelDia(p.id) === null);
   const cuenta = (e: Estado) => personas.filter((p) => estadoDelDia(p.id) === e).length;
 
-  function marcar(p: Persona, nuevo: Estado | null) {
-    const antes = estadoDelDia(p.id);
-    setMarcas((m) => ({ ...m, [p.id]: nuevo }));
-    if (nuevo !== "PRESENTE" && nuevo !== "ATRASO") {
-      setExtras((x) => ({ ...x, [p.id]: 0 }));
-      setLlegadas((x) => ({ ...x, [p.id]: null }));
-    }
-    iniciar(async () => {
-      const r = await marcarAsistencia(p.id, dia, nuevo);
-      if (!r.ok) {
-        toast.error(r.error);
-        setMarcas((m) => ({ ...m, [p.id]: antes }));
+  /**
+   * Muestra el cambio al instante en la caché, lo envía al servidor y, si falla, devuelve esas personas a como estaban.
+   * Al terminar el último envío se vuelven a pedir los datos: así lo que hizo otra persona también se ve.
+   */
+  async function guardar(cambios: { id: string; parcial: Partial<AsistenciaDia> }[], enviar: () => Promise<ResultadoAsistencia[]>) {
+    // Una recarga en camino pisaría el cambio que se acaba de mostrar.
+    await cliente.cancelQueries({ queryKey: clave });
+    const antes = cliente.getQueryData<DatosAsistencia>(clave);
+    const poner = (cambiar: (f: AsistenciaDia) => AsistenciaDia) => cliente.setQueryData<DatosAsistencia>(clave, (d) => d && { ...d, filas: d.filas.map(cambiar) });
+    poner((f) => ({ ...f, ...cambios.find((c) => c.id === f.trabajadorId)?.parcial }));
+    enCurso.current++;
+    try {
+      const resultados = await enviar();
+      const fallo = resultados.find((r) => !r.ok);
+      if (fallo && !fallo.ok) {
+        toast.error(fallo.error);
+        const falladas = cambios.filter((_, i) => !resultados[i].ok).map((c) => c.id);
+        poner((f) => (falladas.includes(f.trabajadorId) ? (antes?.filas.find((x) => x.trabajadorId === f.trabajadorId) ?? f) : f));
       }
-    });
+    } finally {
+      if (--enCurso.current === 0) void cliente.invalidateQueries({ queryKey: ["asistencia"] });
+    }
+  }
+
+  function marcar(p: Persona, nuevo: Estado | null) {
+    // Sin presencia no hay hora de llegada ni horas extras.
+    const vino = nuevo === "PRESENTE" || nuevo === "ATRASO";
+    void guardar([{ id: p.id, parcial: { estado: nuevo, ...(vino ? {} : { horasExtra: 0, horaLlegada: null }) } }], async () => [await marcarAsistencia(p.id, dia, nuevo)]);
   }
 
   function todosPresentes() {
     const lista = [...sinMarcar];
-    setMarcas((m) => ({ ...m, ...Object.fromEntries(lista.map((p) => [p.id, "PRESENTE" as Estado])) }));
-    iniciar(async () => {
-      const resultados = await Promise.all(lista.map((p) => marcarAsistencia(p.id, dia, "PRESENTE")));
-      const fallo = resultados.find((r) => !r.ok);
-      if (fallo && !fallo.ok) {
-        toast.error(fallo.error);
-        const falladas = lista.filter((_, i) => !resultados[i].ok);
-        setMarcas((m) => ({ ...m, ...Object.fromEntries(falladas.map((p) => [p.id, null])) }));
-      }
-    });
+    void guardar(
+      lista.map((p) => ({ id: p.id, parcial: { estado: "PRESENTE" as Estado } })),
+      () => Promise.all(lista.map((p) => marcarAsistencia(p.id, dia, "PRESENTE")))
+    );
   }
 
   function llegada(p: Persona, hora: string | null) {
-    const antes = p.id in llegadas ? llegadas[p.id] : (delDia(p.id)?.horaLlegada ?? null);
-    setLlegadas((x) => ({ ...x, [p.id]: hora }));
-    // Una hora a medio escribir (un campo de hora a medias) no se envía: solo la hora completa o vacía.
-    iniciar(async () => {
-      const r = await guardarHoraLlegada(p.id, dia, hora);
-      if (!r.ok) {
-        toast.error(r.error);
-        setLlegadas((x) => ({ ...x, [p.id]: antes }));
-      }
-    });
+    void guardar([{ id: p.id, parcial: { horaLlegada: hora } }], async () => [await guardarHoraLlegada(p.id, dia, hora)]);
   }
 
   function horasExtra(p: Persona, n: number) {
-    const antes = extras[p.id] ?? delDia(p.id)?.horasExtra ?? 0;
-    setExtras((x) => ({ ...x, [p.id]: n }));
-    iniciar(async () => {
-      const r = await guardarHorasExtra(p.id, dia, n);
-      if (!r.ok) {
-        toast.error(r.error);
-        setExtras((x) => ({ ...x, [p.id]: antes }));
-      }
-    });
+    void guardar([{ id: p.id, parcial: { horasExtra: n } }], async () => [await guardarHorasExtra(p.id, dia, n)]);
   }
 
   // Los días de este mes, hasta ayer, en que alguien debía trabajar y falta marcarlo. Hoy no cuenta: todavía se puede marcar.
@@ -1246,12 +1218,12 @@ function Cuerpo({
                     persona={p}
                     estado={estadoDelDia(p.id)}
                     automatico={delDia(p.id)?.automatico ?? false}
-                    extras={extras[p.id] ?? delDia(p.id)?.horasExtra ?? 0}
+                    extras={delDia(p.id)?.horasExtra ?? 0}
                     futuro={futuro}
                     debe={ctx.debe(p.id, dia)}
                     horario={ctx.horario(p.id)}
                     ingreso={ctx.ingreso(p.id, dia)}
-                    llegada={p.id in llegadas ? llegadas[p.id] : (delDia(p.id)?.horaLlegada ?? null)}
+                    llegada={delDia(p.id)?.horaLlegada ?? null}
                     tolerancia={ctx.tolerancia}
                     onEstado={(e) => marcar(p, e)}
                     onExtras={(n) => horasExtra(p, n)}

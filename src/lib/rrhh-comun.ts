@@ -169,6 +169,18 @@ export type AsistenciaDia = {
   horaLlegada: string | null;
 };
 
+/** Todo lo que necesita la pantalla de Asistencia para un día: lo del día, la planilla de los meses vecinos y la configuración. */
+export type DatosAsistencia = {
+  filas: AsistenciaDia[];
+  /** Por persona y por día (AAAA-MM-DD), lo que pasó, de varios meses juntos. */
+  grilla: Record<string, Record<string, EstadoAsistencia>>;
+  horasExtraMes: Record<string, number>;
+  horarios: Record<string, HorarioPersona>;
+  diasComite: DiaEspecial[];
+  comite: HorarioComite | null;
+  toleranciaMin: number;
+};
+
 const aFecha = (iso: string) => {
   const [a, m, d] = iso.split("-").map(Number);
   return new Date(Date.UTC(a, m - 1, d));
