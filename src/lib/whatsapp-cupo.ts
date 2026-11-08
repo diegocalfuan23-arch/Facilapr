@@ -2,6 +2,7 @@ import { and, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { mensajesWhatsapp } from "@/lib/db/schema";
 import type { Plan } from "@/lib/planes";
+import { MENSAJES_WHATSAPP_PRUEBA, pruebaActiva } from "@/lib/prueba";
 import { credencialesDelComite } from "@/lib/whatsapp-conexion";
 import { MENSAJES_WHATSAPP_POR_PLAN, type CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 
@@ -14,7 +15,8 @@ export * from "@/lib/whatsapp-cupo-comun";
 export async function cupoWhatsapp(aprId: string, plan: Plan): Promise<CupoWhatsapp> {
   if (await credencialesDelComite(aprId)) return { limite: null, usados: 0, restantes: null, disponible: true };
 
-  const limite = MENSAJES_WHATSAPP_POR_PLAN[plan] ?? MENSAJES_WHATSAPP_POR_PLAN.BASICO;
+  // En la prueba gratuita no se gasta cupo de Meta: el envío cae al manual con wa.me.
+  const limite = (await pruebaActiva(aprId)) ? MENSAJES_WHATSAPP_PRUEBA : (MENSAJES_WHATSAPP_POR_PLAN[plan] ?? MENSAJES_WHATSAPP_POR_PLAN.BASICO);
   const [f] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(mensajesWhatsapp)

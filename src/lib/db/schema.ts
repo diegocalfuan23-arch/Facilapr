@@ -58,6 +58,11 @@ export const aprs = pgTable(
     activo: boolean("activo").notNull().default(true),
 
     plan: planEnum("plan").notNull().default("BASICO"),
+    /**
+     * Hasta cuándo dura la prueba gratuita (todas las funciones del plan Grande, con topes bajos de IA y WhatsApp).
+     * Null si no está en prueba. Al vencer, el comité vuelve al plan Pequeño; al pagar un plan, se borra.
+     */
+    pruebaHasta: timestamp("pruebaHasta", { precision: 3 }),
 
     /** La dirección del comité en Facilapr: pitrelahue → su portal de socios en pitrelahue.facilapr.cl */
     slug: text("slug"),

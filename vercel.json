@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/cobrar-planes",
       "schedule": "0 12 * * *"
+    },
+    {
+      "path": "/api/cron/vencer-pruebas",
+      "schedule": "0 5 * * *"
     }
   ]
 }

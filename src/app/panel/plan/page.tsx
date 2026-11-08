@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/apr-session";
 import type { Plan } from "@/lib/planes";
 import { MiPlan } from "@/components/panel/mi-plan";
+import { diasDePrueba } from "@/lib/prueba";
 import { pagoAutomaticoDelPlan, vigenciaDelPlan } from "@/app/panel/plan/actions";
 
 export const metadata: Metadata = {
@@ -27,6 +28,7 @@ export default async function MiPlanPage({
   searchParams: Promise<{ pago?: string; automatico?: string }>;
 }) {
   const { apr } = await requireAdmin();
+  const diasPrueba = diasDePrueba(apr.pruebaHasta);
   const { pago, automatico } = await searchParams;
   const aviso =
     pago && pago in AVISOS
@@ -45,7 +47,8 @@ export default async function MiPlanPage({
         </p>
       </div>
       {aviso && <p className={`rounded-lg border px-4 py-3 text-[0.9rem] ${aviso.clase}`}>{aviso.texto}</p>}
-      <MiPlan planActual={apr.plan as Plan} vigencia={vigencia} automatico={automaticoPlan} />
+      {/* En la prueba gratuita ningún plan es "el tuyo" todavía: se puede elegir y pagar cualquiera. */}
+      <MiPlan planActual={diasPrueba > 0 ? null : (apr.plan as Plan)} diasPrueba={diasPrueba} vigencia={vigencia} automatico={automaticoPlan} />
     </>
   );
 }

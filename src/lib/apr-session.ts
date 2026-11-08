@@ -6,6 +6,7 @@ import { db } from "@/lib/db";
 import { aprs } from "@/lib/db/schema";
 import { session as sessionTable, user as userTable } from "@/lib/db/auth-schema";
 import { basePortal } from "@/lib/portal-socio";
+import { cerrarPruebaSiVencio } from "@/lib/prueba";
 
 export type RolPanel = "ADMIN" | "OPERADOR" | "TESORERO";
 
@@ -53,7 +54,8 @@ export async function requireApr(opciones: { tesorero?: boolean } = {}) {
       }
       // El tesorero solo entra a Finanzas: todo lo demás lo devuelve a su Caja.
       if (user.rol === "TESORERO" && !opciones.tesorero) redirect("/panel/caja");
-      return { user, apr };
+      // Si la prueba gratuita ya terminó, el comité vuelve a su plan antes de mostrar nada.
+      return { user, apr: await cerrarPruebaSiVencio(apr) };
     }
   }
 

@@ -13,10 +13,13 @@ const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP",
 /** Los planes con el del comité marcado, hasta cuándo está pagado y lo que ya pagó. */
 export function MiPlan({
   planActual,
+  diasPrueba = 0,
   vigencia,
   automatico,
 }: {
-  planActual: Plan;
+  /** Null mientras el comité está en su prueba gratuita: todavía no tiene un plan contratado. */
+  planActual: Plan | null;
+  diasPrueba?: number;
   vigencia: VigenciaPlan;
   automatico: PagoAutomatico;
 }) {
@@ -27,11 +30,18 @@ export function MiPlan({
       <div className="rounded-xl border border-border bg-card px-5 py-4 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
         <div className="text-[0.8rem] text-muted-foreground">Estado de tu plan</div>
         <div className="mt-0.5 text-[1.05rem] font-semibold">
-          {vigencia.hasta
-            ? `Plan ${NOMBRE_PLAN[planActual]} pagado hasta el ${fecha.format(new Date(vigencia.hasta))}`
-            : `Plan ${NOMBRE_PLAN[planActual]}`}
+          {planActual === null
+            ? `Prueba gratuita: te ${diasPrueba === 1 ? "queda 1 día" : `quedan ${diasPrueba} días`}`
+            : vigencia.hasta
+              ? `Plan ${NOMBRE_PLAN[planActual]} pagado hasta el ${fecha.format(new Date(vigencia.hasta))}`
+              : `Plan ${NOMBRE_PLAN[planActual]}`}
         </div>
-        {!vigencia.hasta && (
+        {planActual === null && (
+          <p className="mt-0.5 text-[0.84rem] text-muted-foreground">
+            Tienes todas las funciones del plan Grande, con topes bajos de IA y sin WhatsApp automático. Elige un plan abajo para seguir cuando termine; si no, vuelves al plan Pequeño sin perder tus datos.
+          </p>
+        )}
+        {planActual !== null && !vigencia.hasta && (
           <p className="mt-0.5 text-[0.84rem] text-muted-foreground">
             Aquí verás hasta cuándo está pagado cuando pagues con Flow. Si ya pagas por otro medio, sigue igual.
           </p>

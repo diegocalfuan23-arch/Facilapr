@@ -7,6 +7,7 @@ import { aprs } from "@/lib/db/schema";
 import { user as userTable } from "@/lib/db/auth-schema";
 import { enviarCorreoResetPassword } from "@/lib/correo/reset-password";
 import { slugUnico } from "@/lib/slug";
+import { finDePrueba } from "@/lib/prueba";
 
 /**
  * Orígenes aceptados. Sin esto, Better Auth solo confía en BETTER_AUTH_URL y
@@ -139,6 +140,9 @@ export const auth = betterAuth({
                   slug: await slugUnico(datos.apr),
                   rut: datos.rutComite,
                   comuna: datos.comuna,
+                  // Todo comité nuevo parte con una prueba gratuita: las funciones del plan Grande por 10 días.
+                  plan: "PREMIUM",
+                  pruebaHasta: finDePrueba(),
                   // El registro pide el "Correo del comité": además de ser el
                   // de ingreso, es el de contacto del comité (aparece en
                   // Configuración y en las boletas).

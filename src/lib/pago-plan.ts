@@ -72,7 +72,8 @@ export async function marcarOrdenPagada(
   if (actualizada.length === 0) return null;
   await db
     .update(aprs)
-    .set({ plan: orden.plan as "BASICO" | "ESTANDAR" | "PREMIUM", updatedAt: new Date() })
+    // Al pagar un plan termina la prueba gratuita: ya no hay fecha que la venza.
+    .set({ plan: orden.plan as "BASICO" | "ESTANDAR" | "PREMIUM", pruebaHasta: null, updatedAt: new Date() })
     .where(eq(aprs.id, orden.aprId));
   return hasta;
 }

@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import type { Plan } from "@/lib/planes";
 import { CUOTA_TOKENS_MES, type UsoIaChat } from "@/lib/ia-chat-limites";
+import { TOKENS_IA_PRUEBA, pruebaActiva } from "@/lib/prueba";
 
 const TOKENS_POR_RESPUESTA_INICIAL = 2_000;
 
@@ -37,7 +38,8 @@ export async function usoIaChat(aprId: string, plan: Plan): Promise<UsoIaChat> {
     group by 1
   `);
 
-  const cuotaMes = CUOTA_TOKENS_MES[plan];
+  // En la prueba gratuita la IA tiene un tope bajo (unas 100 respuestas), no la cuota del plan Grande.
+  const cuotaMes = (await pruebaActiva(aprId)) ? TOKENS_IA_PRUEBA : CUOTA_TOKENS_MES[plan];
   const ahora = new Date();
   const mesActual = Date.UTC(ahora.getUTCFullYear(), ahora.getUTCMonth(), 1);
 

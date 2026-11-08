@@ -18,7 +18,7 @@ import { PagarPlanDialog } from "@/components/panel/pagar-plan-dialog";
  * Los tres planes lado a lado, igual que en la landing, con el del comité
  * marcado. Cambiar de plan por ahora se pide por correo.
  */
-export function PlanesComparados({ planActual }: { planActual: Plan }) {
+export function PlanesComparados({ planActual }: { planActual: Plan | null }) {
   const [anual, setAnual] = useState(false);
   const [pagando, setPagando] = useState<Plan | null>(null);
 
