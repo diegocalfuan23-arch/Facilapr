@@ -81,6 +81,11 @@ export const auth = betterAuth({
     // que no sea la suya — evita que una sesión robada sobreviva al cambio.
     revokeSessionsOnPasswordReset: true,
   },
+  // La sesión se marca como usada como máximo cada 5 minutos (por defecto, una vez al día): así el super admin sabe con
+  // precisión cuándo entró por última vez cada comité. Cuesta una escritura por usuario cada 5 minutos de uso.
+  session: {
+    updateAge: 60 * 5,
+  },
   user: {
     additionalFields: {
       apr: {
