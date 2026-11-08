@@ -24,8 +24,7 @@ import {
   Tags,
   Trash2,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { cerrarCaja, consultarCaja, eliminarMovimiento, type ResultadoFinanzas } from "@/app/panel/finanzas/actions";
+import { cerrarCaja, eliminarMovimiento, type ResultadoFinanzas } from "@/app/panel/finanzas/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -37,9 +36,9 @@ import {
   textoCategoria,
   textoMedioLinea,
   type CategoriaMovimientoPropia,
-  type DatosCaja,
   type LineaLibro,
   type PuntoTendencia,
+  type ResumenMes,
   type ResumenPeriodo,
   type TipoMovimiento,
 } from "@/lib/finanzas-comun";
@@ -209,13 +208,9 @@ function Arqueo({ resumen, onVerCierre, onDefinirSaldo }: { resumen: ResumenPeri
   const valor = Number(contado.replace(/\D/g, "")) || 0;
   const diferencia = sistema === null ? 0 : valor - sistema;
 
-  const cliente = useQueryClient();
   useEffect(() => {
-    if (estado?.ok) {
-      toast.success("Caja cerrada");
-      void cliente.invalidateQueries({ queryKey: ["caja"] });
-    }
-  }, [estado, cliente]);
+    if (estado?.ok) toast.success("Caja cerrada");
+  }, [estado]);
 
   return (
     <div className={cn("flex flex-col rounded-2xl bg-card p-5", SOMBRA)}>
@@ -330,8 +325,15 @@ type Props = {
   hrefOtraVista: string;
   /** El informe imprimible del mes, para la asamblea. Solo existe en la vista mensual. */
   hrefInforme: string | null;
-  /** Lo que muestra la Caja de este período: parte con lo que trajo el servidor y se actualiza sola. */
-  datos: DatosCaja;
+  resumen: ResumenPeriodo;
+  lineas: LineaLibro[];
+  /** Cuánto fue a cada categoría; se muestra en el mes. */
+  porCategoria: ResumenMes["porCategoria"];
+  /** Las categorías que creó el comité, de ingresos y de egresos. */
+  categoriasPropias: CategoriaMovimientoPropia[];
+  saldoInicial: { monto: number; fecha: string; banco: number } | null;
+  /** El disponible día a día: los últimos 7 días, o el mes hasta hoy. */
+  tendencia: PuntoTendencia[] | null;
 };
 
 /**
@@ -347,17 +349,15 @@ export function CajaVista({
   hrefSiguiente,
   hrefOtraVista,
   hrefInforme,
-  datos,
+  resumen,
+  lineas,
+  porCategoria,
+  categoriasPropias,
+  saldoInicial,
+  tendencia,
 }: Props) {
   const { confirmar, dialogo } = useConfirmar();
   const router = useRouter();
-  const cliente = useQueryClient();
-  // Se vuelve a pedir cada 30 segundos y al volver a la pestaña: los pagos, compras y sueldos que se registran en otras
-  // pantallas, o por otra persona, aparecen solos.
-  const { data } = useQuery({ queryKey: ["caja", modo, desde], queryFn: () => consultarCaja(modo, desde), initialData: datos, refetchInterval: 30_000 });
-  const { resumen, lineas, porCategoria, categoriasPropias, saldoInicial, tendencia } = data;
-  /** Después de cualquier cambio hecho aquí, la Caja se vuelve a pedir enseguida. */
-  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["caja"] }), [cliente]);
   const [, navegar] = useTransition();
   const [borrando, iniciar] = useTransition();
   const [busqueda, setBusqueda] = useState("");
@@ -369,22 +369,10 @@ export function CajaVista({
   const [gestionandoCategorias, setGestionandoCategorias] = useState(false);
   const [menu, setMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
-  const cerrarCategorias = useCallback(() => {
-    setGestionandoCategorias(false);
-    volverAPedir();
-  }, [volverAPedir]);
-  const cerrarRegistro = useCallback(() => {
-    setRegistrando(null);
-    volverAPedir();
-  }, [volverAPedir]);
-  const cerrarCierre = useCallback(() => {
-    setCerrando(false);
-    volverAPedir();
-  }, [volverAPedir]);
-  const cerrarSaldo = useCallback(() => {
-    setDefiniendoSaldo(false);
-    volverAPedir();
-  }, [volverAPedir]);
+  const cerrarCategorias = useCallback(() => setGestionandoCategorias(false), []);
+  const cerrarRegistro = useCallback(() => setRegistrando(null), []);
+  const cerrarCierre = useCallback(() => setCerrando(false), []);
+  const cerrarSaldo = useCallback(() => setDefiniendoSaldo(false), []);
 
   useEffect(() => {
     if (!menu) return;
@@ -405,7 +393,6 @@ export function CajaVista({
       const r = await eliminarMovimiento(l.id.replace("mov:", ""));
       if (r.ok) toast.success("Movimiento borrado");
       else toast.error(r.error);
-      volverAPedir();
     });
   }
 
