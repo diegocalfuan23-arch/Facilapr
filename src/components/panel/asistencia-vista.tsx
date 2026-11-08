@@ -1165,7 +1165,8 @@ function Cuerpo({
           </section>
 
           <div className="relative" onKeyDown={(e) => e.key === "Escape" && setCalendario(false)}>
-            <div className={cn("overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+            {/* Sin overflow-hidden: la lista de horas de cada fila tiene que poder salirse de la tarjeta. */}
+            <div className={cn("rounded-2xl bg-card", SOMBRA)}>
               <div className="flex items-center justify-between gap-2 border-b border-[#F0EEF6] px-3 py-3 lg:px-5">
                 <Button variant="ghost" size="icon" aria-label="Día anterior" onClick={() => mover(-1)} className="size-10 rounded-lg">
                   <ChevronLeft />

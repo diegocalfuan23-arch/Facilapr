@@ -53,6 +53,8 @@ export function SelectorHora({
   invalido?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
+  // Si no hay lugar debajo (las últimas filas de la pantalla), la lista se abre hacia arriba.
+  const [arriba, setArriba] = useState(false);
   const [q, setQ] = useState("");
 
   const desde = Math.floor(aMinutos(inicio) / 60) * 60;
@@ -78,7 +80,12 @@ export function SelectorHora({
         aria-label={etiqueta}
         aria-haspopup="listbox"
         aria-expanded={abierto}
-        onClick={() => setAbierto((v) => !v)}
+        onClick={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          // La lista mide unos 300 px: arriba solo si abajo no cabe y arriba sí.
+          setArriba(window.innerHeight - r.bottom < 320 && r.top > 320);
+          setAbierto((v) => !v);
+        }}
         className={cn(
           "flex h-9 w-[118px] items-center justify-between gap-1.5 rounded-lg border bg-white px-2.5 text-sm tabular-nums focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
           invalido ? "border-[#F2C1C0]" : "border-[#E4E1F0]",
@@ -93,7 +100,7 @@ export function SelectorHora({
       {abierto && (
         <>
           <button type="button" aria-label="Cerrar" onClick={() => setAbierto(false)} className="fixed inset-0 z-40 cursor-default bg-transparent" />
-          <div role="listbox" aria-label={etiqueta} className="absolute top-[calc(100%+4px)] left-0 z-50 w-[220px] overflow-hidden rounded-xl border border-[#ECEAF4] bg-white shadow-[0_12px_32px_rgba(21,19,43,0.18)]">
+          <div role="listbox" aria-label={etiqueta} className={cn("absolute left-0 z-50 w-[220px] overflow-hidden rounded-xl border border-[#ECEAF4] bg-white shadow-[0_12px_32px_rgba(21,19,43,0.18)]", arriba ? "bottom-[calc(100%+4px)]" : "top-[calc(100%+4px)]")}>
             <div className="relative border-b border-[#F0EEF6] p-2">
               <Search className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
               <input
@@ -109,7 +116,7 @@ export function SelectorHora({
                     if (h) elegir(h);
                   }
                 }}
-                placeholder="Buscar o escribir: 8, 845, 17"
+                placeholder="Escribe 8, 845 o 17"
                 aria-label="Buscar hora"
                 className="h-9 w-full rounded-lg border border-[#E4E1F0] pr-2 pl-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
