@@ -143,7 +143,17 @@ export default async function PanelLayout({
             >
               <SidebarTrigger className="-ml-1" />
               <Separator orientation="vertical" className="mr-1 h-4" />
-              <span className="text-sm font-medium">{apr.nombre}</span>
+              <span className="truncate text-sm font-medium">{apr.nombre}</span>
+              {/* Mientras dura la prueba gratuita, los días que quedan van siempre a la vista. */}
+              {rol === "ADMIN" && diasPrueba > 0 && (
+                <Link
+                  href="/panel/plan"
+                  title="Prueba gratuita con todas las funciones. Toca para ver los planes."
+                  className="shrink-0 rounded-full bg-primary/10 px-2.5 py-1 text-[0.75rem] font-semibold whitespace-nowrap text-primary hover:bg-primary/15"
+                >
+                  Prueba · {diasPrueba} {diasPrueba === 1 ? "día" : "días"}
+                </Link>
+              )}
             </div>
 
             {/* El buscador de módulos es solo del plan Grande. */}
