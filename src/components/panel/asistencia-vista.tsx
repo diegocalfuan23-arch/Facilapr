@@ -9,6 +9,7 @@ import { consultarAsistencia, guardarCalendarioLaboral, guardarHoraLlegada, guar
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { SelectorHora } from "@/components/panel/selector-hora";
 import { FERIADOS_NACIONALES } from "@/lib/feriados";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, TEXTO_ESTADO_ASISTENCIA, aMinutos, duracionTramo, resumenDias, type AsistenciaDia, type DatosAsistencia, type DiaEspecial, type EstadoAsistencia, type HorarioComite, type HorarioPersona, type TramoComite } from "@/lib/rrhh-comun";
@@ -79,6 +80,11 @@ const diasDelMes = (iso: string) => {
   return Array.from({ length: total }, (_, i) => `${iso.slice(0, 8)}${String(i + 1).padStart(2, "0")}`);
 };
 const inicial = (s: string) => s[0].toUpperCase() + s.slice(1);
+/** Una hora (HH:MM) unos minutos antes, sin pasar de la medianoche. */
+const horaMenos = (h: string, min: number) => {
+  const m = Math.max(0, aMinutos(h) - min);
+  return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+};
 const comaDecimal = (n: number) => String(n).replace(".", ",");
 
 function Stat({ label, valor, alerta = false }: { label: string; valor: number | string; alerta?: boolean }) {
@@ -312,10 +318,11 @@ function FilaPersona({
       </div>
       {trabaja && !automatico && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-x-5 gap-y-2 xl:justify-end">
-          <label className={cn("flex items-center gap-2 text-[13px]", GRIS)}>
+          <div className={cn("flex items-center gap-2 text-[13px]", GRIS)}>
             Llegó
-            <Input type="time" value={llegada ?? ""} onChange={(e) => onLlegada(e.target.value || null)} aria-label={`Hora de llegada de ${persona.nombre}`} className="h-9 w-[118px] rounded-lg border-[#E4E1F0] bg-white px-2 text-[#15132B] tabular-nums shadow-none" />
-          </label>
+            {/* La lista parte una hora antes de la hora de ingreso: las primeras horas de trabajo, no la hora de ahora. */}
+            <SelectorHora valor={llegada} onCambio={onLlegada} etiqueta={`Hora de llegada de ${persona.nombre}`} inicio={ingreso ? horaMenos(ingreso, 60) : "06:00"} />
+          </div>
           {minutosTarde !== null && minutosTarde > tolerancia ? (
             <span className="flex items-center gap-2 text-[13px] font-medium text-[#8F4400]">
               {minutosTarde} min tarde
@@ -732,9 +739,9 @@ function ConfigLaboral({
                           <span className="w-[86px] text-sm font-semibold">{DIAS_LARGOS[d]}</span>
                           {t ? (
                             <span className="flex flex-1 flex-wrap items-center gap-2">
-                              <Input type="time" aria-label={`${DIAS_LARGOS[d]} abre`} value={t.abre} onChange={(e) => fijarTramo(d, { ...t, abre: e.target.value })} className="h-9 w-[118px] rounded-lg border-[#E4E1F0] px-2 tabular-nums shadow-none" />
+                              <SelectorHora valor={t.abre} onCambio={(h) => h && fijarTramo(d, { ...t, abre: h })} etiqueta={`${DIAS_LARGOS[d]} abre`} inicio="05:00" />
                               <span className={GRIS}>a</span>
-                              <Input type="time" aria-label={`${DIAS_LARGOS[d]} cierra`} value={t.cierra} onChange={(e) => fijarTramo(d, { ...t, cierra: e.target.value })} className={cn("h-9 w-[118px] rounded-lg px-2 tabular-nums shadow-none", malo ? "border-[#F2C1C0]" : "border-[#E4E1F0]")} />
+                              <SelectorHora valor={t.cierra} onCambio={(h) => h && fijarTramo(d, { ...t, cierra: h })} etiqueta={`${DIAS_LARGOS[d]} cierra`} inicio={t.abre} invalido={!!malo} />
                               <span className={cn("text-xs", malo ? "text-[#A32020]" : GRIS)}>{malo ? "Cierre antes de abrir" : duracionTramo(t)}</span>
                             </span>
                           ) : (
@@ -791,13 +798,13 @@ function ConfigLaboral({
                           {p.cargo} · {resumenDias(ds)}
                         </span>
                       </span>
-                      <Input
-                        type="time"
-                        aria-label={`Hora de ingreso de ${p.nombre}`}
-                        title="Vacío = cuando abre el comité"
-                        value={ing[p.id] ?? ""}
-                        onChange={(e) => setIng((x) => ({ ...x, [p.id]: e.target.value || undefined }))}
-                        className="h-9 w-[124px] rounded-lg border-[#E4E1F0] px-2 tabular-nums shadow-none sm:w-[104px]"
+                      <SelectorHora
+                        valor={ing[p.id] ?? null}
+                        onCambio={(h) => setIng((x) => ({ ...x, [p.id]: h ?? undefined }))}
+                        etiqueta={`Hora de ingreso de ${p.nombre}`}
+                        inicio="05:00"
+                        vacio="Cuando abre el comité"
+                        className="w-[124px] sm:w-[104px]"
                       />
                       <span role="group" aria-label={`Días que trabaja ${p.nombre}`} className="col-span-2 grid grid-cols-7 gap-1.5 sm:contents">
                         {ORDEN_SEMANA.map((d) => {
