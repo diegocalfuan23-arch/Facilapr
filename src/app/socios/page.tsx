@@ -7,7 +7,7 @@ import { aprs } from "@/lib/db/schema";
 import { Logo } from "@/components/marca/logo";
 
 export const metadata: Metadata = {
-  title: "Cómo pagar tu cuenta del agua potable rural: encuentra tu comité (APR)",
+  title: "Paga tu cuenta del agua potable rural: encuentra tu comité (APR)",
   description:
     "Si eres socio de un comité de agua potable rural (APR o SSR), busca tu comité y entra a tu cuenta para ver tus boletas y cómo pagarlas.",
   alternates: { canonical: "/socios" },
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     siteName: "Facilapr",
     locale: "es_CL",
     url: "/socios",
-    title: "Cómo pagar tu cuenta del agua potable rural: encuentra tu comité",
+    title: "Paga tu cuenta del agua potable rural: encuentra tu comité",
     description: "Busca tu comité de agua potable rural y entra a tu cuenta para ver tus boletas y cómo pagarlas.",
   },
 };
