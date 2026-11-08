@@ -1,7 +1,11 @@
 import { esFeriado } from "@/lib/feriados";
 /** Lo de RR.HH. que también usa el navegador: tipos, textos y cálculos de días, vacaciones y líquido. */
 
-export type EstadoRemuneracion = "PENDIENTE" | "PAGADA";
+/** PENDIENTE = por revisar; LISTA = revisada, lista para pagar; PAGADA = ya está en la Caja. */
+export type EstadoRemuneracion = "PENDIENTE" | "LISTA" | "PAGADA";
+
+/** Una cuota de anticipo o préstamo descontada en una liquidación. */
+export type CuotaPrestamoLinea = { concepto: string; monto: number };
 
 /** Lo que pasó en el mes con una persona, según la asistencia y sus ausencias aprobadas. */
 export type ResumenAusenciasMes = {
@@ -63,6 +67,8 @@ export type RemuneracionFila = {
   descSalud: number;
   descCesantia: number;
   retencion: number;
+  /** Cuotas de anticipos y préstamos que van dentro de «otrosDescuentos». */
+  cuotasPrestamo: CuotaPrestamoLinea[];
   otrosDescuentos: number;
   /** La suma de todo lo que se descuenta. */
   descuentos: number;
@@ -77,6 +83,25 @@ export type RemuneracionFila = {
   medio: string | null;
   nota: string | null;
 };
+
+/**
+ * Si lo que dice hoy Asistencia (días, permisos, horas extras) no coincide con lo que se cargó en una liquidación
+ * que aún no se paga, devuelve un texto con la diferencia; si coincide (o ya está pagada), null.
+ */
+export function desfaseConAsistencia(f: RemuneracionFila): string | null {
+  if (f.estado === "PAGADA") return null;
+  const a = f.ausenciasMes;
+  const cambios: string[] = [];
+  if (f.porDia) {
+    const dias = f.valorDiaFicha ? Math.round(f.sueldoBase / f.valorDiaFicha) : null;
+    if (dias !== null && dias !== a.trabajados) cambios.push(`días trabajados (${dias} → ${a.trabajados})`);
+  } else if (f.diasDescontados !== a.descontables) {
+    cambios.push(`días no pagados (${f.diasDescontados} → ${a.descontables})`);
+  }
+  if (Math.abs(f.horasDescontadas - a.horasPermisoSinGoce) > 0.01) cambios.push(`horas de permiso (${f.horasDescontadas} → ${a.horasPermisoSinGoce})`);
+  if (Math.abs(f.horasExtra - a.horasExtra) > 0.01) cambios.push(`horas extras (${f.horasExtra} → ${a.horasExtra})`);
+  return cambios.length ? `Asistencia y permisos tienen otros datos: ${cambios.join(", ")}.` : null;
+}
 
 /** Lo que se le paga a la persona: base más bonos, menos descuentos; nunca menos que cero. */
 export const liquidoDe = (base: number, bonos: number, descuentos: number) => Math.max(0, base + bonos - descuentos);

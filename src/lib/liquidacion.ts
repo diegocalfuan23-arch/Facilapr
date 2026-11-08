@@ -40,7 +40,7 @@ export type LiquidacionDatos = {
   otrosDescuentos: number;
   descuentos: number;
   liquido: number;
-  estado: "PENDIENTE" | "PAGADA";
+  estado: "PENDIENTE" | "LISTA" | "PAGADA";
   fechaPago: string | null;
   medio: string | null;
   nota: string | null;
@@ -131,7 +131,7 @@ export async function liquidacionPorId(aprId: string, id: string): Promise<Liqui
     otrosDescuentos: f.otrosDescuentos,
     descuentos: f.descuentos,
     liquido: f.liquido,
-    estado: f.estado as "PENDIENTE" | "PAGADA",
+    estado: f.estado as "PENDIENTE" | "LISTA" | "PAGADA",
     fechaPago: f.fechaPago,
     medio: f.medio,
     nota: f.nota,

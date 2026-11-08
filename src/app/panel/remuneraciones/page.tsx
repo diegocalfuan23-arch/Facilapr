@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { listarRemuneraciones } from "@/lib/rrhh";
+import { listarRemuneraciones, personasSinLiquidacion } from "@/lib/rrhh";
 import { mesValido, mesVecino, nombreMes } from "@/lib/finanzas";
+import { hoyEnChile } from "@/lib/finanzas-comun";
 import { RemuneracionesVista } from "@/components/panel/remuneraciones-vista";
 
 export const metadata: Metadata = {
@@ -18,21 +19,25 @@ export default async function RemuneracionesPage({ searchParams }: { searchParam
 
   const { mes: mesParam } = await searchParams;
   const periodo = mesValido(mesParam);
-  const filas = await listarRemuneraciones(apr.id, periodo);
+  const [filas, faltan] = await Promise.all([listarRemuneraciones(apr.id, periodo), personasSinLiquidacion(apr.id, periodo)]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Remuneraciones</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Los sueldos y honorarios de cada mes. Al pagar, quedan en la Caja.</p>
+        <h1 className="text-[1.75rem] leading-tight font-semibold tracking-tight">Remuneraciones</h1>
+        <p className="mt-0.5 hidden text-[0.95rem] text-[#5B5970] sm:block">
+          Días trabajados + horas extras = imponible; se restan imposiciones y préstamos. Al pagar queda en la Caja.
+        </p>
       </div>
 
       <RemuneracionesVista
         filas={filas}
+        faltan={faltan}
         periodo={periodo}
         anterior={mesVecino(periodo, -1)}
         siguiente={mesVecino(periodo, 1)}
         mesTexto={nombreMes(periodo)}
+        mesEnCurso={hoyEnChile().slice(0, 7) === periodo}
       />
     </div>
   );

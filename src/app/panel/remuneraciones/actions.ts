@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, inArray, lte } from "drizzle-orm";
+import { and, eq, inArray, lte, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { movimientos, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
@@ -10,13 +10,14 @@ import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
-import { PREFIJO_CONCEPTO_REMUNERACION, descuentoPorDias } from "@/lib/rrhh-comun";
+import { PREFIJO_CONCEPTO_REMUNERACION, descuentoPorDias, type ResumenAusenciasMes } from "@/lib/rrhh-comun";
 import { horasPorDia, valorDeHoraExtra } from "@/lib/personal-comun";
 import { resumenAusenciasMes } from "@/lib/rrhh";
 import { descuentosLegales } from "@/lib/personal-comun";
 import type { Contrato } from "@/lib/personal-comun";
 
 export type ResultadoRemuneraciones = { ok: true } | { ok: false; error: string };
+export type ResultadoRecalculo = { ok: true; cantidad: number } | { ok: false; error: string };
 
 const SIN_PLAN = "Remuneraciones está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
@@ -26,6 +27,82 @@ const periodoOk = (p: string) => /^\d{4}-(0[1-9]|1[0-2])$/.test(p);
 function refrescar() {
   revalidatePath("/panel/remuneraciones");
   revalidatePath("/panel/caja");
+}
+
+/** Lo de la ficha de una persona que hace falta para calcular su liquidación. */
+type PersonaCalculo = {
+  id: string;
+  sueldo: number;
+  valorDia: number | null;
+  porDia: boolean;
+  jornadaSemanal: number;
+  diasSemana: number;
+  valorHoraExtra: number | null;
+  contrato: string;
+  afpTasa: number;
+  saludTasa: number;
+  cesantia: boolean;
+};
+
+/**
+ * Los números de una liquidación sacados de Asistencia, permisos y la ficha: el sueldo (o los días trabajados),
+ * lo que no se paga, las horas extras y los descuentos de ley. Los bonos entran al imponible.
+ */
+function calcular(p: PersonaCalculo, aus: ResumenAusenciasMes | undefined, bonos: number) {
+  // A quien cobra por día se le paga lo que trabajó (según su asistencia); no hay días que descontar.
+  const base = p.porDia ? (aus?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
+  const dias = p.porDia ? 0 : (aus?.descontables ?? 0);
+  const horas = aus?.horasPermisoSinGoce ?? 0;
+  const descAus = descuentoPorDias(base, dias, p.valorDia, horas, horasPorDia(p));
+  // Las horas extras registradas en Asistencia se pagan con la hora extra de la persona.
+  const horasExtra = aus?.horasExtra ?? 0;
+  const montoExtra = Math.round(
+    horasExtra * valorDeHoraExtra({ sueldo: base, valorDia: p.valorDia, porDia: p.porDia, jornadaSemanal: p.jornadaSemanal, diasSemana: p.diasSemana, valorHoraExtra: p.valorHoraExtra })
+  );
+  const imponible = Math.max(0, base - descAus) + montoExtra + bonos;
+  const legales = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, imponible);
+  return { base, dias, horas, descAus, horasExtra, montoExtra, imponible, legales };
+}
+
+type Vigente = { id: string; trabajadorId: string; monto: number; cuotaMonto: number };
+type ContextoPrestamos = { vigentes: Vigente[]; yaDescontado: Map<string, number>; yaEsteMes: Set<string> };
+
+/** Los anticipos y préstamos vigentes que tocan un mes, con lo ya descontado y qué cuotas ya están en ese mes. */
+async function cargarPrestamos(tx: Pick<typeof db, "select">, aprId: string, periodo: string): Promise<ContextoPrestamos> {
+  const vigentes = await tx
+    .select({ id: prestamos.id, trabajadorId: prestamos.trabajadorId, monto: prestamos.monto, cuotaMonto: prestamos.cuotaMonto })
+    .from(prestamos)
+    .where(and(eq(prestamos.aprId, aprId), eq(prestamos.estado, "ACTIVO"), lte(prestamos.primerPeriodo, periodo)));
+  const ids = vigentes.map((v) => v.id);
+  const hechos = ids.length
+    ? await tx
+        .select({ prestamoId: prestamoDescuentos.prestamoId, periodo: prestamoDescuentos.periodo, monto: prestamoDescuentos.monto })
+        .from(prestamoDescuentos)
+        .where(inArray(prestamoDescuentos.prestamoId, ids))
+    : [];
+  const yaDescontado = new Map<string, number>();
+  const yaEsteMes = new Set<string>();
+  for (const h of hechos) {
+    yaDescontado.set(h.prestamoId, (yaDescontado.get(h.prestamoId) ?? 0) + h.monto);
+    if (h.periodo === periodo) yaEsteMes.add(h.prestamoId);
+  }
+  return { vigentes, yaDescontado, yaEsteMes };
+}
+
+/** Las cuotas de una persona que caben en lo que gana: nunca se descuenta más de eso, lo demás queda para el mes siguiente. */
+function asignarCuotas(ctx: ContextoPrestamos, trabajadorId: string, capacidadInicial: number) {
+  let capacidad = Math.max(0, capacidadInicial);
+  let total = 0;
+  const aplicadas: { prestamoId: string; monto: number }[] = [];
+  for (const v of ctx.vigentes.filter((x) => x.trabajadorId === trabajadorId && !ctx.yaEsteMes.has(x.id))) {
+    const saldo = v.monto - (ctx.yaDescontado.get(v.id) ?? 0);
+    const cuota = Math.min(v.cuotaMonto, saldo, capacidad);
+    if (cuota <= 0) continue;
+    aplicadas.push({ prestamoId: v.id, monto: cuota });
+    capacidad -= cuota;
+    total += cuota;
+  }
+  return { aplicadas, total };
 }
 
 /** Arma las liquidaciones de un mes: una por cada persona activa que todavía no tiene, con su sueldo base. */
@@ -58,71 +135,33 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
     const ausenciasMes = await resumenAusenciasMes(apr.id, periodo);
 
     await db.transaction(async (tx) => {
-      // Las cuotas de anticipos y préstamos vigentes que tocan este mes.
-      const vigentes = await tx
-        .select({ id: prestamos.id, trabajadorId: prestamos.trabajadorId, monto: prestamos.monto, cuotaMonto: prestamos.cuotaMonto })
-        .from(prestamos)
-        .where(and(eq(prestamos.aprId, apr.id), eq(prestamos.estado, "ACTIVO"), lte(prestamos.primerPeriodo, periodo)));
-      const ids = vigentes.map((v) => v.id);
-      const hechos = ids.length
-        ? await tx
-            .select({ prestamoId: prestamoDescuentos.prestamoId, periodo: prestamoDescuentos.periodo, monto: prestamoDescuentos.monto })
-            .from(prestamoDescuentos)
-            .where(inArray(prestamoDescuentos.prestamoId, ids))
-        : [];
-      const yaDescontado = new Map<string, number>();
-      const yaEsteMes = new Set<string>();
-      for (const h of hechos) {
-        yaDescontado.set(h.prestamoId, (yaDescontado.get(h.prestamoId) ?? 0) + h.monto);
-        if (h.periodo === periodo) yaEsteMes.add(h.prestamoId);
-      }
+      const ctx = await cargarPrestamos(tx, apr.id, periodo);
 
       // Qué cuotas lleva cada persona este mes (se anotan después, con el id de su liquidación).
       const cuotasDe = new Map<string, { prestamoId: string; monto: number }[]>();
       const valores = personas.map((p) => {
-        // A quien cobra por día se le paga lo que trabajó (según su asistencia); no hay días que descontar.
-        const base = p.porDia ? (ausenciasMes[p.id]?.trabajados ?? 0) * (p.valorDia ?? 0) : p.sueldo;
-        const dias = p.porDia ? 0 : (ausenciasMes[p.id]?.descontables ?? 0);
-        const horas = ausenciasMes[p.id]?.horasPermisoSinGoce ?? 0;
-        const descAus = descuentoPorDias(base, dias, p.valorDia, horas, horasPorDia(p));
-        // Las horas extras registradas en Asistencia se pagan con la hora extra de la persona.
-        const horasExtra = ausenciasMes[p.id]?.horasExtra ?? 0;
-        const montoExtra = Math.round(horasExtra * valorDeHoraExtra({ sueldo: base, valorDia: p.valorDia, porDia: p.porDia, jornadaSemanal: p.jornadaSemanal, diasSemana: p.diasSemana, valorHoraExtra: p.valorHoraExtra }));
-        const d = descuentosLegales({ ...p, contrato: p.contrato as Contrato }, base - descAus + montoExtra);
-
-        // Nunca se descuenta más de lo que la persona gana: lo que no alcanza queda para el mes siguiente.
-        let capacidad = Math.max(0, base - descAus + montoExtra - d.total);
-        let cuotasPrestamos = 0;
-        const aplicadas: { prestamoId: string; monto: number }[] = [];
-        for (const v of vigentes.filter((x) => x.trabajadorId === p.id && !yaEsteMes.has(x.id))) {
-          const saldo = v.monto - (yaDescontado.get(v.id) ?? 0);
-          const cuota = Math.min(v.cuotaMonto, saldo, capacidad);
-          if (cuota <= 0) continue;
-          aplicadas.push({ prestamoId: v.id, monto: cuota });
-          capacidad -= cuota;
-          cuotasPrestamos += cuota;
-        }
+        const c = calcular(p, ausenciasMes[p.id], 0);
+        const { aplicadas, total: cuotasPrestamos } = asignarCuotas(ctx, p.id, c.imponible - c.legales.total);
         cuotasDe.set(p.id, aplicadas);
-
-        const descuentos = d.total + cuotasPrestamos;
+        const descuentos = c.legales.total + cuotasPrestamos;
         return {
           aprId: apr.id,
           trabajadorId: p.id,
           periodo,
-          sueldoBase: base,
-          diasDescontados: dias,
-          descAusencias: descAus,
-          horasDescontadas: horas,
-          horasExtra,
-          montoHorasExtra: montoExtra,
-          descAfp: d.afp,
-          descSalud: d.salud,
-          descCesantia: d.cesantia,
-          retencion: d.retencion,
+          sueldoBase: c.base,
+          diasDescontados: c.dias,
+          descAusencias: c.descAus,
+          horasDescontadas: c.horas,
+          horasExtra: c.horasExtra,
+          montoHorasExtra: c.montoExtra,
+          descAfp: c.legales.afp,
+          descSalud: c.legales.salud,
+          descCesantia: c.legales.cesantia,
+          retencion: c.legales.retencion,
           otrosDescuentos: cuotasPrestamos,
           noImponible: p.noImponible,
           descuentos,
-          liquido: base - descAus + montoExtra - descuentos + p.noImponible,
+          liquido: c.imponible - descuentos + p.noImponible,
         };
       });
 
@@ -136,6 +175,120 @@ export async function generarMes(periodo: string): Promise<ResultadoRemuneracion
     console.error("Remuneraciones: no se pudo generar el mes:", e);
     return { ok: false, error: mensajeError(e, "No pudimos armar el mes. Inténtalo de nuevo en un momento.") };
   }
+
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * Vuelve a leer Asistencia, permisos, horas extras y préstamos para las liquidaciones que aún no se pagan.
+ * Se mantienen los bonos, la colación, los otros descuentos escritos a mano y la nota; los días y horas se reemplazan.
+ * Una liquidación revisada vuelve a «por revisar», porque sus números cambiaron. Las pagadas no se tocan.
+ */
+export async function recalcularRemuneraciones(ids: string[]): Promise<ResultadoRecalculo> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
+  const parsed = z.array(z.string().min(1)).min(1).max(300).safeParse(ids);
+  if (!parsed.success) return { ok: false, error: "No hay liquidaciones para recalcular." };
+
+  try {
+    const filas = await db
+      .select({
+        id: remuneraciones.id,
+        periodo: remuneraciones.periodo,
+        estado: remuneraciones.estado,
+        bonos: remuneraciones.bonos,
+        otrosDescuentos: remuneraciones.otrosDescuentos,
+        noImponible: remuneraciones.noImponible,
+        trabajadorId: trabajadores.id,
+        sueldo: trabajadores.sueldo,
+        valorDia: trabajadores.valorDia,
+        porDia: trabajadores.porDia,
+        jornadaSemanal: trabajadores.jornadaSemanal,
+        diasSemana: trabajadores.diasSemana,
+        valorHoraExtra: trabajadores.valorHoraExtra,
+        contrato: trabajadores.contrato,
+        afpTasa: trabajadores.afpTasa,
+        saludTasa: trabajadores.saludTasa,
+        cesantia: trabajadores.cesantia,
+      })
+      .from(remuneraciones)
+      .innerJoin(trabajadores, eq(trabajadores.id, remuneraciones.trabajadorId))
+      .where(and(eq(remuneraciones.aprId, apr.id), inArray(remuneraciones.id, parsed.data), ne(remuneraciones.estado, "PAGADA")));
+    if (filas.length === 0) return { ok: false, error: "Esas liquidaciones ya están pagadas o no existen." };
+
+    const periodos = [...new Set(filas.map((f) => f.periodo))];
+    const ausenciasPorMes = new Map<string, Record<string, ResumenAusenciasMes>>();
+    for (const p of periodos) ausenciasPorMes.set(p, await resumenAusenciasMes(apr.id, p));
+
+    await db.transaction(async (tx) => {
+      // Lo que ya tenían anotado de préstamos: se quita y se vuelve a calcular, para no descontar dos veces.
+      const previas = await tx
+        .select({ remuneracionId: prestamoDescuentos.remuneracionId, monto: prestamoDescuentos.monto })
+        .from(prestamoDescuentos)
+        .where(inArray(prestamoDescuentos.remuneracionId, filas.map((f) => f.id)));
+      const cuotasPrevias = new Map<string, number>();
+      for (const q of previas) cuotasPrevias.set(q.remuneracionId, (cuotasPrevias.get(q.remuneracionId) ?? 0) + q.monto);
+      if (previas.length > 0) await tx.delete(prestamoDescuentos).where(inArray(prestamoDescuentos.remuneracionId, filas.map((f) => f.id)));
+
+      const contextos = new Map<string, ContextoPrestamos>();
+      for (const p of periodos) contextos.set(p, await cargarPrestamos(tx, apr.id, p));
+
+      for (const f of filas) {
+        // Lo que no son cuotas dentro de «otros descuentos» lo puso la persona a mano: se respeta.
+        const manual = Math.max(0, f.otrosDescuentos - (cuotasPrevias.get(f.id) ?? 0));
+        const c = calcular(f, ausenciasPorMes.get(f.periodo)?.[f.trabajadorId], f.bonos);
+        const { aplicadas, total } = asignarCuotas(contextos.get(f.periodo)!, f.trabajadorId, c.imponible - c.legales.total - manual);
+        const descuentos = c.legales.total + manual + total;
+
+        await tx
+          .update(remuneraciones)
+          .set({
+            sueldoBase: c.base,
+            diasDescontados: c.dias,
+            descAusencias: c.descAus,
+            horasDescontadas: c.horas,
+            horasExtra: c.horasExtra,
+            montoHorasExtra: c.montoExtra,
+            descAfp: c.legales.afp,
+            descSalud: c.legales.salud,
+            descCesantia: c.legales.cesantia,
+            retencion: c.legales.retencion,
+            otrosDescuentos: manual + total,
+            descuentos,
+            liquido: Math.max(0, c.imponible - descuentos) + f.noImponible,
+            estado: "PENDIENTE",
+          })
+          .where(and(eq(remuneraciones.id, f.id), eq(remuneraciones.aprId, apr.id)));
+        if (aplicadas.length > 0) await tx.insert(prestamoDescuentos).values(aplicadas.map((q) => ({ prestamoId: q.prestamoId, remuneracionId: f.id, periodo: f.periodo, monto: q.monto })));
+      }
+    });
+    refrescar();
+    return { ok: true, cantidad: filas.length };
+  } catch (e) {
+    console.error("Remuneraciones: no se pudo recalcular:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos recalcular. Inténtalo de nuevo en un momento.") };
+  }
+}
+
+/** Marca una liquidación como revisada (lista para pagar) o la devuelve a «por revisar». Las pagadas no cambian. */
+export async function cambiarRevision(id: string, lista: boolean): Promise<ResultadoRemuneraciones> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
+
+  const [fila] = await db
+    .select({ estado: remuneraciones.estado, liquido: remuneraciones.liquido })
+    .from(remuneraciones)
+    .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)))
+    .limit(1);
+  if (!fila) return { ok: false, error: "No encontramos esa liquidación." };
+  if (fila.estado === "PAGADA") return { ok: false, error: "Ya está pagada." };
+  if (lista && fila.liquido <= 0) return { ok: false, error: "El líquido es $0: no hay nada que pagar." };
+
+  await db
+    .update(remuneraciones)
+    .set({ estado: lista ? "LISTA" : "PENDIENTE" })
+    .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id), ne(remuneraciones.estado, "PAGADA")));
 
   refrescar();
   return { ok: true };
@@ -160,6 +313,7 @@ const liquidacionSchema = z.object({
 /**
  * Corrige la liquidación de un mes mientras no esté pagada: sueldo bruto, bonos y otros descuentos.
  * La AFP, la salud, el seguro de cesantía y la retención se recalculan con la ficha de la persona.
+ * Si estaba revisada, vuelve a «por revisar».
  */
 export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null, formData: FormData): Promise<ResultadoRemuneraciones> {
   const { apr } = await requireAdmin();
@@ -232,6 +386,7 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
       descuentos,
       liquido: imponible - descuentos + d.noImponible,
       nota: d.nota,
+      estado: "PENDIENTE",
     })
     .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)));
 
@@ -242,50 +397,56 @@ export async function guardarRemuneracion(_prev: ResultadoRemuneraciones | null,
 const pagoSchema = z.object({
   fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
   medio: z.string(),
+  ids: z.array(z.string().min(1)).min(1, "No hay liquidaciones para pagar.").max(300),
 });
 
-/** Paga una liquidación: deja el egreso del líquido en la Caja y la marca como pagada. Todo o nada. */
+/**
+ * Paga una o varias liquidaciones (los `id` del formulario): deja el egreso de cada líquido en la Caja y las marca
+ * como pagadas. Todo o nada: si una falla, ninguna queda pagada.
+ */
 export async function pagarRemuneracion(_prev: ResultadoRemuneraciones | null, formData: FormData): Promise<ResultadoRemuneraciones> {
   const { user, apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
 
-  const parsed = pagoSchema.safeParse({ fecha: formData.get("fecha"), medio: formData.get("medio") });
+  const parsed = pagoSchema.safeParse({ fecha: formData.get("fecha"), medio: formData.get("medio"), ids: [...new Set(formData.getAll("id").map(String))] });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
   if (!MEDIOS_MOVIMIENTO.some((m) => m.valor === d.medio)) return { ok: false, error: "El medio de pago no es válido." };
-  const id = String(formData.get("id") ?? "");
 
   try {
     const r = await db.transaction(async (tx) => {
-      const [fila] = await tx
-        .select({ estado: remuneraciones.estado, liquido: remuneraciones.liquido, periodo: remuneraciones.periodo, nombre: trabajadores.nombre })
+      const filas = await tx
+        .select({ id: remuneraciones.id, estado: remuneraciones.estado, liquido: remuneraciones.liquido, periodo: remuneraciones.periodo, nombre: trabajadores.nombre })
         .from(remuneraciones)
         .innerJoin(trabajadores, eq(trabajadores.id, remuneraciones.trabajadorId))
-        .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)))
-        .limit(1);
-      if (!fila) return { ok: false as const, error: "No encontramos esa liquidación." };
-      if (fila.estado === "PAGADA") return { ok: false as const, error: "Esta liquidación ya está pagada." };
-      if (fila.liquido <= 0) return { ok: false as const, error: "El líquido es $0: no hay nada que pagar." };
+        .where(and(inArray(remuneraciones.id, d.ids), eq(remuneraciones.aprId, apr.id)));
+      if (filas.length !== d.ids.length) return { ok: false as const, error: "No encontramos alguna de las liquidaciones." };
+      for (const fila of filas) {
+        if (fila.estado === "PAGADA") return { ok: false as const, error: `La liquidación de ${fila.nombre} ya está pagada.` };
+        if (fila.liquido <= 0) return { ok: false as const, error: `El líquido de ${fila.nombre} es $0: no hay nada que pagar.` };
+      }
       if (await diaCerrado(tx, apr.id, d.fecha)) return { ok: false as const, error: mensajeDiaCerrado(d.fecha) };
 
-      const [egreso] = await tx
-        .insert(movimientos)
-        .values({
-          aprId: apr.id,
-          tipo: "EGRESO",
-          fecha: d.fecha,
-          monto: fila.liquido,
-          categoria: "REMUNERACIONES",
-          concepto: `${PREFIJO_CONCEPTO_REMUNERACION}${fila.nombre} (${fila.periodo})`,
-          medio: d.medio,
-          contraparte: fila.nombre,
-          registradoPorId: user.id,
-        })
-        .returning({ id: movimientos.id });
-      await tx
-        .update(remuneraciones)
-        .set({ estado: "PAGADA", fechaPago: d.fecha, medio: d.medio, movimientoId: egreso.id })
-        .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)));
+      for (const fila of filas) {
+        const [egreso] = await tx
+          .insert(movimientos)
+          .values({
+            aprId: apr.id,
+            tipo: "EGRESO",
+            fecha: d.fecha,
+            monto: fila.liquido,
+            categoria: "REMUNERACIONES",
+            concepto: `${PREFIJO_CONCEPTO_REMUNERACION}${fila.nombre} (${fila.periodo})`,
+            medio: d.medio,
+            contraparte: fila.nombre,
+            registradoPorId: user.id,
+          })
+          .returning({ id: movimientos.id });
+        await tx
+          .update(remuneraciones)
+          .set({ estado: "PAGADA", fechaPago: d.fecha, medio: d.medio, movimientoId: egreso.id })
+          .where(and(eq(remuneraciones.id, fila.id), eq(remuneraciones.aprId, apr.id)));
+      }
       return { ok: true as const };
     });
     if (r.ok) refrescar();
@@ -296,7 +457,7 @@ export async function pagarRemuneracion(_prev: ResultadoRemuneraciones | null, f
   }
 }
 
-/** Deshace un pago: quita el egreso de la Caja (si ese día no está cerrado) y la liquidación vuelve a pendiente. */
+/** Deshace un pago: quita el egreso de la Caja (si ese día no está cerrado) y la liquidación vuelve a «lista para pagar». */
 export async function deshacerPago(id: string): Promise<ResultadoRemuneraciones> {
   const { apr } = await requireAdmin();
 
@@ -320,7 +481,7 @@ export async function deshacerPago(id: string): Promise<ResultadoRemuneraciones>
       }
       await tx
         .update(remuneraciones)
-        .set({ estado: "PENDIENTE", fechaPago: null, medio: null, movimientoId: null })
+        .set({ estado: "LISTA", fechaPago: null, medio: null, movimientoId: null })
         .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id)));
       return { ok: true as const };
     });
@@ -332,15 +493,15 @@ export async function deshacerPago(id: string): Promise<ResultadoRemuneraciones>
   }
 }
 
-/** Borra una liquidación que todavía no se pagó (por ejemplo, de alguien que no corresponde ese mes). */
+/** Borra una liquidación que todavía no se pagó (por ejemplo, de alguien que no corresponde ese mes). Sus cuotas de préstamos se liberan. */
 export async function eliminarRemuneracion(id: string): Promise<ResultadoRemuneraciones> {
   const { apr } = await requireAdmin();
 
   const borrados = await db
     .delete(remuneraciones)
-    .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id), eq(remuneraciones.estado, "PENDIENTE")))
+    .where(and(eq(remuneraciones.id, id), eq(remuneraciones.aprId, apr.id), ne(remuneraciones.estado, "PAGADA")))
     .returning({ id: remuneraciones.id });
-  if (borrados.length === 0) return { ok: false, error: "Solo se pueden borrar las liquidaciones pendientes." };
+  if (borrados.length === 0) return { ok: false, error: "Solo se pueden quitar las liquidaciones que aún no se pagan." };
 
   refrescar();
   return { ok: true };

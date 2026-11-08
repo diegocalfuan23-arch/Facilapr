@@ -1,8 +1,9 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asistencias, ausencias, configAsistencia, diasCalendario, horariosComite, horariosLaborales, horasExtras, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { asistencias, ausencias, configAsistencia, diasCalendario, horariosComite, horariosLaborales, horasExtras, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
 import type {
   AsistenciaDia,
+  CuotaPrestamoLinea,
   AusenciaFila,
   DiaEspecial,
   EstadoAsistencia,
@@ -63,14 +64,70 @@ export async function listarRemuneraciones(aprId: string, periodo: string): Prom
       .where(and(eq(remuneraciones.aprId, aprId), eq(remuneraciones.periodo, periodo)))
       .orderBy(asc(trabajadores.nombre));
     const resumen = await resumenAusenciasMes(aprId, periodo);
+
+    // Las cuotas de anticipos y préstamos de cada liquidación, con su número («cuota 2 de 6»).
+    const cuotasDe = new Map<string, CuotaPrestamoLinea[]>();
+    if (filas.length > 0) {
+      try {
+        const aplicadas = await db
+          .select({ remuneracionId: prestamoDescuentos.remuneracionId, prestamoId: prestamoDescuentos.prestamoId, monto: prestamoDescuentos.monto, tipo: prestamos.tipo, total: prestamos.cuotas })
+          .from(prestamoDescuentos)
+          .innerJoin(prestamos, eq(prestamos.id, prestamoDescuentos.prestamoId))
+          .where(
+            inArray(
+              prestamoDescuentos.remuneracionId,
+              filas.map((f) => f.id)
+            )
+          );
+        if (aplicadas.length > 0) {
+          const historial = await db
+            .select({ prestamoId: prestamoDescuentos.prestamoId, periodo: prestamoDescuentos.periodo })
+            .from(prestamoDescuentos)
+            .where(
+              inArray(
+                prestamoDescuentos.prestamoId,
+                aplicadas.map((a) => a.prestamoId)
+              )
+            );
+          for (const a of aplicadas) {
+            const numero = historial.filter((h) => h.prestamoId === a.prestamoId && h.periodo <= periodo).length;
+            const nombre = a.tipo === "ANTICIPO" ? "Anticipo" : "Préstamo";
+            const concepto = a.total > 1 ? `${nombre} (cuota ${numero} de ${a.total})` : nombre;
+            cuotasDe.set(a.remuneracionId, [...(cuotasDe.get(a.remuneracionId) ?? []), { concepto, monto: a.monto }]);
+          }
+        }
+      } catch (e) {
+        console.error("RR.HH.: no se pudieron leer las cuotas de préstamos:", e);
+      }
+    }
+
     return filas.map((f) => ({
       ...f,
       estado: f.estado as EstadoRemuneracion,
       contrato: f.contrato as "SUELDO" | "HONORARIO",
       ausenciasMes: resumen[f.trabajadorId] ?? SIN_AUSENCIAS,
+      cuotasPrestamo: cuotasDe.get(f.id) ?? [],
     }));
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer las remuneraciones:", e);
+    return [];
+  }
+}
+
+/** Las personas activas que todavía no tienen liquidación en el mes (AAAA-MM). */
+export async function personasSinLiquidacion(aprId: string, periodo: string): Promise<{ id: string; nombre: string; cargo: string }[]> {
+  try {
+    const personas = await db
+      .select({ id: trabajadores.id, nombre: trabajadores.nombre, cargo: trabajadores.cargo })
+      .from(trabajadores)
+      .where(and(eq(trabajadores.aprId, aprId), eq(trabajadores.activo, true)))
+      .orderBy(asc(trabajadores.nombre));
+    if (personas.length === 0) return [];
+    const con = await db.select({ id: remuneraciones.trabajadorId }).from(remuneraciones).where(and(eq(remuneraciones.aprId, aprId), eq(remuneraciones.periodo, periodo)));
+    const tienen = new Set(con.map((c) => c.id));
+    return personas.filter((p) => !tienen.has(p.id));
+  } catch (e) {
+    console.error("RR.HH.: no se pudo ver quién no tiene liquidación:", e);
     return [];
   }
 }
