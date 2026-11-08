@@ -386,9 +386,9 @@ export function Landing() {
 
         <div className="relative px-4 pt-28 sm:px-8 md:pt-36"><div className="mx-auto grid max-w-[1180px] items-center gap-12 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <div>
-            <h1 className={`${TITULO} text-[46px] leading-[1.02] md:text-[76px]`}>Cobra el agua de tu comité sin planillas</h1>
+            <h1 className={`${TITULO} text-[40px] leading-[1.04] md:text-[62px]`}>Software para tu APR: cobra el agua de tu comité sin planillas</h1>
             <p className="mt-5 max-w-[520px] text-lg leading-relaxed text-white/80 md:text-xl">
-              Socios, lecturas, boletas, pagos y caja de tu APR o SSR en un solo lugar. Cada socio ve lo que debe desde su celular.
+              Socios, lecturas, boletas, pagos y caja de tu comité de agua potable rural (APR o SSR) en un solo lugar. Cada socio ve lo que debe desde su celular.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3">
               <Boton href="#contacto" claro>Pedir una demo</Boton>
@@ -403,7 +403,7 @@ export function Landing() {
       <main>
         <section className="px-4 pb-16 pt-10 sm:px-8 md:pb-24 md:pt-12">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className={`${TITULO} max-w-[760px] text-4xl leading-[1.08] md:text-[52px]`}>Lo que cambia en la oficina</h2>
+            <h2 className={`${TITULO} max-w-[760px] text-4xl leading-[1.08] md:text-[52px]`}>Lo que cambia en la oficina de tu APR</h2>
             <div className={`mt-10 overflow-hidden rounded-[28px] bg-white ${SOMBRA}`}>
               <div className="hidden grid-cols-2 md:grid">
                 <p className={`px-8 pb-2 pt-6 text-sm font-semibold ${GRIS}`}>Hoy</p>
@@ -424,7 +424,7 @@ export function Landing() {
 
         <section id="producto" className="scroll-mt-20 px-4 pb-16 sm:px-8 md:pb-24">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className={`${TITULO} max-w-[760px] text-4xl leading-[1.08] md:text-[52px]`}>Todo el comité en un panel</h2>
+            <h2 className={`${TITULO} max-w-[760px] text-4xl leading-[1.08] md:text-[52px]`}>Todo tu comité de agua potable rural en un panel</h2>
             <p className={`mt-3 text-lg ${GRIS}`}>Pantallas con datos de ejemplo.</p>
             <div className="mt-10 grid gap-4 lg:grid-cols-12">
               <Tile clase="lg:col-span-7" titulo="Caja" texto="Lo que entra, lo que sale y cuánto queda. Los pagos de socios entran solos.">
@@ -461,8 +461,8 @@ export function Landing() {
         <section aria-label="Del estanque a cada casa" className="px-4 pb-16 sm:px-8 md:pb-24">
           <div className={`mx-auto max-w-[1180px] overflow-hidden rounded-[32px] bg-white ${SOMBRA}`}>
             <div className="px-6 pb-4 pt-8 md:px-10 md:pt-10">
-              <h2 className={`${TITULO} text-3xl leading-[1.1] md:text-[44px]`}>Del estanque a cada casa</h2>
-              <p className={`mt-2 max-w-[560px] text-lg ${GRIS}`}>Cada arranque con su lectura, su boleta y su pago, en el mismo sistema.</p>
+              <h2 className={`${TITULO} text-3xl leading-[1.1] md:text-[44px]`}>Del estanque a cada casa: arranques, lecturas y boletas</h2>
+              <p className={`mt-2 max-w-[560px] text-lg ${GRIS}`}>Cada arranque de tu red de agua potable rural con su lectura, su boleta y su pago, en el mismo sistema.</p>
             </div>
             <Red />
           </div>
@@ -470,7 +470,7 @@ export function Landing() {
 
         <section id="precios" className="scroll-mt-20 px-4 pb-16 sm:px-8 md:pb-24">
           <div className="mx-auto max-w-[1180px]">
-            <h2 className={`${TITULO} text-4xl leading-[1.08] md:text-[52px]`}>Precios según tus socios</h2>
+            <h2 className={`${TITULO} text-4xl leading-[1.08] md:text-[52px]`}>Precios del software para APR según tus socios</h2>
             <p className={`mt-3 text-lg ${GRIS}`}>Sin permanencia pagando por mes. Plan anual: 1 mes gratis.</p>
             <div className="mt-10 grid items-stretch gap-4 lg:grid-cols-3">
               {PLANES.map((p) => (
@@ -522,7 +522,7 @@ export function Landing() {
         <section id="preguntas" className="scroll-mt-20 px-4 pb-16 sm:px-8 md:pb-24">
           <div className="mx-auto grid max-w-[1180px] gap-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
             <div>
-              <h2 className={`${TITULO} text-4xl leading-[1.08] md:text-[52px]`}>Preguntas frecuentes</h2>
+              <h2 className={`${TITULO} text-4xl leading-[1.08] md:text-[52px]`}>Preguntas frecuentes sobre el software para APR</h2>
               <Medidor />
             </div>
             <div className="flex flex-col gap-2">
