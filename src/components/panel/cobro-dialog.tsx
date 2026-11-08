@@ -24,6 +24,7 @@ import {
   type DatosComiteWhatsApp,
 } from "@/lib/whatsapp";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const clp = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -264,6 +265,7 @@ export function CobroDialog({
                   });
                   if (r.ok) {
                     toast.success("Pago registrado");
+                    avisarCambio("caja");
                     setRegistrado({
                       monto: Number(monto),
                       comprobanteUrl: r.comprobanteUrl,

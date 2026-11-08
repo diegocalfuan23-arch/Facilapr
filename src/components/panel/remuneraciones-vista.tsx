@@ -48,6 +48,7 @@ import { horasPorDia, valorDeHoraExtra, valorHoraOrdinaria } from "@/lib/persona
 import { montoEnPalabras } from "@/lib/monto-en-palabras";
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { INTERVALO_RAPIDO, avisarCambio } from "@/lib/avisos-datos";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const fechaCorta = (iso: string) => iso.split("-").reverse().join("-");
@@ -700,6 +701,7 @@ function PagarDialog({ filas, onCerrar }: { filas: RemuneracionFila[]; onCerrar:
   useEffect(() => {
     if (estado?.ok) {
       toast.success(uno ? "Pago registrado y anotado en Caja" : `${filas.length} pagos registrados y anotados en Caja`);
+      avisarCambio("caja", "remuneraciones");
       onCerrar();
     }
   }, [estado, onCerrar, uno, filas.length]);
@@ -851,7 +853,7 @@ export function RemuneracionesVista({
   const cliente = useQueryClient();
   // Parte con lo que trajo el servidor y se actualiza sola: cada 30 segundos y al volver a la pestaña.
   const clave = ["remuneraciones", periodo];
-  const { data } = useQuery({ queryKey: clave, queryFn: () => consultarRemuneraciones(periodo), initialData: datos, refetchInterval: 30_000 });
+  const { data } = useQuery({ queryKey: clave, queryFn: () => consultarRemuneraciones(periodo), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
   const { filas, faltan } = data;
   /** Después de cualquier cambio, la lista se vuelve a pedir enseguida. */
   const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["remuneraciones"] }), [cliente]);
@@ -937,8 +939,10 @@ export function RemuneracionesVista({
     if (!(await confirmar({ titulo: `¿Deshacer el pago a ${f.trabajador}?`, descripcion: "También se quita de la Caja.", boton: "Deshacer pago" }))) return;
     iniciar(async () => {
       const r = await deshacerPago(f.id);
-      if (r.ok) toast.success("Pago deshecho");
-      else toast.error(r.error);
+      if (r.ok) {
+        toast.success("Pago deshecho");
+        avisarCambio("caja", "remuneraciones");
+      } else toast.error(r.error);
       volverAPedir();
     });
   }

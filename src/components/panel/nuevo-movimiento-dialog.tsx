@@ -16,6 +16,7 @@ import {
   type TipoMovimiento,
 } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const selectClase =
@@ -46,6 +47,7 @@ export function NuevoMovimientoDialog({
   useEffect(() => {
     if (estado?.ok) {
       toast.success("Movimiento registrado");
+      avisarCambio("caja");
       onCerrar();
     }
   }, [estado, onCerrar]);

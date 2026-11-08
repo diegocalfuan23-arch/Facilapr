@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MEDIOS_PAGO, textoConcepto } from "@/lib/pagos";
 import { hoyEnChile } from "@/lib/finanzas-comun";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const selectClase =
   "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
@@ -64,6 +65,7 @@ export function EditarPagoDialog({ pago, onCerrar }: { pago: PagoEditable; onCer
         return;
       }
       toast.success("Pago corregido. El comprobante ya muestra los datos nuevos.");
+      avisarCambio("caja");
       router.refresh();
       onCerrar();
     });

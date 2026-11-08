@@ -31,6 +31,7 @@ import {
   telefonoValidoParaWhatsApp,
   type DatosComiteWhatsApp,
 } from "@/lib/whatsapp";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const clp = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -313,6 +314,7 @@ export function PagoDialog({
                         const r = await eliminarPago(h.id);
                         if (r.ok) {
                           toast.success("Pago eliminado");
+                          avisarCambio("caja");
                           setHistorial((prev) => prev?.filter((x) => x.id !== h.id) ?? null);
                           setRegistrado(null);
                         } else {
@@ -349,6 +351,7 @@ export function PagoDialog({
                   });
                   if (r.ok) {
                     toast.success("Pago registrado");
+                    avisarCambio("caja");
                     setRegistrado({
                       monto: Number(monto),
                       comprobanteUrl: r.comprobanteUrl,

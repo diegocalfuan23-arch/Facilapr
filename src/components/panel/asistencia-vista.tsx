@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SelectorHora } from "@/components/panel/selector-hora";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
 import { FERIADOS_NACIONALES } from "@/lib/feriados";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { ESTADOS_ASISTENCIA_MANUAL, HORARIO_POR_DEFECTO, TEXTO_ESTADO_ASISTENCIA, aMinutos, duracionTramo, resumenDias, type AsistenciaDia, type DatosAsistencia, type DiaEspecial, type EstadoAsistencia, type HorarioComite, type HorarioPersona, type TramoComite } from "@/lib/rrhh-comun";
@@ -951,7 +952,7 @@ function ConfigLaboral({
  */
 export function AsistenciaVista({ dia, datos }: { dia: string; datos: DatosAsistencia }) {
   // Parte con lo que trajo el servidor y se actualiza sola: cada 30 segundos y al volver a la pestaña.
-  const { data } = useQuery({ queryKey: ["asistencia", dia], queryFn: () => consultarAsistencia(dia), initialData: datos, refetchInterval: 30_000 });
+  const { data } = useQuery({ queryKey: ["asistencia", dia], queryFn: () => consultarAsistencia(dia), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
   const { filas, grilla, horasExtraMes, horarios, diasComite, comite, toleranciaMin } = data;
   const router = useRouter();
   const [, navegar] = useTransition();

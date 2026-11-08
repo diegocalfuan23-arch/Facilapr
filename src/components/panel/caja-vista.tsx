@@ -46,6 +46,7 @@ import {
 } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { INTERVALO_RAPIDO, avisarCambio } from "@/lib/avisos-datos";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
@@ -378,10 +379,13 @@ export function CajaVista({
   const cliente = useQueryClient();
   // Se vuelve a pedir cada 30 segundos y al volver a la pestaña: los pagos, compras y sueldos que se registran en otras
   // pantallas, o por otra persona, aparecen solos.
-  const { data, dataUpdatedAt, isFetching } = useQuery({ queryKey: ["caja", modo, desde], queryFn: () => consultarCaja(modo, desde), initialData: datos, refetchInterval: 30_000 });
+  const { data, dataUpdatedAt, isFetching } = useQuery({ queryKey: ["caja", modo, desde], queryFn: () => consultarCaja(modo, desde), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
   const { resumen, lineas, porCategoria, categoriasPropias, saldoInicial, tendencia } = data;
   /** Después de cualquier cambio hecho aquí, la Caja se vuelve a pedir enseguida. */
-  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["caja"] }), [cliente]);
+  const volverAPedir = useCallback(() => {
+    void cliente.invalidateQueries({ queryKey: ["caja"] });
+    avisarCambio("caja");
+  }, [cliente]);
   const [, navegar] = useTransition();
   const [borrando, iniciar] = useTransition();
   const [busqueda, setBusqueda] = useState("");

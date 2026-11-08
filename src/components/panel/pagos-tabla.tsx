@@ -21,6 +21,7 @@ import { enviarComprobantePorWhatsApp } from "@/app/panel/pagos/comprobante-acti
 import { CupoWhatsappInfo } from "@/components/panel/cupo-whatsapp";
 import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 export type PagoFila = {
   id: string;
@@ -359,6 +360,7 @@ export function PagosTabla({
     const r = await eliminarPago(p.id);
     if (r.ok) {
       toast.success("Pago eliminado");
+      avisarCambio("caja");
       setMovil(false);
       router.refresh();
     } else {

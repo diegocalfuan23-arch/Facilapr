@@ -14,6 +14,7 @@ import { MEDIOS_MOVIMIENTO, hoyEnChile } from "@/lib/finanzas-comun";
 import { UNIDADES_INSUMO, formatoCantidad, unidadCorta, type Insumo } from "@/lib/inventario-comun";
 import { DOCUMENTOS_COMPRA, sumarDias, textoCondicionPago, totalesDe, type OrigenItem, type ProveedorFila, type TipoDocumento } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
@@ -227,6 +228,7 @@ export function CompraFormulario({ proveedores, insumos, proveedorInicial }: { p
         return;
       }
       toast.success(`Compra C-${r.numero} registrada`);
+      avisarCambio("caja");
       router.push("/panel/compras");
     });
   }

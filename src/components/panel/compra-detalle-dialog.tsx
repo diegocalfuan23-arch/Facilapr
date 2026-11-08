@@ -11,6 +11,7 @@ import { MEDIOS_MOVIMIENTO } from "@/lib/finanzas-comun";
 import { TEXTO_ESTADO_COMPRA, TEXTO_ORIGEN_ITEM, type CompraFila } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const clp = new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 });
 const cantidadFmt = new Intl.NumberFormat("es-CL", { maximumFractionDigits: 2 });
@@ -38,6 +39,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Compra pagada: el egreso quedó en Caja");
+      avisarCambio("caja");
       onCerrar();
     });
   }
@@ -51,6 +53,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Egreso anotado en Caja");
+      avisarCambio("caja");
       onCerrar();
     });
   }
@@ -66,6 +69,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Compra anulada");
+      avisarCambio("caja");
       onCerrar();
     });
   }
