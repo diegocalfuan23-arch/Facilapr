@@ -200,3 +200,16 @@ export function diaVecino(dia: string, delta: number): string {
   d.setUTCDate(d.getUTCDate() + delta);
   return d.toISOString().slice(0, 10);
 }
+
+/** Todo lo que muestra la pantalla de Caja para un día o un mes. */
+export type DatosCaja = {
+  resumen: ResumenPeriodo;
+  lineas: LineaLibro[];
+  /** Cuánto fue a cada categoría; se muestra en el mes. */
+  porCategoria: ResumenMes["porCategoria"];
+  /** Las categorías que creó el comité, de ingresos y de egresos. */
+  categoriasPropias: CategoriaMovimientoPropia[];
+  saldoInicial: { monto: number; fecha: string; banco: number } | null;
+  /** El disponible día a día: los últimos 7 días, o el mes hasta hoy. */
+  tendencia: PuntoTendencia[] | null;
+};

@@ -24,8 +24,11 @@ import {
   diaVecino,
   libroDelDia,
   mensajeDiaCerrado,
+  mesValido,
   resumenPeriodo,
 } from "@/lib/finanzas";
+import { datosCaja } from "@/lib/caja-datos";
+import type { DatosCaja } from "@/lib/finanzas-comun";
 
 export type ResultadoFinanzas = { ok: true } | { ok: false; error: string };
 
@@ -46,6 +49,15 @@ const aTexto = (v: FormDataEntryValue | null) => {
 };
 
 /** Anota un ingreso o un egreso del comité. Solo la directiva, y solo con un plan que incluya Finanzas. */
+/** Los datos de la Caja de un día o un mes, para que la pantalla los vuelva a pedir sin recargar la página (la usa TanStack Query). */
+export async function consultarCaja(modo: "dia" | "mes", desde: string): Promise<DatosCaja> {
+  const { apr } = await requireFinanzas();
+  if (!puede(apr.plan as Plan, "finanzas")) throw new Error("Las finanzas están disponibles desde el plan Estándar.");
+  const esDia = modo === "dia";
+  const dia = diaValido(desde);
+  return datosCaja(apr.id, esDia, dia, mesValido(esDia ? dia.slice(0, 7) : desde.slice(0, 7)));
+}
+
 export async function crearMovimiento(
   _prev: ResultadoFinanzas | null,
   formData: FormData
