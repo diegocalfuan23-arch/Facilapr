@@ -99,7 +99,8 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
     .select({
       id: pagos.id,
       dia: diaChile,
-      hora: sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'HH24:MI')`,
+      // Cuándo se registró el cobro: la fecha del pago se guarda con una hora fija (las 12:00), que no dice nada.
+      registrado: pagos.createdAt,
       registradoPor: usuarios.name,
       monto: pagos.monto,
       medio: pagos.medio,
@@ -125,6 +126,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
   const lineas: LineaLibro[] = [
     ...deMovimientos.map(({ m, registradoPor }) => ({
       hora: horaChile(m.createdAt),
+      orden: m.createdAt.getTime(),
       registradoPor,
       id: `mov:${m.id}`,
       tipo: m.tipo as TipoMovimiento,
@@ -138,7 +140,8 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
       automatico: false,
     })),
     ...deSocios.map((p) => ({
-      hora: p.hora,
+      hora: horaChile(p.registrado),
+      orden: p.registrado.getTime(),
       registradoPor: p.registradoPor,
       id: `pago:${p.id}`,
       tipo: "INGRESO" as const,
@@ -156,7 +159,8 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
     })),
   ];
 
-  return lineas.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0));
+  // Lo más reciente arriba: primero por día y, dentro del día, por la hora en que se anotó.
+  return lineas.sort((a, b) => (a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : (b.orden ?? 0) - (a.orden ?? 0)));
 }
 
 

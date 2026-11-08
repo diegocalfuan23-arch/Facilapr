@@ -128,6 +128,8 @@ export type LineaLibro = {
   automatico: boolean;
   /** HH:MM en Chile, de cuando se anotó. */
   hora: string | null;
+  /** El instante en que se anotó (milisegundos): sirve para ordenar lo de un mismo día, lo más reciente primero. */
+  orden?: number;
   /** Quién del comité lo anotó; null en los antiguos. */
   registradoPor: string | null;
 };
