@@ -137,8 +137,9 @@ export function CobroDialog({
               <Label htmlFor="cobro-monto">Monto que pagó</Label>
               <Input
                 id="cobro-monto"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
+                value={monto ? `$${Number(monto).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setMonto(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder="$0"
                 inputMode="numeric"
                 autoFocus
               />

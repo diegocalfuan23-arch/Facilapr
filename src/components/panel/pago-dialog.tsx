@@ -181,8 +181,9 @@ export function PagoDialog({
               <Label htmlFor="monto">Monto que pagó</Label>
               <Input
                 id="monto"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
+                value={monto ? `$${Number(monto).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setMonto(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder="$0"
                 inputMode="numeric"
                 autoFocus
               />

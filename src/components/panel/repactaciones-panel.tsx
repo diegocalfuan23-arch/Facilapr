@@ -449,8 +449,9 @@ function CuotaDialog({ r, comite, onCerrar }: { r: RepactacionFila; comite: Dato
               <Label htmlFor="cuota-monto">Monto que pagó</Label>
               <Input
                 id="cuota-monto"
-                value={monto}
-                onChange={(e) => setMonto(e.target.value.replace(/[^\d]/g, ""))}
+                value={monto ? `$${Number(monto).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setMonto(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                placeholder="$0"
                 inputMode="numeric"
                 autoFocus
               />
