@@ -37,7 +37,7 @@ export const PREGUNTAS: { pregunta: string; respuesta: string }[] = [
   {
     pregunta: "¿Cómo registran los pagos los socios?",
     respuesta:
-      "El comité registra cada pago, o abono, en efectivo, transferencia o Caja Vecina, y el sistema genera un comprobante en PDF que se puede enviar al socio por WhatsApp. Con Mercado Pago, hoy en beta, el socio también puede pagar desde su cuenta y la boleta se marca pagada sola. En todos los casos el socio ve sus pagos en su cuenta en línea.",
+      "El comité registra cada pago, o abono, en efectivo, transferencia o Caja Vecina, y el sistema genera un comprobante en PDF que se puede enviar al socio por WhatsApp. El socio ve sus boletas y sus pagos en su cuenta en línea.",
   },
   {
     pregunta: "¿Se puede cobrar una tarifa distinta a los comercios?",

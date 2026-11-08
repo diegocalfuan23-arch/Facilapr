@@ -265,7 +265,7 @@ const COMPARA: [string, string][] = [
   ["Socios que van a la oficina a preguntar cuánto deben", "Cada socio lo ve en su celular"],
   ["Deudas en un Excel que solo entiende el tesorero", "Boletas y morosidad para toda la directiva"],
   ["Lecturas en papel, traspasadas a mano", "El operador las sube en terreno"],
-  ["Socios que se enteran justo antes del corte", "Revisan su cuenta y pagan en línea"],
+  ["Socios que se enteran justo antes del corte", "Revisan su cuenta y se enteran a tiempo"],
 ]
 
 const MODULOS = ["Socios", "Boletas", "Tarifas residenciales y comerciales", "Morosidad y cortes", "Compras y proveedores", "Inventario", "Reportes", "Informe para la asamblea", "RR.HH. y sueldos", "Incidentes"]
@@ -439,12 +439,17 @@ export function Landing() {
               <Tile clase="lg:col-span-7" titulo="Labores" texto="Los trabajos del comité y sus materiales. Al finalizar, se descuentan del inventario.">
                 <DemoLabores />
               </Tile>
-              <Tile clase="lg:col-span-7" id="pagos" titulo="Pagos con Mercado Pago" texto="El socio paga desde su cuenta, la boleta se marca sola y el dinero llega a tu comité. Facilapr no cobra comisión por esto.">
-                <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-[#F7F6FC] px-4 py-3">
-                  <p className="text-sm font-medium">¿Eres socio? Busca tu comité y paga tu boleta.</p>
-                  <a href="/socios" className="inline-flex min-h-11 items-center gap-1.5 text-sm font-semibold text-[#3A0CE3]">Encontrar mi comité <ArrowRight className="size-4" aria-hidden /></a>
+              <Tile clase="lg:col-span-7" id="pagos" titulo="Pagos y comprobantes" texto="Registra cada pago, en efectivo, transferencia o Caja Vecina, y envíale el comprobante al socio por WhatsApp.">
+                <div className="flex flex-col gap-2 rounded-2xl bg-[#F7F6FC] p-3">
+                  {[["Socio N.° 12", "Efectivo", "$12.400"], ["Socio N.° 27", "Transferencia", "$9.800"], ["Socio N.° 41", "Caja Vecina", "$15.200"]].map(([n, m, v]) => (
+                    <div key={n} className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 text-sm">
+                      <span className="min-w-0 truncate">
+                        <b className="font-semibold">{n}</b> <span className={GRIS}>· {m}</span>
+                      </span>
+                      <span className="shrink-0 font-semibold tabular-nums">{v}</span>
+                    </div>
+                  ))}
                 </div>
-                <p className={`mt-3 text-[13px] ${GRIS}`}>En beta. Se aplican las comisiones normales de Mercado Pago.</p>
               </Tile>
               <Tile clase="lg:col-span-5" titulo="Activos fijos" texto="Qué tiene el comité, cuánto costó y cuánto vale hoy.">
                 <DemoActivos />
@@ -565,7 +570,7 @@ export function Landing() {
                 ["Centro de ayuda", "/ayuda"],
                 ["Cómo calcular la tarifa", "/ayuda/como-calcular-tarifa-agua-apr"],
                 ["Cortes por morosidad", "/ayuda/cortes-por-morosidad-apr"],
-                ["Soy socio: paga tu boleta", "/socios"],
+                ["Soy socio: mira tu cuenta", "/socios"],
                 ["Planilla gratis en Excel", "/planilla-cobro-agua-potable-rural"],
                 ["Términos de uso", "/terminos"],
                 ["Privacidad", "/privacidad"],

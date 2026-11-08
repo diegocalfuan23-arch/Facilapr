@@ -43,7 +43,6 @@ export const metadata: Metadata = {
     "servicios sanitarios rurales",
     "boletas agua potable rural",
     "boletas APR",
-    "pagos online APR",
     "lecturas de medidor APR",
     "app operador terreno APR",
     "control de morosidad APR",
