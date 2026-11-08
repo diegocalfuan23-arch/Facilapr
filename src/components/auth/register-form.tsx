@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { CampoClave } from "@/components/auth/campo-clave";
 import { Label } from "@/components/ui/label";
 import { CARGOS } from "@/lib/cargos";
+import { origenGuardado } from "@/lib/origen";
 import {
   Select,
   SelectContent,
@@ -39,6 +40,13 @@ export function RegisterForm() {
       return;
     }
 
+    // El WhatsApp sirve para ayudarles a empezar: se pide un número real (al menos 8 dígitos).
+    const telefono = String(datos.get("telefono") ?? "").trim();
+    if (telefono.replace(/\D/g, "").length < 8) {
+      setError("Escribe un WhatsApp o teléfono de contacto, con al menos 8 dígitos.");
+      return;
+    }
+
     setEnviando(true);
 
     const { error: errorRegistro } = await signUp.email({
@@ -49,6 +57,8 @@ export function RegisterForm() {
       rutComite: String(datos.get("rutComite") ?? ""),
       comuna: String(datos.get("comuna") ?? ""),
       cargo,
+      telefono,
+      origen: origenGuardado(),
     });
 
     if (errorRegistro) {
@@ -128,6 +138,20 @@ export function RegisterForm() {
           className="h-10"
           required
         />
+      </div>
+
+      <div className="flex flex-col gap-1.5 sm:col-span-2">
+        <Label htmlFor="telefono">WhatsApp o teléfono de contacto</Label>
+        <Input
+          id="telefono"
+          name="telefono"
+          type="tel"
+          autoComplete="tel"
+          placeholder="+56 9 1234 5678"
+          className="h-10"
+          required
+        />
+        <p className="text-[0.8rem] text-muted-foreground">Para ayudarte a dar los primeros pasos. No lo compartimos con nadie.</p>
       </div>
 
       <CampoClave

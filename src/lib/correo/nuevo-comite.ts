@@ -18,7 +18,7 @@ const escapar = (t: string) =>
  * después al revisar el panel. Va a `CORREO_AVISOS` (o, si no se define, a `CORREO_RESPUESTAS` o hola@facilapr.cl).
  * Nunca debe impedir el registro: cualquier falla se anota y se sigue.
  */
-export async function avisarNuevoComite(datos: { comite: string; comuna: string; persona: string; cargo: string; correo: string }): Promise<void> {
+export async function avisarNuevoComite(datos: { comite: string; comuna: string; persona: string; cargo: string; correo: string; telefono: string; origen: string }): Promise<void> {
   if (!resend) {
     console.error("RESEND_API_KEY no configurada: no se pudo avisar del nuevo comité.");
     return;
@@ -31,6 +31,8 @@ export async function avisarNuevoComite(datos: { comite: string; comuna: string;
     ["Se registró", datos.persona],
     ["Cargo", datos.cargo],
     ["Correo", datos.correo],
+    ["WhatsApp", datos.telefono || "no dejó"],
+    ["Llegó desde", datos.origen || "sin dato"],
     ["Hora", hora],
   ];
 

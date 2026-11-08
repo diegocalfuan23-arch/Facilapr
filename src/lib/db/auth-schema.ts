@@ -20,6 +20,10 @@ export const user = pgTable("user", {
   rutComite: text("rutComite").notNull(),
   comuna: text("comuna").notNull(),
   cargo: text("cargo").notNull(),
+  // WhatsApp o teléfono de contacto que dejó al registrarse (las cuentas anteriores no lo traen).
+  telefono: text("telefono"),
+  // De dónde llegó al sitio la primera vez: buscador o página que lo trajo, y la primera página que abrió.
+  origen: text("origen"),
   // Comité al que pertenece el usuario. Determina qué datos puede ver.
   aprId: text("aprId"),
   /**

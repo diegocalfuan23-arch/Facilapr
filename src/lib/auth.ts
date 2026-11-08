@@ -9,6 +9,7 @@ import { enviarCorreoResetPassword } from "@/lib/correo/reset-password";
 import { slugUnico } from "@/lib/slug";
 import { finDePrueba } from "@/lib/prueba";
 import { avisarNuevoComite } from "@/lib/correo/nuevo-comite";
+import { normalizarTelefono } from "@/lib/formato";
 
 /**
  * Orígenes aceptados. Sin esto, Better Auth solo confía en BETTER_AUTH_URL y
@@ -98,6 +99,15 @@ export const auth = betterAuth({
         type: "string",
         required: true,
       },
+      // Opcionales a propósito: un registro sin ellos (una versión vieja de la página abierta) no debe fallar.
+      telefono: {
+        type: "string",
+        required: false,
+      },
+      origen: {
+        type: "string",
+        required: false,
+      },
       aprId: {
         type: "string",
         required: false,
@@ -123,6 +133,9 @@ export const auth = betterAuth({
             apr: string;
             rutComite: string;
             comuna: string;
+            cargo?: string;
+            telefono?: string | null;
+            origen?: string | null;
           };
 
           const existente = await db.query.aprs.findFirst({
@@ -141,6 +154,8 @@ export const auth = betterAuth({
                   slug: await slugUnico(datos.apr),
                   rut: datos.rutComite,
                   comuna: datos.comuna,
+                  // El WhatsApp que dejó quien se registró queda como teléfono del comité (se puede corregir en Configuración).
+                  telefono: datos.telefono ? normalizarTelefono(datos.telefono) : null,
                   // Todo comité nuevo parte con una prueba gratuita: las funciones del plan Grande por 10 días.
                   plan: "PREMIUM",
                   pruebaHasta: finDePrueba(),
@@ -161,7 +176,7 @@ export const auth = betterAuth({
           // Un comité que se registra por primera vez: aviso inmediato al dueño. Si el correo falla, el registro sigue igual.
           if (creado) {
             await Promise.race([
-              avisarNuevoComite({ comite: datos.apr, comuna: datos.comuna, persona: nuevoUsuario.name, cargo: (nuevoUsuario as typeof nuevoUsuario & { cargo?: string }).cargo ?? "", correo: nuevoUsuario.email }),
+              avisarNuevoComite({ comite: datos.apr, comuna: datos.comuna, persona: nuevoUsuario.name, cargo: datos.cargo ?? "", correo: nuevoUsuario.email, telefono: datos.telefono ?? "", origen: datos.origen ?? "" }),
               new Promise<void>((r) => setTimeout(r, 4000)),
             ]);
           }
