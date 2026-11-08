@@ -69,9 +69,13 @@ export async function guardarProveedor(
   const id = String(formData.get("id") ?? "");
   try {
     if (id) {
+      // Este formulario ya no trae dirección ni notas: si no vienen, se dejan como estaban.
+      const { direccion, notas, ...sinExtras } = parsed.data;
+      void direccion;
+      void notas;
       const [editado] = await db
         .update(proveedores)
-        .set(parsed.data)
+        .set(formData.has("direccion") || formData.has("notas") ? parsed.data : sinExtras)
         .where(and(eq(proveedores.id, id), eq(proveedores.aprId, apr.id)))
         .returning({ id: proveedores.id });
       if (!editado) return { ok: false, error: "No encontramos ese proveedor." };

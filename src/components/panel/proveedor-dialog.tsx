@@ -7,7 +7,7 @@ import { guardarProveedor, type ResultadoCompras } from "@/app/panel/compras/act
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CONDICIONES_PAGO, type ProveedorFila } from "@/lib/compras-comun";
 import { rutValido } from "@/lib/formato";
 import { cn } from "@/lib/utils";
@@ -29,6 +29,7 @@ export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorF
   const editando = proveedor !== null;
   const [nombre, setNombre] = useState(proveedor?.nombre ?? "");
   const [rut, setRut] = useState(proveedor?.rut ?? "");
+  const [dias, setDias] = useState(String(proveedor?.diasPago ?? 0));
 
   useEffect(() => {
     if (estado?.ok) {
@@ -71,17 +72,19 @@ export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorF
             </label>
             <label className={etiqueta}>
               Condición de pago
-              <select
-                name="diasPago"
-                defaultValue={proveedor?.diasPago ?? 0}
-                className="h-10 w-full rounded-lg border border-[#E4E1F0] bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-              >
-                {CONDICIONES_PAGO.map((c) => (
-                  <option key={c.dias} value={c.dias}>
-                    {c.texto}
-                  </option>
-                ))}
-              </select>
+              <input type="hidden" name="diasPago" value={dias} />
+              <Select value={dias} onValueChange={(v) => setDias(v as string)}>
+                <SelectTrigger className="h-10 w-full rounded-lg border-[#E4E1F0] px-3">
+                  <SelectValue>{(v) => CONDICIONES_PAGO.find((c) => String(c.dias) === v)?.texto ?? "Contado"}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {CONDICIONES_PAGO.map((c) => (
+                    <SelectItem key={c.dias} value={String(c.dias)}>
+                      {c.texto}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </label>
           </div>
 
@@ -100,15 +103,6 @@ export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorF
             Correo
             <Input name="email" type="email" defaultValue={proveedor?.email ?? ""} placeholder="ventas@proveedor.cl" maxLength={120} className={campo} />
           </label>
-          <label className={etiqueta}>
-            Dirección <span className={cn("font-normal", GRIS)}>(opcional)</span>
-            <Input name="direccion" defaultValue={proveedor?.direccion ?? ""} maxLength={200} className={campo} />
-          </label>
-          <label className={etiqueta}>
-            Notas <span className={cn("font-normal", GRIS)}>(opcional)</span>
-            <Textarea name="notas" defaultValue={proveedor?.notas ?? ""} rows={2} maxLength={500} className="rounded-lg border-[#E4E1F0] shadow-none" />
-          </label>
-
           {estado && !estado.ok && (
             <p className="text-[0.8rem] text-destructive" role="alert">
               {estado.error}

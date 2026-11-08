@@ -8,6 +8,7 @@ import { eliminarProveedor } from "@/app/panel/compras/actions";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfirmar } from "@/components/ui/confirmar";
 import { textoCondicionPago, type CompraFila, type ProveedorFila } from "@/lib/compras-comun";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,11 @@ const COLUMNAS = "lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.3fr)_110px_minmax(0,1
 
 type Filtro = "todos" | "deuda" | "sin";
 type Orden = "nombre" | "total" | "deuda";
+const ORDENES: { valor: Orden; texto: string }[] = [
+  { valor: "nombre", texto: "Nombre A–Z" },
+  { valor: "total", texto: "Más comprado" },
+  { valor: "deuda", texto: "Mayor deuda" },
+];
 
 /** La lista de proveedores con lo comprado y lo que se les debe, para buscar, ordenar y actuar sobre cada uno. */
 export function ProveedoresTabla({
@@ -107,16 +113,18 @@ export function ProveedoresTabla({
             <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
             <Input aria-label="Buscar proveedor" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Nombre, RUT o rubro" className="h-10 rounded-lg border-[#E4E1F0] pl-9 shadow-none" />
           </div>
-          <select
-            aria-label="Ordenar"
-            value={orden}
-            onChange={(e) => setOrden(e.target.value as Orden)}
-            className="h-10 w-[136px] shrink-0 rounded-lg border border-[#E4E1F0] bg-white px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[150px]"
-          >
-            <option value="nombre">Nombre A–Z</option>
-            <option value="total">Más comprado</option>
-            <option value="deuda">Mayor deuda</option>
-          </select>
+          <Select value={orden} onValueChange={(v) => setOrden(v as Orden)}>
+            <SelectTrigger aria-label="Ordenar" className="h-10 w-[136px] shrink-0 rounded-lg border-[#E4E1F0] px-3 sm:w-[150px]">
+              <SelectValue>{(v) => ORDENES.find((o) => o.valor === v)?.texto ?? "Nombre A–Z"}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {ORDENES.map((o) => (
+                <SelectItem key={o.valor} value={o.valor}>
+                  {o.texto}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -238,9 +246,9 @@ export function ProveedoresTabla({
                         <Pencil />
                         Editar datos
                       </DropdownMenuItem>
-                      <DropdownMenuItem variant="destructive" disabled={n > 0 || compras.some((c) => c.proveedorId === p.id)} onClick={() => void eliminar(p)}>
+                      <DropdownMenuItem variant="destructive" disabled={n > 0 || compras.some((c) => c.proveedorId === p.id)} title={n > 0 || compras.some((c) => c.proveedorId === p.id) ? "Tiene compras registradas" : undefined} onClick={() => void eliminar(p)}>
                         <Trash2 />
-                        {compras.some((c) => c.proveedorId === p.id) ? "Eliminar (tiene compras)" : "Eliminar"}
+                        Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

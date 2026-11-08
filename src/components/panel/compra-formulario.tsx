@@ -365,13 +365,23 @@ export function CompraFormulario({ proveedores, insumos, proveedorInicial }: { p
               {pagada ? (
                 <div className="md:col-span-2">
                   <Etiqueta>Pagada con</Etiqueta>
-                  <Opciones
-                    className="mt-1.5 sm:max-w-[480px]"
-                    etiqueta="Medio de pago"
-                    valor={medio}
-                    opciones={MEDIOS_MOVIMIENTO.map((m) => ({ valor: m.valor as string, texto: m.texto, icono: ICONO_MEDIO[m.valor] }))}
-                    onElegir={setMedio}
-                  />
+                  <div className="mt-1.5 grid grid-cols-2 gap-2 sm:max-w-[360px]">
+                    {MEDIOS_MOVIMIENTO.filter((m) => m.valor === "TRANSFERENCIA" || m.valor === "EFECTIVO").map((m) => {
+                      const Icono = ICONO_MEDIO[m.valor];
+                      return (
+                        <button
+                          key={m.valor}
+                          type="button"
+                          onClick={() => setMedio(m.valor)}
+                          aria-pressed={medio === m.valor}
+                          className={cn("flex h-11 items-center justify-center gap-2 rounded-xl border text-[13px] font-semibold", medio === m.valor ? "border-primary bg-[#F5F3FE] text-[#2A07A8]" : "border-[#E4E1F0] bg-white")}
+                        >
+                          <Icono className="size-4" aria-hidden />
+                          {m.texto}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <label className="block md:col-span-2 md:max-w-[calc(50%-8px)]">
