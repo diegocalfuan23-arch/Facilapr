@@ -1070,6 +1070,11 @@ function Cuerpo({
 
   const futuro = dia > hoy;
   const esp = ctx.especial(dia);
+  // En un día en que a nadie le toca trabajar la lista queda recogida tras un botón; si ya hay marcas ese día, se ve de inicio.
+  const [abrirLista, setAbrirLista] = useState(false);
+  const sinTurnoHoy = !futuro && (esp !== null || personas.every((p) => !ctx.debe(p.id, dia)));
+  const hayMarcas = personas.some((p) => estadoDelDia(p.id) !== null || (delDia(p.id)?.horasExtra ?? 0) > 0);
+  const listaVisible = !sinTurnoHoy || abrirLista || hayMarcas;
   // A quién le toca trabajar hoy, y de ellos a quién falta marcar.
   const conTurno = personas.filter((p) => ctx.debe(p.id, dia));
   const sinMarcar = conTurno.filter((p) => estadoDelDia(p.id) === null);
@@ -1222,6 +1227,13 @@ function Cuerpo({
                 </p>
               ) : null}
 
+              {!listaVisible ? (
+                <div className="flex justify-center px-4 py-6">
+                  <Button type="button" variant="outline" onClick={() => setAbrirLista(true)} className="h-11 rounded-lg border-[#E4E1F0] px-5 font-semibold">
+                    Alguien trabajó este día
+                  </Button>
+                </div>
+              ) : (
               <ul className="divide-y divide-[#F0EEF6]">
                 {[...conTurno, ...personas.filter((p) => !conTurno.includes(p))].map((p) => (
                   <FilaPersona
@@ -1242,6 +1254,7 @@ function Cuerpo({
                   />
                 ))}
               </ul>
+              )}
 
               {sinMarcar.length > 0 && !futuro && (
                 <div className="border-t border-[#F0EEF6] p-3 lg:px-5">
