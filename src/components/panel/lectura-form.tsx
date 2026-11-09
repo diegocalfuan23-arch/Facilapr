@@ -492,6 +492,8 @@ export function LecturaForm({
       setMarcados((m) => [...m, clave(socioId, String(formData.get("periodo") ?? ""))]);
       setUltimo({ nombre: socios.find((s) => s.id === socioId)?.nombre ?? "Socio", enCola: !!r.enCola });
       limpiar();
+      // Con señal, la lista «Mis lecturas» se pone al día en segundo plano (sin esperar al guardar).
+      if (!r.enCola) router.refresh();
       // Una vibración corta confirma el guardado sin mirar la pantalla.
       navigator.vibrate?.(40);
     } else {
