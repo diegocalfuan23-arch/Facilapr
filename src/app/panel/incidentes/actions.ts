@@ -4,13 +4,13 @@ import { revalidatePath } from "next/cache";
 import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { incidentes, movimientos } from "@/lib/db/schema";
+import { activosFijos, incidentes, movimientos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
-import { PREFIJO_CONCEPTO_INCIDENTE, TIPOS_INCIDENTE } from "@/lib/incidentes-comun";
+import { PREFIJO_CONCEPTO_INCIDENTE, TIPOS_INCIDENTE, afectaUnBien } from "@/lib/incidentes-comun";
 
 export type ResultadoIncidentes = { ok: true } | { ok: false; error: string };
 
@@ -20,6 +20,7 @@ const aEntero = (v: FormDataEntryValue | null) => Number(String(v ?? "").replace
 
 function refrescar() {
   revalidatePath("/panel/incidentes");
+  revalidatePath("/panel/activos");
   revalidatePath("/panel/caja");
 }
 
@@ -37,6 +38,8 @@ const incidenteSchema = z.object({
   responsable: z.string().trim().max(120).nullable(),
   solucion: z.string().trim().max(1000).nullable(),
   costo: z.number().int().min(0).max(1_000_000_000),
+  activoId: z.string().trim().min(1).nullable(),
+  valorPerdido: z.number().int().min(0).max(1_000_000_000),
 });
 
 /**
@@ -59,10 +62,25 @@ export async function guardarIncidente(_prev: ResultadoIncidentes | null, formDa
     responsable: aTexto(formData.get("responsable")),
     solucion: aTexto(formData.get("solucion")),
     costo: aEntero(formData.get("costo")),
+    activoId: aTexto(formData.get("activoId")),
+    valorPerdido: aEntero(formData.get("valorPerdido")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
   const d = parsed.data;
+  // El bien y su valor solo cuentan en robo, extravío o daño; en los demás tipos se ignoran.
+  const deBien = afectaUnBien(d.tipo);
+  if (d.activoId) {
+    const activo = await db.query.activosFijos.findFirst({
+      where: and(eq(activosFijos.id, d.activoId), eq(activosFijos.aprId, apr.id)),
+      columns: { id: true },
+    });
+    if (!activo) return { ok: false, error: "Ese bien no está en los Activos de tu comité." };
+  }
+  const activoId = deBien ? d.activoId : null;
+  const valorPerdido = deBien ? d.valorPerdido : 0;
+  // Dar de baja el bien (robo o extravío) o dejarlo en reparación (daño), solo si se pidió.
+  const actualizarActivo = deBien && activoId !== null && formData.get("actualizarActivo") === "si";
   // Un incidente resuelto siempre tiene fecha de resolución; uno que se reabre la pierde.
   const fechaResolucion = d.estado === "RESUELTO" ? (d.fechaResolucion ?? hoyEnChile()) : null;
   const registrarCosto = formData.get("registrarCosto") === "si";
@@ -129,7 +147,14 @@ export async function guardarIncidente(_prev: ResultadoIncidentes | null, formDa
         movimientoId = egreso.id;
       }
 
-      const valores = { ...d, fechaResolucion, movimientoId, updatedAt: new Date() };
+      if (actualizarActivo && activoId) {
+        await tx
+          .update(activosFijos)
+          .set({ estado: d.tipo === "DANO" ? "EN_REPARACION" : "BAJA" })
+          .where(and(eq(activosFijos.id, activoId), eq(activosFijos.aprId, apr.id)));
+      }
+
+      const valores = { ...d, activoId, valorPerdido, fechaResolucion, movimientoId, updatedAt: new Date() };
       if (id) {
         await tx.update(incidentes).set(valores).where(and(eq(incidentes.id, id), eq(incidentes.aprId, apr.id)));
       } else {

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { IncidenteDialog } from "@/components/panel/incidente-dialog";
-import { TEXTO_PRIORIDAD, textoTipoIncidente, type EstadoIncidente, type IncidenteFila, type PrioridadIncidente } from "@/lib/incidentes-comun";
+import { TEXTO_PRIORIDAD, afectaUnBien, textoTipoIncidente, type ActivoAfectable, type EstadoIncidente, type IncidenteFila, type PrioridadIncidente } from "@/lib/incidentes-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
@@ -126,6 +126,18 @@ function Detalle({
             <dt className={GRIS}>Costo</dt>
             <dd className="mt-0.5 font-semibold tabular-nums">{inc.costo ? clp(inc.costo) : "Sin costo"}</dd>
           </div>
+          {afectaUnBien(inc.tipo) && (
+            <>
+              <div>
+                <dt className={GRIS}>Bien afectado</dt>
+                <dd className="mt-0.5 font-medium">{inc.activoNombre ?? "No indicado"}</dd>
+              </div>
+              <div>
+                <dt className={GRIS}>Valor perdido</dt>
+                <dd className="mt-0.5 font-semibold tabular-nums">{inc.valorPerdido ? clp(inc.valorPerdido) : "Sin valorar"}</dd>
+              </div>
+            </>
+          )}
         </dl>
 
         <h3 className={cn("mt-6 text-[13px] font-semibold", GRIS)}>Seguimiento</h3>
@@ -164,7 +176,7 @@ function Detalle({
  * Los incidentes del sistema de agua: una lista ordenada por prioridad y antigüedad, con el detalle y
  * el seguimiento del elegido al lado. Se cambia su estado con el botón del detalle.
  */
-export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] }) {
+export function IncidentesVista({ incidentes, activos: bienes }: { incidentes: IncidenteFila[]; activos: ActivoAfectable[] }) {
   const [busqueda, setBusqueda] = useState("");
   const [prioridad, setPrioridad] = useState<"todas" | PrioridadIncidente>("todas");
   const [filtro, setFiltro] = useState<Filtro>("activos");
@@ -407,7 +419,7 @@ export function IncidentesVista({ incidentes }: { incidentes: IncidenteFila[] })
         </div>
       )}
 
-      {(creando || editando) && <IncidenteDialog key={editando?.id ?? "nuevo"} incidente={editando} onCerrar={cerrar} />}
+      {(creando || editando) && <IncidenteDialog key={editando?.id ?? "nuevo"} incidente={editando} activos={bienes} onCerrar={cerrar} />}
     </div>
   );
 }

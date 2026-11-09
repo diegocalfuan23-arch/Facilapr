@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
-import { TIPOS_INCIDENTE, type EstadoIncidente, type IncidenteFila } from "@/lib/incidentes-comun";
+import { TIPOS_INCIDENTE, afectaUnBien, type ActivoAfectable, type EstadoIncidente, type IncidenteFila } from "@/lib/incidentes-comun";
 import { useConfirmar } from "@/components/ui/confirmar";
 
 const campo = "h-10 px-3 text-[0.95rem]";
@@ -18,13 +18,29 @@ const selectClase =
   "h-10 w-full rounded-lg border border-input bg-transparent px-3 text-[0.95rem] outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30";
 
 /** Registrar un incidente del sistema de agua, o actualizar cómo va (y cuánto costó repararlo). */
-export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteFila | null; onCerrar: () => void }) {
+export function IncidenteDialog({ incidente, activos, onCerrar }: { incidente: IncidenteFila | null; activos: ActivoAfectable[]; onCerrar: () => void }) {
   const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoIncidentes | null, FormData>(guardarIncidente, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = incidente !== null;
   const [estadoInc, setEstadoInc] = useState<EstadoIncidente>(incidente?.estado ?? "ABIERTO");
   const [costo, setCosto] = useState(incidente?.costo ? String(incidente.costo) : "");
+  const [tipo, setTipo] = useState(incidente?.tipo ?? "FUGA");
+  const [activoId, setActivoId] = useState(incidente?.activoId ?? "");
+  const [valorPerdido, setValorPerdido] = useState(incidente?.valorPerdido ? String(incidente.valorPerdido) : "");
+  const deBien = afectaUnBien(tipo);
+  // El bien que ya se dio de baja no figura en la lista: se agrega para que el incidente siga mostrándolo.
+  const opciones =
+    incidente?.activoId && !activos.some((a) => a.id === incidente.activoId)
+      ? [...activos, { id: incidente.activoId, nombre: incidente.activoNombre ?? "Bien dado de baja", valorLibro: 0 }]
+      : activos;
+
+  function elegirActivo(id: string) {
+    setActivoId(id);
+    // Si el valor está vacío, parte con lo que vale hoy el bien (su valor libro); se puede cambiar.
+    const a = activos.find((x) => x.id === id);
+    if (a && !valorPerdido) setValorPerdido(a.valorLibro > 0 ? String(a.valorLibro) : "");
+  }
 
   useEffect(() => {
     if (estado?.ok) {
@@ -70,7 +86,7 @@ export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteF
               <label htmlFor="inc-tipo" className={etiqueta}>
                 Tipo
               </label>
-              <select id="inc-tipo" name="tipo" defaultValue={incidente?.tipo ?? "FUGA"} className={selectClase}>
+              <select id="inc-tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} className={selectClase}>
                 {TIPOS_INCIDENTE.map((t) => (
                   <option key={t.valor} value={t.valor}>
                     {t.texto}
@@ -107,6 +123,50 @@ export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteF
               <Textarea id="inc-descripcion" name="descripcion" defaultValue={incidente?.descripcion ?? ""} rows={2} maxLength={1000} />
             </div>
           </div>
+
+          {deBien && (
+            <>
+              <h3 className="mt-2 text-[0.95rem] font-medium">Bien afectado</h3>
+              <input type="hidden" name="valorPerdido" value={valorPerdido} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <label htmlFor="inc-activo" className={etiqueta}>
+                    Bien de Activos (opcional)
+                  </label>
+                  <select id="inc-activo" name="activoId" value={activoId} onChange={(e) => elegirActivo(e.target.value)} className={selectClase}>
+                    <option value="">No está en Activos / no lo sé</option>
+                    {opciones.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label htmlFor="inc-valor" className={etiqueta}>
+                    Lo que valía (opcional)
+                  </label>
+                  <Input
+                    id="inc-valor"
+                    value={valorPerdido ? `$${Number(valorPerdido).toLocaleString("es-CL")}` : ""}
+                    onChange={(e) => setValorPerdido(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                    placeholder="$0"
+                    inputMode="numeric"
+                    className={campo}
+                  />
+                </div>
+                {activoId && (
+                  <label className="flex items-center gap-2 text-[0.9rem] sm:mt-7">
+                    <input type="checkbox" name="actualizarActivo" value="si" defaultChecked={!incidente} className="size-4" />
+                    {tipo === "DANO" ? "Dejar el bien «En reparación»" : "Dar de baja el bien en Activos"}
+                  </label>
+                )}
+                <p className="text-[0.8rem] text-muted-foreground sm:col-span-2">
+                  El valor es una pérdida del comité y no mueve la Caja. Lo que cueste reponerlo o repararlo va abajo, en «Costo».
+                </p>
+              </div>
+            </>
+          )}
 
           <h3 className="mt-2 text-[0.95rem] font-medium">Seguimiento</h3>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -150,7 +210,7 @@ export function IncidenteDialog({ incidente, onCerrar }: { incidente: IncidenteF
             )}
             <div>
               <label htmlFor="inc-costo" className={etiqueta}>
-                Costo de la reparación (opcional)
+                {deBien ? "Costo de reponer o reparar (opcional)" : "Costo de la reparación (opcional)"}
               </label>
               <Input
                 id="inc-costo"

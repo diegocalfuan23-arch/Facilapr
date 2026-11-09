@@ -1210,8 +1210,11 @@ export const incidentes = pgTable(
     numero: integer("numero").notNull(),
     titulo: text("titulo").notNull(),
     descripcion: text("descripcion"),
-    /** FUGA | BOMBA | TURBIEDAD | PRESION | ELECTRICO | OTRO */
+    /** FUGA | BOMBA | TURBIEDAD | PRESION | ELECTRICO | ROBO | EXTRAVIO | DANO | OTRO */
     tipo: text("tipo").notNull().default("OTRO"),
+    /** Robo, extravío o daño de un bien: el activo fijo afectado (si está en Activos) y lo que valía. No mueve Caja. */
+    activoId: text("activoId").references(() => activosFijos.id, { onDelete: "set null" }),
+    valorPerdido: integer("valorPerdido").notNull().default(0),
     lugar: text("lugar"),
     /** BAJA | MEDIA | ALTA */
     prioridad: text("prioridad").notNull().default("MEDIA"),
