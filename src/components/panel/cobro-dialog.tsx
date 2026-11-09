@@ -265,7 +265,7 @@ export function CobroDialog({
                   });
                   if (r.ok) {
                     toast.success("Pago registrado");
-                    avisarCambio("caja");
+                    avisarCambio("caja", "pagos");
                     setRegistrado({
                       monto: Number(monto),
                       comprobanteUrl: r.comprobanteUrl,

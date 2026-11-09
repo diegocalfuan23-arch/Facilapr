@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { ArrowDownRight, ArrowRight, ArrowUpRight, ChevronDown, Banknote, CheckCircle2, Download, Landmark, Link2, Loader2, MessageCircle, MoreHorizontal, Pencil, Plus, Search, Store, Trash2, Wallet, X, type LucideIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { eliminarPago } from "@/app/panel/boletas/actions";
 import { EditarPagoDialog } from "@/components/panel/editar-pago-dialog";
@@ -13,15 +13,15 @@ import { cn } from "@/lib/utils";
 import { formatearPeriodo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 import { MEDIOS_PAGO, textoConcepto, textoMedioPago } from "@/lib/pagos";
-import { NuevoPagoDialog, type BoletaPendiente } from "@/components/panel/nuevo-pago-dialog";
+import { NuevoPagoDialog } from "@/components/panel/nuevo-pago-dialog";
 import { LinkPagoDialog } from "@/components/panel/link-pago-dialog";
-import type { OpcionSocio } from "@/components/panel/socio-buscador";
 import { enlaceWhatsApp, mensajeComprobanteCobro, type DatosComiteWhatsApp } from "@/lib/whatsapp";
 import { enviarComprobantePorWhatsApp } from "@/app/panel/pagos/comprobante-actions";
 import { CupoWhatsappInfo } from "@/components/panel/cupo-whatsapp";
-import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 import { useConfirmar } from "@/components/ui/confirmar";
-import { avisarCambio } from "@/lib/avisos-datos";
+import { INTERVALO_RAPIDO, avisarCambio } from "@/lib/avisos-datos";
+import { consultarPagos } from "@/app/panel/pagos/consulta-actions";
+import type { DatosPagos } from "@/lib/pagos-datos";
 
 export type PagoFila = {
   id: string;
@@ -178,26 +178,17 @@ function Comprobante({ p, onCerrar, onCorregir, onEliminar, onVerSocio, onEnviar
 
 /** Todos los pagos que ha registrado el comité, con búsqueda y filtro por medio. */
 export function PagosTabla({
-  pagos,
-  socios,
-  todosLosSocios,
+  datos,
   costoReconexion,
-  resumen,
-  boletasPendientes,
   comite,
   mpConectado = false,
   mpHabilitado = false,
   estadoMp,
   mpModo = "prueba",
-  cupoWhatsapp = null,
 }: {
-  pagos: PagoFila[];
-  /** Cuántos socios están al día y cuántos tienen deuda vencida (y por cuánto). */
-  resumen: { morosos: number; deudaVencida: number; alDia: number };
-  socios: OpcionSocio[];
-  todosLosSocios: OpcionSocio[];
+  /** Pagos, socios, boletas por pagar y mensajes del mes: parte con lo que trajo el servidor y se actualiza sola. */
+  datos: DatosPagos;
   costoReconexion: number | null;
-  boletasPendientes: BoletaPendiente[];
   comite: DatosComiteWhatsApp;
   /** El comité conectó su cuenta de Mercado Pago: se puede cobrar con link de pago. */
   mpConectado?: boolean;
@@ -206,11 +197,13 @@ export function PagosTabla({
   /** Franja de estado de Mercado Pago (aviso tras conectar, cuenta conectada), bajo el encabezado. */
   estadoMp?: React.ReactNode;
   mpModo?: "prueba" | "produccion";
-  /** Mensajes automáticos del mes (null si el envío por API no está activo). */
-  cupoWhatsapp?: CupoWhatsapp | null;
 }) {
   const { confirmar, dialogo } = useConfirmar();
-  const router = useRouter();
+  const cliente = useQueryClient();
+  const { data } = useQuery({ queryKey: ["pagos"], queryFn: () => consultarPagos(), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
+  const { pagos, resumen, socios, todosLosSocios, boletasPendientes, cupoWhatsapp } = data;
+  /** Después de cualquier cambio, la lista se vuelve a pedir enseguida. */
+  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["pagos"] }), [cliente]);
   const [registrando, setRegistrando] = useState(false);
   const [corrigiendo, setCorrigiendo] = useState<PagoFila | null>(null);
   const [conLink, setConLink] = useState(false);
@@ -341,14 +334,14 @@ export function PagosTabla({
     setEnviandoId(null);
     if (r.ok) {
       toast.success("Comprobante enviado por WhatsApp");
-      router.refresh();
+      volverAPedir();
       return;
     }
     // Se acabaron los mensajes del plan este mes: se manda a mano.
     if ("sinCupo" in r && r.sinCupo) {
       toast.info(r.error);
       enviarAMano(p);
-      router.refresh();
+      volverAPedir();
       return;
     }
     toast.error(r.error);
@@ -360,9 +353,8 @@ export function PagosTabla({
     const r = await eliminarPago(p.id);
     if (r.ok) {
       toast.success("Pago eliminado");
-      avisarCambio("caja");
+      avisarCambio("caja", "pagos");
       setMovil(false);
-      router.refresh();
     } else {
       toast.error(r.error);
     }
@@ -709,7 +701,10 @@ export function PagosTabla({
           costoReconexion={costoReconexion}
           boletas={boletasPendientes}
           comite={comite}
-          onCerrar={() => setRegistrando(false)}
+          onCerrar={() => {
+            setRegistrando(false);
+            volverAPedir();
+          }}
         />
       )}
     </div>

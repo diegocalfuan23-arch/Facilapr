@@ -8,13 +8,16 @@
 export const INTERVALO_RAPIDO = 10_000;
 
 /** Qué grupo de datos cambió: la pantalla que lo muestra lo vuelve a pedir. */
-export type ClaveDatos = "caja" | "remuneraciones" | "asistencia" | "activos";
+export type ClaveDatos = "caja" | "pagos" | "remuneraciones" | "asistencia" | "activos";
 
 const NOMBRE_CANAL = "facilapr-datos";
+/** El aviso también llega a la propia pestaña: una pantalla abierta aquí se actualiza al guardar en un modal. */
+const EVENTO_LOCAL = "facilapr-datos-local";
 let emisor: BroadcastChannel | null = null;
 
 /** Avisa a las otras pestañas que cambiaron estos datos. Si el navegador no lo permite, no pasa nada. */
 export function avisarCambio(...claves: ClaveDatos[]) {
+  if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent<ClaveDatos[]>(EVENTO_LOCAL, { detail: claves }));
   try {
     if (typeof BroadcastChannel === "undefined") return;
     emisor ??= new BroadcastChannel(NOMBRE_CANAL);
@@ -26,10 +29,16 @@ export function avisarCambio(...claves: ClaveDatos[]) {
 
 /** Escucha los avisos de las otras pestañas. Devuelve la función que deja de escuchar. */
 export function escucharCambios(alRecibir: (claves: ClaveDatos[]) => void) {
-  if (typeof BroadcastChannel === "undefined") return () => {};
-  const canal = new BroadcastChannel(NOMBRE_CANAL);
-  canal.onmessage = (e: MessageEvent) => {
-    if (Array.isArray(e.data)) alRecibir(e.data as ClaveDatos[]);
+  const local = (e: Event) => alRecibir((e as CustomEvent<ClaveDatos[]>).detail);
+  window.addEventListener(EVENTO_LOCAL, local);
+  const canal = typeof BroadcastChannel === "undefined" ? null : new BroadcastChannel(NOMBRE_CANAL);
+  if (canal) {
+    canal.onmessage = (e: MessageEvent) => {
+      if (Array.isArray(e.data)) alRecibir(e.data as ClaveDatos[]);
+    };
+  }
+  return () => {
+    window.removeEventListener(EVENTO_LOCAL, local);
+    canal?.close();
   };
-  return () => canal.close();
 }

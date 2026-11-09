@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ExternalLink, Loader2 } from "lucide-react";
 import { editarPago } from "@/app/panel/boletas/actions";
@@ -37,7 +36,6 @@ export type PagoEditable = {
 
 /** Corregir un pago ya registrado. El comprobante se actualiza solo con lo que se cambie. */
 export function EditarPagoDialog({ pago, onCerrar }: { pago: PagoEditable; onCerrar: () => void }) {
-  const router = useRouter();
   const [fecha, setFecha] = useState(diaChile(pago.fecha));
   const [monto, setMonto] = useState(String(pago.monto));
   const [medio, setMedio] = useState(pago.medio);
@@ -65,8 +63,7 @@ export function EditarPagoDialog({ pago, onCerrar }: { pago: PagoEditable; onCer
         return;
       }
       toast.success("Pago corregido. El comprobante ya muestra los datos nuevos.");
-      avisarCambio("caja");
-      router.refresh();
+      avisarCambio("caja", "pagos");
       onCerrar();
     });
   }

@@ -367,7 +367,6 @@ export async function registrarPago(
   after(() => enviarComprobanteAuto(pago.id));
 
   revalidatePath("/panel/boletas");
-  revalidatePath("/panel/pagos");
   revalidatePath("/panel");
   return {
     ok: true,
@@ -450,7 +449,6 @@ export async function registrarCobro(
     })
     .returning({ id: pagos.id });
 
-  revalidatePath("/panel/pagos");
   return { ok: true, pagoId: pago.id, comprobanteUrl: urlComprobante(pago.id) };
 }
 
@@ -586,7 +584,6 @@ export async function editarPago(
   if (actual.boletaId) await recalcularBoleta(actual.boletaId);
 
   revalidatePath("/panel/boletas");
-  revalidatePath("/panel/pagos");
   revalidatePath("/panel/caja");
   revalidatePath("/panel");
   return { ok: true, comprobanteUrl: urlComprobante(pagoId) };
@@ -615,7 +612,6 @@ export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
   }
 
   revalidatePath("/panel/boletas");
-  revalidatePath("/panel/pagos");
   revalidatePath("/panel");
   return { ok: true };
 }
