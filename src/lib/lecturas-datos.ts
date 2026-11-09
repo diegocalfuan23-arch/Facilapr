@@ -31,6 +31,8 @@ export async function datosLecturas(aprId: string): Promise<DatosLecturas> {
       observacion: lecturas.observacion,
       estado: lecturas.estado,
       motivoRechazo: lecturas.motivoRechazo,
+      medidorCambiado: lecturas.medidorCambiado,
+      lecturaFinalAnterior: lecturas.lecturaFinalAnterior,
       createdAt: lecturas.createdAt,
       socioId: lecturas.socioId,
       socioNombre: socios.nombre,
@@ -84,6 +86,8 @@ export async function datosLecturas(aprId: string): Promise<DatosLecturas> {
       createdAt: l.createdAt,
       anterior: anteriorPorSocio.get(l.socioId)?.valor ?? null,
       socioId: l.socioId,
+      medidorCambiado: l.medidorCambiado,
+      finalAnterior: l.lecturaFinalAnterior,
       inicial: l.estado === "APROBADA" && l.boletaId === null,
     })),
   };

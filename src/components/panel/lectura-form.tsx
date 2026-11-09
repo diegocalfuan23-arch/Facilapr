@@ -165,17 +165,23 @@ function FormularioLectura({
   const [valor, setValor] = useState(borrador?.valor ?? "");
   const [obs, setObs] = useState<string | null>(borrador?.obs ?? null);
   const [confirmar, setConfirmar] = useState(false);
+  const [cambio, setCambio] = useState(false);
+  const [finalViejo, setFinalViejo] = useState("");
   const recuperado = Boolean(borrador);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const anterior = socio.anterior;
   const v = valor === "" ? null : Number(valor);
+  const fin = finalViejo === "" ? null : Number(finalViejo);
   // Sin lectura anterior no hay consumo que mostrar: sería el medidor completo.
-  const consumo = v !== null && anterior ? v - anterior.valor : null;
-  const menor = consumo !== null && consumo < 0;
+  // Con medidor nuevo (parte en 0): lo que consumió el viejo hasta retirarlo + lo que lleva el nuevo.
+  const consumo =
+    v !== null && anterior ? (cambio ? (fin !== null ? fin - anterior.valor : 0) + v : v - anterior.valor) : null;
+  const finalMenor = cambio && fin !== null && !!anterior && fin < anterior.valor;
+  const menor = !cambio && consumo !== null && consumo < 0;
   const alto = !menor && consumo !== null && socio.promedio != null && socio.promedio > 0 && consumo > socio.promedio * 2;
   const aviso = menor || alto;
-  const puede = v !== null && !bloqueado;
+  const puede = v !== null && !bloqueado && !finalMenor;
 
   function cambiar(nuevoValor: string, nuevaObs: string | null) {
     setValor(nuevoValor);
@@ -198,6 +204,8 @@ function FormularioLectura({
       <input type="hidden" name="periodo" value={periodo} />
       <input type="hidden" name="valor" value={valor} />
       <input type="hidden" name="observacion" value={obs ?? ""} />
+      {cambio && <input type="hidden" name="medidorCambiado" value="1" />}
+      {cambio && <input type="hidden" name="lecturaFinalAnterior" value={finalViejo} />}
 
       {repetir && (
         <p className="mb-3 flex items-start gap-2.5 rounded-xl border border-[#F6D3D2] bg-[#FFF5F5] px-3 py-2.5 text-[13px] text-[#8A1F1F]">
@@ -282,6 +290,39 @@ function FormularioLectura({
           )}
         </p>
       )}
+
+      {anterior &&
+        (cambio ? (
+          <div className="mt-3 rounded-xl border border-[#E9E6F4] bg-[#F9F8FD] p-3">
+            <div className="flex items-center justify-between">
+              <label htmlFor="terreno-final" className="text-[13px] font-medium">
+                Medidor viejo: lo que marcaba al retirarlo
+              </label>
+              <button type="button" onClick={() => { setCambio(false); setFinalViejo(""); }} className="text-xs font-semibold text-[#2A07A8] hover:underline">
+                Quitar
+              </button>
+            </div>
+            <input
+              id="terreno-final"
+              inputMode="numeric"
+              autoComplete="off"
+              value={finalViejo === "" ? "" : miles(Number(finalViejo))}
+              onChange={(e) => setFinalViejo(e.target.value.replace(/\D/g, "").slice(0, 7))}
+              placeholder={`${miles(anterior.valor)} o más`}
+              className="mt-1 w-full bg-transparent text-xl font-semibold tabular-nums outline-none placeholder:text-base placeholder:font-medium placeholder:text-[#C9C6D8]"
+            />
+            <p className={cn("mt-1 text-[12px] leading-snug", finalMenor ? "text-[#A32020]" : GRIS)}>
+              {finalMenor
+                ? `No puede ser menor que la anterior (${miles(anterior.valor)}).`
+                : "El medidor nuevo parte en 0: arriba anota lo que marca ahora. El consumo suma ambos tramos."}
+            </p>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setCambio(true)} className="mt-3 flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-[#2A07A8] hover:underline">
+            <RotateCcw className="size-4" aria-hidden />
+            Cambiaron el medidor
+          </button>
+        ))}
 
       {obs === null ? (
         <button type="button" onClick={() => cambiar(valor, "")} className="mt-3 flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-[#2A07A8] hover:underline">
@@ -419,6 +460,8 @@ export function LecturaForm({
       periodo: String(formData.get("periodo") ?? ""),
       valor: String(formData.get("valor") ?? ""),
       observacion: String(formData.get("observacion") ?? ""),
+      medidorCambiado: String(formData.get("medidorCambiado") ?? ""),
+      lecturaFinalAnterior: String(formData.get("lecturaFinalAnterior") ?? ""),
     });
     return guardada
       ? { ok: true, enCola: true }
@@ -477,6 +520,10 @@ export function LecturaForm({
         datos.set("periodo", lectura.periodo);
         datos.set("valor", lectura.valor);
         if (lectura.observacion) datos.set("observacion", lectura.observacion);
+        if (lectura.medidorCambiado === "1") {
+          datos.set("medidorCambiado", "1");
+          if (lectura.lecturaFinalAnterior) datos.set("lecturaFinalAnterior", lectura.lecturaFinalAnterior);
+        }
 
         try {
           const r = await registrarLectura(null, datos);

@@ -831,6 +831,9 @@ export const lecturas = pgTable(
     registradaPorId: text("registradaPorId").notNull(),
     revisadaPorId: text("revisadaPorId"),
     motivoRechazo: text("motivoRechazo"),
+    /** Cambio de medidor: el nuevo parte en 0 (`valor` es lo que lleva) y aquí queda lo que marcaba el viejo al retirarlo. */
+    medidorCambiado: boolean("medidorCambiado").notNull().default(false),
+    lecturaFinalAnterior: integer("lecturaFinalAnterior"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
   },

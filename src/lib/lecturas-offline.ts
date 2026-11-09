@@ -17,6 +17,9 @@ export type LecturaEnCola = {
   periodo: string;
   valor: string;
   observacion: string;
+  /** Cambio de medidor: «1» si lo hubo y lo que marcaba el viejo (las lecturas guardadas antes de esto no traen estos campos). */
+  medidorCambiado?: string;
+  lecturaFinalAnterior?: string;
   guardadaEn: number;
 };
 

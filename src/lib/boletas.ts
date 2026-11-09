@@ -25,9 +25,21 @@ export type CalculoBoleta = {
 export function calcularDesdeLecturas(
   lecturaAnterior: number | null,
   lecturaActual: number | null,
-  tarifas: Tarifas
+  tarifas: Tarifas,
+  /**
+   * Cambio de medidor: el medidor nuevo parte en 0, así que `lecturaActual` es lo que lleva el nuevo y
+   * el consumo del mes suma dos tramos: lo que le faltó al viejo hasta su lectura final + lo del nuevo.
+   * Sin la lectura final del viejo solo se cuenta el tramo del nuevo.
+   */
+  cambioMedidor?: { lecturaFinalAnterior: number | null } | null
 ): CalculoBoleta | { error: string } | null {
   if (lecturaAnterior === null || lecturaActual === null) return null;
+  const finalViejo = cambioMedidor?.lecturaFinalAnterior ?? null;
+  if (cambioMedidor && finalViejo !== null && finalViejo < lecturaAnterior) {
+    return {
+      error: `La lectura final del medidor viejo (${finalViejo}) no puede ser menor que la anterior (${lecturaAnterior}).`,
+    };
+  }
   if (tarifas.cargoFijo === null || tarifas.valorM3 === null) {
     return {
       error:
@@ -37,14 +49,16 @@ export function calcularDesdeLecturas(
 
   // Un medidor no retrocede. Si pasa, casi siempre es un error de tipeo o un
   // medidor cambiado: es mejor avisar que cobrar un consumo negativo.
-  if (lecturaActual < lecturaAnterior) {
+  if (!cambioMedidor && lecturaActual < lecturaAnterior) {
     return {
       error:
         "La lectura actual es menor que la anterior. Revisa los valores o registra el cambio de medidor.",
     };
   }
 
-  const consumoM3 = lecturaActual - lecturaAnterior;
+  const consumoM3 = cambioMedidor
+    ? (finalViejo !== null ? finalViejo - lecturaAnterior : 0) + lecturaActual
+    : lecturaActual - lecturaAnterior;
 
   return {
     consumoM3,

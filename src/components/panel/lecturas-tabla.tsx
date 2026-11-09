@@ -57,7 +57,7 @@ import { formatearPeriodo } from "@/lib/boletas";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
 import { PanelCargaLectura, type ItemRuta } from "@/components/panel/panel-carga-lectura";
 import { SelectorMesLecturas, largoDeMes } from "@/components/panel/selector-mes-lecturas";
-import { aprobadasPorSocio, anteriorDe, consumoDe, ordenarRuta, promedioDe, type SocioDeRuta } from "@/lib/lecturas-calculos";
+import { aprobadasPorSocio, anteriorDe, consumoContra, consumoDe, ordenarRuta, promedioDe, type SocioDeRuta } from "@/lib/lecturas-calculos";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
 import { LecturasMasivasDialog } from "@/components/panel/lecturas-masivas-dialog";
 import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
@@ -82,6 +82,9 @@ export type LecturaFila = {
   socioId: string;
   /** Aprobada como punto de partida: no generó boleta. */
   inicial: boolean;
+  /** Cambio de medidor: `valor` es lo que lleva el nuevo (parte en 0) y `finalAnterior` lo que marcaba el viejo. */
+  medidorCambiado: boolean;
+  finalAnterior: number | null;
 };
 
 type Motivo = "primera" | "menor";
@@ -284,7 +287,7 @@ export function LecturasTabla({ datos }: { datos: DatosLecturas }) {
   }, [enMes, filtro, busqueda]);
 
   // Las que se pueden aprobar sin preguntar: tienen una anterior y no retroceden.
-  const listas = enMes.filter((l) => l.estado === "PENDIENTE" && l.anterior !== null && l.valor >= l.anterior);
+  const listas = enMes.filter((l) => l.estado === "PENDIENTE" && l.anterior !== null && (l.medidorCambiado || l.valor >= l.anterior));
   const claveFiltro = `${mes}|${filtro}|${busqueda}`;
   const limite = limiteDe.clave === claveFiltro ? limiteDe.n : LIMITE;
 
@@ -597,7 +600,7 @@ function useAprobarLectura(
     // Sin lectura anterior (o con una menor) no se aprueba de golpe:
     // cobraría el medidor completo. Se pregunta qué hacer.
     if (l.anterior === null) return onConfirmar("primera");
-    if (l.valor < l.anterior) return onConfirmar("menor");
+    if (!l.medidorCambiado && l.valor < l.anterior) return onConfirmar("menor");
     iniciar(async () => {
       setError(null);
       const r = await aprobarLectura(l.id);
@@ -636,7 +639,7 @@ function AprobarListasDialog({
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const totalM3 = listas.reduce((s, l) => s + (l.valor - (l.anterior ?? 0)), 0);
+  const totalM3 = listas.reduce((s, l) => s + consumoContra(l, l.anterior ?? 0), 0);
 
   function cambiar(v: boolean) {
     onAbiertoChange(v);
@@ -982,8 +985,17 @@ function NuevaLecturaDialog({
   // La lectura anterior del arranque elegido, para mostrar cuánto consumió.
   const [anterior, setAnterior] = useState<number | null>(null);
   const [valor, setValor] = useState("");
+  const [cambioMedidor, setCambioMedidor] = useState(false);
+  const [finalViejo, setFinalViejo] = useState("");
   const lectura = valor === "" ? null : Number(valor);
-  const consumo = lectura !== null && anterior !== null ? lectura - anterior : null;
+  const final = finalViejo === "" ? null : Number(finalViejo);
+  const consumo =
+    lectura === null || anterior === null
+      ? null
+      : cambioMedidor
+        ? (final !== null ? final - anterior : 0) + lectura
+        : lectura - anterior;
+  const finalMenor = cambioMedidor && final !== null && anterior !== null && final < anterior;
 
   const [estado, accion, pendiente] = useActionState<
     ResultadoAccion | null,
@@ -992,6 +1004,8 @@ function NuevaLecturaDialog({
     const r = await registrarLectura(prev, formData);
     if (r.ok) {
       setValor("");
+      setFinalViejo("");
+      setCambioMedidor(false);
       setAnterior(null);
       onAbiertoChange(false);
       onRegistrada();
@@ -1029,12 +1043,12 @@ function NuevaLecturaDialog({
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="nl-valor">Lectura actual del medidor (m³)</Label>
+              <Label htmlFor="nl-valor">{cambioMedidor ? "Lectura del medidor nuevo (m³)" : "Lectura actual del medidor (m³)"}</Label>
               <Input
                 id="nl-valor"
                 name="valor"
                 inputMode="numeric"
-                placeholder="1250"
+                placeholder={cambioMedidor ? "0" : "1250"}
                 value={valor}
                 onChange={(e) => setValor(e.target.value.replace(/[^\d]/g, ""))}
                 required
@@ -1042,15 +1056,51 @@ function NuevaLecturaDialog({
             </div>
           </div>
 
+          <label className="flex cursor-pointer items-center gap-2 text-[0.88rem] font-medium">
+            <input
+              type="checkbox"
+              name="medidorCambiado"
+              value="1"
+              checked={cambioMedidor}
+              onChange={(e) => setCambioMedidor(e.target.checked)}
+              className="size-4 accent-primary"
+            />
+            Cambiaron el medidor este mes
+          </label>
+          {cambioMedidor && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="nl-final">Lo que marcaba el medidor viejo al retirarlo (m³)</Label>
+              <Input
+                id="nl-final"
+                name="lecturaFinalAnterior"
+                inputMode="numeric"
+                placeholder={anterior !== null ? `${anterior} o más` : "Ej.: 1420"}
+                value={finalViejo}
+                onChange={(e) => setFinalViejo(e.target.value.replace(/[^\d]/g, ""))}
+              />
+              <p className="text-xs text-muted-foreground">
+                El medidor nuevo parte en 0. El consumo del mes es lo que consumió el viejo hasta retirarlo más lo que lleva el nuevo.
+              </p>
+            </div>
+          )}
+
           {/* Lo que marca el medidor hoy es el total acumulado, no el consumo: el consumo es la diferencia con la lectura anterior. */}
           <p
             className={
-              consumo !== null && consumo < 0
+              finalMenor || (consumo !== null && consumo < 0)
                 ? "rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-2.5 text-[0.84rem] text-destructive"
                 : "rounded-lg bg-muted/60 px-3.5 py-2.5 text-[0.84rem] text-muted-foreground"
             }
           >
-            {anterior === null ? (
+            {finalMenor ? (
+              <>La lectura final del medidor viejo no puede ser menor que la anterior ({anterior} m³).</>
+            ) : cambioMedidor && anterior !== null && consumo !== null ? (
+              <>
+                Lectura anterior <strong className="tabular-nums">{anterior} m³</strong> · consumo del período{" "}
+                <strong className="tabular-nums">{consumo} m³</strong>
+                {final === null && " (sin la lectura final del viejo, solo cuenta lo del medidor nuevo)"}
+              </>
+            ) : anterior === null ? (
               "Escribe lo que marca el medidor ahora (el número acumulado, no el consumo). Si es la primera lectura de este arranque, no hay una anterior con la que comparar."
             ) : consumo === null ? (
               <>

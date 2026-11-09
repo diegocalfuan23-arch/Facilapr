@@ -12,7 +12,15 @@ export type LecturaCalculo = {
   inicial: boolean;
   /** La última lectura aprobada del socio (la base de la que está pendiente). */
   anterior: number | null;
+  /** Cambio de medidor: `valor` es lo que lleva el medidor nuevo (parte en 0) y `finalAnterior` lo que marcaba el viejo. */
+  medidorCambiado?: boolean;
+  finalAnterior?: number | null;
 };
+
+/** Consumo de una lectura contra su base; si hubo cambio de medidor, suma el tramo del viejo y el del nuevo. */
+export function consumoContra(l: Pick<LecturaCalculo, "valor" | "medidorCambiado" | "finalAnterior">, base: number): number {
+  return l.medidorCambiado ? (l.finalAnterior != null ? l.finalAnterior - base : 0) + l.valor : l.valor - base;
+}
 
 /** Las lecturas aprobadas de cada socio, de la más antigua a la más reciente. */
 export function aprobadasPorSocio<T extends LecturaCalculo>(lecturas: T[]): Map<string, T[]> {
@@ -41,7 +49,7 @@ export function anteriorDe(l: LecturaCalculo, aprobadas: Map<string, LecturaCalc
 /** El consumo de una lectura (m³): null si no hay una anterior con la que compararla. */
 export function consumoDe(l: LecturaCalculo, aprobadas: Map<string, LecturaCalculo[]>): number | null {
   const ant = anteriorDe(l, aprobadas);
-  return ant === null ? null : l.valor - ant;
+  return ant === null ? null : consumoContra(l, ant);
 }
 
 /** El consumo mensual típico de un socio: el promedio de sus últimos meses aprobados (hasta 6). Null si no hay base. */
@@ -49,8 +57,8 @@ export function promedioDe(socioId: string, aprobadas: Map<string, LecturaCalcul
   const lista = aprobadas.get(socioId) ?? [];
   const consumos: number[] = [];
   for (let i = 1; i < lista.length; i++) {
-    const c = lista[i].valor - lista[i - 1].valor;
-    // Las lecturas que retroceden (cambio de medidor) no sirven para promediar.
+    const c = consumoContra(lista[i], lista[i - 1].valor);
+    // Las lecturas que retroceden sin cambio de medidor registrado no sirven para promediar.
     if (c >= 0) consumos.push(c);
   }
   const ultimos = consumos.slice(-6);

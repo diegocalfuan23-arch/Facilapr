@@ -58,6 +58,8 @@ export async function registrarLectura(
     valor: aEntero(formData.get("valor")),
     observacion: formData.get("observacion") || undefined,
   });
+  const medidorCambiado = formData.get("medidorCambiado") === "1";
+  const finalAnterior = medidorCambiado ? aEntero(formData.get("lecturaFinalAnterior")) : null;
 
   if (!parsed.success) {
     return { ok: false, error: parsed.error.issues[0].message };
@@ -103,6 +105,8 @@ export async function registrarLectura(
     valor: datos.valor,
     observacion: datos.observacion ?? null,
     registradaPorId: user.id,
+    medidorCambiado,
+    lecturaFinalAnterior: finalAnterior,
   });
 
   return { ok: true };
@@ -133,6 +137,8 @@ async function aprobarNucleo(
       periodo: lecturas.periodo,
       valor: lecturas.valor,
       estado: lecturas.estado,
+      medidorCambiado: lecturas.medidorCambiado,
+      lecturaFinalAnterior: lecturas.lecturaFinalAnterior,
     })
     .from(lecturas)
     .innerJoin(socios, eq(lecturas.socioId, socios.id))
@@ -166,14 +172,15 @@ async function aprobarNucleo(
   const calculo = calcularDesdeLecturas(
     lecturaAnterior,
     actual.valor,
-    tarifasPara(apr, await usoDeSocio(actual.socioId))
+    tarifasPara(apr, await usoDeSocio(actual.socioId)),
+    actual.medidorCambiado ? { lecturaFinalAnterior: actual.lecturaFinalAnterior } : null
   );
 
   if (calculo && "error" in calculo) {
     return {
       ok: false,
       error: calculo.error,
-      codigo: actual.valor < lecturaAnterior ? "LECTURA_MENOR" : undefined,
+      codigo: !actual.medidorCambiado && actual.valor < lecturaAnterior ? "LECTURA_MENOR" : undefined,
     };
   }
   if (!calculo) {
@@ -327,6 +334,8 @@ async function lecturaDelComite(lecturaId: string, aprId: string) {
       valor: lecturas.valor,
       estado: lecturas.estado,
       createdAt: lecturas.createdAt,
+      medidorCambiado: lecturas.medidorCambiado,
+      lecturaFinalAnterior: lecturas.lecturaFinalAnterior,
     })
     .from(lecturas)
     .innerJoin(socios, eq(lecturas.socioId, socios.id))
@@ -429,7 +438,7 @@ export async function editarLectura(
   // Sin una lectura aprobada antes, la base es la que tenía su boleta (la que venía de antes).
   const anterior = previa[0]?.valor ?? boleta?.lecturaAnterior ?? null;
 
-  if (anterior !== null && valor < anterior) {
+  if (!l.medidorCambiado && anterior !== null && valor < anterior) {
     return {
       ok: false,
       error: `La lectura no puede ser menor que la anterior (${anterior}).`,
@@ -438,7 +447,12 @@ export async function editarLectura(
 
   let calculo: ReturnType<typeof calcularDesdeLecturas> = null;
   if (boleta) {
-    calculo = calcularDesdeLecturas(anterior ?? 0, valor, tarifasPara(apr, await usoDeSocio(l.socioId)));
+    calculo = calcularDesdeLecturas(
+      anterior ?? 0,
+      valor,
+      tarifasPara(apr, await usoDeSocio(l.socioId)),
+      l.medidorCambiado ? { lecturaFinalAnterior: l.lecturaFinalAnterior } : null
+    );
     if (calculo && "error" in calculo) return { ok: false, error: calculo.error };
     if (!calculo) {
       return { ok: false, error: "No se pudo recalcular la boleta con esa lectura." };
