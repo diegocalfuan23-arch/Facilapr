@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { useActionState, useCallback, useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import {
   AlertCircle,
@@ -60,6 +60,9 @@ import { SelectorMesLecturas, largoDeMes } from "@/components/panel/selector-mes
 import { aprobadasPorSocio, anteriorDe, consumoDe, ordenarRuta, promedioDe, type SocioDeRuta } from "@/lib/lecturas-calculos";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
 import { LecturasMasivasDialog } from "@/components/panel/lecturas-masivas-dialog";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
+import { consultarLecturas } from "@/app/panel/lecturas/consulta-actions";
+import type { DatosLecturas } from "@/lib/lecturas-datos";
 
 type Estado = "PENDIENTE" | "APROBADA" | "RECHAZADA";
 
@@ -230,17 +233,13 @@ function FilaLectura({ lectura: l, consumo, anteriorMedida, onRechazar, onAproba
 }
 
 /** Las lecturas del comité: carga siguiendo la ruta del mes (panel lateral) y revisión con filtros por mes y estado. */
-export function LecturasTabla({
-  lecturas,
-  socios,
-  arranquePorSocio,
-}: {
-  lecturas: LecturaFila[];
-  socios: SocioOpcion[];
-  /** El nombre del arranque (nodo de la red) de cada socio, para ordenar la ruta. */
-  arranquePorSocio: Record<string, string>;
-}) {
-  const router = useRouter();
+export function LecturasTabla({ datos }: { datos: DatosLecturas }) {
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 10 segundos y al volver a la pestaña.
+  const { data } = useQuery({ queryKey: ["lecturas"], queryFn: () => consultarLecturas(), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
+  const { lecturas, socios, arranquePorSocio } = data;
+  /** Después de cualquier cambio (aprobar, rechazar, editar, cargar), la lista se vuelve a pedir enseguida. */
+  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["lecturas"] }), [cliente]);
   const [hoy] = useState(() => new Date());
   const actual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
 
@@ -343,7 +342,7 @@ export function LecturasTabla({
     setRegistrados((r) => [...r, id]);
     setPrimero((p) => (p === id ? null : p));
     toast.success("Lectura registrada");
-    router.refresh();
+    volverAPedir();
   }
 
   const tarjetas = [
@@ -520,7 +519,7 @@ export function LecturasTabla({
                     consumo={consumoDe(l, aprobadas)}
                     anteriorMedida={anteriorDe(l, aprobadas)}
                     onRechazar={() => setRechazando(l)}
-                    onAprobada={() => router.refresh()}
+                    onAprobada={() => volverAPedir()}
                     onConfirmar={(motivo) => setConfirmando({ lectura: l, motivo })}
                     onEditar={() => setEditando(l)}
                     onEliminar={() => setEliminando(l)}
@@ -547,18 +546,18 @@ export function LecturasTabla({
         <PanelCargaLectura periodo={actual} totalSocios={socios.length} leidos={leidos} ruta={ruta} onCerrar={cerrarPanel} onSaltar={saltar} onIrA={irA} onRegistrada={registrada} />
       )}
 
-      <NuevaLecturaDialog abierto={creando} onAbiertoChange={setCreando} socios={socios} onRegistrada={() => router.refresh()} />
+      <NuevaLecturaDialog abierto={creando} onAbiertoChange={setCreando} socios={socios} onRegistrada={() => volverAPedir()} />
 
       <LecturasMasivasDialog abierto={iniciales} onAbiertoChange={setIniciales} />
 
-      <AprobarListasDialog abierto={aprobandoListas} onAbiertoChange={setAprobandoListas} listas={listas} onHecho={() => router.refresh()} />
+      <AprobarListasDialog abierto={aprobandoListas} onAbiertoChange={setAprobandoListas} listas={listas} onHecho={() => volverAPedir()} />
 
       <EditarLecturaDialog
         lectura={editando}
         onCerrar={() => setEditando(null)}
         onHecho={() => {
           setEditando(null);
-          router.refresh();
+          volverAPedir();
         }}
       />
 
@@ -567,7 +566,7 @@ export function LecturasTabla({
         onCerrar={() => setEliminando(null)}
         onHecho={() => {
           setEliminando(null);
-          router.refresh();
+          volverAPedir();
         }}
       />
 
@@ -576,11 +575,11 @@ export function LecturasTabla({
         onCerrar={() => setConfirmando(null)}
         onHecho={() => {
           setConfirmando(null);
-          router.refresh();
+          volverAPedir();
         }}
       />
 
-      <RechazarDialog lectura={rechazando} onOpenChange={(abierto) => !abierto && setRechazando(null)} onRechazada={() => router.refresh()} />
+      <RechazarDialog lectura={rechazando} onOpenChange={(abierto) => !abierto && setRechazando(null)} onRechazada={() => volverAPedir()} />
     </div>
   );
 }

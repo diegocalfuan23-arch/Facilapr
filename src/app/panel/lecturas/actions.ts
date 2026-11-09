@@ -105,7 +105,6 @@ export async function registrarLectura(
     registradaPorId: user.id,
   });
 
-  revalidatePath("/panel/lecturas");
   return { ok: true };
 }
 
@@ -239,7 +238,6 @@ async function aprobarNucleo(
 }
 
 function refrescarPantallas() {
-  revalidatePath("/panel/lecturas");
   revalidatePath("/panel/boletas");
   revalidatePath("/panel");
 }
@@ -316,7 +314,6 @@ export async function aprobarComoLecturaInicial(
     .set({ estado: "APROBADA", revisadaPorId: user.id, updatedAt: new Date() })
     .where(eq(lecturas.id, lecturaId));
 
-  revalidatePath("/panel/lecturas");
   return { ok: true };
 }
 
@@ -572,7 +569,6 @@ export async function rechazarLectura(
     })
     .where(eq(lecturas.id, lecturaId));
 
-  revalidatePath("/panel/lecturas");
   return { ok: true };
 }
 

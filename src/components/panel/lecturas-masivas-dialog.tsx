@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { AlertCircle, CheckCircle2, FileUp, Loader2 } from "lucide-react";
 import { aprobarLecturasListas } from "@/app/panel/lecturas/actions";
 import {
@@ -50,7 +50,6 @@ export function LecturasMasivasDialog({
   abierto: boolean;
   onAbiertoChange: (v: boolean) => void;
 }) {
-  const router = useRouter();
   const [modo, setModo] = useState<ModoLecturas>("mensual");
   // Vacío = se toma del archivo (de un encabezado como «agosto»); si ahí no está, se le pide al usuario.
   const [periodo, setPeriodo] = useState("");
@@ -115,7 +114,7 @@ export function LecturasMasivasDialog({
           ? { tipo: "iniciales", cargadas: r.cargadas }
           : { tipo: "pendientes", cargadas: r.cargadas, ids: r.ids }
       );
-      router.refresh();
+      avisarCambio("lecturas");
     });
   }
 
@@ -125,7 +124,7 @@ export function LecturasMasivasDialog({
       const r = await aprobarLecturasListas(ids);
       if (!r.ok) return setError(r.error);
       setFinal({ tipo: "aprobadas", aprobadas: r.aprobadas, fallidas: r.fallidas });
-      router.refresh();
+      avisarCambio("lecturas");
     });
   }
 
