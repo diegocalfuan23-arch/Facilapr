@@ -51,6 +51,10 @@ function Detalle({
   const [editando, setEditando] = useState(false);
   const punto = a.lat !== null && a.lng !== null ? { lat: a.lat, lng: a.lng } : undefined;
   const marcando = !punto || editando;
+  const [buscaSocio, setBuscaSocio] = useState("");
+  const q = sinTildes(buscaSocio.trim());
+  const sociosVistos = q ? a.socios.filter((s) => sinTildes(`${s.nombre} ${s.numero ?? ""}`).includes(q)) : a.socios;
+  const conBuscador = a.socios.length > 8;
 
   return (
     <div className="flex flex-col">
@@ -171,9 +175,16 @@ function Detalle({
             Agregar
           </Button>
         </div>
+        {conBuscador && (
+          <div className="relative mb-2">
+            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8A8799]" aria-hidden />
+            <Input value={buscaSocio} onChange={(e) => setBuscaSocio(e.target.value)} placeholder="Buscar socio o número" aria-label="Buscar entre los socios del arranque" className="h-9 pl-9 text-sm" />
+          </div>
+        )}
         {a.socios.length ? (
-          <ul className="-mx-2 flex flex-col">
-            {a.socios.map((s) => (
+          <ul className="-mx-2 flex max-h-[26rem] flex-col overflow-y-auto">
+            {sociosVistos.length === 0 && <li className={cn("px-2 py-4 text-center text-sm", GRIS)}>Ningún socio coincide.</li>}
+            {sociosVistos.map((s) => (
               <li key={s.id} className="group flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-[#F8F7FC]">
                 <AvatarSocio id={s.id} nombre={s.nombre} className="size-8" />
                 <span className="min-w-0 flex-1">
