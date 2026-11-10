@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -25,7 +24,7 @@ import {
   Tags,
   Trash2,
 } from "lucide-react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cerrarCaja, consultarCaja, eliminarMovimiento, type ResultadoFinanzas } from "@/app/panel/finanzas/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +34,10 @@ import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
 import { SaldoInicialDialog } from "@/components/panel/saldo-inicial-dialog";
 import {
+  diaVecino,
+  hoyEnChile,
+  mesVecino,
+  nombreMes,
   textoCategoria,
   textoMedioLinea,
   type CategoriaMovimientoPropia,
@@ -344,49 +347,66 @@ function Arqueo({ resumen, onVerCierre, onDefinirSaldo }: { resumen: ResumenPeri
 }
 
 type Props = {
+  /** El período con el que abre la pantalla. Después se cambia aquí mismo, sin recargar la página. */
   modo: "dia" | "mes";
   /** El primer día del período (AAAA-MM-DD). */
   desde: string;
-  /** "Noviembre 2026" en el mes. */
-  etiqueta: string;
-  hrefAnterior: string;
-  hrefSiguiente: string;
-  /** A dónde lleva el botón que cambia entre día y mes. */
-  hrefOtraVista: string;
-  /** El informe imprimible del mes, para la asamblea. Solo existe en la vista mensual. */
-  hrefInforme: string | null;
   /** Lo que muestra la Caja de este período: parte con lo que trajo el servidor y se actualiza sola. */
   datos: DatosCaja;
 };
+
+type Periodo = { modo: "dia" | "mes"; desde: string };
+
+/** La dirección que corresponde a un período, para que recargar o compartir la página caiga en el mismo lugar. */
+const urlDe = (p: Periodo) => (p.modo === "dia" ? `/panel/caja?vista=dia&dia=${p.desde}` : `/panel/caja?vista=mes&mes=${p.desde.slice(0, 7)}`);
 
 /**
  * La Caja del comité: navegador de día o mes, el disponible con su tendencia, dónde está la plata
  * (efectivo y banco), registro rápido, los movimientos y el arqueo para cerrar el día. Los pagos de
  * socios entran solos; el resto se anota a mano.
  */
-export function CajaVista({
-  modo,
-  desde,
-  etiqueta,
-  hrefAnterior,
-  hrefSiguiente,
-  hrefOtraVista,
-  hrefInforme,
-  datos,
-}: Props) {
+export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Props) {
   const { confirmar, dialogo } = useConfirmar();
-  const router = useRouter();
   const cliente = useQueryClient();
-  // Se vuelve a pedir cada 30 segundos y al volver a la pestaña: los pagos, compras y sueldos que se registran en otras
+  // El día o mes que se ve vive aquí: cambiarlo no vuelve a cargar la página, solo pide los datos de ese período
+  // (y mientras llegan se sigue viendo lo anterior). La dirección se actualiza para que recargar caiga en el mismo lugar.
+  const [periodo, setPeriodo] = useState<Periodo>({ modo: modoInicial, desde: desdeInicial });
+  const { modo, desde } = periodo;
+  const mesDe = desde.slice(0, 7);
+  const etiqueta = modo === "dia" ? desde : nombreMes(mesDe);
+  const hrefInforme = modo === "mes" ? `/informes/caja/${mesDe}` : null;
+  function irA(p: Periodo) {
+    setPeriodo(p);
+    window.history.replaceState(null, "", urlDe(p));
+  }
+  const vecino = (delta: number) => irA(modo === "dia" ? { modo, desde: diaVecino(desde, delta) } : { modo, desde: `${mesVecino(mesDe, delta)}-01` });
+  const otraVista = () => {
+    const hoy = hoyEnChile();
+    irA(modo === "dia" ? { modo: "mes", desde: `${mesDe}-01` } : { modo: "dia", desde: mesDe === hoy.slice(0, 7) ? hoy : `${mesDe}-01` });
+  };
+
+  // Se vuelve a pedir cada 10 segundos y al volver a la pestaña: los pagos, compras y sueldos que se registran en otras
   // pantallas, o por otra persona, aparecen solos.
-  const { data, dataUpdatedAt, isFetching } = useQuery({ queryKey: ["caja", modo, desde], queryFn: () => consultarCaja(modo, desde), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
+  const {
+    data: consulta,
+    dataUpdatedAt,
+    isFetching,
+    isPlaceholderData,
+  } = useQuery({
+    queryKey: ["caja", modo, desde],
+    queryFn: () => consultarCaja(modo, desde),
+    // Lo que trajo el servidor vale solo para el período con el que se abrió la pantalla.
+    initialData: modo === modoInicial && desde === desdeInicial ? datos : undefined,
+    placeholderData: keepPreviousData,
+    refetchInterval: INTERVALO_RAPIDO,
+  });
+  const data = consulta ?? datos;
   const { resumen, lineas, porCategoria, categoriasPropias, saldoInicial, tendencia } = data;
   /** Después de cualquier cambio hecho aquí, la Caja se vuelve a pedir enseguida. */
   const volverAPedir = useCallback(() => {
     void cliente.invalidateQueries({ queryKey: ["caja"] });
     avisarCambio("caja");
   }, [cliente]);
-  const [, navegar] = useTransition();
   const [borrando, iniciar] = useTransition();
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("todos");
@@ -448,7 +468,7 @@ export function CajaVista({
   });
 
   const esDia = modo === "dia";
-  const cerrada = resumen.cierre !== null;
+  const cerrada = resumen.cierre !== null && !isPlaceholderData;
   const bloqueada = esDia && cerrada;
   const ingresosCat = porCategoria.filter((c) => c.tipo === "INGRESO");
   const egresosCat = porCategoria.filter((c) => c.tipo === "EGRESO");
@@ -518,23 +538,23 @@ export function CajaVista({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex items-center rounded-xl bg-white/90 p-1 shadow-[0_2px_8px_rgba(58,12,227,0.05)]">
-            <Link href={hrefAnterior} aria-label={esDia ? "Día anterior" : "Mes anterior"} className="flex size-9 items-center justify-center rounded-lg hover:bg-[#F5F4FA]">
+            <button type="button" onClick={() => vecino(-1)} aria-label={esDia ? "Día anterior" : "Mes anterior"} className="flex size-9 items-center justify-center rounded-lg hover:bg-[#F5F4FA]">
               <ChevronLeft className="size-4" />
-            </Link>
+            </button>
             {esDia ? (
               <Input
                 type="date"
                 value={desde}
-                onChange={(e) => e.target.value && navegar(() => router.push(`/panel/caja?vista=dia&dia=${e.target.value}`))}
+                onChange={(e) => e.target.value && irA({ modo: "dia", desde: e.target.value })}
                 className="h-9 w-[150px] border-0 bg-transparent px-2 text-sm font-semibold shadow-none focus-visible:ring-0"
                 aria-label="Día"
               />
             ) : (
               <span className="flex h-9 min-w-36 items-center justify-center px-2.5 text-sm font-semibold capitalize">{etiqueta}</span>
             )}
-            <Link href={hrefSiguiente} aria-label={esDia ? "Día siguiente" : "Mes siguiente"} className="flex size-9 items-center justify-center rounded-lg hover:bg-[#F5F4FA]">
+            <button type="button" onClick={() => vecino(1)} aria-label={esDia ? "Día siguiente" : "Mes siguiente"} className="flex size-9 items-center justify-center rounded-lg hover:bg-[#F5F4FA]">
               <ChevronRight className="size-4" />
-            </Link>
+            </button>
           </div>
           <div role="group" aria-label="Ver por" className="flex rounded-xl bg-white/90 p-1 shadow-[0_2px_8px_rgba(58,12,227,0.05)]">
             {(
@@ -548,9 +568,9 @@ export function CajaVista({
                   {t}
                 </span>
               ) : (
-                <Link key={v} href={hrefOtraVista} className={cn("flex h-9 items-center rounded-lg px-3 text-sm font-semibold hover:bg-[#F5F4FA] sm:px-4", GRIS)}>
+                <button key={v} type="button" onClick={otraVista} className={cn("flex h-9 items-center rounded-lg px-3 text-sm font-semibold hover:bg-[#F5F4FA] sm:px-4", GRIS)}>
                   {t}
-                </Link>
+                </button>
               )
             )}
           </div>

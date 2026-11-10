@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { diaValido, hoyEnChile, diaVecino, mesValido, mesVecino, nombreMes } from "@/lib/finanzas";
+import { diaValido, mesValido } from "@/lib/finanzas";
 import { datosCaja } from "@/lib/caja-datos";
 import { CajaVista } from "@/components/panel/caja-vista";
 import { ConsultasProvider } from "@/components/panel/consultas-provider";
@@ -37,20 +37,8 @@ export default async function CajaPage({
       </div>
 
       <ConsultasProvider>
-        <CajaVista
-          modo={esDia ? "dia" : "mes"}
-          desde={desde}
-          etiqueta={esDia ? dia : nombreMes(mes)}
-          hrefAnterior={esDia ? `/panel/caja?vista=dia&dia=${diaVecino(dia, -1)}` : `/panel/caja?vista=mes&mes=${mesVecino(mes, -1)}`}
-          hrefSiguiente={esDia ? `/panel/caja?vista=dia&dia=${diaVecino(dia, 1)}` : `/panel/caja?vista=mes&mes=${mesVecino(mes, 1)}`}
-          hrefOtraVista={
-            esDia
-              ? `/panel/caja?vista=mes&mes=${dia.slice(0, 7)}`
-              : `/panel/caja?vista=dia&dia=${mes === hoyEnChile().slice(0, 7) ? hoyEnChile() : `${mes}-01`}`
-          }
-          hrefInforme={esDia ? null : `/informes/caja/${mes}`}
-          datos={datos}
-        />
+        {/* La clave hace que, si se llega aquí con otro día o mes desde otra pantalla, la vista parta de ese período. */}
+        <CajaVista key={`${esDia ? "dia" : "mes"}-${desde}`} modo={esDia ? "dia" : "mes"} desde={desde} datos={datos} />
       </ConsultasProvider>
     </div>
   );

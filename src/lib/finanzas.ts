@@ -11,6 +11,7 @@ import {
   TIPO_SALDO_INICIAL,
   diaVecino,
   esMedioBanco,
+  mesVecino,
   textoCategoria,
   type Bolsillos,
   type CategoriaMovimientoPropia,
@@ -36,23 +37,6 @@ export function mesValido(texto: string | undefined): string {
   return new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago", year: "numeric", month: "2-digit" })
     .format(new Date())
     .slice(0, 7);
-}
-
-/** El mes de al lado (delta = -1 o +1), en AAAA-MM. */
-export function mesVecino(mes: string, delta: number): string {
-  const [a, m] = mes.split("-").map(Number);
-  const d = new Date(Date.UTC(a, m - 1 + delta, 1));
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
-const NOMBRE_MES = [
-  "enero", "febrero", "marzo", "abril", "mayo", "junio",
-  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
-];
-
-export function nombreMes(mes: string) {
-  const [a, m] = mes.split("-").map(Number);
-  return `${NOMBRE_MES[m - 1]} ${a}`;
 }
 
 /** Todo lo del mes, ordenado del día más reciente al más antiguo. */

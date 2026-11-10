@@ -201,6 +201,23 @@ export function diaVecino(dia: string, delta: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** El mes de al lado (delta = -1 o +1), en AAAA-MM. */
+export function mesVecino(mes: string, delta: number): string {
+  const [a, m] = mes.split("-").map(Number);
+  const d = new Date(Date.UTC(a, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+const NOMBRE_MES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+export function nombreMes(mes: string) {
+  const [a, m] = mes.split("-").map(Number);
+  return `${NOMBRE_MES[m - 1]} ${a}`;
+}
+
 /** Todo lo que muestra la pantalla de Caja para un día o un mes. */
 export type DatosCaja = {
   resumen: ResumenPeriodo;
