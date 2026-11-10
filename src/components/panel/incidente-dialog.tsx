@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { TIPOS_INCIDENTE, afectaUnBien, type ActivoAfectable, type EstadoIncidente, type IncidenteFila } from "@/lib/incidentes-comun";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
@@ -45,6 +46,8 @@ export function IncidenteDialog({ incidente, activos, onCerrar }: { incidente: I
   useEffect(() => {
     if (estado?.ok) {
       toast.success(editando ? "Incidente actualizado" : "Incidente registrado");
+      // El costo va a la Caja y el bien afectado cambia de estado en Activos.
+      avisarCambio("caja", "activos");
       onCerrar();
     }
   }, [estado, editando, onCerrar]);
@@ -56,6 +59,7 @@ export function IncidenteDialog({ incidente, activos, onCerrar }: { incidente: I
       const r = await eliminarIncidente(incidente.id);
       if (r.ok) {
         toast.success("Incidente borrado");
+        avisarCambio("caja");
         onCerrar();
       } else {
         toast.error(r.error);

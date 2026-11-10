@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { CATEGORIAS_ACTIVO, type ActivoFila } from "@/lib/activos-comun";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 const campo = "h-10 px-3 text-[0.95rem]";
 const etiqueta = "mb-2 block text-[0.8rem] font-medium";
@@ -30,6 +31,7 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
   useEffect(() => {
     if (estado?.ok) {
       toast.success(editando ? "Bien actualizado" : "Bien registrado");
+      avisarCambio("caja", "activos");
       onCerrar();
     }
   }, [estado, editando, onCerrar]);
@@ -47,6 +49,7 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
       const r = await eliminarActivo(activo.id);
       if (r.ok) {
         toast.success("Bien borrado");
+        avisarCambio("caja", "activos");
         onCerrar();
       } else {
         toast.error(r.error);

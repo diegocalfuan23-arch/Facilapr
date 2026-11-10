@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import { cerrarPrestamo, crearPrestamo, eliminarPrestamo, type ResultadoPrestamos } from "@/app/panel/prestamos/actions";
 import { Button } from "@/components/ui/button";
 import { useConfirmar } from "@/components/ui/confirmar";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,8 +43,10 @@ export function PrestamosVista({ prestamos, personas }: { prestamos: PrestamoFil
     if (!(await confirmar({ titulo: `¿Borrar el ${TEXTO_TIPO_PRESTAMO[p.tipo].toLowerCase()} de ${p.trabajador}?`, descripcion: p.costoEnCaja ? "También se quita la entrega de la Caja." : "No se puede deshacer.", boton: "Borrar" }))) return;
     iniciar(async () => {
       const r = await eliminarPrestamo(p.id);
-      if (r.ok) toast.success("Borrado");
-      else toast.error(r.error);
+      if (r.ok) {
+        toast.success("Borrado");
+        avisarCambio("caja");
+      } else toast.error(r.error);
     });
   }
 
@@ -146,6 +149,7 @@ function PrestamoDialog({ personas, onCerrar }: { personas: { id: string; nombre
   useEffect(() => {
     if (estado?.ok) {
       toast.success("Registrado");
+      avisarCambio("caja");
       onCerrar();
     }
   }, [estado, onCerrar]);
