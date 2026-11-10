@@ -45,8 +45,12 @@ function Fila({ etiqueta, valor, fuerte = false }: { etiqueta: string; valor: st
 }
 
 function Boleta() {
-  const [cargo, setCargo] = useState(2100)
-  const [m3, setM3] = useState(450)
+  // Se guardan como texto para que escribir no deje un cero adelante («040000»); los números salen de ahí.
+  const [cargoTexto, setCargoTexto] = useState("2100")
+  const [m3Texto, setM3Texto] = useState("450")
+  const soloDigitos = (v: string) => v.replace(/\D/g, "").replace(/^0+(?=\d)/, "").slice(0, 7)
+  const cargo = Number(cargoTexto) || 0
+  const m3 = Number(m3Texto) || 0
   const [consumo, setConsumo] = useState(14)
   const campo = `${MONO} mt-1 h-11 rounded-xl border-[#E4E1F0] bg-[#F7F6FC] shadow-none`
   return (
@@ -77,11 +81,11 @@ function Boleta() {
         <div className="mt-2 grid grid-cols-2 gap-3">
           <div>
             <label htmlFor="b-cargo" className="text-[13px] font-medium">Cargo fijo</label>
-            <Input id="b-cargo" type="number" min="0" value={cargo} onChange={(e) => setCargo(Number(e.target.value))} className={campo} />
+            <Input id="b-cargo" inputMode="numeric" value={cargoTexto} onChange={(e) => setCargoTexto(soloDigitos(e.target.value))} className={campo} />
           </div>
           <div>
             <label htmlFor="b-m3" className="text-[13px] font-medium">Valor del m³</label>
-            <Input id="b-m3" type="number" min="0" value={m3} onChange={(e) => setM3(Number(e.target.value))} className={campo} />
+            <Input id="b-m3" inputMode="numeric" value={m3Texto} onChange={(e) => setM3Texto(soloDigitos(e.target.value))} className={campo} />
           </div>
         </div>
 
