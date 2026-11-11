@@ -88,8 +88,14 @@ function descargarCsv(lineas: LineaLibro[], nombre: string, propias: CategoriaMo
   const a = document.createElement("a");
   a.href = url;
   a.download = `caja-${nombre}.csv`;
+  // El enlace va dentro de la página y el archivo se libera después: algunos navegadores cancelan la descarga si no.
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => {
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, 1000);
 }
 
 /** Un egreso que nació en otro módulo (Compras, Personal, Incidentes): se maneja desde ahí, no se borra desde la Caja. */
