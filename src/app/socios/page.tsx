@@ -123,8 +123,34 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
           </p>
         )}
 
-        <p className="mt-10 text-[0.85rem] text-muted-foreground">
-          ¿Tu comité no aparece? No todos están en el buscador: pídele a la directiva el enlace directo a tu cuenta.{" "}
+        <section className="mt-10 rounded-xl border border-border bg-card p-5">
+          <h2 className="text-[1rem] font-semibold">¿Tu comité no aparece o no usa Facilapr?</h2>
+          <p className="mt-1.5 text-[0.9rem] text-muted-foreground">
+            Con Facilapr el comité cobra, registra los pagos y envía las boletas desde el celular, y tú ves tu cuenta en
+            línea. Cuéntale a tu directiva.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(
+                "Hola, vi Facilapr, un sistema para comités de agua potable rural: cobros, boletas y pagos desde el celular. Mira si nos sirve: https://facilapr.cl"
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-primary px-4 py-2 text-[0.88rem] font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Avisar a mi directiva por WhatsApp
+            </a>
+            <Link
+              href="/#contacto"
+              className="rounded-lg border border-border px-4 py-2 text-[0.88rem] font-medium hover:border-primary/40"
+            >
+              Soy dirigente: quiero conocerlo
+            </Link>
+          </div>
+        </section>
+
+        <p className="mt-6 text-[0.85rem] text-muted-foreground">
+          Algunos comités no están en el buscador: pídele a la directiva el enlace directo a tu cuenta.{" "}
           <Link href="/ayuda/como-pagar-cuenta-agua-potable-rural-apr" className="font-medium text-primary hover:underline">
             Cómo pagar tu cuenta del APR
           </Link>
