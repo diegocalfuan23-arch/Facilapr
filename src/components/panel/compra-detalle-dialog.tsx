@@ -39,7 +39,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Compra pagada: el egreso quedó en Caja");
-      avisarCambio("caja");
+      avisarCambio("caja", "compras", "inventario");
       onCerrar();
     });
   }
@@ -53,7 +53,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Egreso anotado en Caja");
-      avisarCambio("caja");
+      avisarCambio("caja", "compras", "inventario");
       onCerrar();
     });
   }
@@ -69,7 +69,7 @@ export function CompraDetalleDialog({ compra, onCerrar }: { compra: CompraFila; 
         return;
       }
       toast.success("Compra anulada");
-      avisarCambio("caja");
+      avisarCambio("caja", "compras", "inventario");
       onCerrar();
     });
   }

@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { guardarInsumo, type ResultadoInventario } from "@/app/panel/inventario/actions";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -33,6 +34,7 @@ export function InsumoDialog({
   useEffect(() => {
     if (estado?.ok) {
       toast.success(editando ? "Material actualizado" : "Material registrado");
+      avisarCambio("inventario");
       onCerrar();
     }
   }, [estado, editando, onCerrar]);

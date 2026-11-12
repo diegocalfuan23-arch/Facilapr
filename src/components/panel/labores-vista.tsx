@@ -4,6 +4,7 @@ import { useCallback, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarDays, Check, ClipboardList, Clock3, Droplet, MapPin, Package, Wrench, type LucideIcon } from "lucide-react";
 import { cambiarEstadoLabor } from "@/app/panel/labores/actions";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LaborDialog } from "@/components/panel/labor-dialog";
@@ -87,6 +88,7 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
       const r = await cambiarEstadoLabor(l.id, destino);
       if (r.ok) {
         // La tarjeta ya se movió; lo que cambió en el inventario se avisa al pasar a/desde Hecha.
+        if (l.materiales.length > 0 && (destino === "HECHA" || origen === "HECHA")) avisarCambio("inventario");
         if (destino === "HECHA" && l.materiales.length > 0) toast.success("Materiales descontados del inventario");
         if (origen === "HECHA" && l.materiales.length > 0) toast.success("Materiales devueltos al inventario");
       } else {

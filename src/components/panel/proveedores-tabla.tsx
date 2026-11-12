@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { AlertTriangle, Mail, MoreHorizontal, Pencil, Phone, Plus, Search, ShoppingCart, Trash2, Truck } from "lucide-react";
 import { eliminarProveedor } from "@/app/panel/compras/actions";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -80,8 +81,10 @@ export function ProveedoresTabla({
     if (!(await confirmar({ titulo: `¿Eliminar a «${p.nombre}»?`, descripcion: "No tiene compras registradas, así que se borra por completo.", boton: "Eliminar" }))) return;
     iniciar(async () => {
       const r = await eliminarProveedor(p.id);
-      if (r.ok) toast.success("Proveedor eliminado");
-      else toast.error(r.error);
+      if (r.ok) {
+        toast.success("Proveedor eliminado");
+        avisarCambio("compras");
+      } else toast.error(r.error);
     });
   }
 

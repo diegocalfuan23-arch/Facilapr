@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
 import { crearCategoria, eliminarCategoria, renombrarCategoria } from "@/app/panel/inventario/actions";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,7 @@ export function CategoriasDialog({
         return;
       }
       toast.success("Categoría creada");
+      avisarCambio("inventario");
       setNombre("");
     });
   }
@@ -72,6 +74,7 @@ export function CategoriasDialog({
         return;
       }
       toast.success("Categoría renombrada");
+      avisarCambio("inventario");
       cancelarEdicion();
     });
   }
@@ -84,8 +87,10 @@ export function CategoriasDialog({
     iniciar(async () => {
       const r = await eliminarCategoria(c.id);
       setBorrandoId(null);
-      if (r.ok) toast.success("Categoría borrada");
-      else toast.error(r.error);
+      if (r.ok) {
+        toast.success("Categoría borrada");
+        avisarCambio("inventario");
+      } else toast.error(r.error);
     });
   }
 

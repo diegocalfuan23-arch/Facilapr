@@ -13,10 +13,20 @@ import { CONDICIONES_PAGO, totalesDe } from "@/lib/compras-comun";
 import { formatearRut, normalizarRut, rutValido } from "@/lib/formato";
 import { anotarCambioStock } from "@/lib/inventario-historial";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
+import { listarCompras, listarProveedores } from "@/lib/compras";
+import type { CompraFila, ProveedorFila } from "@/lib/compras-comun";
 
 export type ResultadoCompras = { ok: true } | { ok: false; error: string };
 
 const SIN_PLAN = "Las compras están disponibles desde el plan Estándar.";
+
+/** Las compras y los proveedores del comité, para que la pantalla los vuelva a pedir sin recargar la página (la usa TanStack Query). */
+export async function consultarCompras(): Promise<{ compras: CompraFila[]; proveedores: ProveedorFila[] }> {
+  const { apr } = await requireFinanzas();
+  if (!puede(apr.plan as Plan, "finanzas")) return { compras: [], proveedores: [] };
+  const [filas, provs] = await Promise.all([listarCompras(apr.id), listarProveedores(apr.id)]);
+  return { compras: filas, proveedores: provs };
+}
 
 function refrescar() {
   revalidatePath("/panel/compras");

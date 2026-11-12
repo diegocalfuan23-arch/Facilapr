@@ -7,17 +7,34 @@ import { db } from "@/lib/db";
 import { categoriasInsumo, insumos } from "@/lib/db/schema";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { anotarCambioStock } from "@/lib/inventario-historial";
+import { anotarCambioStock, listarHistorial } from "@/lib/inventario-historial";
+import { listarCategorias, listarInsumos } from "@/lib/inventario";
+import { avanzarLaboresVencidas } from "@/lib/labores-auto";
 import {
   CATEGORIA_NUEVA,
   CATEGORIAS_INSUMO,
   PREFIJO_CATEGORIA_PROPIA,
   UNIDADES_INSUMO,
+  type CategoriaPropia,
+  type Insumo,
+  type MovimientoStockFila,
 } from "@/lib/inventario-comun";
 
 export type ResultadoInventario = { ok: true } | { ok: false; error: string };
 
 const SIN_PLAN = "El inventario está disponible desde el plan Estándar.";
+
+export type DatosInventario = { insumos: Insumo[]; categoriasPropias: CategoriaPropia[]; historial: MovimientoStockFila[] };
+
+/** Lo que muestra Inventario, para que la pantalla lo vuelva a pedir sin recargar la página (la usa TanStack Query). */
+export async function consultarInventario(): Promise<DatosInventario> {
+  const { apr } = await requireFinanzas();
+  if (!puede(apr.plan as Plan, "inventario")) return { insumos: [], categoriasPropias: [], historial: [] };
+  // Una labor que terminó a su hora descuenta materiales: se aplica antes de mostrar el stock.
+  await avanzarLaboresVencidas(apr.id);
+  const [filas, propias, movimientos] = await Promise.all([listarInsumos(apr.id), listarCategorias(apr.id), listarHistorial(apr.id)]);
+  return { insumos: filas, categoriasPropias: propias, historial: movimientos };
+}
 
 /** Una cantidad escrita a la chilena: acepta «1,5» y descarta espacios. Vacío es 0. */
 function aCantidad(v: FormDataEntryValue | null) {

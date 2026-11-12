@@ -6,6 +6,7 @@ import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import { listarCompras, listarProveedores } from "@/lib/compras";
 import { ComprasVista } from "@/components/panel/compras-vista";
+import { ConsultasProvider } from "@/components/panel/consultas-provider";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -34,7 +35,9 @@ export default async function ComprasPage() {
         </Link>
       </div>
 
-      <ComprasVista compras={compras} proveedores={proveedores} />
+      <ConsultasProvider>
+        <ComprasVista compras={compras} proveedores={proveedores} />
+      </ConsultasProvider>
     </div>
   );
 }

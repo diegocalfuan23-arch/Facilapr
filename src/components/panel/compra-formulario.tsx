@@ -228,7 +228,7 @@ export function CompraFormulario({ proveedores, insumos, proveedorInicial }: { p
         return;
       }
       toast.success(`Compra C-${r.numero} registrada`);
-      avisarCambio("caja");
+      avisarCambio("caja", "compras", "inventario");
       router.push("/panel/compras");
     });
   }

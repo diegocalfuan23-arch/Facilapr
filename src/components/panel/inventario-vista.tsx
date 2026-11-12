@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BellOff, Boxes, ChevronDown, Coins, Droplets, History, Loader2, Plus, Search, Smartphone, Tag, Trash2, TriangleAlert, Wrench, Zap, type LucideIcon } from "lucide-react";
-import { ajustarStock, eliminarInsumo } from "@/app/panel/inventario/actions";
+import { ajustarStock, consultarInventario, eliminarInsumo, type DatosInventario } from "@/app/panel/inventario/actions";
+import { INTERVALO_RAPIDO, avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -142,6 +144,7 @@ function AjusteDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => vo
         return;
       }
       toast.success(tipo === "ENTRADA" ? "Entrada registrada" : "Salida registrada");
+      avisarCambio("inventario");
       onCerrar();
     });
   }
@@ -240,6 +243,7 @@ function EliminarDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => 
       const r = await eliminarInsumo(insumo.id);
       if (r.ok) {
         toast.success("Material eliminado");
+        avisarCambio("inventario");
         onCerrar();
       } else {
         toast.error(r.error);
@@ -272,15 +276,36 @@ function EliminarDialog({ insumo, onCerrar }: { insumo: Insumo; onCerrar: () => 
  * El inventario de bodega del comité: cuánto vale lo que hay, qué se está acabando y el historial de
  * cada entrada y salida. Cada material dice cuánto hay y avisa cuando está por acabarse.
  */
+/** La consulta de Inventario: parte con lo que trajo el servidor y se actualiza sola (cada 10 segundos, al volver a la pestaña y cuando otra pestaña avisa un cambio). */
+function useDatosInventario(inicial: DatosInventario) {
+  return useQuery({ queryKey: ["inventario"], queryFn: () => consultarInventario(), initialData: inicial, refetchInterval: INTERVALO_RAPIDO }).data;
+}
+
+/** La frase bajo el título: cuántos materiales hay y cuántos están por acabarse. */
+export function ResumenInventario({ inicial }: { inicial: DatosInventario }) {
+  const { insumos } = useDatosInventario(inicial);
+  const bajos = insumos.filter(estaBajo).length;
+  return (
+    <>
+      {insumos.length === 0
+        ? "Cloro, cañerías, medidores, repuestos: lo que guardas en bodega."
+        : bajos > 0
+          ? `${insumos.length} en total, ${bajos} a punto de acabarse.`
+          : `${insumos.length} ${insumos.length === 1 ? "material registrado" : "materiales registrados"}.`}
+    </>
+  );
+}
+
 export function InventarioVista({
-  insumos,
-  categoriasPropias,
-  historial,
+  insumos: insumosIniciales,
+  categoriasPropias: propiasIniciales,
+  historial: historialInicial,
 }: {
   insumos: Insumo[];
   categoriasPropias: CategoriaPropia[];
   historial: MovimientoStockFila[];
 }) {
+  const { insumos, categoriasPropias, historial } = useDatosInventario({ insumos: insumosIniciales, categoriasPropias: propiasIniciales, historial: historialInicial });
   const [vista, setVista] = useState<"materiales" | "historial">("materiales");
   const [busquedaHistorial, setBusquedaHistorial] = useState("");
   const [busqueda, setBusqueda] = useState("");

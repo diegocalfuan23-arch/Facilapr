@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { guardarProveedor, type ResultadoCompras } from "@/app/panel/compras/actions";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export function ProveedorDialog({ proveedor, onCerrar }: { proveedor: ProveedorF
   useEffect(() => {
     if (estado?.ok) {
       toast.success(editando ? "Proveedor actualizado" : "Proveedor registrado");
+      avisarCambio("compras");
       onCerrar();
     }
   }, [estado, editando, onCerrar]);

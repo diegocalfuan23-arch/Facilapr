@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { CalendarClock, CheckCircle2, ClipboardPlus, Clock3, Loader2, Package, Plus, Trash2, X, type LucideIcon } from "lucide-react";
 import { eliminarLabor, guardarLabor, type ResultadoLabores } from "@/app/panel/labores/actions";
+import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -120,6 +121,7 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
   useEffect(() => {
     if (resultado?.ok) {
       toast.success(editando ? "Labor actualizada" : "Labor registrada");
+      avisarCambio("inventario");
       onCerrar();
     }
   }, [resultado, editando, onCerrar]);
@@ -151,6 +153,7 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
       const r = await eliminarLabor(labor.id);
       if (r.ok) {
         toast.success("Labor borrada");
+        avisarCambio("inventario");
         onCerrar();
       } else {
         toast.error(r.error);

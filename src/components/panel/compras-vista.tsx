@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useState, useTransition } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { ChevronDown, Plus, Search } from "lucide-react";
-import { asignarProveedor } from "@/app/panel/compras/actions";
+import { asignarProveedor, consultarCompras } from "@/app/panel/compras/actions";
+import { INTERVALO_RAPIDO, avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CompraDetalleDialog } from "@/components/panel/compra-detalle-dialog";
@@ -65,8 +67,10 @@ function Proveedor({ compra, proveedores }: { compra: CompraFila; proveedores: P
           if (!id) return;
           iniciar(async () => {
             const r = await asignarProveedor(compra.id, id);
-            if (r.ok) toast.success("Proveedor asignado");
-            else toast.error(r.error);
+            if (r.ok) {
+              toast.success("Proveedor asignado");
+              avisarCambio("compras");
+            } else toast.error(r.error);
           });
         }}
         className="h-9 max-w-full cursor-pointer appearance-none bg-transparent pr-5 text-[15px] font-semibold text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
@@ -89,7 +93,15 @@ function Proveedor({ compra, proveedores }: { compra: CompraFila; proveedores: P
  * Las compras del comité: lo que se compra a los proveedores y lo que todavía se debe. Una compra
  * por pagar es una cuenta por pagar: se ve cuánto se debe y cuáles ya vencieron.
  */
-export function ComprasVista({ compras, proveedores }: { compras: CompraFila[]; proveedores: ProveedorFila[] }) {
+export function ComprasVista({ compras: comprasIniciales, proveedores: proveedoresIniciales }: { compras: CompraFila[]; proveedores: ProveedorFila[] }) {
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 10 segundos, al volver a la pestaña y cuando otra pestaña avisa un cambio.
+  const { data } = useQuery({
+    queryKey: ["compras"],
+    queryFn: () => consultarCompras(),
+    initialData: { compras: comprasIniciales, proveedores: proveedoresIniciales },
+    refetchInterval: INTERVALO_RAPIDO,
+  });
+  const { compras, proveedores } = data;
   const [pestana, setPestana] = useState<"compras" | "proveedores">("compras");
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todas");

@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { estaBajo, listarCategorias, listarInsumos } from "@/lib/inventario";
+import { listarCategorias, listarInsumos } from "@/lib/inventario";
 import { avanzarLaboresVencidas } from "@/lib/labores-auto";
 import { listarHistorial } from "@/lib/inventario-historial";
-import { InventarioVista } from "@/components/panel/inventario-vista";
+import { InventarioVista, ResumenInventario } from "@/components/panel/inventario-vista";
+import { ConsultasProvider } from "@/components/panel/consultas-provider";
 
 export const metadata: Metadata = {
   title: "Inventario",
@@ -25,22 +26,19 @@ export default async function InventarioPage() {
     listarCategorias(apr.id),
     listarHistorial(apr.id),
   ]);
-  const bajos = insumos.filter(estaBajo).length;
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Inventario</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">
-          {insumos.length === 0
-            ? "Cloro, cañerías, medidores, repuestos: lo que guardas en bodega."
-            : bajos > 0
-              ? `${insumos.length} en total, ${bajos} a punto de acabarse.`
-              : `${insumos.length} ${insumos.length === 1 ? "material registrado" : "materiales registrados"}.`}
-        </p>
-      </div>
+    <ConsultasProvider>
+      <div className="flex flex-col gap-8">
+        <div>
+          <h1 className="text-[32px] leading-tight font-bold tracking-tight">Inventario</h1>
+          <p className="mt-1 text-[15px] text-muted-foreground">
+            <ResumenInventario inicial={{ insumos, categoriasPropias, historial }} />
+          </p>
+        </div>
 
-      <InventarioVista insumos={insumos} categoriasPropias={categoriasPropias} historial={historial} />
-    </div>
+        <InventarioVista insumos={insumos} categoriasPropias={categoriasPropias} historial={historial} />
+      </div>
+    </ConsultasProvider>
   );
 }
