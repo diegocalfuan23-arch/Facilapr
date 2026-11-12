@@ -355,7 +355,7 @@ export function InventarioVista({
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+      <section aria-label="Resumen" className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4" data-tour="inv-kpis">
         <ValorInventario insumos={insumos} total={valor} />
         <Kpi label="Materiales" valor={String(insumos.length)} detalle={`${nCategorias} ${nCategorias === 1 ? "categoría" : "categorías"}`} icono={Boxes} tono="bg-primary/10 text-primary" />
         <Kpi
@@ -369,7 +369,7 @@ export function InventarioVista({
 
       {/* Una sola fila: las pestañas a la izquierda y las acciones principales a la derecha. */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="grid w-full grid-cols-2 gap-1 rounded-full bg-muted p-1 sm:w-60" role="tablist" aria-label="Sección">
+        <div className="grid w-full grid-cols-2 gap-1 rounded-full bg-muted p-1 sm:w-60" role="tablist" aria-label="Sección" data-tour="inv-pestanas">
           {(
             [
               ["materiales", "Materiales"],
@@ -394,7 +394,7 @@ export function InventarioVista({
         </div>
 
         {vista === "materiales" && (
-          <div className="flex gap-2">
+          <div className="flex gap-2" data-tour="inv-acciones">
             <Button variant="outline" className={cn(alto, "flex-1 rounded-full px-4 font-semibold sm:flex-none")} onClick={() => setGestionandoCategorias(true)}>
               <Tag />
               Categorías

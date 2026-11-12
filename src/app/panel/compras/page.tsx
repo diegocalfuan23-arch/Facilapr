@@ -29,7 +29,7 @@ export default async function ComprasPage() {
           <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Compras</h1>
           <p className="mt-1 text-[15px] text-[#5B5970]">Lo que compras a tus proveedores y lo que todavía debes.</p>
         </div>
-        <Link href="/panel/compras/nueva" className={cn(buttonVariants(), "h-10 rounded-lg px-4 font-semibold")}>
+        <Link href="/panel/compras/nueva" data-tour="com-nueva" className={cn(buttonVariants(), "h-10 rounded-lg px-4 font-semibold")}>
           <Plus />
           Nueva compra
         </Link>

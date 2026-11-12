@@ -138,14 +138,14 @@ export function ComprasVista({ compras: comprasIniciales, proveedores: proveedor
 
   return (
     <div className="flex flex-col gap-4">
-      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4">
+      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4" data-tour="com-kpis">
         <Stat clase="col-span-2 lg:col-span-1" label="Por pagar" valor={clp(totalPorPagar)} detalle={vencidas.length ? `${clp(totalVencido)} vencido` : "Nada vencido"} />
         <Stat label="Comprado este mes" valor={clp(compradoEsteMes)} detalle={`${delMes.length} compra${delMes.length === 1 ? "" : "s"}`} />
         <Stat label="Proveedores" valor={String(proveedores.length)} detalle={sinProveedor ? `${sinProveedor} compra${sinProveedor === 1 ? "" : "s"} sin asignar` : "Todas asignadas"} />
       </section>
 
       <div className="mt-1 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div role="tablist" aria-label="Vista" className="grid grid-cols-2 gap-1 rounded-lg bg-white/80 p-1 lg:w-[240px]">
+        <div role="tablist" aria-label="Vista" className="grid grid-cols-2 gap-1 rounded-lg bg-white/80 p-1 lg:w-[240px]" data-tour="com-pestanas">
           {(
             [
               ["compras", "Compras"],

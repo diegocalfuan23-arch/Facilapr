@@ -206,7 +206,7 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4">
+      <section aria-label="Resumen" className="grid grid-cols-2 gap-2 sm:gap-4 lg:grid-cols-4" data-tour="act-kpis">
         <Kpi label="Bienes" valor={String(vigentes.length)} icono={Boxes} tono={VIOLETA} nota={activos.length > vigentes.length ? `${activos.length - vigentes.length} dados de baja` : undefined} />
         <Kpi label="Costo de adquisición" valor={clp.format(costoTotal)} icono={ReceiptText} tono={AZUL} />
         <Kpi label="Valor actual" valor={clp.format(valorTotal)} icono={Coins} tono={VERDE} resaltado="verde" />
@@ -214,7 +214,7 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
       </section>
 
       <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="relative w-full md:max-w-md">
+        <div className="relative w-full md:max-w-md" data-tour="act-buscar">
           <Search className="absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input
             value={busqueda}
@@ -241,7 +241,7 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
               </option>
             ))}
           </select>
-          <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
+          <Button data-tour="act-nuevo" className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
             <Plus aria-hidden />
             Nuevo bien
           </Button>

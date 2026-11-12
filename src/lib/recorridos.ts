@@ -455,6 +455,113 @@ export const RECORRIDOS: Recorrido[] = [
 
 export const RECORRIDOS_NUEVOS: Recorrido[] = [
   {
+    id: "compras",
+    capacidad: "finanzas",
+    ruta: "/panel/compras",
+    titulo: "Compras y proveedores",
+    resumen: "Registrar lo que compras, saber cuánto debes y a quién.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("com-kpis"),
+        titulo: "Cuánto debes",
+        texto:
+          "Por pagar es lo que todavía no has pagado, y debajo ves cuánto de eso ya venció. También ves cuánto compraste este mes y cuántos proveedores tienes, con un aviso si hay compras sin proveedor asignado.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("com-nueva"),
+        titulo: "Registrar una compra",
+        texto:
+          "Eliges el proveedor y el documento, y agregas los ítems. Cada ítem puede venir del inventario (suma stock), ser un material nuevo (se crea y suma stock) o ser solo un gasto. Si se paga al contado queda pagada; si tiene plazo, queda por pagar con su fecha de vencimiento.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("com-pestanas"),
+        titulo: "Compras y proveedores",
+        texto:
+          "En Compras ves cada compra con su estado: por pagar, pagada o anulada. En Proveedores llevas tus contactos y el plazo de pago de cada uno, para que el vencimiento se calcule solo.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Pagar o anular",
+        texto:
+          "Abre una compra para marcarla como pagada: eso anota el egreso en la Caja. Si la anulas, el stock que había sumado vuelve a lo que era. El stock sube al registrar la compra, no al pagarla.",
+      },
+    ],
+  },
+  {
+    id: "inventario",
+    capacidad: "inventario",
+    ruta: "/panel/inventario",
+    titulo: "Inventario de bodega",
+    resumen: "Materiales, stock, avisos de stock bajo e historial de movimientos.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("inv-kpis"),
+        titulo: "Lo que tienes en bodega",
+        texto:
+          "El valor total del inventario, cuántos materiales hay y cuántos están con stock bajo. Si un material no tiene aviso definido, el resumen te lo indica.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("inv-acciones"),
+        titulo: "Crear materiales y categorías",
+        texto:
+          "Nuevo material: nombre, unidad, stock, costo y el stock mínimo desde el que quieres que te avise. Con Categorías los ordenas, por ejemplo cloro, cañerías o repuestos.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Ajustar el stock",
+        texto:
+          "En la fila de cada material puedes registrar una entrada (una donación o una devolución) o una salida (una reparación o la cloración), y anotas el motivo. La cantidad no puede pasar de lo que hay.",
+      },
+      {
+        selector: enMenu("inv-pestanas"),
+        titulo: "El historial",
+        texto:
+          "En Historial queda cada movimiento: quién lo hizo, cuándo y por qué. Así sabes adónde se fue un material. Las compras y las labores también mueven el stock y quedan anotadas ahí.",
+        lado: "bottom",
+      },
+    ],
+  },
+  {
+    id: "activos",
+    capacidad: "activos",
+    ruta: "/panel/activos",
+    titulo: "Activos fijos",
+    resumen: "Los bienes del comité, con su costo y cuánto valen hoy.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("act-kpis"),
+        titulo: "El patrimonio del comité",
+        texto:
+          "Cuántos bienes tienes, cuánto costaron, cuánto valen hoy y cuántos están en reparación. Sirve para mostrarlo en la asamblea.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("act-nuevo"),
+        titulo: "Registrar un bien",
+        texto:
+          "Una bomba, el estanque, un medidor, un terreno. Anotas el costo, la fecha de compra y la vida útil en años. Un terreno se registra con vida útil 0 y no se deprecia.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Cómo se calcula el valor de hoy",
+        texto:
+          "El valor baja en partes iguales, mes completo a mes completo, hasta agotar la vida útil. Es una referencia para el comité y no reemplaza la contabilidad de un contador.",
+      },
+      {
+        selector: enMenu("act-buscar"),
+        titulo: "Buscar y filtrar",
+        texto: "Busca por nombre, código o ubicación, o filtra por categoría para ver solo un tipo de bien.",
+        lado: "bottom",
+      },
+    ],
+  },
+  {
     id: "caja",
     capacidad: "finanzas",
     ruta: "/panel/caja",
