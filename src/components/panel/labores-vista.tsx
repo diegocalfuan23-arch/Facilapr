@@ -118,7 +118,7 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <section aria-label="Resumen" className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4" data-tour="lab-kpis">
         <Kpi etiqueta="Programadas" valor={String(programadas)} icono={CalendarDays} tono="bg-sky-600" />
         <Kpi etiqueta="En curso" valor={String(enCurso)} icono={Clock3} tono="bg-amber-600" />
         <Kpi etiqueta="Hechas este mes" valor={String(hechasMes.length)} icono={Check} tono="bg-emerald-600" />
@@ -133,7 +133,7 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
           className={cn(alto, "rounded-full px-5 text-[0.95rem] sm:w-96")}
           aria-label="Buscar"
         />
-        <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
+        <Button data-tour="lab-nueva" className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
           + Nueva labor
         </Button>
       </div>

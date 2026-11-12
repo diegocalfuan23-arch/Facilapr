@@ -278,7 +278,7 @@ export function ArranquesVista({ arranques, socios, sinTablas }: { arranques: Ar
         <p className={cn("mt-0.5 text-[15px]", GRIS)}>Los arranques de tu red y los socios que abastece cada uno.</p>
       </div>
       {!sinTablas && (
-        <div className="flex gap-2">
+        <div className="flex gap-2" data-tour="arr-acciones">
           <Button variant="outline" onClick={() => setAsignando({})} disabled={arranques.length === 0 || nLibres === 0} className="h-10 flex-1 rounded-lg border-[#E4E1F0] bg-white font-semibold sm:flex-none">
             <UserPlus />
             Asignar socios
@@ -378,7 +378,7 @@ export function ArranquesVista({ arranques, socios, sinTablas }: { arranques: Ar
                 <h2 className="text-[15px] font-semibold">
                   Arranques <span className={cn("font-normal", GRIS)}>· {visibles.length}</span>
                 </h2>
-                <div role="radiogroup" aria-label="Vista" className="flex rounded-lg bg-[#F4F3F9] p-0.5">
+                <div role="radiogroup" aria-label="Vista" data-tour="arr-vista" className="flex rounded-lg bg-[#F4F3F9] p-0.5">
                   {(
                     [
                       ["lista", "Lista", List],

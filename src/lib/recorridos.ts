@@ -562,6 +562,176 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
     ],
   },
   {
+    id: "giros",
+    capacidad: "finanzas",
+    ruta: "/panel/giros",
+    titulo: "Giros y depósitos",
+    resumen: "Mover plata entre el banco y el efectivo sin que cuente como ingreso ni gasto.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("gir-saldos"),
+        titulo: "Cuánto hay en cada lugar",
+        texto:
+          "Aquí ves cuánta plata hay en efectivo y cuánta en el banco, calculado desde el saldo inicial que definiste en Caja. Si todavía no lo defines, no se puede saber, y los botones quedan apagados.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("gir-acciones"),
+        titulo: "Giro y depósito",
+        texto:
+          "Giro: sacaste plata del banco y ahora la tienes en efectivo. Depósito: llevaste efectivo al banco. La plata total del comité no cambia, solo dónde está, por eso no cuentan como ingreso ni como gasto.",
+        lado: "bottom",
+      },
+      {
+        titulo: "El historial",
+        texto:
+          "Debajo queda la lista de giros y depósitos, con cuánto se giró y cuánto se depositó en total. Uno anotado por error se borra desde su fila y los saldos se recalculan.",
+      },
+    ],
+  },
+  {
+    id: "reportes",
+    capacidad: "finanzas",
+    ruta: "/panel/reportes",
+    titulo: "Reportes del año",
+    resumen: "Cuánto entró y salió mes a mes, y si la plata cuadra con la Caja.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("rep-totales"),
+        titulo: "Los totales del año",
+        texto:
+          "Lo que entró, lo que salió y lo que quedó. Con las flechas de arriba cambias de año.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Mes a mes",
+        texto:
+          "El gráfico compara los ingresos y los egresos de cada mes, para ver en cuáles se gastó más de lo que entró.",
+      },
+      {
+        selector: enMenu("rep-cuadre"),
+        titulo: "Cuadre con Caja",
+        texto:
+          "Parte del saldo inicial, suma los ingresos y resta los egresos para decirte cuánta plata debería haber. Lo compara con la que hay en la Caja. Si no coinciden, algo quedó sin anotar o se anotó de más.",
+        lado: "left",
+      },
+      {
+        selector: enMenu("rep-detalle"),
+        titulo: "Detalle y informe de cada mes",
+        texto:
+          "Cada mes con sus números, y un enlace al informe de ese mes para presentarlo en la asamblea.",
+        lado: "top",
+      },
+      {
+        selector: enMenu("rep-descargar"),
+        titulo: "Descargar",
+        texto: "Baja los movimientos en Excel o el informe del período en PDF.",
+        lado: "bottom",
+      },
+    ],
+  },
+  {
+    id: "labores",
+    capacidad: "inventario",
+    ruta: "/panel/labores",
+    titulo: "Labores y materiales",
+    resumen: "Los trabajos del comité, y los materiales que gastan del inventario.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("lab-kpis"),
+        titulo: "El estado de los trabajos",
+        texto:
+          "Cuántas labores hay programadas, cuántas en curso, cuántas se hicieron este mes y cuánto costaron los materiales que usaron.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("lab-nueva"),
+        titulo: "Registrar una labor",
+        texto:
+          "Le pones título, lugar, responsable y fecha, y agregas los materiales que va a usar, elegidos desde tu inventario.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Programadas, en curso y hechas",
+        texto:
+          "Cada labor avanza por tres columnas. Al marcarla como Hecha, los materiales se descuentan solos del inventario y quedan anotados en su historial. Si la devuelves a una etapa anterior, el stock vuelve a lo que era.",
+      },
+    ],
+  },
+  {
+    id: "incidentes",
+    capacidad: "incidentes",
+    ruta: "/panel/incidentes",
+    titulo: "Incidentes del sistema de agua",
+    resumen: "Fugas, fallas y cortes: de que se abren a que se resuelven, y cuánto costó.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("inc-nuevo"),
+        titulo: "Registrar un incidente",
+        texto:
+          "Anotas qué pasó, de qué tipo es, su prioridad, la fecha, el lugar y una descripción. Si el incidente fue de un bien del comité, por ejemplo una bomba, puedes asociarlo a ese activo fijo.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("inc-kpis"),
+        titulo: "Cómo vas",
+        texto:
+          "Cuántos incidentes hay sin resolver y cuántos son de prioridad alta, el más antiguo que sigue abierto, cuántos se resolvieron este mes y en cuántos días en promedio, y cuánto costó arreglarlos.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("inc-pestanas"),
+        titulo: "Las tres etapas",
+        texto:
+          "Abierto, En reparación y Resuelto. Abre un incidente para ver su detalle y pasarlo a la etapa siguiente con el botón que aparece abajo.",
+        lado: "bottom",
+      },
+      {
+        titulo: "El costo llega a la Caja",
+        texto:
+          "Si anotas lo que costó la reparación, queda como egreso en la Caja. Si después cambias el costo, el egreso se ajusta solo.",
+      },
+    ],
+  },
+  {
+    id: "arranques",
+    capacidad: "arranques",
+    ruta: "/panel/arranques",
+    titulo: "Arranques de la red",
+    resumen: "Las conexiones de tu red y los socios que abastece cada una.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("arr-acciones"),
+        titulo: "Crear y asignar",
+        texto:
+          "Nuevo arranque: un punto de tu red, con su nombre y ubicación. Asignar socios: eliges qué socios abastece cada arranque. El botón se apaga si todavía no hay arranques o si todos los socios ya tienen uno.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Cuántos socios tienen arranque",
+        texto:
+          "La barra muestra cuántos de tus socios ya están asignados a un arranque, para ver cuánto falta de catastrar.",
+      },
+      {
+        selector: enMenu("arr-vista"),
+        titulo: "Lista o mapa",
+        texto:
+          "En Lista buscas por arranque, lugar o socio. En Mapa ves dónde está cada arranque en el terreno.",
+        lado: "bottom",
+      },
+      {
+        titulo: "El detalle de un arranque",
+        texto:
+          "Al abrir uno ves su ubicación, con un enlace para abrir la ruta hasta ahí, y los socios que abastece. Desde ahí agregas o quitas socios.",
+      },
+    ],
+  },
+  {
     id: "caja",
     capacidad: "finanzas",
     ruta: "/panel/caja",

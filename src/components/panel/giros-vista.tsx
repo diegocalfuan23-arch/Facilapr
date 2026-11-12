@@ -51,7 +51,7 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos }: { bolsillo
           {haySaldoInicial && <p className="mt-3 text-[0.8rem] text-muted-foreground">Tu saldo inicial es posterior a hoy.</p>}
         </div>
       ) : (
-        <section aria-label="Efectivo y banco" className="grid gap-4 sm:grid-cols-3">
+        <section aria-label="Efectivo y banco" className="grid gap-4 sm:grid-cols-3" data-tour="gir-saldos">
           {[
             { titulo: "En efectivo", icono: Banknote, valor: bolsillos.efectivo },
             { titulo: "En el banco", icono: Landmark, valor: bolsillos.banco },
@@ -85,7 +85,7 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos }: { bolsillo
             ? "Aún no hay giros ni depósitos."
             : `${traspasos.length} movimiento${traspasos.length === 1 ? "" : "s"} · girado ${clp.format(totalGirado)} · depositado ${clp.format(totalDepositado)}`}
         </p>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-tour="gir-acciones">
           <Button variant="outline" className="h-10 rounded-full px-4 text-[0.9rem]" onClick={() => setCreando(TIPO_DEPOSITO)} disabled={!bolsillos}>
             <ArrowDownToLine />
             Depósito

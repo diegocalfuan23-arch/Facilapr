@@ -286,7 +286,7 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
             )}
           </div>
           <div className="relative">
-            <Button variant="outline" aria-expanded={descarga} onClick={() => setDescarga((v) => !v)} className="h-11 rounded-full bg-card font-semibold">
+            <Button data-tour="rep-descargar" variant="outline" aria-expanded={descarga} onClick={() => setDescarga((v) => !v)} className="h-11 rounded-full bg-card font-semibold">
               <Download />
               Descargar
             </Button>
@@ -323,7 +323,7 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
         </button>
       )}
 
-      <div role="group" aria-label="Totales" className={cn(TARJETA, "grid divide-y divide-border overflow-hidden lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:divide-y-0")}>
+      <div role="group" aria-label="Totales" data-tour="rep-totales" className={cn(TARJETA, "grid divide-y divide-border overflow-hidden lg:grid-cols-[1fr_auto_1fr_auto_1fr] lg:divide-y-0")}>
         <Total label={`Ingresos ${alcance}`} valor={clp(ing)} detalle={mes ? "Del mes" : `${conDatos.length} ${conDatos.length === 1 ? "mes" : "meses"} con movimientos`} />
         <Operador c="−" />
         <Total label={`Egresos ${alcance}`} valor={clp(egr)} detalle={ing ? `${Math.round((egr / ing) * 100)}% de los ingresos` : "Sin ingresos"} />
@@ -339,7 +339,7 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
           <GraficoMovil meses={meses} sel={sel} onSel={elegir} />
         </section>
 
-        <section className={cn(TARJETA, "flex flex-col p-5 lg:col-span-5")}>
+        <section data-tour="rep-cuadre" className={cn(TARJETA, "flex flex-col p-5 lg:col-span-5")}>
           <h2 className="text-lg font-bold">Cuadre con Caja</h2>
           <p className="text-sm text-muted-foreground">Lo que debería haber contra lo que hay</p>
           {cuadre ? (
@@ -395,7 +395,7 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
           <Reparto titulo="A dónde fue la plata" lineas={destino} color={C_EGR} vacio="Sin egresos este año." />
         </div>
 
-        <section className={cn(TARJETA, "min-w-0 overflow-hidden lg:col-span-8")}>
+        <section data-tour="rep-detalle" className={cn(TARJETA, "min-w-0 overflow-hidden lg:col-span-8")}>
           <h2 className="px-5 pt-5 pb-2 text-lg font-bold">Detalle por mes</h2>
           {conDatos.length === 0 ? (
             <p className="px-5 pb-5 text-[0.9rem] text-muted-foreground">Sin movimientos en {anio}.</p>

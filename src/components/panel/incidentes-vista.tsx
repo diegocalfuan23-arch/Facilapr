@@ -252,13 +252,13 @@ export function IncidentesVista({ incidentes, activos: bienes }: { incidentes: I
           <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Incidentes</h1>
           <p className={cn("mt-1 text-[15px]", GRIS)}>Fugas, fallas y cortes del sistema de agua, y lo que costó repararlos.</p>
         </div>
-        <Button className="h-11 w-full rounded-full px-4 font-semibold sm:h-10 sm:w-auto sm:rounded-lg" onClick={() => setCreando(true)}>
+        <Button data-tour="inc-nuevo" className="h-11 w-full rounded-full px-4 font-semibold sm:h-10 sm:w-auto sm:rounded-lg" onClick={() => setCreando(true)}>
           <Plus />
           Nuevo incidente
         </Button>
       </div>
 
-      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
+      <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4" data-tour="inc-kpis">
         <Stat label="Sin resolver" valor={String(activos.length)} detalle={altas ? `${altas} de prioridad alta` : "Ninguno de prioridad alta"} aviso={altas > 0} />
         <Stat label="Más antiguo abierto" valor={activos.length ? `${masAntiguo} ${masAntiguo === 1 ? "día" : "días"}` : "—"} detalle={activos.length ? "Desde que se reportó" : "Todo al día"} />
         <Stat label="Resueltos este mes" valor={String(resueltosMes.length)} detalle={resueltosMes.length ? `${promedio} ${promedio === 1 ? "día" : "días"} en promedio` : "Aún ninguno"} />
@@ -300,7 +300,7 @@ export function IncidentesVista({ incidentes, activos: bienes }: { incidentes: I
 
       {/* Computador y tableta: las pestañas con contador, el buscador y el filtro de prioridad. */}
       <div className="mt-2 hidden flex-col gap-3 md:flex xl:flex-row xl:items-center xl:justify-between">
-        <div role="tablist" aria-label="Estado" className="flex gap-1 overflow-x-auto rounded-lg bg-white/80 p-1">
+        <div role="tablist" aria-label="Estado" data-tour="inc-pestanas" className="flex gap-1 overflow-x-auto rounded-lg bg-white/80 p-1">
           {pestanas.map(([v, n, c]) => (
             <button
               key={v}
