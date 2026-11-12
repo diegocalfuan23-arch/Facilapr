@@ -321,6 +321,8 @@ export const pagos = pgTable(
   (table) => [
     index("Pago_boletaId_idx").on(table.boletaId),
     index("Pago_socioId_idx").on(table.socioId),
+    // Un mismo pago de Mercado Pago no se registra dos veces, aunque lleguen dos avisos a la vez.
+    uniqueIndex("Pago_medio_referencia_key").on(table.medio, table.referencia).where(sql`${table.medio} = 'MERCADO_PAGO' AND ${table.referencia} IS NOT NULL`),
   ]
 );
 
