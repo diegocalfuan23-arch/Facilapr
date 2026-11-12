@@ -58,7 +58,7 @@ function horaChile(d: Date) {
 async function lineasEntre(aprId: string, desde: string, hasta: string): Promise<LineaLibro[]> {
 
   // Si la tabla de movimientos todavía no existe en la base, el libro sigue mostrando los pagos de socios.
-  const deMovimientos = await db
+  const deMovimientosP = db
     .select({ m: movimientos, registradoPor: usuarios.name })
     .from(movimientos)
     .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
@@ -79,7 +79,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
 
   // La fecha del pago lleva hora: se pasa al día de Chile para que un pago de las 23:30 no caiga en otro mes.
   const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
-  const deSocios = await db
+  const deSociosP = db
     .select({
       id: pagos.id,
       dia: diaChile,
@@ -106,6 +106,9 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
       )
     )
     .orderBy(asc(pagos.fecha));
+
+  // Las dos consultas salen juntas: no hay por qué esperar una para pedir la otra.
+  const [deMovimientos, deSocios] = await Promise.all([deMovimientosP, deSociosP]);
 
   const lineas: LineaLibro[] = [
     ...deMovimientos.map(({ m, registradoPor }) => ({
@@ -206,7 +209,7 @@ export async function saldoInicialDe(aprId: string) {
  * los movimientos anotados más los pagos de socios. No cuenta el saldo inicial ni los cierres.
  */
 export async function netoEntre(aprId: string, desde: string, hasta: string) {
-  const movs = await db
+  const movsP = db
     .select({
       ingresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'INGRESO' then ${movimientos.monto} else 0 end), 0)::int`,
       egresos: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'EGRESO' then ${movimientos.monto} else 0 end), 0)::int`,
@@ -215,12 +218,13 @@ export async function netoEntre(aprId: string, desde: string, hasta: string) {
     .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${desde}`, sql`${movimientos.fecha} < ${hasta}`));
 
   const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
-  const [deSocios] = await db
+  const deSociosP = db
     .select({ total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
     .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
     .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`));
+  const [movs, [deSocios]] = await Promise.all([movsP, deSociosP]);
 
   return { ingresos: (movs[0]?.ingresos ?? 0) + (deSocios?.total ?? 0), egresos: movs[0]?.egresos ?? 0 };
 }
@@ -245,7 +249,7 @@ async function netoBolsillos(aprId: string, desde: string, hasta: string): Promi
     else neto.efectivo += monto;
   };
 
-  const movs = await db
+  const movsP = db
     .select({ tipo: movimientos.tipo, medio: movimientos.medio, total: sql<number>`coalesce(sum(${movimientos.monto}), 0)::int` })
     .from(movimientos)
     .where(
@@ -257,6 +261,15 @@ async function netoBolsillos(aprId: string, desde: string, hasta: string): Promi
       )
     )
     .groupBy(movimientos.tipo, movimientos.medio);
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const deSociosP = db
+    .select({ medio: pagos.medio, total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
+    .from(pagos)
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`))
+    .groupBy(pagos.medio);
+  const [movs, deSocios] = await Promise.all([movsP, deSociosP]);
   for (const m of movs) {
     if (m.tipo === "INGRESO") sumar(m.medio, m.total);
     else if (m.tipo === "EGRESO") sumar(m.medio, -m.total);
@@ -268,15 +281,6 @@ async function netoBolsillos(aprId: string, desde: string, hasta: string): Promi
       neto.banco += m.total;
     }
   }
-
-  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
-  const deSocios = await db
-    .select({ medio: pagos.medio, total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
-    .from(pagos)
-    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
-    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
-    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`))
-    .groupBy(pagos.medio);
   for (const p of deSocios) sumar(p.medio, p.total);
 
   return neto;
@@ -289,8 +293,11 @@ async function netoBolsillos(aprId: string, desde: string, hasta: string): Promi
 export async function bolsillosAl(aprId: string, dia: string): Promise<Bolsillos | null> {
   const base = await saldoInicialDe(aprId);
   if (!base || base.fecha > dia) return null;
-  const banco0 = Math.min(await saldoBancoDe(aprId), base.monto);
-  const neto = base.fecha < dia ? await netoBolsillos(aprId, base.fecha, dia) : { efectivo: 0, banco: 0 };
+  const [bancoInicial, neto] = await Promise.all([
+    saldoBancoDe(aprId),
+    base.fecha < dia ? netoBolsillos(aprId, base.fecha, dia) : Promise.resolve({ efectivo: 0, banco: 0 }),
+  ]);
+  const banco0 = Math.min(bancoInicial, base.monto);
   return { efectivo: base.monto - banco0 + neto.efectivo, banco: banco0 + neto.banco };
 }
 
@@ -324,31 +331,23 @@ export async function resumenPeriodo(
   aprId: string,
   desde: string,
   hasta: string,
-  lineas: LineaLibro[]
+  lineasPedidas: LineaLibro[] | Promise<LineaLibro[]>
 ): Promise<ResumenPeriodo> {
   const base = await saldoInicialDe(aprId);
 
   // Desde cuándo se cuenta: normalmente el inicio del período; o el día del saldo inicial, si cae adentro.
   const inicio = base && base.fecha > desde && base.fecha < hasta ? base.fecha : desde;
 
-  let disponibleAnterior: number | null = null;
-  if (base && base.fecha <= inicio) {
-    const previo = base.fecha < inicio ? await netoEntre(aprId, base.fecha, inicio) : { ingresos: 0, egresos: 0 };
-    disponibleAnterior = base.monto + previo.ingresos - previo.egresos;
-  }
-
+  // Todo lo que sigue es independiente entre sí: sale junto.
+  const previoP = base && base.fecha < inicio ? netoEntre(aprId, base.fecha, inicio) : Promise.resolve({ ingresos: 0, egresos: 0 });
   // Cuánta plata hay en efectivo y en el banco al empezar y al terminar el período.
-  const bolsillosAnterior = base ? await bolsillosAl(aprId, inicio).catch(() => null) : null;
-  const bolsillos = base ? await bolsillosAl(aprId, hasta).catch(() => null) : null;
-
-  const contables = base ? lineas.filter((l) => l.fecha >= inicio) : lineas;
-  const ingresos = contables.filter((l) => l.tipo === "INGRESO").reduce((s, l) => s + l.monto, 0);
-  const egresos = contables.filter((l) => l.tipo === "EGRESO").reduce((s, l) => s + l.monto, 0);
+  const bolsillosAnteriorP = base ? bolsillosAl(aprId, inicio).catch(() => null) : Promise.resolve(null);
+  const bolsillosP = base ? bolsillosAl(aprId, hasta).catch(() => null) : Promise.resolve(null);
 
   // Un cierre de caja es de un solo día.
   const esUnDia = diaVecino(desde, 1) === hasta;
-  const [cierre] = esUnDia
-    ? await db
+  const cierreP = esUnDia
+    ? db
         .select({
           comentario: movimientos.concepto,
           disponible: movimientos.monto,
@@ -361,7 +360,13 @@ export async function resumenPeriodo(
         .where(and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, TIPO_CIERRE), eq(movimientos.fecha, desde)))
         .limit(1)
         .catch(() => [])
-    : [];
+    : Promise.resolve([] as { comentario: string; disponible: number; cerradoPor: string | null; efectivoContado: number | null; diferenciaArqueo: number | null }[]);
+  const [previo, bolsillosAnterior, bolsillos, [cierre]] = await Promise.all([previoP, bolsillosAnteriorP, bolsillosP, cierreP]);
+  const lineas = await lineasPedidas;
+  const contables = base ? lineas.filter((l) => l.fecha >= inicio) : lineas;
+  const ingresos = contables.filter((l) => l.tipo === "INGRESO").reduce((s, l) => s + l.monto, 0);
+  const egresos = contables.filter((l) => l.tipo === "EGRESO").reduce((s, l) => s + l.monto, 0);
+  const disponibleAnterior: number | null = base && base.fecha <= inicio ? base.monto + previo.ingresos - previo.egresos : null;
 
   return {
     desde,
@@ -400,12 +405,12 @@ export async function tendenciaDisponible(aprId: string, hasta: string, dias = 7
   const primero = validos[0];
   const fin = diaVecino(hasta, 1);
 
-  const antes = primero > base.fecha ? await netoEntre(aprId, base.fecha, primero) : { ingresos: 0, egresos: 0 };
+  const antesP = primero > base.fecha ? netoEntre(aprId, base.fecha, primero) : Promise.resolve({ ingresos: 0, egresos: 0 });
 
   const porDia = new Map<string, number>();
   const sumar = (dia: string, monto: number) => porDia.set(dia, (porDia.get(dia) ?? 0) + monto);
 
-  const movs = await db
+  const movsP = db
     .select({
       dia: movimientos.fecha,
       neto: sql<number>`coalesce(sum(case when ${movimientos.tipo} = 'INGRESO' then ${movimientos.monto} when ${movimientos.tipo} = 'EGRESO' then -${movimientos.monto} else 0 end), 0)::int`,
@@ -413,16 +418,17 @@ export async function tendenciaDisponible(aprId: string, hasta: string, dias = 7
     .from(movimientos)
     .where(and(eq(movimientos.aprId, aprId), sql`${movimientos.fecha} >= ${primero}`, sql`${movimientos.fecha} < ${fin}`))
     .groupBy(movimientos.fecha);
-  for (const m of movs) sumar(m.dia, m.neto);
 
   const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
-  const deSocios = await db
+  const deSociosP = db
     .select({ dia: diaChile, total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
     .from(pagos)
     .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
     .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
     .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${primero}`, sql`${diaChile} < ${fin}`))
     .groupBy(diaChile);
+  const [antes, movs, deSocios] = await Promise.all([antesP, movsP, deSociosP]);
+  for (const m of movs) sumar(m.dia, m.neto);
   for (const p of deSocios) sumar(p.dia, p.total);
 
   let acumulado = base.monto + antes.ingresos - antes.egresos;

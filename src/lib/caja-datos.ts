@@ -31,9 +31,11 @@ export async function datosCaja(aprId: string, esDia: boolean, dia: string, mes:
   const desde = esDia ? dia : `${mes}-01`;
   const hasta = esDia ? diaVecino(dia, 1) : `${mesVecino(mes, 1)}-01`;
 
-  const lineas = await (esDia ? libroDelDia(aprId, dia) : libroDelMes(aprId, mes));
-  const [resumen, saldoInicialBase, categoriasPropias, saldoBanco, tendencia] = await Promise.all([
-    resumenPeriodo(aprId, desde, hasta, lineas),
+  // Todo sale junto: el libro y el resumen no dependen uno del otro para pedirse.
+  const lineasP = esDia ? libroDelDia(aprId, dia) : libroDelMes(aprId, mes);
+  const [lineas, resumen, saldoInicialBase, categoriasPropias, saldoBanco, tendencia] = await Promise.all([
+    lineasP,
+    resumenPeriodo(aprId, desde, hasta, lineasP),
     saldoInicialDe(aprId),
     listarCategoriasMovimiento(aprId),
     saldoBancoDe(aprId),
