@@ -4,9 +4,10 @@ import Link from "next/link";
 import { ArrowRight, Clock, ExternalLink, ListChecks } from "lucide-react";
 import { RECORRIDOS, RECORRIDOS_NUEVOS } from "@/lib/recorridos";
 import { lanzarRecorrido } from "@/components/panel/recorrido";
+import { puede, type Plan } from "@/lib/planes";
 
 /** Lista de recorridos: cada uno lleva a su pantalla y la va explicando parte por parte. */
-export function AyudaRecorridos() {
+export function AyudaRecorridos({ plan }: { plan: Plan }) {
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -17,7 +18,7 @@ export function AyudaRecorridos() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
-        {[...RECORRIDOS, ...RECORRIDOS_NUEVOS].map((r) => (
+        {[...RECORRIDOS, ...RECORRIDOS_NUEVOS].filter((r) => !r.capacidad || puede(plan, r.capacidad)).map((r) => (
           <button
             key={r.id}
             type="button"

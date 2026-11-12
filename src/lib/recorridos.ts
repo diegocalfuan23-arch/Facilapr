@@ -7,6 +7,8 @@
  * menú en el celular), ese paso se omite solo.
  */
 
+import type { Capacidad } from "@/lib/planes";
+
 export type PasoRecorrido = {
   /** Selector CSS del elemento a resaltar. Sin selector, el paso va al centro. */
   selector?: string;
@@ -22,6 +24,8 @@ export type PasoRecorrido = {
 
 export type Recorrido = {
   id: string;
+  /** El módulo que hace falta en el plan para ver este recorrido. Sin él, es para todos los planes. */
+  capacidad?: Capacidad;
   /** Pantalla donde ocurre. Si se pide desde otra, se navega primero. */
   ruta: string;
   titulo: string;
@@ -450,6 +454,56 @@ export const RECORRIDOS: Recorrido[] = [
 ];
 
 export const RECORRIDOS_NUEVOS: Recorrido[] = [
+  {
+    id: "caja",
+    capacidad: "finanzas",
+    ruta: "/panel/caja",
+    titulo: "Caja: lo que entra, lo que sale y cuánto hay",
+    resumen: "Ver el día o el mes, anotar movimientos, cerrar la caja y sacar el informe.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("caj-periodo"),
+        titulo: "Elige el día o el mes",
+        texto:
+          "Con las flechas y el selector te mueves entre días, o pasas a la vista del mes. Todo lo de abajo se calcula para el período que elijas.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("caj-resumen"),
+        titulo: "Cuánta plata hay",
+        texto:
+          "Arriba, el disponible. Debajo, de dónde partías (el disponible anterior), lo que entró, lo que salió y con cuánto terminas. Si ya definiste el saldo inicial, también ves cuánto está en efectivo y cuánto en el banco.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Los pagos de tus socios entran solos",
+        texto:
+          "Cada pago que registras en Pagos, o que un socio hace en línea, aparece aquí como ingreso. Solo anotas a mano lo que no viene de un socio, como un gasto o un aporte.",
+      },
+      {
+        selector: enMenu("caj-rapido"),
+        titulo: "Anota un movimiento",
+        texto:
+          "Ingreso: entra plata. Egreso: sale plata. Giro: sacas plata del banco para tener efectivo. Depósito: llevas efectivo al banco. Giros y depósitos no cuentan como ingreso ni gasto, solo cambian dónde está la plata.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("caj-movimientos"),
+        titulo: "Todos los movimientos",
+        texto:
+          "La lista del período, con búsqueda y filtros por tipo y origen. Cada línea indica de dónde viene: un pago de socio, una compra o algo anotado a mano. Una que anotaste por error se borra desde su propia fila.",
+        lado: "top",
+      },
+      {
+        selector: enMenu("caj-acciones"),
+        titulo: "Cerrar la caja y el informe",
+        texto:
+          "Cerrar caja deja el día confirmado: cuentas el efectivo que hay y el sistema te muestra si cuadra con lo anotado. Un día cerrado no admite cambios hasta que lo reabras. En el menú de los tres puntos están el saldo inicial, las categorías, el informe del mes para la asamblea y la descarga a Excel.",
+        lado: "left",
+      },
+    ],
+  },
   {
     id: "pagos",
     ruta: "/panel/pagos",

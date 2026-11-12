@@ -542,7 +542,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
     <div className="flex flex-col gap-4">
       {/* Acciones */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" data-tour="caj-periodo">
           <div className="flex items-center rounded-xl bg-white/90 p-1 shadow-[0_2px_8px_rgba(58,12,227,0.05)]">
             <button type="button" onClick={() => vecino(-1)} aria-label={esDia ? "Día anterior" : "Mes anterior"} className="flex size-9 items-center justify-center rounded-lg hover:bg-[#F5F4FA]">
               <ChevronLeft className="size-4" />
@@ -588,7 +588,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
           )}
         </div>
 
-        <div className="flex w-full gap-2 lg:w-auto">
+        <div className="flex w-full gap-2 lg:w-auto" data-tour="caj-acciones">
           {resumen.bolsillos && (
             <Link href="/panel/giros" className={cn(buttonVariants({ variant: "outline" }), "hidden h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold sm:inline-flex")} title="Sacar plata del banco o depositar efectivo">
               <ArrowLeftRight />
@@ -648,7 +648,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
 
       {/* Resumen */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className={cn("flex flex-col gap-6 rounded-2xl bg-card p-5 sm:p-6 lg:col-span-7", SOMBRA)}>
+        <div className={cn("flex flex-col gap-6 rounded-2xl bg-card p-5 sm:p-6 lg:col-span-7", SOMBRA)} data-tour="caj-resumen">
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex flex-col">
               <p className={cn("text-[13px] font-medium", GRIS)}>{esDia ? "Disponible del día" : "Disponible al cierre del mes"}</p>
@@ -764,14 +764,14 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
 
       <div className={cn("grid grid-cols-1 gap-4", esDia && "lg:grid-cols-[minmax(0,1fr)_340px]")}>
         <div className="flex min-w-0 flex-col gap-4">
-          <div role="group" aria-label="Registrar rápido" className="grid grid-cols-4 gap-2 sm:gap-3">
+          <div role="group" aria-label="Registrar rápido" className="grid grid-cols-4 gap-2 sm:gap-3" data-tour="caj-rapido">
             {botonRapido({ titulo: "Ingreso", detalle: "Entra plata", icono: ArrowDownLeft, color: "bg-[#E6F6EF] text-[#075A3C]", tipo: "INGRESO" })}
             {botonRapido({ titulo: "Egreso", detalle: "Sale plata", icono: ArrowUpRight, color: "bg-[#FDEFEF] text-[#A32020]", tipo: "EGRESO" })}
             {botonRapido({ titulo: "Giro", detalle: "Banco → caja", icono: ArrowLeftRight, color: "bg-[#ECE8FD] text-[#3A0CE3]", href: "/panel/giros" })}
             {botonRapido({ titulo: "Depósito", detalle: "Caja → banco", icono: Landmark, color: "bg-[#E2F2FC] text-[#0A5F91]", href: "/panel/giros" })}
           </div>
 
-          <div className={cn("flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card", SOMBRA)}>
+          <div className={cn("flex min-w-0 flex-1 flex-col overflow-hidden rounded-2xl bg-card", SOMBRA)} data-tour="caj-movimientos">
             <div className="flex flex-col gap-3 border-b border-[#F0EEF6] p-4 sm:px-5 xl:flex-row xl:items-center">
               <div className="flex flex-col gap-0.5">
                 <h2 className="text-[15px] font-semibold">

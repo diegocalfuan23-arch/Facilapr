@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { requireFinanzas } from "@/lib/apr-session";
+import type { Plan } from "@/lib/planes";
 import { AyudaRecorridos } from "@/components/panel/ayuda-recorridos";
 
 export const metadata: Metadata = {
@@ -7,6 +8,6 @@ export const metadata: Metadata = {
 };
 
 export default async function AyudaPanelPage() {
-  await requireFinanzas();
-  return <AyudaRecorridos />;
+  const { apr } = await requireFinanzas();
+  return <AyudaRecorridos plan={apr.plan as Plan} />;
 }
