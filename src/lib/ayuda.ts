@@ -74,7 +74,7 @@ export const CATEGORIAS: { nombre: Categoria; descripcion: string }[] = [
   },
   {
     nombre: "Operación",
-    descripcion: "Incidentes, activos fijos y el registro de arranques y los socios que abastecen (plan Grande). Las labores con materiales del inventario van en Gestión desde el plan Estándar.",
+    descripcion: "Incidentes y el registro de arranques y los socios que abastecen (plan Grande). Las labores con materiales del inventario van en Gestión desde el plan Estándar.",
   },
   {
     nombre: "Tu plan",
@@ -1293,7 +1293,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Activos fijos",
-        texto: "En Operación → Activos fijos ves los bienes del comité con su costo y su valor actual. Está en el plan Grande.",
+        texto: "En Finanzas → Activos fijos (en el plan Grande está en Operación) ves los bienes del comité con su costo y su valor actual. Está desde el plan Estándar.",
       },
       {
         titulo: "Registra un bien",
@@ -1378,7 +1378,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Grande: sin tope de socios",
         texto:
-          "Para comités muy grandes o con varias sedes. Suma RR.HH. (personal, sueldos, vacaciones y asistencia) y Operación (incidentes y activos fijos). El precio es a medida y parte desde 6 UF al mes más IVA, según tus socios y sedes.",
+          "Para comités muy grandes o con varias sedes. Suma RR.HH. (personal, sueldos, vacaciones y asistencia) y Operación (incidentes y arranques). El precio es a medida y parte desde 6 UF al mes más IVA, según tus socios y sedes.",
       },
       {
         titulo: "Cómo se calcula el precio",

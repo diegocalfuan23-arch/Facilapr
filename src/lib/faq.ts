@@ -57,7 +57,7 @@ export const PREGUNTAS: { pregunta: string; respuesta: string }[] = [
   {
     pregunta: "¿Sirve también para la caja, las compras y el personal del comité?",
     respuesta:
-      "Sí. Desde el plan Estándar incluye la caja del comité, compras y proveedores, inventario, labores y reportes. El plan Grande suma RR.HH. (sueldos, vacaciones y asistencia), incidentes, activos fijos y el registro de arranques de la red.",
+      "Sí. Desde el plan Estándar incluye la caja del comité, compras y proveedores, inventario, labores, activos fijos y reportes. El plan Grande suma RR.HH. (sueldos, vacaciones y asistencia), incidentes y el registro de arranques de la red.",
   },
   {
     pregunta: "¿El precio incluye IVA?",

@@ -66,10 +66,12 @@ const gestion: Enlace[] = [
 
 /** Operación (plan Grande): las fallas del sistema de agua, las labores, los bienes del comité y los arranques de la red. */
 const laboresEnlace: Enlace = { href: "/panel/labores", label: "Labores", icon: Hammer };
+/** Activos fijos (desde Estándar): en Grande vive en Operación; en Estándar, que no tiene ese grupo, va en Finanzas. */
+const activosEnlace: Enlace = { href: "/panel/activos", label: "Activos fijos", icon: Building };
 const operacion: Enlace[] = [
   { href: "/panel/incidentes", label: "Incidentes", icon: AlertOctagon },
   laboresEnlace,
-  { href: "/panel/activos", label: "Activos fijos", icon: Building },
+  activosEnlace,
   { href: "/panel/arranques", label: "Arranques", icon: Waypoints },
 ];
 
@@ -152,7 +154,7 @@ export function gruposDelMenu({
         ...(conFinanzas && !conOperacion ? [laboresEnlace] : []),
       ],
     },
-    ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: finanzas }] : []),
+    ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: conOperacion ? finanzas : [...finanzas, activosEnlace] }] : []),
     ...(conRrhh ? [{ titulo: "RR.HH.", icono: UsersRound, enlaces: rrhh }] : []),
     ...(conOperacion ? [{ titulo: "Operación", icono: Wrench, enlaces: operacion }] : []),
     {

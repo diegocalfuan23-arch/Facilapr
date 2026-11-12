@@ -289,7 +289,7 @@ const PLANES: { nombre: string; para: string; precio: string; uf: number; previo
     precio: "1,5 UF",
     uf: 1.5,
     previo: "Todo lo del Pequeño, más:",
-    items: ["Asistente con IA: unas 1.500 respuestas al mes", "Chat en tiempo real con tus socios", "Caja, compras, reportes e informes", "Inventario y labores", "3 operadores en terreno", "Te cargamos tu padrón"],
+    items: ["Asistente con IA: unas 1.500 respuestas al mes", "Chat en tiempo real con tus socios", "Caja, compras, reportes e informes", "Inventario, labores y activos fijos", "3 operadores en terreno", "Te cargamos tu padrón"],
     destacado: true,
     cta: "Pedir una demo",
   },
@@ -299,7 +299,7 @@ const PLANES: { nombre: string; para: string; precio: string; uf: number; previo
     precio: "Desde 6 UF",
     uf: 6,
     previo: "Todo lo del Estándar, más:",
-    items: ["Socios y operadores sin tope", "RR.HH.: sueldos, vacaciones y asistencia", "Incidentes, activos fijos y arranques", "Asistente: unas 5.000 respuestas al mes", "Varias sedes o comités", "Administradores con roles", "Soporte prioritario"],
+    items: ["Socios y operadores sin tope", "RR.HH.: sueldos, vacaciones y asistencia", "Incidentes y arranques", "Asistente: unas 5.000 respuestas al mes", "Varias sedes o comités", "Administradores con roles", "Soporte prioritario"],
     cta: "Conversemos",
   },
 ]

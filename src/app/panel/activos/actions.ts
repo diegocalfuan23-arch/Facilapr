@@ -40,7 +40,7 @@ const activoSchema = z.object({
 /** Crea un activo fijo, o lo corrige si viene con `id`. */
 export async function guardarActivo(_prev: ResultadoActivos | null, formData: FormData): Promise<ResultadoActivos> {
   const { user, apr } = await requireAdmin();
-  if (!puede(apr.plan as Plan, "activos")) return { ok: false, error: "Activos fijos está disponible en el plan Grande." };
+  if (!puede(apr.plan as Plan, "activos")) return { ok: false, error: "Activos fijos está disponible desde el plan Estándar." };
 
   const parsed = activoSchema.safeParse({
     nombre: formData.get("nombre"),
