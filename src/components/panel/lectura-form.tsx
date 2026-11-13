@@ -22,6 +22,7 @@ import {
   SkipForward,
   Smartphone,
   Users,
+  CircleHelp,
   Wifi,
   X,
   XCircle,
@@ -29,6 +30,7 @@ import {
 import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
+import { lanzarRecorrido } from "@/components/panel/recorrido";
 import {
   COLA_VACIA,
   encolarLectura,
@@ -223,7 +225,7 @@ function FormularioLectura({
       )}
 
       {/* El medidor: el número grande, para leerlo de pie y con una mano. */}
-      <div className={cn("rounded-xl border p-4 transition-colors", menor ? "border-[#F2C1C0] bg-[#FFF7F7]" : alto ? "border-[#F6D9B8] bg-[#FFF9F1]" : "border-[#E9E6F4] bg-[#F9F8FD] focus-within:border-[#B9A9F8]")}>
+      <div data-tour="ter-medidor" className={cn("rounded-xl border p-4 transition-colors", menor ? "border-[#F2C1C0] bg-[#FFF7F7]" : alto ? "border-[#F6D9B8] bg-[#FFF9F1]" : "border-[#E9E6F4] bg-[#F9F8FD] focus-within:border-[#B9A9F8]")}>
         <div className="flex items-center justify-between">
           <label htmlFor="terreno-lectura" className="text-[13px] font-medium">
             Lectura del medidor
@@ -338,7 +340,7 @@ function FormularioLectura({
         </div>
       )}
 
-      <div className="mt-4 grid grid-cols-[auto_1fr] gap-2">
+      <div data-tour="ter-botones" className="mt-4 grid grid-cols-[auto_1fr] gap-2">
         <Button type="button" variant="outline" onClick={onSaltar} className="h-12 rounded-xl border-[#E4E1F0] px-4 font-semibold">
           <SkipForward />
           Saltar
@@ -588,10 +590,13 @@ export function LecturaForm({
             <h1 className="truncate text-[22px] font-semibold tracking-tight">Modo terreno</h1>
             <p className={cn("truncate text-[13px]", GRIS)}>Carga lecturas aunque no haya señal · <span className="capitalize">{nombreMes(periodo)}</span></p>
           </div>
-          <span className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold", enLinea ? "bg-[#E6F6EF] text-[#075A3C]" : "bg-[#FFF3E5] text-[#8F4400]")}>
+          <span data-tour="ter-estado" className={cn("flex h-9 shrink-0 items-center gap-1.5 rounded-full px-3 text-xs font-semibold", enLinea ? "bg-[#E6F6EF] text-[#075A3C]" : "bg-[#FFF3E5] text-[#8F4400]")}>
             {enLinea ? <Wifi className="size-3.5" aria-hidden /> : <CloudOff className="size-3.5" aria-hidden />}
             {enLinea ? "En línea" : "Sin conexión"}
           </span>
+          <button type="button" onClick={() => lanzarRecorrido("terreno")} aria-label="Cómo se usa el modo terreno" title="Cómo se usa" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-[#6F6C82] shadow-[0_2px_8px_rgba(58,12,227,0.08)] hover:text-[#15132B]">
+            <CircleHelp className="size-5" aria-hidden />
+          </button>
         </div>
 
         {(cola.length > 0 || enviando) && (
@@ -620,7 +625,7 @@ export function LecturaForm({
 
         {/* ─── Cargar ─── */}
         <div className={cn("flex-col gap-4", pestana === "cargar" ? "flex" : "hidden md:flex")}>
-          <section aria-label="Ruta del mes" className={cn("rounded-2xl bg-card p-4 sm:p-5", SOMBRA)}>
+          <section aria-label="Ruta del mes" data-tour="ter-ruta" className={cn("rounded-2xl bg-card p-4 sm:p-5", SOMBRA)}>
             <div className="flex items-end justify-between gap-3">
               <div>
                 <label htmlFor="terreno-periodo" className={cn("text-[13px] font-medium", GRIS)}>
@@ -905,7 +910,7 @@ export function LecturaForm({
 
       {/* Barra de pestañas fija abajo, como una app nativa. El relleno inferior
           respeta la barra de gestos de iPhone. */}
-      <nav aria-label="Secciones" className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E4E0F2] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
+      <nav aria-label="Secciones" data-tour="ter-nav" className="fixed inset-x-0 bottom-0 z-30 border-t border-[#E4E0F2] bg-white/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden">
         <div className="mx-auto grid w-full max-w-[480px] grid-cols-2">
           {(
             [

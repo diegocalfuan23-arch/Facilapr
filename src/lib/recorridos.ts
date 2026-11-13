@@ -918,6 +918,50 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
     ],
   },
   {
+    id: "terreno",
+    ruta: "/panel/lecturas/terreno",
+    titulo: "Modo terreno: cargar lecturas en la ruta",
+    resumen: "Anotar la lectura de cada medidor desde el celular, incluso sin señal.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("ter-estado"),
+        titulo: "Con o sin señal",
+        texto:
+          "Aquí ves si estás en línea. Sin señal igual puedes seguir: las lecturas se guardan en el teléfono y se envían solas cuando vuelva la conexión.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("ter-ruta"),
+        titulo: "Tu ruta del mes",
+        texto:
+          "El mes que estás cargando, cuántos socios llevas leídos y cuántos faltan. Se va avanzando en orden, de un socio al siguiente.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("ter-medidor"),
+        titulo: "Anota lo que marca el medidor",
+        texto:
+          "Escribe el número que ves. Abajo aparece la lectura anterior y el consumo que resulta. Si el consumo sale muy alto, o menor que el del mes pasado, el sistema te avisa antes de guardar para que lo revises.",
+        lado: "top",
+      },
+      {
+        selector: enMenu("ter-botones"),
+        titulo: "Registrar y seguir, o saltar",
+        texto:
+          "Registrar y seguir guarda la lectura y te lleva al siguiente socio. Saltar deja a ese socio para después, si por ejemplo no estás en su casa.",
+        lado: "top",
+      },
+      {
+        selector: enMenu("ter-nav"),
+        titulo: "Cargar y Mis lecturas",
+        texto:
+          "En Mis lecturas ves lo que ya cargaste y si la directiva rechazó alguna para que la repitas. Si el medidor fue cambiado, hay una opción para anotar lo que marcaba el viejo al retirarlo.",
+        lado: "top",
+      },
+    ],
+  },
+  {
     id: "caja",
     capacidad: "finanzas",
     ruta: "/panel/caja",

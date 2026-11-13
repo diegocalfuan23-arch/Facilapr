@@ -60,7 +60,7 @@ const esperar = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
  *  - si el recorrido es de otra pantalla, navega y lo arranca al llegar,
  *  - lanza solo el recorrido general la primera vez que alguien entra.
  */
-export function Recorrido({ usuarioId }: { usuarioId: string }) {
+export function Recorrido({ usuarioId, automatico = true }: { usuarioId: string; automatico?: boolean }) {
   const pathname = usePathname();
   const router = useRouter();
   const { setOpen, isMobile } = useSidebar();
@@ -195,7 +195,7 @@ export function Recorrido({ usuarioId }: { usuarioId: string }) {
   // en la base, por usuario (así no se repite en otro equipo); el navegador es
   // el respaldo mientras la columna no exista o no haya conexión.
   useEffect(() => {
-    if (pathname !== "/panel") return;
+    if (!automatico || pathname !== "/panel") return;
 
     const clave = `facilapr-recorrido-visto-${usuarioId}`;
     let visto = false;
@@ -231,7 +231,7 @@ export function Recorrido({ usuarioId }: { usuarioId: string }) {
       cancelado = true;
       window.clearTimeout(espera);
     };
-  }, [pathname, usuarioId, empezar]);
+  }, [pathname, usuarioId, empezar, automatico]);
 
   return null;
 }

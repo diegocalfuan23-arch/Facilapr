@@ -92,7 +92,7 @@ export default async function PanelLayout({
           conRrhh={puede(apr.plan as Plan, "personal")}
           conOperacion={puede(apr.plan as Plan, "incidentes")}
         />
-        {rol === "ADMIN" && <Recorrido usuarioId={user.id} />}
+        <Recorrido usuarioId={user.id} automatico={rol === "ADMIN"} />
         {rol === "ADMIN" && <PrimerosPasosFlotante />}
 
         {/* El gradiente va en el contenedor, no en el área de contenido: así
