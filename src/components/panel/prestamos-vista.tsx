@@ -52,7 +52,7 @@ export function PrestamosVista({ prestamos, personas }: { prestamos: PrestamoFil
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3">
+      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3" data-tour="pre-kpis">
         <div className="rounded-xl border border-border bg-card px-6 py-4">
           <p className="text-[0.8rem] text-muted-foreground">Por descontar</p>
           <p className="mt-1 text-[1.5rem] leading-none font-bold tabular-nums">{clp.format(porDescontar)}</p>
@@ -69,7 +69,7 @@ export function PrestamosVista({ prestamos, personas }: { prestamos: PrestamoFil
 
       <div className="flex items-center justify-between gap-3">
         <p className="text-[0.85rem] text-muted-foreground">{prestamos.length === 0 ? "Aún no hay anticipos ni préstamos." : `${prestamos.length} registro${prestamos.length === 1 ? "" : "s"}`}</p>
-        <Button className="h-10 rounded-full px-5 text-[0.95rem]" onClick={() => setCreando(true)} disabled={personas.length === 0}>
+        <Button data-tour="pre-nuevo" className="h-10 rounded-full px-5 text-[0.95rem]" onClick={() => setCreando(true)} disabled={personas.length === 0}>
           + Nuevo anticipo o préstamo
         </Button>
       </div>

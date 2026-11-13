@@ -39,7 +39,7 @@ export function PersonalVista({ personas, cuentas, puedeTesorero }: { personas: 
 
   return (
     <div className="flex flex-col gap-6">
-      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3">
+      <section aria-label="Resumen" className="grid gap-4 sm:grid-cols-3" data-tour="per-resumen">
         <div className="rounded-xl border border-border bg-card p-5">
           <p className={cn(etiquetaKpi, "text-muted-foreground")}>Personas activas</p>
           <p className="mt-3 text-[2rem] leading-none font-bold tabular-nums">{activas.length}</p>
@@ -81,7 +81,7 @@ export function PersonalVista({ personas, cuentas, puedeTesorero }: { personas: 
           className={cn(alto, "rounded-full px-5 text-[0.95rem] sm:w-96")}
           aria-label="Buscar"
         />
-        <Button className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
+        <Button data-tour="per-nueva" className={cn(alto, "rounded-full px-5 text-[0.95rem]")} onClick={() => setCreando(true)}>
           + Nueva persona
         </Button>
       </div>

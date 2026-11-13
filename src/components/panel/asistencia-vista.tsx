@@ -478,7 +478,7 @@ function VistaMes({
   const pendientesTotal = personas.reduce((t, p) => t + faltaSinMarcar(p.id), 0);
   return (
     <>
-      <section aria-label="Resumen del mes" className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section aria-label="Resumen del mes" className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4" data-tour="asi-resumen">
         <Stat label="Asistencia" valor={`${pct(total(vino), total((id) => debia(id).length))}%`} />
         <Stat label="Atrasos" valor={total((id) => de(id, "ATRASO"))} />
         <Stat label="Ausencias" valor={total((id) => de(id, "AUSENTE"))} />
@@ -991,11 +991,11 @@ export function AsistenciaVista({ dia, datos }: { dia: string; datos: DatosAsist
           <p className={cn("mt-0.5 text-[15px]", GRIS)}>Quién vino cada día según su horario. Feriados, vacaciones y licencias se marcan solos.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={() => setConfig("comite")} disabled={personas.length === 0} className="h-11 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
+          <Button data-tour="asi-calendario" variant="outline" onClick={() => setConfig("comite")} disabled={personas.length === 0} className="h-11 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
             <CalendarCog />
             Calendario laboral
           </Button>
-          <div role="tablist" aria-label="Vista" className="grid grid-cols-3 gap-1 rounded-lg bg-white/80 p-1 sm:w-[270px]">
+          <div role="tablist" aria-label="Vista" data-tour="asi-vista" className="grid grid-cols-3 gap-1 rounded-lg bg-white/80 p-1 sm:w-[270px]">
             {(
               [
                 ["dia", "Día"],

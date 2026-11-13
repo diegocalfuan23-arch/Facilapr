@@ -181,7 +181,7 @@ export function AusenciasVista({
   return (
     <div className="flex flex-col gap-6">
       {/* Un solo recuadro con los tres números: ocupa una fila, no tres tarjetas. */}
-      <section aria-label="Resumen" className="grid divide-y divide-border rounded-xl border border-border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+      <section aria-label="Resumen" data-tour="aus-kpis" className="grid divide-y divide-border rounded-xl border border-border bg-card sm:grid-cols-3 sm:divide-x sm:divide-y-0">
         <div className="px-6 py-4">
           <p className="text-[0.8rem] text-muted-foreground">{esLicencia ? "Con licencia hoy" : "De vacaciones hoy"}</p>
           <p className="mt-1 text-[1.5rem] leading-none font-bold tabular-nums">{vigentes.length}</p>
@@ -212,7 +212,7 @@ export function AusenciasVista({
                 className={cn(alto, "rounded-full px-4 text-[0.9rem] sm:w-80")}
                 aria-label="Buscar"
               />
-              <Button className={cn(alto, "rounded-full px-4 text-[0.9rem]")} onClick={() => setCreando(true)}>
+              <Button data-tour="aus-nueva" className={cn(alto, "rounded-full px-4 text-[0.9rem]")} onClick={() => setCreando(true)}>
                 {esLicencia ? "+ Nueva licencia" : "+ Vacaciones o permiso"}
               </Button>
             </div>
@@ -227,7 +227,7 @@ export function AusenciasVista({
           </div>
 
           {conSaldos && (
-            <aside aria-label="Saldo de vacaciones" className="rounded-xl border border-border bg-card p-4 xl:sticky xl:top-4">
+            <aside aria-label="Saldo de vacaciones" data-tour="aus-saldo" className="rounded-xl border border-border bg-card p-4 xl:sticky xl:top-4">
               <h2 className="text-[0.9rem] font-semibold">Saldo de vacaciones</h2>
               <p className="mt-1 text-[0.75rem] text-muted-foreground">1,25 días hábiles por mes trabajado (15 al año)</p>
               <ul className="mt-4 flex flex-col gap-4">

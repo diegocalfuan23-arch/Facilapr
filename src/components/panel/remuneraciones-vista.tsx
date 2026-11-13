@@ -984,7 +984,7 @@ export function RemuneracionesVista({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center rounded-xl bg-card p-1 shadow-[0_2px_8px_rgba(58,12,227,0.05)]">
+        <div data-tour="rem-mes" className="flex items-center rounded-xl bg-card p-1 shadow-[0_2px_8px_rgba(58,12,227,0.05)]">
           <Button variant="ghost" size="icon" aria-label="Mes anterior" className="size-9 rounded-lg" onClick={() => router.push(`/panel/remuneraciones?mes=${anterior}`)}>
             <ChevronLeft />
           </Button>
@@ -1002,7 +1002,7 @@ export function RemuneracionesVista({
             </Button>
           )}
           {filas.length > 0 && (
-            <Button variant="outline" className="h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold" onClick={() => descargarLibro(filas, periodo)} title="Planilla del mes para tu contador o la directiva">
+            <Button data-tour="rem-libro" variant="outline" className="h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold" onClick={() => descargarLibro(filas, periodo)} title="Planilla del mes para tu contador o la directiva">
               <Download />
               <span className="hidden sm:inline">Libro del mes</span>
             </Button>
@@ -1019,7 +1019,7 @@ export function RemuneracionesVista({
           <p className={cn("mt-2 max-w-[56ch] text-[0.92rem] leading-relaxed", GRIS)}>
             Pulsa «Armar el mes» y se crea una liquidación por cada persona activa, con su sueldo, los días y horas no pagados, las horas extras, las cuotas de préstamos y su colación. Después revisas, ajustas lo que haga falta y pagas.
           </p>
-          <Button className="mt-5 h-10 rounded-lg px-5 font-semibold" onClick={armar} disabled={ocupado}>
+          <Button data-tour="rem-armar" className="mt-5 h-10 rounded-lg px-5 font-semibold" onClick={armar} disabled={ocupado}>
             {ocupado && <Loader2 className="animate-spin" />}
             Armar el mes
           </Button>

@@ -732,6 +732,192 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
     ],
   },
   {
+    id: "personal",
+    capacidad: "personal",
+    ruta: "/panel/personal",
+    titulo: "Personal del comité",
+    resumen: "La ficha de quienes trabajan para el comité, de donde salen sus sueldos.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("per-resumen"),
+        titulo: "Tu equipo de trabajo",
+        texto:
+          "Cuántas personas activas tienes, cuánto cuesta el equipo al mes y cuántas están inactivas.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("per-nueva"),
+        titulo: "Crear la ficha de una persona",
+        texto:
+          "Anotas sus datos, su sueldo, su AFP y su salud. Con esa ficha el sistema calcula solo las imposiciones en la remuneración, y la usa también en vacaciones, licencias, asistencia y préstamos.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Gente con acceso al panel pero sin ficha",
+        texto:
+          "Si le diste acceso al panel a un tesorero u operador que también trabaja para el comité, aparece un aviso para crearle la ficha desde su cuenta.",
+      },
+    ],
+  },
+  {
+    id: "remuneraciones",
+    capacidad: "personal",
+    ruta: "/panel/remuneraciones",
+    titulo: "Remuneraciones mes a mes",
+    resumen: "Armar las liquidaciones del mes, revisarlas y pagarlas.",
+    minutos: 3,
+    pasos: [
+      {
+        selector: enMenu("rem-mes"),
+        titulo: "Elige el mes",
+        texto: "Con las flechas cambias de mes. Cada mes tiene sus propias liquidaciones.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("rem-armar"),
+        titulo: "Armar el mes",
+        texto:
+          "Se crea una liquidación por cada persona activa, con su sueldo, los días y horas no pagados, las horas extras, las cuotas de préstamos y su colación. La AFP, la salud y el seguro de cesantía se calculan solos con su ficha.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Revisar y pagar",
+        texto:
+          "Abre una liquidación para ajustarla si hace falta. Luego la marcas como revisada y, cuando la pagas, queda registrada como egreso en la Caja. Desde ahí puedes abrir la liquidación para entregársela a la persona.",
+      },
+      {
+        selector: enMenu("rem-libro"),
+        titulo: "El libro del mes",
+        texto: "Descarga la planilla del mes para tu contador o la directiva.",
+        lado: "bottom",
+      },
+    ],
+  },
+  {
+    id: "asistencia",
+    capacidad: "personal",
+    ruta: "/panel/asistencia",
+    titulo: "Asistencia del personal",
+    resumen: "Quién vino cada día, atrasos, ausencias y horas extras.",
+    minutos: 2,
+    pasos: [
+      {
+        selector: enMenu("asi-calendario"),
+        titulo: "Primero, el calendario laboral",
+        texto:
+          "Define el horario del comité, quién trabaja cada día y los feriados o días sin operación. Lo que no es laboral no queda pendiente de marcar.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("asi-vista"),
+        titulo: "Día, semana o mes",
+        texto:
+          "En Día marcas a cada persona: presente, atraso, ausente o permiso, y sumas sus horas extras. En Semana y Mes ves el cuadro completo.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Vacaciones y licencias se marcan solas",
+        texto:
+          "Si una vacación o una licencia está aprobada, ese día aparece marcado automáticamente. Si todos vinieron, un botón marca de una vez a los pendientes como presentes.",
+      },
+      {
+        selector: enMenu("asi-resumen"),
+        titulo: "El resumen del mes",
+        texto:
+          "El porcentaje de asistencia, los atrasos, las ausencias y las horas extras. Esos días y horas pasan a la remuneración del mes.",
+        lado: "bottom",
+      },
+    ],
+  },
+  {
+    id: "prestamos",
+    capacidad: "personal",
+    ruta: "/panel/prestamos",
+    titulo: "Anticipos y préstamos al personal",
+    resumen: "Lo que el comité adelanta o presta, con cuotas que se descuentan solas.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("pre-nuevo"),
+        titulo: "Registrar un anticipo o préstamo",
+        texto:
+          "Eliges a la persona, el monto y en cuántas cuotas se va a descontar. Hace falta que ya exista su ficha en Personal.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("pre-kpis"),
+        titulo: "Cuánto queda por descontar",
+        texto: "Lo que falta recuperar, los préstamos vigentes y los que ya están saldados o cerrados.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Las cuotas se descuentan solas",
+        texto:
+          "Al armar cada mes en Remuneraciones, la cuota correspondiente se resta de la liquidación. No tienes que acordarte de descontarla.",
+      },
+    ],
+  },
+  {
+    id: "vacaciones",
+    capacidad: "personal",
+    ruta: "/panel/vacaciones",
+    titulo: "Vacaciones y permisos",
+    resumen: "Solicitar, aprobar y ver cuántos días le quedan a cada persona.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("aus-kpis"),
+        titulo: "Quién está de vacaciones",
+        texto: "Quiénes están de vacaciones hoy, cuántos días se han tomado este año y cuántas solicitudes esperan tu respuesta.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("aus-nueva"),
+        titulo: "Registrar vacaciones o un permiso",
+        texto: "Eliges a la persona y las fechas. Queda como solicitada hasta que la apruebes o la rechaces.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Solicitadas, aprobadas y rechazadas",
+        texto:
+          "Cada registro avanza por tres columnas. Al aprobarlo, esos días quedan marcados solos en Asistencia.",
+      },
+      {
+        selector: enMenu("aus-saldo"),
+        titulo: "El saldo de cada persona",
+        texto: "Se suman 1,25 días hábiles por mes trabajado, 15 al año, y se restan los ya tomados.",
+        lado: "left",
+      },
+    ],
+  },
+  {
+    id: "licencias",
+    capacidad: "personal",
+    ruta: "/panel/licencias",
+    titulo: "Licencias médicas",
+    resumen: "Registrar las licencias del personal, con su folio y sus fechas.",
+    minutos: 1,
+    pasos: [
+      {
+        selector: enMenu("aus-kpis"),
+        titulo: "Quién está con licencia",
+        texto: "Quiénes tienen licencia hoy, cuántos días de licencia van este año y cuántas esperan tu respuesta.",
+        lado: "bottom",
+      },
+      {
+        selector: enMenu("aus-nueva"),
+        titulo: "Registrar una licencia",
+        texto: "Eliges a la persona, anotas el folio y las fechas. Se aprueba igual que unas vacaciones.",
+        lado: "bottom",
+      },
+      {
+        titulo: "Efecto en asistencia",
+        texto: "Una licencia aprobada marca esos días solos en Asistencia, para que no cuenten como ausencia.",
+      },
+    ],
+  },
+  {
     id: "caja",
     capacidad: "finanzas",
     ruta: "/panel/caja",
