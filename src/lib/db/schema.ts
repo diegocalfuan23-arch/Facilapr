@@ -122,6 +122,8 @@ export const aprs = pgTable(
     /** Los APR suelen estar exentos, pero algunos facturan con IVA. */
     incluyeIva: boolean("incluyeIva").notNull().default(false),
     porcentajeIva: integer("porcentajeIva").notNull().default(19),
+    /** Si el recibo lleva el QR a la cuenta en línea del socio (solo en planes con chat). */
+    qrEnBoleta: boolean("qrEnBoleta").notNull().default(true),
 
     // --- Medidores ---
     frecuenciaLectura: frecuenciaLecturaEnum("frecuenciaLectura")

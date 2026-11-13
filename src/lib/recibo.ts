@@ -75,6 +75,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
       comiteLogo: aprs.logoUrl,
       comiteSlug: aprs.slug,
       comitePlan: aprs.plan,
+      comiteQr: aprs.qrEnBoleta,
     })
     .from(boletas)
     .innerJoin(socios, eq(boletas.socioId, socios.id))
@@ -85,7 +86,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
   const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
   const portales = new Map<string, ReciboDatos["portal"]>();
   for (const f of filas) {
-    if (!f.comiteSlug || !puede(f.comitePlan as Plan, "chat") || portales.has(f.comiteSlug)) continue;
+    if (!f.comiteSlug || !f.comiteQr || !puede(f.comitePlan as Plan, "chat") || portales.has(f.comiteSlug)) continue;
     const url = `https://${dominio}/${f.comiteSlug}/cuenta/entrar`;
     portales.set(f.comiteSlug, {
       url,

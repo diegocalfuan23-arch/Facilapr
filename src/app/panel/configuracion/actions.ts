@@ -145,6 +145,8 @@ export async function guardarFacturacion(
       prefijoBoleta: prefijo || "BOL-",
       incluyeIva: formData.get("incluyeIva") === "on",
       porcentajeIva: iva,
+      // Sin cuenta en línea en el plan no hay QR que mostrar: se deja como estaba.
+      ...(puede(apr.plan as Plan, "chat") ? { qrEnBoleta: formData.get("qrEnBoleta") === "on" } : {}),
       infoPago,
       updatedAt: new Date(),
     })

@@ -65,6 +65,8 @@ export default async function ConfiguracionPage() {
         prefijoBoleta: apr.prefijoBoleta,
         incluyeIva: apr.incluyeIva,
         porcentajeIva: apr.porcentajeIva,
+        qrEnBoleta: apr.qrEnBoleta,
+        qrDisponible: puede(plan, "chat"),
         frecuenciaLectura: apr.frecuenciaLectura,
         toleranciaConsumoAnormal: apr.toleranciaConsumoAnormal,
         alertaFugaConsumo: apr.alertaFugaConsumo,

@@ -72,6 +72,10 @@ export type DatosConfiguracion = {
   prefijoBoleta: string;
   incluyeIva: boolean;
   porcentajeIva: number;
+  /** El recibo lleva el QR a la cuenta en línea del socio. */
+  qrEnBoleta: boolean;
+  /** El plan incluye la cuenta en línea (y por eso el QR). */
+  qrDisponible: boolean;
   frecuenciaLectura: "MENSUAL" | "BIMENSUAL" | "TRIMESTRAL";
   toleranciaConsumoAnormal: number;
   alertaFugaConsumo: number;
@@ -585,6 +589,18 @@ export function ConfiguracionForm({
               Las boletas incluyen IVA
               <span className="mt-0.5 block text-[0.8rem] text-muted-foreground">
                 La mayoría de los comités de agua rural está exenta.
+              </span>
+            </span>
+          </label>
+
+          <label className="flex items-start gap-2.5 text-[0.9rem]">
+            <Checkbox name="qrEnBoleta" defaultChecked={datos.qrDisponible && datos.qrEnBoleta} disabled={!datos.qrDisponible} className="mt-0.5" />
+            <span>
+              Agregar QR en la boleta
+              <span className="mt-0.5 block text-[0.8rem] text-muted-foreground">
+                {datos.qrDisponible
+                  ? "El socio lo escanea desde el recibo impreso y entra a su cuenta en línea: ve sus boletas y pide su acceso."
+                  : "Disponible desde el plan Estándar, que incluye la cuenta en línea de los socios."}
               </span>
             </span>
           </label>

@@ -819,7 +819,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Para quien no tiene teléfono: el código QR del recibo",
         texto:
-          "En los planes con chat, el recibo impreso trae un código QR. El socio lo escanea, pide su acceso con su RUT y tú lo apruebas desde Solicitudes.",
+          "En los planes con chat, el recibo impreso trae un código QR (lo puedes quitar en Configuración, con «Agregar QR en la boleta»). El socio lo escanea, pide su acceso con su RUT y tú lo apruebas desde Solicitudes.",
       },
       {
         titulo: "Aprueba los accesos",
