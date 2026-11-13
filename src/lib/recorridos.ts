@@ -540,7 +540,7 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
         selector: enMenu("act-kpis"),
         titulo: "El patrimonio del comité",
         texto:
-          "Cuántos bienes tienes, cuánto costaron, cuánto valen hoy y cuántos están en reparación. Sirve para mostrarlo en la asamblea.",
+          "Cuánto valen hoy todos tus bienes juntos, cuánto costaron, cuánto se ha depreciado y cuántos están en reparación. Sirve para mostrarlo en la asamblea.",
         lado: "bottom",
       },
       {
@@ -557,9 +557,14 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
       },
       {
         selector: enMenu("act-buscar"),
-        titulo: "Buscar y filtrar",
-        texto: "Busca por nombre, código o ubicación, o filtra por categoría para ver solo un tipo de bien.",
+        titulo: "Buscar, filtrar y ordenar",
+        texto: "Busca por nombre, código o ubicación, filtra por categoría o estado, y ordena por valor, nombre o fecha.",
         lado: "bottom",
+      },
+      {
+        titulo: "El detalle de cada bien",
+        texto:
+          "Al elegir un bien ves su curva de depreciación, sus datos y cuánto le queda de vida útil. Desde ahí lo mandas a reparación, lo marcas operativo otra vez o sacas su ficha en PDF.",
       },
     ],
   },

@@ -19,15 +19,8 @@ export default async function ActivosPage() {
   const activos = await listarActivos(apr.id);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Activos fijos</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">Los bienes del comité: qué tienes, cuánto costó y cuánto vale hoy.</p>
-      </div>
-
-      <ConsultasProvider>
-        <ActivosVista activos={activos} />
-      </ConsultasProvider>
-    </div>
+    <ConsultasProvider>
+      <ActivosVista activos={activos} />
+    </ConsultasProvider>
   );
 }

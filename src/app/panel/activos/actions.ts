@@ -163,3 +163,25 @@ export async function eliminarActivo(id: string): Promise<ResultadoActivos> {
   revalidatePath("/panel/caja");
   return { ok: true };
 }
+
+/** Cambia solo el estado de un bien (por ejemplo, lo manda a reparación o lo vuelve a dejar operativo), sin tocar el resto. */
+export async function cambiarEstadoActivo(id: string, estado: "OPERATIVO" | "EN_REPARACION" | "BAJA"): Promise<ResultadoActivos> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "activos")) return { ok: false, error: "Activos fijos está disponible desde el plan Estándar." };
+  if (!["OPERATIVO", "EN_REPARACION", "BAJA"].includes(estado)) return { ok: false, error: "El estado no es válido." };
+
+  try {
+    const cambiados = await db
+      .update(activosFijos)
+      .set({ estado })
+      .where(and(eq(activosFijos.id, id), eq(activosFijos.aprId, apr.id)))
+      .returning({ id: activosFijos.id });
+    if (cambiados.length === 0) return { ok: false, error: "No encontramos ese bien." };
+  } catch (e) {
+    console.error("Activos: no se pudo cambiar el estado:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos cambiar el estado. Inténtalo de nuevo en un momento.") };
+  }
+
+  revalidatePath("/panel/activos");
+  return { ok: true };
+}
