@@ -1324,7 +1324,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Labores",
-        texto: "En Gestión → Labores (o en Operación, en el plan Grande) ves un tablero con Programadas, En curso y Hechas. Está en los planes Estándar y Grande, junto con el Inventario.",
+        texto: "En Gestión → Labores (o en Operación, en el plan Grande) ves la lista de labores con su estado: Programada, En curso o Hecha. Arriba hay pestañas para filtrarlas y un buscador. Al elegir una, a la derecha aparece su detalle (en el celular se abre desde abajo). Está en los planes Estándar y Grande, junto con el Inventario.",
       },
       {
         titulo: "Crea la labor",
@@ -1341,12 +1341,12 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Márcala como hecha",
-        texto: "Cuando el trabajo termine, arrastra la tarjeta a Hechas. En ese momento los materiales se descuentan del inventario, y en el historial del material queda «Usado en una labor» con el número de la labor.",
+        texto: "Abre la labor y pulsa Iniciar labor cuando empiece; cuando el trabajo termine, pulsa Marcar como hecha. En ese momento los materiales se descuentan del inventario, y en el historial del material queda «Usado en una labor» con el número de la labor.",
         nota: "Si no alcanza el stock de algún material, no te deja marcarla como hecha y te dice cuál falta. Nada se descuenta a medias.",
       },
       {
         titulo: "Si te equivocas",
-        texto: "Si sacas la labor de Hechas o la borras, los materiales vuelven al inventario. Si cambias los materiales de una labor ya hecha, primero se devuelve lo anterior y luego se descuenta lo nuevo.",
+        texto: "Si sacas la labor de Hechas (con el lápiz de editar, cambiando su estado) o la borras, los materiales vuelven al inventario. Si cambias los materiales de una labor ya hecha, primero se devuelve lo anterior y luego se descuenta lo nuevo.",
       },
     ],
   },

@@ -21,14 +21,5 @@ export default async function LaboresPage() {
   await avanzarLaboresVencidas(apr.id);
   const [labores, insumos] = await Promise.all([listarLabores(apr.id), listarInsumos(apr.id)]);
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[32px] leading-tight font-bold tracking-tight">Labores</h1>
-        <p className="mt-1 text-[15px] text-muted-foreground">Los trabajos del comité y los materiales que usan: al marcarlos como hechos, se descuentan del inventario.</p>
-      </div>
-
-      <LaboresVista labores={labores} insumos={insumos} />
-    </div>
-  );
+  return <LaboresVista labores={labores} insumos={insumos} />;
 }

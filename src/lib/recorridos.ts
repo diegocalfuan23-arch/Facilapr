@@ -657,9 +657,11 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
         lado: "bottom",
       },
       {
-        titulo: "Programadas, en curso y hechas",
+        selector: enMenu("lab-lista"),
+        titulo: "La lista y el detalle",
         texto:
-          "Cada labor avanza por tres columnas. Al marcarla como Hecha, los materiales se descuentan solos del inventario y quedan anotados en su historial. Si la devuelves a una etapa anterior, el stock vuelve a lo que era.",
+          "Cada labor está Programada, En curso o Hecha: filtra con las pestañas o busca por número, lugar, responsable o material. Al elegir una ves su avance y sus materiales, con el botón para iniciarla y marcarla como hecha. Al marcarla como Hecha, los materiales se descuentan solos del inventario y quedan en su historial. Para devolverla a una etapa anterior, edítala con el lápiz: el stock vuelve a lo que era.",
+        lado: "top",
       },
     ],
   },
