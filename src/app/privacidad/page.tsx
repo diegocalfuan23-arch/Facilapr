@@ -62,7 +62,7 @@ export default function PrivacidadPage() {
               DESARROLLO DE SOFTWARES A MEDIDAS SpA (RUT 78.324.975-8), con
               domicilio en Vicuña Mackenna 678, oficina 307, Temuco, Región de
               La Araucanía, Chile;
-              contacto: hola@facilapr.cl. Esa distinción importa:
+              contacto: contacto@facilapr.cl. Esa distinción importa:
             </p>
             <ul className="mt-3 flex list-disc flex-col gap-2 pl-5">
               <li>
@@ -284,10 +284,10 @@ export default function PrivacidadPage() {
               Para cualquier consulta sobre esta política o sobre tus datos,
               escríbenos a{" "}
               <a
-                href="mailto:hola@facilapr.cl"
+                href="mailto:contacto@facilapr.cl"
                 className="font-medium text-primary hover:underline"
               >
-                hola@facilapr.cl
+                contacto@facilapr.cl
               </a>
               .
             </p>

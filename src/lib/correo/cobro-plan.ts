@@ -4,7 +4,7 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const REMITENTE = "Facilapr <hola@facilapr.cl>";
+const REMITENTE = "Facilapr <contacto@facilapr.cl>";
 
 const escapar = (t: string) =>
   t

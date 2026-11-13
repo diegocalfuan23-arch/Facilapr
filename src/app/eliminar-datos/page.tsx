@@ -54,10 +54,10 @@ export default function EliminarDatosPage() {
               <li>
                 Escribe a{" "}
                 <a
-                  href="mailto:hola@facilapr.cl?subject=Eliminar%20mis%20datos"
+                  href="mailto:contacto@facilapr.cl?subject=Eliminar%20mis%20datos"
                   className="font-medium text-primary hover:underline"
                 >
-                  hola@facilapr.cl
+                  contacto@facilapr.cl
                 </a>{" "}
                 con el asunto <strong>«Eliminar mis datos»</strong>.
               </li>
@@ -104,10 +104,10 @@ export default function EliminarDatosPage() {
             <p className="mt-3">
               Escríbenos a{" "}
               <a
-                href="mailto:hola@facilapr.cl"
+                href="mailto:contacto@facilapr.cl"
                 className="font-medium text-primary hover:underline"
               >
-                hola@facilapr.cl
+                contacto@facilapr.cl
               </a>
               .
             </p>

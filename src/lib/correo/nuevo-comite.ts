@@ -4,7 +4,7 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const REMITENTE = "Facilapr <hola@facilapr.cl>";
+const REMITENTE = "Facilapr <contacto@facilapr.cl>";
 
 const escapar = (t: string) =>
   t
@@ -15,7 +15,7 @@ const escapar = (t: string) =>
 
 /**
  * Avisa al dueño de Facilapr, en el momento, que un comité se acaba de registrar: así se entera al instante y no horas
- * después al revisar el panel. Va a `CORREO_AVISOS` (o, si no se define, a `CORREO_RESPUESTAS` o hola@facilapr.cl).
+ * después al revisar el panel. Va a `CORREO_AVISOS` (o, si no se define, a `CORREO_RESPUESTAS` o contacto@facilapr.cl).
  * Nunca debe impedir el registro: cualquier falla se anota y se sigue.
  */
 export async function avisarNuevoComite(datos: { comite: string; comuna: string; persona: string; cargo: string; correo: string; telefono: string; origen: string }): Promise<void> {
@@ -39,7 +39,7 @@ export async function avisarNuevoComite(datos: { comite: string; comuna: string;
   try {
     const { error } = await resend.emails.send({
       from: REMITENTE,
-      to: process.env.CORREO_AVISOS ?? process.env.CORREO_RESPUESTAS ?? "hola@facilapr.cl",
+      to: process.env.CORREO_AVISOS ?? process.env.CORREO_RESPUESTAS ?? "contacto@facilapr.cl",
       subject: `Nuevo comité en Facilapr: ${datos.comite} (${datos.comuna})`,
       html: `
         <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #18181b; line-height: 1.55;">

@@ -126,7 +126,7 @@ export function PerfilForm({
             <Label htmlFor="correo">Correo de ingreso</Label>
             <Input id="correo" value={correo} readOnly disabled className="h-10" />
             <span className="text-[0.8rem] text-muted-foreground">
-              Es el correo con el que entras. Si necesitas cambiarlo, escríbenos a hola@facilapr.cl.
+              Es el correo con el que entras. Si necesitas cambiarlo, escríbenos a contacto@facilapr.cl.
             </span>
           </div>
 

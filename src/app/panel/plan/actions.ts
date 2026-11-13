@@ -28,7 +28,7 @@ export async function iniciarPagoPlan(
   const { user, apr } = await requireAdmin();
 
   if (!flowConfigurado()) {
-    return { ok: false, error: "Los pagos en línea todavía no están activados. Escríbenos a hola@facilapr.cl y te ayudamos." };
+    return { ok: false, error: "Los pagos en línea todavía no están activados. Escríbenos a contacto@facilapr.cl y te ayudamos." };
   }
 
   const c = await cotizarPlan(plan, periodo);
@@ -161,7 +161,7 @@ export async function iniciarPagoAutomatico(
     return { ok: false, error: "Tienes que aceptar el cobro automático para activarlo." };
   }
   if (!flowConfigurado()) {
-    return { ok: false, error: "Los pagos en línea todavía no están activados. Escríbenos a hola@facilapr.cl y te ayudamos." };
+    return { ok: false, error: "Los pagos en línea todavía no están activados. Escríbenos a contacto@facilapr.cl y te ayudamos." };
   }
   const c = await calcularCotizacion(plan, periodo);
   if (!c.ok) return c;

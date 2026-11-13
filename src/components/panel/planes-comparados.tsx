@@ -163,7 +163,7 @@ export function PlanesComparados({ planActual }: { planActual: Plan | null }) {
                 </span>
               ) : (
                 <a
-                  href={`mailto:hola@facilapr.cl?subject=${encodeURIComponent(`Quiero cambiarme al ${plan.nombre}`)}`}
+                  href={`mailto:contacto@facilapr.cl?subject=${encodeURIComponent(`Quiero cambiarme al ${plan.nombre}`)}`}
                   className={cn(buttonVariants({ variant: plan.clave === "ESTANDAR" ? "default" : "outline" }), "w-full")}
                 >
                   {plan.mensual === null ? "Conversemos" : "Cambiarme a este plan"}

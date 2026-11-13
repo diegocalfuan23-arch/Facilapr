@@ -184,10 +184,10 @@ export default function TerminosPage() {
             <p className="mt-3">
               Escríbenos a{" "}
               <a
-                href="mailto:hola@facilapr.cl"
+                href="mailto:contacto@facilapr.cl"
                 className="font-medium text-primary hover:underline"
               >
-                hola@facilapr.cl
+                contacto@facilapr.cl
               </a>
               .
             </p>

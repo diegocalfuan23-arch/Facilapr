@@ -1388,7 +1388,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Ver tu plan o cambiarlo",
         texto:
-          "Tu plan actual aparece en el menú de tu comité, en «Mi plan». Para cambiarlo, escríbenos a hola@facilapr.cl y lo dejamos listo.",
+          "Tu plan actual aparece en el menú de tu comité, en «Mi plan». Para cambiarlo, escríbenos a contacto@facilapr.cl y lo dejamos listo.",
         nota: "Puedes cambiar de plan cuando el comité crezca o cambie. No hay permanencia mínima.",
       },
     ],

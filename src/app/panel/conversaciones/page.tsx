@@ -29,7 +29,7 @@ export default async function ConversacionesPage() {
           plan actual es {NOMBRE_PLAN[apr.plan as Plan]}.
         </p>
         <a
-          href="mailto:hola@facilapr.cl?subject=Quiero%20el%20chat%20para%20mi%20comit%C3%A9"
+          href="mailto:contacto@facilapr.cl?subject=Quiero%20el%20chat%20para%20mi%20comit%C3%A9"
           className="mt-5 inline-flex h-9 items-center rounded-lg bg-primary px-4 text-[0.9rem] font-medium text-primary-foreground hover:bg-primary/90"
         >
           Quiero activarlo

@@ -4,7 +4,7 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const REMITENTE = "Diego de Facilapr <hola@facilapr.cl>";
+const REMITENTE = "Diego de Facilapr <contacto@facilapr.cl>";
 
 const escapar = (t: string) =>
   t
@@ -18,7 +18,7 @@ export type ResultadoEnvio = { ok: true } | { ok: false; error: string; sinConfi
 /**
  * Responde a quien escribió por el formulario de contacto. El mensaje lo escribe
  * el dueño en el panel; aquí solo se le da formato y se envía. Las respuestas
- * del destinatario llegan a `CORREO_RESPUESTAS` (o a hola@facilapr.cl si no se
+ * del destinatario llegan a `CORREO_RESPUESTAS` (o a contacto@facilapr.cl si no se
  * define), no a una casilla que nadie lea.
  */
 export async function enviarRespuestaConsulta({
@@ -51,7 +51,7 @@ export async function enviarRespuestaConsulta({
     const { error } = await resend.emails.send({
       from: REMITENTE,
       to: destinatario,
-      replyTo: process.env.CORREO_RESPUESTAS ?? "hola@facilapr.cl",
+      replyTo: process.env.CORREO_RESPUESTAS ?? "contacto@facilapr.cl",
       subject: asunto,
       html: `
         <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; color: #18181b; line-height: 1.55;">

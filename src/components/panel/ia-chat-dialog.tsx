@@ -236,7 +236,7 @@ export function ConsumoIa({ uso }: { uso: UsoIaChat }) {
           nativeButton={false}
           render={
             <a
-              href={`mailto:hola@facilapr.cl?subject=${encodeURIComponent("Quiero un pack adicional de IA")}&body=${encodeURIComponent("Hola, quiero agregar un pack de +2.000.000 tokens de IA al chat de mi comité.")}`}
+              href={`mailto:contacto@facilapr.cl?subject=${encodeURIComponent("Quiero un pack adicional de IA")}&body=${encodeURIComponent("Hola, quiero agregar un pack de +2.000.000 tokens de IA al chat de mi comité.")}`}
             />
           }
         >
