@@ -1309,7 +1309,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Mándalo a reparación y saca su ficha",
-        texto: "En el detalle del bien, «Enviar a reparación» lo marca así, y cuando vuelva a funcionar usa «Marcar operativo». «Ficha PDF» abre una hoja con sus datos y su valor, para imprimir o guardar.",
+        texto: "En el detalle del bien, «Enviar a reparación» te pide el motivo y lo deja en su historial, y cuando vuelva a funcionar usa «Marcar operativo». Si le pones fecha de próxima mantención (al editarlo), «Programar labor» la crea en Labores. «Ficha PDF» abre una hoja con sus datos y su valor, para imprimir o guardar.",
       },
       {
         titulo: "Anota el costo en la Caja, si corresponde",

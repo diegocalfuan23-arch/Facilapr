@@ -149,6 +149,13 @@ export function ActivoDialog({ activo, onCerrar }: { activo: ActivoFila | null; 
               </label>
               <Input id="act-responsable" name="responsable" defaultValue={activo?.responsable ?? ""} maxLength={120} className={campo} />
             </div>
+            <div className="sm:col-span-2">
+              <label htmlFor="act-mantencion" className={etiqueta}>
+                Próxima mantención (opcional)
+              </label>
+              <Input id="act-mantencion" name="proximaMantencion" type="date" defaultValue={activo?.proximaMantencion ?? ""} className={campo} />
+              <p className="mt-1.5 text-[0.75rem] text-muted-foreground">Desde el detalle del bien la conviertes en una labor programada.</p>
+            </div>
             {costo && !activo?.costoEnCaja && (
               <label className="flex items-start gap-2 text-[0.9rem] sm:col-span-2">
                 <input type="checkbox" name="registrarCosto" value="si" className="mt-0.5 size-4" />

@@ -1325,6 +1325,11 @@ export const activosFijos = pgTable(
     notas: text("notas"),
     /** El egreso de Caja con el costo de adquisición, si se anotó al registrarlo. */
     movimientoId: text("movimientoId"),
+    /** Cuándo toca la próxima mantención del bien (se puede convertir en una labor). */
+    proximaMantencion: date("proximaMantencion", { mode: "string" }),
+    /** Mientras está EN_REPARACION: desde cuándo y por qué. Se limpian al volver a operativo. */
+    reparacionDesde: date("reparacionDesde", { mode: "string" }),
+    reparacionMotivo: text("reparacionMotivo"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [index("ActivoFijo_aprId_idx").on(table.aprId)]

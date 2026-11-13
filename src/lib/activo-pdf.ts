@@ -105,6 +105,11 @@ export async function generarFichaActivoPdf(comite: ComiteFicha, a: ActivoFila, 
   fila("Responsable", a.responsable ?? "Sin responsable");
   fila("Fecha de adquisición", fecha(a.fechaAdquisicion));
   fila("Vida útil", sinDepreciar ? "No se deprecia" : `${a.vidaUtilAnios} ${a.vidaUtilAnios === 1 ? "año" : "años"}`);
+  if (a.proximaMantencion) fila("Próxima mantención", fecha(a.proximaMantencion));
+  if (a.estado === "EN_REPARACION" && a.reparacionDesde) {
+    fila("En reparación desde", fecha(a.reparacionDesde));
+    if (a.reparacionMotivo) fila("Motivo", a.reparacionMotivo.slice(0, 70));
+  }
   y -= 8;
 
   // ---- Valor.

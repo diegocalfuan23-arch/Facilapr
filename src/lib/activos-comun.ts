@@ -37,6 +37,11 @@ export type ActivoFila = {
   notas: string | null;
   /** true si el costo ya quedó como egreso en la Caja. */
   costoEnCaja: boolean;
+  /** AAAA-MM-DD de la próxima mantención, si se definió. */
+  proximaMantencion: string | null;
+  /** Mientras está en reparación: desde cuándo y por qué (el motivo es opcional). */
+  reparacionDesde: string | null;
+  reparacionMotivo: string | null;
 };
 
 /** El concepto con que la compra de un bien queda en Caja: así se reconoce que viene de Activos fijos. */

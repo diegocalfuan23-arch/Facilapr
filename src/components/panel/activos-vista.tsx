@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Building2, CalendarDays, Car, ChevronRight, Cog, Droplets, FileText, Gauge, Hash, Landmark, MapPin, Mountain, Package, Pencil, Plus, Search, UserRound, Waves, Wrench, X } from "lucide-react";
-import { cambiarEstadoActivo, consultarActivos } from "@/app/panel/activos/actions";
+import { Building2, CalendarCheck2, CalendarDays, Car, ChevronRight, Cog, Droplets, FileText, Gauge, Hash, Landmark, MapPin, Mountain, Package, Pencil, Plus, Search, UserRound, Waves, Wrench, X } from "lucide-react";
+import { cambiarEstadoActivo, consultarActivos, programarLaborMantencion } from "@/app/panel/activos/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ActivoDialog } from "@/components/panel/activo-dialog";
@@ -136,6 +137,7 @@ function Detalle({
   onCerrar,
   onEditar,
   onEstado,
+  onProgramar,
 }: {
   a: ActivoFila;
   hoy: string;
@@ -143,6 +145,7 @@ function Detalle({
   onCerrar: () => void;
   onEditar: () => void;
   onEstado: (e: EstadoActivo) => void;
+  onProgramar: () => void;
 }) {
   const baja = a.estado === "BAJA";
   const sinDepreciar = a.vidaUtilAnios <= 0;
@@ -176,7 +179,16 @@ function Detalle({
           <div className="flex items-start gap-2.5 bg-[#FFF8EF] px-5 py-3 text-[13px] text-[#7A3B00]">
             <Wrench className="mt-0.5 size-4 shrink-0" aria-hidden />
             <span className="flex-1">
-              <b className="font-semibold">En reparación.</b> Cuando vuelva a funcionar, márcalo como operativo.
+              {a.reparacionDesde ? (
+                <>
+                  <b className="font-semibold">En reparación desde el {fechaCorta(a.reparacionDesde)}.</b>
+                  {a.reparacionMotivo ? ` ${a.reparacionMotivo}.` : " Cuando vuelva a funcionar, márcalo como operativo."}
+                </>
+              ) : (
+                <>
+                  <b className="font-semibold">En reparación.</b> Cuando vuelva a funcionar, márcalo como operativo.
+                </>
+              )}
             </span>
           </div>
         ) : null}
@@ -268,6 +280,21 @@ function Detalle({
           ) : null}
         </dl>
 
+        {a.proximaMantencion ? (
+          <div className="flex items-center gap-3 px-5 py-3.5">
+            <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#E2F2FC] text-[#0A5F91]">
+              <CalendarCheck2 className="size-4" />
+            </span>
+            <span className="min-w-0 flex-1 text-sm">
+              <span className="block font-medium">Próxima mantención</span>
+              <span className={cn("block text-xs tabular-nums", GRIS)}>{fechaCorta(a.proximaMantencion)}</span>
+            </span>
+            <Button variant="ghost" size="sm" onClick={onProgramar} disabled={ocupado} className="h-8 rounded-lg px-2.5 text-xs font-semibold text-[#2A07A8]">
+              Programar labor
+            </Button>
+          </div>
+        ) : null}
+
         {a.notas ? (
           <section className="px-5 py-4">
             <p className="mb-1.5 text-[13px] font-semibold">Notas</p>
@@ -278,6 +305,16 @@ function Detalle({
         <section className="px-5 py-4">
           <p className="mb-2 text-[13px] font-semibold">Historial</p>
           <ol className="flex flex-col gap-3 border-l-2 border-[#ECEAF4] pl-4 text-[13px]">
+            {a.estado === "EN_REPARACION" && a.reparacionDesde ? (
+              <li className="relative">
+                <span aria-hidden className="absolute top-1 -left-[21px] size-2.5 rounded-full bg-[#E58200] ring-4 ring-white" />
+                <b className="font-semibold">Enviado a reparación</b>
+                <span className={cn("block", GRIS)}>
+                  {fechaCorta(a.reparacionDesde)}
+                  {a.reparacionMotivo ? ` · ${a.reparacionMotivo}` : ""}
+                </span>
+              </li>
+            ) : null}
             <li className="relative">
               <span aria-hidden className="absolute top-1 -left-[21px] size-2.5 rounded-full bg-[#6B46F5] ring-4 ring-white" />
               <b className="font-semibold">Adquirido</b>
@@ -328,6 +365,8 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
   const [movil, setMovil] = useState(false);
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<ActivoFila | null>(null);
+  const [reparando, setReparando] = useState<ActivoFila | null>(null);
+  const [motivo, setMotivo] = useState("");
   const [ocupado, iniciar] = useTransition();
   const cerrar = useCallback(() => {
     setCreando(false);
@@ -338,12 +377,16 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
 
   const hoy = hoyEnChile();
 
-  function cambiarEstado(a: ActivoFila, nuevo: EstadoActivo) {
+  function cambiarEstado(a: ActivoFila, nuevo: EstadoActivo, motivoReparacion?: string) {
     const anterior = activos;
+    const desde = nuevo === "EN_REPARACION" ? hoy : null;
+    const porQue = nuevo === "EN_REPARACION" ? motivoReparacion?.trim().slice(0, 200) || null : null;
     // El cambio se ve al instante; si el servidor lo rechaza, vuelve a como estaba.
-    cliente.setQueryData<ActivoFila[]>(["activos"], (lista) => lista?.map((x) => (x.id === a.id ? { ...x, estado: nuevo } : x)));
+    cliente.setQueryData<ActivoFila[]>(["activos"], (lista) =>
+      lista?.map((x) => (x.id === a.id ? { ...x, estado: nuevo, reparacionDesde: desde, reparacionMotivo: porQue } : x))
+    );
     iniciar(async () => {
-      const r = await cambiarEstadoActivo(a.id, nuevo);
+      const r = await cambiarEstadoActivo(a.id, nuevo, motivoReparacion);
       if (r.ok) toast.success(nuevo === "EN_REPARACION" ? "Enviado a reparación" : "Marcado como operativo");
       else {
         toast.error(r.error);
@@ -385,7 +428,31 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
     return () => window.removeEventListener("keydown", alTeclear);
   }, [movil, creando, editando]);
 
-  const detalle = (a: ActivoFila, alCerrar: () => void) => <Detalle key={a.id} a={a} hoy={hoy} ocupado={ocupado} onCerrar={alCerrar} onEditar={() => setEditando(a)} onEstado={(e) => cambiarEstado(a, e)} />;
+  function programar(a: ActivoFila) {
+    iniciar(async () => {
+      const r = await programarLaborMantencion(a.id);
+      if (r.ok) toast.success(`Labor L-${r.numero} programada`, { description: "La ves en Labores, con la fecha de la próxima mantención." });
+      else toast.error(r.error);
+    });
+  }
+
+  const detalle = (a: ActivoFila, alCerrar: () => void) => (
+    <Detalle
+      key={a.id}
+      a={a}
+      hoy={hoy}
+      ocupado={ocupado}
+      onCerrar={alCerrar}
+      onEditar={() => setEditando(a)}
+      onEstado={(e) => {
+        if (e === "EN_REPARACION") {
+          setMotivo("");
+          setReparando(a);
+        } else cambiarEstado(a, e);
+      }}
+      onProgramar={() => programar(a)}
+    />
+  );
 
   return (
     <div>
@@ -594,6 +661,38 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
       ) : null}
 
       {(creando || editando) && <ActivoDialog key={editando?.id ?? "nuevo"} activo={editando} onCerrar={cerrar} />}
+
+      <Dialog open={reparando !== null} onOpenChange={(v) => !v && setReparando(null)}>
+        <DialogContent className="p-6 sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-medium">Enviar a reparación</DialogTitle>
+            <DialogDescription className="text-[0.9rem]">{reparando?.nombre}. Anota qué le pasó, así queda en su historial.</DialogDescription>
+          </DialogHeader>
+          <form
+            className="mt-2 flex flex-col gap-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (reparando) cambiarEstado(reparando, "EN_REPARACION", motivo);
+              setReparando(null);
+            }}
+          >
+            <div>
+              <label htmlFor="act-motivo" className="mb-2 block text-[0.8rem] font-medium">
+                Motivo (opcional)
+              </label>
+              <Input id="act-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="Ej.: Filtración en la base" maxLength={200} className="h-10 px-3 text-[0.95rem]" autoFocus />
+            </div>
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" className="h-10 px-4 text-[0.95rem]" onClick={() => setReparando(null)}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]">
+                Enviar a reparación
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -19,6 +19,9 @@ function aFila(f: typeof activosFijos.$inferSelect): ActivoFila {
     responsable: f.responsable,
     notas: f.notas,
     costoEnCaja: f.movimientoId !== null,
+    proximaMantencion: f.proximaMantencion,
+    reparacionDesde: f.reparacionDesde,
+    reparacionMotivo: f.reparacionMotivo,
   };
 }
 
