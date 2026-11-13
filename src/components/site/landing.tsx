@@ -556,6 +556,7 @@ export function Landing() {
               <p className="mt-3 text-lg text-white/80">Te respondemos dentro de 1 día hábil.</p>
               <div className="mt-6 flex flex-col gap-2">
                 <a href="https://wa.me/56942506724" target="_blank" rel="noopener noreferrer" className="w-fit rounded-full bg-white/10 px-4 py-2 text-[15px] font-medium transition-colors hover:bg-white/20">WhatsApp +56 9 4250 6724</a>
+                <a href="mailto:contacto@facilapr.cl" className="w-fit rounded-full bg-white/10 px-4 py-2 text-[15px] font-medium transition-colors hover:bg-white/20">Correo contacto@facilapr.cl</a>
                 <a href="https://www.instagram.com/facilapr2026/" target="_blank" rel="noopener noreferrer" className="w-fit rounded-full bg-white/10 px-4 py-2 text-[15px] font-medium transition-colors hover:bg-white/20">Instagram @facilapr2026</a>
               </div>
             </div>
@@ -582,6 +583,7 @@ export function Landing() {
               ].map(([n, h]) => (
                 <a key={h} href={h} className="hover:text-[#3A0CE3]">{n}</a>
               ))}
+              <a href="mailto:contacto@facilapr.cl" className="hover:text-[#3A0CE3]">contacto@facilapr.cl</a>
               <a href="https://www.instagram.com/facilapr2026/" target="_blank" rel="noopener noreferrer" className="hover:text-[#3A0CE3]">Instagram</a>
             </nav>
           </div>
