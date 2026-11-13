@@ -587,7 +587,7 @@ export function Landing() {
               <a href="https://www.instagram.com/facilapr2026/" target="_blank" rel="noopener noreferrer" className="hover:text-[#3A0CE3]">Instagram</a>
             </nav>
           </div>
-          <p className={`mt-4 text-[13px] ${GRIS}`}>© 2026 Facilapr. {RAZON_SOCIAL}, RUT 78.324.975-8. Padre Las Casas, Región de La Araucanía, Chile.</p>
+          <p className={`mt-4 text-[13px] ${GRIS}`}>© 2026 Facilapr. {RAZON_SOCIAL}, RUT 78.324.975-8. Vicuña Mackenna 678, oficina 307, Temuco, Región de La Araucanía, Chile.</p>
         </div>
       </footer>
     </div>
