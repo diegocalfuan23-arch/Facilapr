@@ -513,9 +513,11 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
         lado: "bottom",
       },
       {
+        selector: '[aria-label^="Ajustar "]',
         titulo: "Ajustar el stock",
         texto:
-          "En la fila de cada material puedes registrar una entrada (una donación o una devolución) o una salida (una reparación o la cloración), y anotas el motivo. La cantidad no puede pasar de lo que hay.",
+          "En la fila de cada material, el botón Ajustar te deja registrar una entrada (una donación o una devolución) o una salida (una reparación o la cloración), y anotas el motivo. La cantidad no puede pasar de lo que hay.",
+        lado: "left",
       },
       {
         selector: enMenu("inv-pestanas"),
