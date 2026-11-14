@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { solicitudesClave, socios } from "@/lib/db/schema";
 import { normalizarRut } from "@/lib/formato";
 import { cuentaDeSocio } from "@/lib/socios-acceso";
+import { avisarSolicitudDeSocio } from "@/lib/correo/solicitud-socio";
 
 /**
  * Un socio que no puede entrar avisa a su comité. Es pública: quien la usa no
@@ -27,6 +28,8 @@ export async function pedirRestablecerClave({ aprId, rut }: { aprId: string; rut
 
   try {
     await db.insert(solicitudesClave).values({ aprId, socioId: conCuenta.id });
+    // Recién creada (no una repetida): se avisa por correo a la directiva, además del número que ve en el panel.
+    await avisarSolicitudDeSocio({ aprId, socioId: conCuenta.id, tipo: "CLAVE" });
   } catch (e) {
     // El índice único: ya hay una pendiente de este socio. No es un error para quien la pide.
     const texto = `${e instanceof Error ? e.message : ""} ${(e as { cause?: Error }).cause?.message ?? ""}`;

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { solicitudesAcceso, socios } from "@/lib/db/schema";
 import { user as userTable, account as accountTable } from "@/lib/db/auth-schema";
 import { normalizarRut } from "@/lib/formato";
+import { avisarSolicitudDeSocio } from "@/lib/correo/solicitud-socio";
 import { createId } from "@paralleldrive/cuid2";
 
 export type ResultadoSolicitud = { ok: true } | { ok: false; error: string };
@@ -66,6 +67,9 @@ export async function solicitarAccesoSocio({
     socioId: socio.id,
     claveHash,
   });
+
+  // Se avisa por correo a la directiva, además del número que ve en el panel.
+  await avisarSolicitudDeSocio({ aprId, socioId: socio.id, tipo: "ACCESO" });
 
   return { ok: true };
 }
