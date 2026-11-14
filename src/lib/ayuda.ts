@@ -899,7 +899,7 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Entra a Conversaciones",
         texto:
-          "En el menú de tu panel está Conversaciones. Cada socio que te escribe desde su cuenta aparece ahí, y los mensajes llegan en tiempo real. Elige un socio y respóndele como en cualquier chat.",
+          "En el menú de tu panel está Conversaciones. Cada socio que te escribe desde su cuenta aparece ahí, y los mensajes llegan en tiempo real. Elige un socio y respóndele como en cualquier chat. A la derecha ves su ficha: lo que debe, su última boleta y su consumo (en el celular, con el botón de información). Abajo tienes atajos para su boleta, el enlace de pago y plantillas.",
         nota: "El chat está en los planes Estándar y Grande.",
       },
       {
@@ -915,12 +915,12 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Qué hace y qué no hace",
         texto:
-          "Sus mensajes salen marcados como «Asistente del comité · IA». Responde con los datos de la cuenta del socio y los de tu comité, y no promete plazos ni descuentos. Si es un reclamo, un corte o no sabe la respuesta, marca la conversación como «Necesita respuesta humana» para que entres tú.",
+          "Sus mensajes salen marcados como «Asistente del comité · IA». Responde con los datos de la cuenta del socio y los de tu comité, y no promete plazos ni descuentos. Si es un reclamo, un corte o no sabe la respuesta, marca la conversación como «Necesita una persona» para que entres tú; esas aparecen primero y en la pestaña «Para ti».",
       },
       {
         titulo: "Toma el control cuando quieras",
         texto:
-          "Si escribes tú en una conversación, la IA se pausa 10 minutos ahí y después vuelve a responder. También puedes pausarla a mano en una conversación puntual desde la misma pantalla.",
+          "Si escribes tú en una conversación, la IA se pausa 10 minutos ahí y después vuelve a responder. También puedes pausarla a mano en una conversación puntual con el selector «IA / Yo» de arriba del chat (en el celular, con el interruptor del aviso).",
       },
       {
         titulo: "Mira cuánto has usado",

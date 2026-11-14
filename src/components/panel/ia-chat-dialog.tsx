@@ -29,6 +29,13 @@ export type IaChatAjustes = {
   uso: UsoIaChat | null;
 };
 
+/** Si el asistente está activo y cómo se llama su estado: lo usan el botón de la cabecera y la ficha de Conversaciones. */
+export function estadoIa(a: IaChatAjustes) {
+  const activa = a.disponible && a.modo === "SIEMPRE";
+  const texto = !a.disponible ? "Desde Estándar" : activa && a.uso && a.uso.disponible <= 0 ? "Sin tokens" : activa ? "Activo" : "Apagado";
+  return { activa, texto };
+}
+
 /** Botón de la cabecera de Conversaciones: muestra si la IA está activa y abre sus ajustes. */
 export function BotonIaChat({ ajustes }: { ajustes: IaChatAjustes }) {
   const [abierto, setAbierto] = useState(false);
@@ -68,7 +75,7 @@ export function BotonIaChat({ ajustes }: { ajustes: IaChatAjustes }) {
   );
 }
 
-function IaChatDialog({
+export function IaChatDialog({
   ajustes,
   onGuardado,
   onCerrar,
