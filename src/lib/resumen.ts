@@ -1,6 +1,6 @@
 import { and, count, countDistinct, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, insumos, lecturas, pagos, socios, solicitudesAcceso } from "@/lib/db/schema";
+import { boletas, insumos, lecturas, pagos, socios, solicitudesAcceso, solicitudesClave } from "@/lib/db/schema";
 import { hoyEnChile, libroDelMes, mesVecino, resumenPeriodo, tendenciaDisponible } from "@/lib/finanzas";
 import { textoMedioPago } from "@/lib/pagos";
 import { listarComunicados } from "@/lib/comunicados";
@@ -71,6 +71,7 @@ export async function datosResumen(opts: {
     [conLectura],
     [porAprobar],
     [solicitudes],
+    [clavesPedidas],
     stockBajo,
     pagosRecientes,
     boletasRecientes,
@@ -173,6 +174,13 @@ export async function datosResumen(opts: {
       .from(solicitudesAcceso)
       .innerJoin(socios, eq(solicitudesAcceso.socioId, socios.id))
       .where(and(eq(socios.aprId, aprId), eq(solicitudesAcceso.estado, "PENDIENTE"))),
+
+    // Los socios que olvidaron su clave y avisan al comité: se cuentan junto a los pedidos de acceso.
+    db
+      .select({ n: count() })
+      .from(solicitudesClave)
+      .where(and(eq(solicitudesClave.aprId, aprId), eq(solicitudesClave.estado, "PENDIENTE")))
+      .catch(() => [{ n: 0 }]),
 
     opts.conInventario
       ? db
@@ -282,7 +290,7 @@ export async function datosResumen(opts: {
   const atencion: DatosResumen["atencion"] = [
     { clave: "lecturas", titulo: "Lecturas por aprobar", detalle: "Revisa antes de emitir boletas", n: porAprobar?.n ?? 0, tono: "info", href: "/panel/lecturas" },
     { clave: "sin-lectura", titulo: "Socios sin lectura", detalle: "Se les cobrará solo cargo fijo", n: sinLectura, tono: "alerta", href: "/panel/lecturas" },
-    { clave: "solicitudes", titulo: "Solicitudes de acceso", detalle: "Socios pidiendo entrar a su panel", n: solicitudes?.n ?? 0, tono: "info", href: "/panel/socios/solicitudes" },
+    { clave: "solicitudes", titulo: "Solicitudes de acceso", detalle: "Socios pidiendo entrar o una clave nueva", n: (solicitudes?.n ?? 0) + (clavesPedidas?.n ?? 0), tono: "info", href: "/panel/socios/solicitudes" },
   ];
   if (opts.conInventario) atencion.push({ clave: "stock", titulo: "Materiales con stock bajo", detalle: "Inventario", n: stockBajo[0]?.n ?? 0, tono: "alerta", href: "/panel/inventario" });
 
