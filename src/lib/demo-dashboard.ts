@@ -1,174 +1,83 @@
+import type { DatosResumen } from "@/lib/resumen-comun";
+
 /**
- * Datos ficticios para ver el dashboard poblado, con la forma que tendría un
- * comité mediano en marcha.
+ * Datos ficticios para ver el Resumen poblado, con la forma que tendría un comité mediano en marcha.
  *
- * Solo se usan con ?demo=1 en la URL y con un aviso visible en pantalla:
- * nunca deben aparecer por defecto. Un panel que muestra cifras inventadas
- * sin decirlo es peor que uno vacío — un dirigente podría creer que son suyas.
+ * Solo se usan con ?demo=1 en la URL y con un aviso visible en pantalla: nunca deben aparecer por defecto.
+ * Un panel que muestra cifras inventadas sin decirlo es peor que uno vacío: un dirigente podría creer que son suyas.
  */
 
-export type DatosDashboard = {
-  padron: { total: number; activos: number };
-  morosidad: { socios: number; monto: number };
-  facturacion: { emitidas: number; recaudado: number; facturado: number };
-  variacionRecaudado: number | null;
-  variacionEmitidas: number | null;
-  cobranza: {
-    periodo: string;
-    pagadas: number;
-    pendientes: number;
-    vencidas: number;
-  }[];
-  consumo: { periodo: string; valor: number }[];
-  /** m³ de los períodos mostrados, según el uso del arranque. */
-  consumoPorUso: { residencial: number; comercial: number };
-  recaudado: { periodo: string; valor: number }[];
-  vencidas: { periodo: string; valor: number }[];
-  boletas: {
-    id: string;
-    socioNombre: string;
-    periodo: string;
-    montoTotal: number;
-    montoPagado: number;
-    fechaVencimiento: Date;
-  }[];
-  socios: { id: string; nombre: string; activo: boolean }[];
-  /** El período que más recaudó y quiénes pagaron en él. */
-  mejorPeriodo: { periodo: string; monto: number } | null;
-  pagadores: { id: string; nombre: string; pagado: number; boletas: number }[];
-  /** Socios esperando que la directiva apruebe o rechace su acceso al panel. */
-  solicitudesPendientes: {
-    id: string;
-    nombre: string;
-    rut: string | null;
-    hace: string;
-  }[];
-};
+const MESES = [
+  { corto: "Abr", largo: "Abr 2026" },
+  { corto: "May", largo: "May 2026" },
+  { corto: "Jun", largo: "Jun 2026" },
+  { corto: "Jul", largo: "Jul 2026" },
+  { corto: "Ago", largo: "Ago 2026" },
+  { corto: "Sep", largo: "Sep 2026" },
+  { corto: "Oct", largo: "Oct 2026" },
+  { corto: "Nov", largo: "Nov 2026" },
+];
 
-const MESES = ["Dic", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul"];
-
-const dias = (n: number) => new Date(Date.now() + n * 86_400_000);
-
-export const DEMO: DatosDashboard = {
-  padron: { total: 248, activos: 236 },
-  morosidad: { socios: 31, monto: 412_800 },
-  facturacion: { emitidas: 1_842, recaudado: 14_620_400, facturado: 15_033_200 },
-  variacionRecaudado: 12.4,
-  variacionEmitidas: 3.1,
-
-  // La morosidad sube en invierno: es cuando más cuesta cobrar en el campo.
-  cobranza: [
-    { periodo: "Dic", pagadas: 198, pendientes: 22, vencidas: 8 },
-    { periodo: "Ene", pagadas: 205, pendientes: 19, vencidas: 11 },
-    { periodo: "Feb", pagadas: 212, pendientes: 17, vencidas: 9 },
-    { periodo: "Mar", pagadas: 208, pendientes: 21, vencidas: 14 },
-    { periodo: "Abr", pagadas: 216, pendientes: 15, vencidas: 12 },
-    { periodo: "May", pagadas: 203, pendientes: 24, vencidas: 19 },
-    { periodo: "Jun", pagadas: 197, pendientes: 28, vencidas: 24 },
-    { periodo: "Jul", pagadas: 189, pendientes: 33, vencidas: 31 },
+export const DEMO: DatosResumen = {
+  saludo: "Buenos días, Admin",
+  fecha: "Viernes 13 de noviembre",
+  demo: true,
+  periodo: {
+    valor: "2026-11",
+    opciones: [
+      { valor: "2026-11", texto: "Noviembre 2026" },
+      { valor: "2026-10", texto: "Octubre 2026" },
+      { valor: "2026-09", texto: "Septiembre 2026" },
+      { valor: "2026", texto: "Todo 2026" },
+    ],
+  },
+  hero: { titulo: "Recaudado en noviembre", recaudado: 1_240_800, facturado: 1_986_500, pct: 62, vencenEn: 11, variacion: { pct: 8, contra: "octubre" }, pagadas: 148, pendientes: 79, vencidas: 21 },
+  caja: {
+    disponible: 4_820_300,
+    ingresos: 1_320_000,
+    egresos: 612_400,
+    etiquetaNeto: "este mes",
+    serie: [4_100_000, 4_160_000, 4_150_000, 4_320_000, 4_480_000, 4_610_000, 4_820_300],
+  },
+  kpis: {
+    socios: { total: 248, nuevos: 3, textoNuevos: "nuevos este mes" },
+    morosos: { n: 21, pct: 8 },
+    consumo: { titulo: "Consumo del mes", m3: 2_710, porSocio: 10.9 },
+    lecturas: { hechas: 214, total: 248 },
+  },
+  recaudacion: {
+    meses: MESES,
+    valores: [1_910_000, 1_760_000, 1_690_000, 1_650_400, 1_720_000, 1_580_000, 1_150_000, 1_240_800],
+    actual: 7,
+  },
+  consumo: {
+    meses: MESES,
+    valores: [3_210, 2_870, 2_640, 2_710, 2_980, 3_120, 2_860, 2_710],
+    actual: 7,
+    raro: null,
+    avisoRaro: null,
+    residencial: 21_800,
+    comercial: 3_900,
+  },
+  atencion: [
+    { clave: "lecturas", titulo: "Lecturas por aprobar", detalle: "Revisa antes de emitir boletas", n: 12, tono: "info", href: "/panel/lecturas" },
+    { clave: "sin-lectura", titulo: "Socios sin lectura", detalle: "Se les cobrará solo cargo fijo", n: 34, tono: "alerta", href: "/panel/lecturas" },
+    { clave: "solicitudes", titulo: "Solicitudes de acceso", detalle: "Socios pidiendo entrar a su panel", n: 2, tono: "info", href: "/panel/socios/solicitudes" },
+    { clave: "stock", titulo: "Materiales con stock bajo", detalle: "Inventario", n: 0, tono: "alerta", href: "/panel/inventario" },
   ],
-
-  // El consumo baja en invierno: menos riego, menos animales.
-  consumoPorUso: { residencial: 21800, comercial: 3900 },
-  consumo: [
-    { periodo: "Dic", valor: 4_120 },
-    { periodo: "Ene", valor: 4_780 },
-    { periodo: "Feb", valor: 4_560 },
-    { periodo: "Mar", valor: 3_940 },
-    { periodo: "Abr", valor: 3_210 },
-    { periodo: "May", valor: 2_870 },
-    { periodo: "Jun", valor: 2_640 },
-    { periodo: "Jul", valor: 2_710 },
+  pagos: [
+    { id: "p1", socio: "Luis Painemal", cuando: "Hoy, 10:42", medio: "Transferencia", monto: 13_150 },
+    { id: "p2", socio: "María Huenchuñir", cuando: "12-11", medio: "Efectivo", monto: 9_250 },
+    { id: "p3", socio: "Elena Quilaqueo", cuando: "10-11", medio: "Pago en línea", monto: 11_300 },
+    { id: "p4", socio: "Rosa Millán", cuando: "09-11", medio: "Transferencia", monto: 7_400 },
   ],
-
-  recaudado: [
-    { periodo: "Dic", valor: 1_840_000 },
-    { periodo: "Ene", valor: 1_920_000 },
-    { periodo: "Feb", valor: 1_980_000 },
-    { periodo: "Mar", valor: 1_870_000 },
-    { periodo: "Abr", valor: 1_910_000 },
-    { periodo: "May", valor: 1_760_000 },
-    { periodo: "Jun", valor: 1_690_000 },
-    { periodo: "Jul", valor: 1_650_400 },
-  ],
-
-  vencidas: [
-    { periodo: "Dic", valor: 8 },
-    { periodo: "Ene", valor: 11 },
-    { periodo: "Feb", valor: 9 },
-    { periodo: "Mar", valor: 14 },
-    { periodo: "Abr", valor: 12 },
-    { periodo: "May", valor: 19 },
-    { periodo: "Jun", valor: 24 },
-    { periodo: "Jul", valor: 31 },
-  ],
-
   boletas: [
-    {
-      id: "d1",
-      socioNombre: "María Huenchuñir",
-      periodo: "2026-07",
-      montoTotal: 9_250,
-      montoPagado: 9_250,
-      fechaVencimiento: dias(12),
-    },
-    {
-      id: "d2",
-      socioNombre: "Pedro Curihual",
-      periodo: "2026-07",
-      montoTotal: 11_800,
-      montoPagado: 0,
-      fechaVencimiento: dias(-6),
-    },
-    {
-      id: "d3",
-      socioNombre: "Rosa Millán",
-      periodo: "2026-07",
-      montoTotal: 7_400,
-      montoPagado: 4_000,
-      fechaVencimiento: dias(12),
-    },
-    {
-      id: "d4",
-      socioNombre: "Luis Painemal",
-      periodo: "2026-07",
-      montoTotal: 13_150,
-      montoPagado: 13_150,
-      fechaVencimiento: dias(12),
-    },
-    {
-      id: "d5",
-      socioNombre: "Carmen Antileo",
-      periodo: "2026-06",
-      montoTotal: 8_900,
-      montoPagado: 0,
-      fechaVencimiento: dias(-18),
-    },
+    { id: "b1", socio: "María Huenchuñir", periodo: "Noviembre", m3: 14, monto: 9_250, estado: "Pagada" },
+    { id: "b2", socio: "Pedro Curihual", periodo: "Noviembre", m3: 18, monto: 11_800, estado: "Pendiente" },
+    { id: "b3", socio: "Rosa Millán", periodo: "Noviembre", m3: 11, monto: 7_400, estado: "Pendiente" },
+    { id: "b4", socio: "Luis Painemal", periodo: "Noviembre", m3: 20, monto: 13_150, estado: "Pagada" },
+    { id: "b5", socio: "Carmen Antileo", periodo: "Noviembre", m3: 13, monto: 8_900, estado: "Vencida" },
   ],
-
-  // Febrero es el mes más alto de la serie de recaudación.
-  mejorPeriodo: { periodo: "2026-02", monto: 1_980_000 },
-
-  pagadores: [
-    { id: "p1", nombre: "Luis Painemal", pagado: 39_450, boletas: 3 },
-    { id: "p2", nombre: "María Huenchuñir", pagado: 27_750, boletas: 3 },
-    { id: "p3", nombre: "Elena Quilaqueo", pagado: 22_100, boletas: 2 },
-    { id: "p4", nombre: "Rosa Millán", pagado: 14_800, boletas: 2 },
-    { id: "p5", nombre: "Juan Marileo", pagado: 11_300, boletas: 1 },
-  ],
-
-  socios: [
-    { id: "s1", nombre: "Carmen Antileo", activo: true },
-    { id: "s2", nombre: "Luis Painemal", activo: true },
-    { id: "s3", nombre: "Rosa Millán", activo: true },
-    { id: "s4", nombre: "Pedro Curihual", activo: false },
-    { id: "s5", nombre: "María Huenchuñir", activo: true },
-  ],
-
-  solicitudesPendientes: [
-    { id: "sol1", nombre: "Elena Quilaqueo", rut: "9.876.543-2", hace: "hace 5 min" },
-    { id: "sol2", nombre: "Juan Marileo", rut: "11.222.333-4", hace: "hace 1 día" },
-  ],
+  subtituloBoletas: "Noviembre 2026 · vencen el 24-11",
+  rutas: { pagos: "/panel/pagos", caja: "/panel/caja" },
 };
-
-export { MESES };
