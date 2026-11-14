@@ -2,14 +2,18 @@
 
 import { toast } from "sonner";
 import { useState, useTransition } from "react";
-import { Check, Loader2, Trash2, UserCheck, X } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Loader2, MailWarning, Trash2, UserCheck, X } from "lucide-react";
 import {
   aprobarSolicitud,
+  consultarSolicitudes,
   eliminarSolicitud,
   rechazarSolicitud,
 } from "@/app/panel/socios/solicitudes/actions";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
+import type { DatosSolicitudes, Solicitud } from "@/lib/solicitudes-comun";
 import { formatearRut, iniciales, tiempoRelativo } from "@/lib/formato";
-import { SolicitudesClave, type SolicitudClaveFila } from "@/components/panel/solicitudes-clave";
+import { SolicitudesClave } from "@/components/panel/solicitudes-clave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,16 +34,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type Estado = "PENDIENTE" | "APROBADA" | "RECHAZADA";
-
-type Solicitud = {
-  id: string;
-  nombre: string;
-  rut: string | null;
-  estado: Estado;
-  motivoRechazo: string | null;
-  createdAt: Date;
-};
+type Estado = Solicitud["estado"];
 
 const ESTADO_ESTILO: Record<Estado, { texto: string; clase: string }> = {
   PENDIENTE: { texto: "Pendiente", clase: "bg-tertiary/15 text-tertiary-foreground" },
@@ -316,24 +311,28 @@ function TarjetaSolicitud({ solicitud, onCambio, onEliminada }: PropsFila) {
 }
 
 
-export function SolicitudesTabla({
-  solicitudes,
-  clavesPedidas,
-  comite,
-}: {
-  solicitudes: Solicitud[];
-  /** Socios que no pueden entrar y piden una clave nueva. */
-  clavesPedidas: SolicitudClaveFila[];
-  comite: { nombre: string };
-}) {
-  const [lista, setLista] = useState(solicitudes);
+export function SolicitudesTabla({ inicial, comite }: { inicial: DatosSolicitudes; comite: { nombre: string } }) {
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se actualiza sola: cuando un socio pide acceso o una clave nueva, aparece sin recargar.
+  const { data } = useQuery({ queryKey: ["solicitudes"], queryFn: () => consultarSolicitudes(), initialData: inicial, refetchInterval: INTERVALO_RAPIDO });
+  const lista = data.solicitudes;
+
+  /** El cambio se ve al instante; enseguida se vuelve a pedir la lista para confirmarlo. */
+  function cambiarDatos(f: (d: DatosSolicitudes) => DatosSolicitudes) {
+    cliente.setQueryData<DatosSolicitudes>(["solicitudes"], (d) => (d ? f(d) : d));
+    void cliente.invalidateQueries({ queryKey: ["solicitudes"] });
+  }
 
   function onCambio(id: string, cambios: Partial<Solicitud>) {
-    setLista((prev) => prev.map((s) => (s.id === id ? { ...s, ...cambios } : s)));
+    cambiarDatos((d) => ({ ...d, solicitudes: d.solicitudes.map((s) => (s.id === id ? { ...s, ...cambios } : s)) }));
   }
 
   function onEliminada(id: string) {
-    setLista((prev) => prev.filter((s) => s.id !== id));
+    cambiarDatos((d) => ({ ...d, solicitudes: d.solicitudes.filter((s) => s.id !== id) }));
+  }
+
+  function onClaveResuelta(id: string) {
+    cambiarDatos((d) => ({ ...d, clavesPedidas: d.clavesPedidas.filter((s) => s.id !== id) }));
   }
 
   return (
@@ -343,7 +342,19 @@ export function SolicitudesTabla({
         Aprueba solo si reconoces el RUT como parte del comité.
       </p>
 
-      <SolicitudesClave solicitudes={clavesPedidas} comite={comite} />
+      {data.sinCorreo && (
+        <p className="mt-4 flex items-start gap-2 rounded-xl border border-tertiary/40 bg-tertiary/10 px-4 py-3 text-[0.88rem]">
+          <MailWarning className="mt-0.5 size-4 shrink-0 text-tertiary-texto" aria-hidden />
+          <span>
+            Tu comité no tiene un correo en Configuración, así que no te llega el aviso cuando un socio pide acceso o una clave nueva.{" "}
+            <a href="/panel/configuracion" className="font-medium text-primary hover:underline">
+              Agregarlo
+            </a>
+          </span>
+        </p>
+      )}
+
+      <SolicitudesClave solicitudes={data.clavesPedidas} comite={comite} onResuelta={onClaveResuelta} />
 
       {lista.length === 0 ? (
         <div className="mt-6 flex flex-col items-center rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">

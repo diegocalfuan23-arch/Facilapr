@@ -11,6 +11,8 @@ import {
   rechazarSolicitudAcceso,
   type ResultadoAprobacion,
 } from "@/lib/socios-acceso";
+import { listarSolicitudes } from "@/lib/solicitudes-socios";
+import type { DatosSolicitudes } from "@/lib/solicitudes-comun";
 
 export async function aprobarSolicitud(
   solicitudId: string
@@ -82,4 +84,10 @@ export async function resolverSolicitudClave(
   revalidatePath("/panel/socios/solicitudes");
   revalidatePath("/panel");
   return { ok: true };
+}
+
+/** Las solicitudes de los socios, para que la pantalla las vuelva a pedir sola (la usa TanStack Query). */
+export async function consultarSolicitudes(): Promise<DatosSolicitudes> {
+  const { apr } = await requireAdmin();
+  return listarSolicitudes(apr);
 }

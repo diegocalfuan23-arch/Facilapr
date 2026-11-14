@@ -7,15 +7,9 @@ import { resolverSolicitudClave } from "@/app/panel/socios/solicitudes/actions";
 import { RestablecerClaveDialog } from "@/components/panel/restablecer-clave-dialog";
 import { Button } from "@/components/ui/button";
 import { formatearRut, iniciales, tiempoRelativo } from "@/lib/formato";
+import type { SolicitudClaveFila } from "@/lib/solicitudes-comun";
 
-export type SolicitudClaveFila = {
-  id: string;
-  socioId: string;
-  nombre: string;
-  rut: string | null;
-  telefono: string | null;
-  createdAt: Date;
-};
+export type { SolicitudClaveFila };
 
 /**
  * Socios que no pueden entrar y pidieron una clave nueva. La directiva les manda
@@ -24,11 +18,14 @@ export type SolicitudClaveFila = {
 export function SolicitudesClave({
   solicitudes,
   comite,
+  onResuelta,
 }: {
   solicitudes: SolicitudClaveFila[];
   comite: { nombre: string };
+  /** Se cerró una solicitud (atendida o descartada): quien tiene los datos la saca de la lista. */
+  onResuelta: (id: string) => void;
 }) {
-  const [lista, setLista] = useState(solicitudes);
+  const lista = solicitudes;
   const [atendiendo, setAtendiendo] = useState<SolicitudClaveFila | null>(null);
   const [pendiente, iniciar] = useTransition();
 
@@ -38,7 +35,7 @@ export function SolicitudesClave({
     iniciar(async () => {
       const r = await resolverSolicitudClave(id, estado);
       if (r.ok) {
-        setLista((prev) => prev.filter((s) => s.id !== id));
+        onResuelta(id);
         toast.success(estado === "ATENDIDA" ? "Solicitud atendida" : "Solicitud descartada");
       } else {
         toast.error(r.error);
