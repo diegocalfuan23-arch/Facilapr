@@ -294,7 +294,10 @@ export function LecturasTabla({ datos }: { datos: DatosLecturas }) {
   // La ruta del mes: los socios que todavía no tienen lectura este mes, por arranque y número.
   const leidosSet = useMemo(() => {
     const s = new Set(lecturas.filter((l) => l.periodo === actual && l.estado !== "RECHAZADA").map((l) => l.socioId));
-    for (const id of registrados) s.add(id);
+    // A quien se acaba de cargar cuenta como leído solo mientras su lectura no llega en la lista; cuando llega, manda su estado:
+    // si la rechazan, el socio vuelve a la ruta sin tener que recargar la página.
+    const enLista = new Set(lecturas.filter((l) => l.periodo === actual).map((l) => l.socioId));
+    for (const id of registrados) if (!enLista.has(id)) s.add(id);
     return s;
   }, [lecturas, actual, registrados]);
   const leidos = socios.filter((s) => leidosSet.has(s.id)).length;

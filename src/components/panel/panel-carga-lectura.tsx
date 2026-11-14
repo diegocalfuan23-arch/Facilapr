@@ -112,9 +112,20 @@ function FormularioLectura({ socio, periodo, onSaltar, onRegistrada }: { socio: 
         ) : socio.anterior !== null ? (
           `Debe ser igual o mayor a ${num(socio.anterior)}.`
         ) : (
-          "Primera lectura de este socio: al aprobarla quedará como lectura inicial."
+          "Primera lectura de este socio: no hay una anterior con la que comparar."
         )}
       </p>
+
+      {/* Sin lectura anterior: esta puede ser el punto de partida del medidor, sin cobrar nada. */}
+      {socio.anterior === null && (
+        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-[#E4DEFC] bg-[#F7F5FF] px-3.5 py-3 text-[13px]">
+          <input type="checkbox" name="comoInicial" defaultChecked className="mt-0.5 size-4 shrink-0 accent-primary" />
+          <span>
+            <span className="font-medium">Cuenta como lectura inicial</span>
+            <span className={cn("mt-0.5 block text-xs", GRIS)}>Queda aprobada como punto de partida y no genera boleta: la próxima lectura se compara con esta. Desmárcalo si quieres cobrarla.</span>
+          </span>
+        </label>
+      )}
 
       {obs === null ? (
         <button type="button" onClick={() => setObs("")} className="mt-3 flex items-center gap-1.5 text-[13px] font-semibold text-[#2A07A8] hover:underline">
