@@ -23,8 +23,15 @@ export async function pedirRestablecerClave({ aprId, rut }: { aprId: string; rut
 
   // Una persona con varios arranques comparte una sola cuenta.
   const conCuenta = delRut.find((s) => s.userId);
-  if (!conCuenta) return;
-  if (!(await cuentaDeSocio(conCuenta.id, aprId))) return;
+  // Se anota en el registro del servidor (sin el RUT) por qué no se creó la solicitud: a quien la pide se le responde igual siempre.
+  if (!conCuenta) {
+    console.log(`Clave nueva: el comité ${aprId} no tiene un socio con cuenta para ese RUT; no se creó la solicitud.`);
+    return;
+  }
+  if (!(await cuentaDeSocio(conCuenta.id, aprId))) {
+    console.log(`Clave nueva: el socio ${conCuenta.id} no tiene una cuenta válida; no se creó la solicitud.`);
+    return;
+  }
 
   try {
     await db.insert(solicitudesClave).values({ aprId, socioId: conCuenta.id });
@@ -34,5 +41,6 @@ export async function pedirRestablecerClave({ aprId, rut }: { aprId: string; rut
     // El índice único: ya hay una pendiente de este socio. No es un error para quien la pide.
     const texto = `${e instanceof Error ? e.message : ""} ${(e as { cause?: Error }).cause?.message ?? ""}`;
     if (!/SolicitudClave_socio_pendiente_key|duplicate key/.test(texto)) throw e;
+    console.log(`Clave nueva: el socio ${conCuenta.id} ya tenía una solicitud pendiente; no se creó otra ni se envió otro correo.`);
   }
 }

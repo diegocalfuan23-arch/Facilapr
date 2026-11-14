@@ -22,7 +22,10 @@ export async function avisarSolicitudDeSocio({ aprId, socioId, tipo }: { aprId: 
 
   try {
     const [apr] = await db.select({ nombre: aprs.nombre, email: aprs.email }).from(aprs).where(eq(aprs.id, aprId)).limit(1);
-    if (!apr?.email) return;
+    if (!apr?.email) {
+      console.warn(`Solicitud de socio (${tipo}): el comité ${aprId} no tiene correo en Configuración; no se envió el aviso.`);
+      return;
+    }
     const [socio] = await db.select({ nombre: socios.nombre }).from(socios).where(eq(socios.id, socioId)).limit(1);
     if (!socio) return;
 
@@ -49,6 +52,7 @@ export async function avisarSolicitudDeSocio({ aprId, socioId, tipo }: { aprId: 
       text: `${titulo}.\n\n${detalle}\n\nAbrir Solicitudes: ${enlace}`,
     });
     if (error) console.error("No se pudo avisar de la solicitud del socio:", error.message);
+    else console.log(`Solicitud de socio (${tipo}): aviso enviado al correo del comité ${aprId}.`);
   } catch (e) {
     console.error("No se pudo avisar de la solicitud del socio:", e);
   }
