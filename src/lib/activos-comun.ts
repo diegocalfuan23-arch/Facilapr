@@ -23,6 +23,14 @@ export const CATEGORIAS_ACTIVO = [
 
 export const textoCategoriaActivo = (valor: string) => CATEGORIAS_ACTIVO.find((c) => c.valor === valor)?.texto ?? "Otro";
 
+/** Un archivo adjunto a un bien: la lista trae solo sus datos; el contenido se pide aparte al abrirlo. */
+export type DocumentoActivo = { id: string; nombre: string; tipo: string; tamano: number };
+
+/** Lo que se puede adjuntar: PDF o imagen, de hasta 3 MB, y hasta 10 archivos por bien. */
+export const DOC_MAX_BYTES = 3 * 1024 * 1024;
+export const DOC_MAX_POR_BIEN = 10;
+export const DOC_TIPOS = ["application/pdf", "image/png", "image/jpeg"] as const;
+
 export type ActivoFila = {
   id: string;
   nombre: string;
@@ -42,6 +50,8 @@ export type ActivoFila = {
   /** Mientras está en reparación: desde cuándo y por qué (el motivo es opcional). */
   reparacionDesde: string | null;
   reparacionMotivo: string | null;
+  /** Los archivos adjuntos (factura de compra, garantía, plano). */
+  documentos: DocumentoActivo[];
 };
 
 /** El concepto con que la compra de un bien queda en Caja: así se reconoce que viene de Activos fijos. */

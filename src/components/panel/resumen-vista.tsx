@@ -3,9 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowDownLeft, ArrowRight, ArrowUpRight, Boxes, CalendarClock, CheckCircle2, ChevronRight, ClipboardCheck, Droplets, FileText, FlaskConical, Gauge, Plus, UserCheck, UserRoundX, Users, type LucideIcon } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
+import { AlertTriangle, ArrowDownLeft, ArrowRight, ArrowUpRight, Boxes, CalendarClock, CheckCircle2, ChevronRight, ClipboardCheck, Droplets, FileText, FlaskConical, Gauge, Plus, Send, UserCheck, UserRoundX, Users, type LucideIcon } from "lucide-react";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ComunicadoDialog } from "@/components/panel/comunicado-dialog";
 import { Anillo, GraficoConsumo, GraficoRecaudacion, MiniSaldo } from "@/components/panel/resumen-graficos";
 import type { DatosResumen } from "@/lib/resumen-comun";
 import { cn } from "@/lib/utils";
@@ -65,6 +66,7 @@ function Selector({ graf, setGraf }: { graf: string; setGraf: (g: "recaudacion" 
 export function ResumenVista({ d }: { d: DatosResumen }) {
   const router = useRouter();
   const [graf, setGraf] = useState<"recaudacion" | "consumo">("recaudacion");
+  const [comunicando, setComunicando] = useState(false);
   const h = d.hero;
   const pendientes = d.atencion.filter((a) => a.n > 0);
   const alDia = d.atencion.filter((a) => a.n === 0);
@@ -151,6 +153,13 @@ export function ResumenVista({ d }: { d: DatosResumen }) {
               ))}
             </SelectContent>
           </Select>
+          {/* En la demostración no se publica nada: los comunicados son de verdad y los verían los socios. */}
+          {!d.demo && (
+            <Button variant="outline" className="h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold" onClick={() => setComunicando(true)}>
+              <Send className="size-4" />
+              Comunicado
+            </Button>
+          )}
           <Link href={d.rutas.pagos} className={cn(buttonVariants(), "h-10 rounded-lg px-4 font-semibold")}>
             <Plus />
             Registrar pago
@@ -478,6 +487,7 @@ export function ResumenVista({ d }: { d: DatosResumen }) {
           </>
         )}
       </section>
+      {comunicando && <ComunicadoDialog comunicados={d.comunicados} onCerrar={() => setComunicando(false)} />}
     </div>
   );
 }

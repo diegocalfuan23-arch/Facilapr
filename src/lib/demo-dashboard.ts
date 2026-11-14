@@ -65,6 +65,7 @@ export const DEMO: DatosResumen = {
     { clave: "solicitudes", titulo: "Solicitudes de acceso", detalle: "Socios pidiendo entrar a su panel", n: 2, tono: "info", href: "/panel/socios/solicitudes" },
     { clave: "stock", titulo: "Materiales con stock bajo", detalle: "Inventario", n: 0, tono: "alerta", href: "/panel/inventario" },
   ],
+  comunicados: [],
   morosidad: { tasa: 8.47, socios: 21, total: 248, serie: [12, 9, 14, 11, 16, 19, 24, 21] },
   mejorMes: {
     texto: "Abril 2026",

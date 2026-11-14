@@ -6,6 +6,7 @@ import { basePortal } from "@/lib/portal-socio";
 import { boletasDelPortal } from "@/lib/portal-socio-datos";
 import { pagoEnLineaActivo } from "@/lib/mercadopago-pagos";
 import { cortadosActuales, ordenesDeSocios } from "@/lib/ordenes-datos";
+import { listarComunicados } from "@/lib/comunicados";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import {
   clp,
@@ -26,6 +27,8 @@ export default async function ResumenSocioPage({ params }: Props) {
   const base = await basePortal(slug);
   const { cuentas, lista } = await boletasDelPortal(socio);
   const cortados = cortadosActuales(await ordenesDeSocios(cuentas.map((c) => c.id)));
+  // Los avisos de la directiva de los últimos 45 días: uno de hace meses ya no le sirve al socio.
+  const avisos = await listarComunicados(socio.aprId, 3, 45);
 
   const porPagar = lista.filter(estaPorPagar);
   const pendiente = porPagar[0];
@@ -59,6 +62,21 @@ export default async function ResumenSocioPage({ params }: Props) {
       )}
 
       <InstalarApp />
+
+      {avisos.length > 0 && (
+        <section aria-label="Avisos del comité" className="mb-4 flex flex-col gap-2.5">
+          <h2 className="text-[0.85rem] font-semibold text-muted-foreground">Avisos del comité</h2>
+          {avisos.map((a) => (
+            <article key={a.id} className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="font-semibold">{a.titulo}</h3>
+                <span className="shrink-0 text-[0.75rem] text-muted-foreground">{fecha.format(a.createdAt)}</span>
+              </div>
+              <p className="mt-1 text-[0.88rem] leading-relaxed whitespace-pre-line text-muted-foreground">{a.mensaje}</p>
+            </article>
+          ))}
+        </section>
+      )}
 
       <section
         className={`rounded-2xl border p-6 ${

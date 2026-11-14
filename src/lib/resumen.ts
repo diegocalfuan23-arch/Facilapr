@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { boletas, insumos, lecturas, pagos, socios, solicitudesAcceso } from "@/lib/db/schema";
 import { hoyEnChile, libroDelMes, mesVecino, resumenPeriodo, tendenciaDisponible } from "@/lib/finanzas";
 import { textoMedioPago } from "@/lib/pagos";
+import { listarComunicados } from "@/lib/comunicados";
+import { tiempoRelativo } from "@/lib/formato";
 import type { DatosResumen, EstadoBoletaResumen } from "@/lib/resumen-comun";
 
 const MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
@@ -73,6 +75,7 @@ export async function datosResumen(opts: {
     pagosRecientes,
     boletasRecientes,
     vencidasPorPeriodo,
+    comunicadosRecientes,
     cajaDatos,
   ] = await Promise.all([
     db
@@ -212,6 +215,8 @@ export async function datosResumen(opts: {
       .innerJoin(socios, eq(boletas.socioId, socios.id))
       .where(and(eq(socios.aprId, aprId), noAnulada, inArray(boletas.periodo, periodos)))
       .groupBy(boletas.periodo),
+
+    listarComunicados(aprId, 5),
 
     opts.conCaja
       ? (async () => {
@@ -368,6 +373,7 @@ export async function datosResumen(opts: {
     recaudacion: { meses, valores: periodos.map((p) => porP.get(p)?.recaudado ?? 0), actual },
     consumo: { meses, valores: valoresConsumo, actual, raro, avisoRaro, residencial, comercial },
     atencion,
+    comunicados: comunicadosRecientes.map((c) => ({ id: c.id, titulo: c.titulo, hace: tiempoRelativo(c.createdAt) })),
     morosidad: {
       tasa: totalSocios > 0 ? ((morosos?.socios ?? 0) / totalSocios) * 100 : 0,
       socios: morosos?.socios ?? 0,

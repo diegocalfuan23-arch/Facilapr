@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Building2, CalendarCheck2, CalendarDays, Car, ChevronRight, Cog, Droplets, FileText, Gauge, Hash, Landmark, MapPin, Mountain, Package, Pencil, Plus, Search, UserRound, Waves, Wrench, X } from "lucide-react";
-import { cambiarEstadoActivo, consultarActivos, programarLaborMantencion } from "@/app/panel/activos/actions";
+import { Building2, CalendarCheck2, CalendarDays, Car, ChevronRight, Cog, Droplets, FileText, Gauge, Hash, Landmark, MapPin, Mountain, Package, Paperclip, Pencil, Plus, Search, UserRound, Waves, Wrench, X } from "lucide-react";
+import { adjuntarDocumentoActivo, cambiarEstadoActivo, consultarActivos, programarLaborMantencion, quitarDocumentoActivo } from "@/app/panel/activos/actions";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ActivoDialog } from "@/components/panel/activo-dialog";
-import { TEXTO_ESTADO_ACTIVO, textoCategoriaActivo, valorActual, type ActivoFila, type EstadoActivo } from "@/lib/activos-comun";
+import { useConfirmar } from "@/components/ui/confirmar";
+import { DOC_MAX_BYTES, DOC_MAX_POR_BIEN, TEXTO_ESTADO_ACTIVO, textoCategoriaActivo, valorActual, type ActivoFila, type EstadoActivo } from "@/lib/activos-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +64,11 @@ function hace(iso: string, hoy: string) {
   if (meses < 12) return `hace ${meses} ${meses === 1 ? "mes" : "meses"}`;
   const anios = Math.floor(meses / 12);
   return `hace ${anios} ${anios === 1 ? "año" : "años"}`;
+}
+
+/** El peso de un archivo en palabras: 240 KB, 1,2 MB. */
+function tamanoLegible(bytes: number) {
+  return bytes >= 1024 * 1024 ? `${(bytes / (1024 * 1024)).toLocaleString("es-CL", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 }
 
 function Chip({ e }: { e: EstadoActivo }) {
@@ -138,6 +144,8 @@ function Detalle({
   onEditar,
   onEstado,
   onProgramar,
+  onAdjuntar,
+  onQuitarDocumento,
 }: {
   a: ActivoFila;
   hoy: string;
@@ -146,7 +154,10 @@ function Detalle({
   onEditar: () => void;
   onEstado: (e: EstadoActivo) => void;
   onProgramar: () => void;
+  onAdjuntar: (f: File) => void;
+  onQuitarDocumento: (id: string, nombre: string) => void;
 }) {
+  const archivo = useRef<HTMLInputElement>(null);
   const baja = a.estado === "BAJA";
   const sinDepreciar = a.vidaUtilAnios <= 0;
   const valor = valorDe(a, hoy);
@@ -303,6 +314,52 @@ function Detalle({
         ) : null}
 
         <section className="px-5 py-4">
+          <p className="mb-2 flex items-center justify-between text-[13px] font-semibold">
+            <span>
+              Documentos <span className={cn("font-normal", GRIS)}>· {a.documentos.length}</span>
+            </span>
+            {a.documentos.length < DOC_MAX_POR_BIEN ? (
+              <button type="button" disabled={ocupado} onClick={() => archivo.current?.click()} className="text-xs font-semibold text-[#2A07A8] hover:underline disabled:opacity-50">
+                Adjuntar
+              </button>
+            ) : null}
+          </p>
+          <input
+            ref={archivo}
+            type="file"
+            accept="application/pdf,image/png,image/jpeg"
+            className="sr-only"
+            tabIndex={-1}
+            aria-label="Adjuntar un documento"
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onAdjuntar(f);
+              e.target.value = "";
+            }}
+          />
+          {a.documentos.length ? (
+            <ul className="flex flex-col gap-1.5">
+              {a.documentos.map((doc) => (
+                <li key={doc.id} className="flex items-center gap-1 rounded-lg border border-[#EFEDF6] pr-1 hover:bg-[#F8F7FC]">
+                  <a href={`/panel/activos/documento/${doc.id}`} target="_blank" rel="noopener noreferrer" className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2 text-left text-sm">
+                    <Paperclip className="size-4 shrink-0 text-[#8A8799]" aria-hidden />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">{doc.nombre}</span>
+                      <span className={cn("block text-xs", GRIS)}>{doc.tipo === "application/pdf" ? "PDF" : "Imagen"} · {tamanoLegible(doc.tamano)}</span>
+                    </span>
+                  </a>
+                  <Button variant="ghost" size="icon" aria-label={`Quitar ${doc.nombre}`} disabled={ocupado} onClick={() => onQuitarDocumento(doc.id, doc.nombre)} className="size-8 shrink-0 rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-700">
+                    <X className="size-4" />
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className={cn("text-sm", GRIS)}>Sin documentos. Adjunta la factura de compra, la garantía o un plano (PDF o imagen, hasta 3 MB).</p>
+          )}
+        </section>
+
+        <section className="px-5 py-4">
           <p className="mb-2 text-[13px] font-semibold">Historial</p>
           <ol className="flex flex-col gap-3 border-l-2 border-[#ECEAF4] pl-4 text-[13px]">
             {a.estado === "EN_REPARACION" && a.reparacionDesde ? (
@@ -354,6 +411,7 @@ function Detalle({
 /** Los activos fijos del comité y cuánto vale cada uno hoy (depreciación lineal según su vida útil). */
 export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
   const cliente = useQueryClient();
+  const { confirmar, dialogo } = useConfirmar();
   // Parte con lo que trajo el servidor y se actualiza sola: cada 30 segundos y al volver a la pestaña.
   const { data: activos } = useQuery({ queryKey: ["activos"], queryFn: () => consultarActivos(), initialData: inicial, refetchInterval: 30_000 });
 
@@ -436,6 +494,31 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
     });
   }
 
+  function adjuntar(a: ActivoFila, f: File) {
+    if (f.size > DOC_MAX_BYTES) {
+      toast.error("El archivo pesa más de 3 MB. Prueba con una versión más liviana.");
+      return;
+    }
+    const datos = new FormData();
+    datos.append("archivo", f);
+    iniciar(async () => {
+      const r = await adjuntarDocumentoActivo(a.id, datos);
+      if (r.ok) toast.success("Documento adjuntado");
+      else toast.error(r.error);
+      void cliente.invalidateQueries({ queryKey: ["activos"] });
+    });
+  }
+
+  async function quitarDocumento(id: string, nombre: string) {
+    if (!(await confirmar({ titulo: `¿Quitar «${nombre}»?`, descripcion: "Se borra el archivo de este bien y no se puede deshacer.", boton: "Quitar" }))) return;
+    iniciar(async () => {
+      const r = await quitarDocumentoActivo(id);
+      if (r.ok) toast.success("Documento quitado");
+      else toast.error(r.error);
+      void cliente.invalidateQueries({ queryKey: ["activos"] });
+    });
+  }
+
   const detalle = (a: ActivoFila, alCerrar: () => void) => (
     <Detalle
       key={a.id}
@@ -451,6 +534,8 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
         } else cambiarEstado(a, e);
       }}
       onProgramar={() => programar(a)}
+      onAdjuntar={(f) => adjuntar(a, f)}
+      onQuitarDocumento={quitarDocumento}
     />
   );
 
@@ -661,6 +746,7 @@ export function ActivosVista({ activos: inicial }: { activos: ActivoFila[] }) {
       ) : null}
 
       {(creando || editando) && <ActivoDialog key={editando?.id ?? "nuevo"} activo={editando} onCerrar={cerrar} />}
+      {dialogo}
 
       <Dialog open={reparando !== null} onOpenChange={(v) => !v && setReparando(null)}>
         <DialogContent className="p-6 sm:max-w-md">

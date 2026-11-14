@@ -1,14 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { activosFijos, labores, movimientos } from "@/lib/db/schema";
+import { activoDocumentos, activosFijos, labores, movimientos } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
-import { CATEGORIAS_ACTIVO, PREFIJO_CONCEPTO_ACTIVO, type ActivoFila } from "@/lib/activos-comun";
+import { CATEGORIAS_ACTIVO, DOC_MAX_BYTES, DOC_MAX_POR_BIEN, DOC_TIPOS, PREFIJO_CONCEPTO_ACTIVO, type ActivoFila } from "@/lib/activos-comun";
 import { listarActivos } from "@/lib/activos";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
 import { hoyEnChile } from "@/lib/finanzas-comun";
@@ -238,4 +238,60 @@ export async function programarLaborMantencion(id: string): Promise<{ ok: true; 
     console.error("Activos: no se pudo programar la labor:", e);
     return { ok: false, error: mensajeError(e, "No pudimos programar la labor. Inténtalo de nuevo en un momento.") };
   }
+}
+
+/** Los primeros bytes de cada tipo de archivo: no se confía en el tipo que declara el navegador. */
+function tipoReal(b: Buffer): (typeof DOC_TIPOS)[number] | null {
+  if (b.length >= 5 && b.subarray(0, 5).toString("latin1") === "%PDF-") return "application/pdf";
+  if (b.length >= 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "image/png";
+  if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+  return null;
+}
+
+/** Adjunta un archivo (PDF, PNG o JPG de hasta 3 MB) a un bien. Hasta 10 por bien. Solo la directiva. */
+export async function adjuntarDocumentoActivo(activoId: string, formData: FormData): Promise<ResultadoActivos> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "activos")) return { ok: false, error: "Activos fijos está disponible desde el plan Estándar." };
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File) || archivo.size === 0) return { ok: false, error: "Elige un archivo." };
+  if (archivo.size > DOC_MAX_BYTES) return { ok: false, error: "El archivo pesa más de 3 MB. Prueba con una versión más liviana." };
+
+  const bytes = Buffer.from(await archivo.arrayBuffer());
+  const tipo = tipoReal(bytes);
+  if (!tipo) return { ok: false, error: "Solo se pueden adjuntar PDF, PNG o JPG." };
+
+  const nombre = archivo.name.replace(/[\\/\r\n]+/g, " ").trim().slice(0, 120) || "Documento";
+
+  try {
+    const [bien] = await db.select({ id: activosFijos.id }).from(activosFijos).where(and(eq(activosFijos.id, activoId), eq(activosFijos.aprId, apr.id))).limit(1);
+    if (!bien) return { ok: false, error: "No encontramos ese bien." };
+
+    const [{ n }] = await db.select({ n: count() }).from(activoDocumentos).where(eq(activoDocumentos.activoId, activoId));
+    if (n >= DOC_MAX_POR_BIEN) return { ok: false, error: `Un bien admite hasta ${DOC_MAX_POR_BIEN} archivos. Quita alguno para adjuntar otro.` };
+
+    await db.insert(activoDocumentos).values({ aprId: apr.id, activoId, nombre, tipo, tamano: bytes.length, contenido: bytes.toString("base64") });
+  } catch (e) {
+    console.error("Activos: no se pudo adjuntar el documento:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos adjuntar el archivo. Inténtalo de nuevo en un momento.") };
+  }
+
+  revalidatePath("/panel/activos");
+  return { ok: true };
+}
+
+/** Quita un archivo adjunto de un bien del comité. */
+export async function quitarDocumentoActivo(id: string): Promise<ResultadoActivos> {
+  const { apr } = await requireAdmin();
+
+  try {
+    const quitados = await db.delete(activoDocumentos).where(and(eq(activoDocumentos.id, id), eq(activoDocumentos.aprId, apr.id))).returning({ id: activoDocumentos.id });
+    if (quitados.length === 0) return { ok: false, error: "No encontramos ese archivo." };
+  } catch (e) {
+    console.error("Activos: no se pudo quitar el documento:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos quitar el archivo. Inténtalo de nuevo en un momento.") };
+  }
+
+  revalidatePath("/panel/activos");
+  return { ok: true };
 }

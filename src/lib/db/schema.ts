@@ -1337,6 +1337,47 @@ export const activosFijos = pgTable(
   (table) => [index("ActivoFijo_aprId_idx").on(table.aprId)]
 );
 
+/**
+ * Un archivo adjunto a un bien (factura de compra, garantía, plano). Se guarda dentro de la base (base64) porque no hay un
+ * almacenamiento de archivos aparte: por eso se limita el tamaño y la cantidad por bien, y la lista nunca lee el contenido.
+ */
+export const activoDocumentos = pgTable(
+  "ActivoDocumento",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    activoId: text("activoId")
+      .notNull()
+      .references(() => activosFijos.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /** application/pdf | image/png | image/jpeg */
+    tipo: text("tipo").notNull(),
+    tamano: integer("tamano").notNull(),
+    /** El archivo en base64. */
+    contenido: text("contenido").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("ActivoDocumento_activoId_idx").on(table.activoId)]
+);
+
+/** Un comunicado de la directiva a los socios: se ve en la cuenta en línea de cada socio, en «Avisos del comité». */
+export const comunicados = pgTable(
+  "Comunicado",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    titulo: text("titulo").notNull(),
+    mensaje: text("mensaje").notNull(),
+    autorId: text("autorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Comunicado_aprId_createdAt_idx").on(table.aprId, table.createdAt)]
+);
+
 /** La liquidación de un mes de una persona: sueldo base, bonos y descuentos. Al pagarla deja su egreso en Caja. */
 export const remuneraciones = pgTable(
   "Remuneracion",
