@@ -928,25 +928,7 @@ function PrimeraLecturaDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3 text-[0.9rem] leading-relaxed">
-          {primera ? (
-            <p>
-              Todavía no hay una lectura anterior para calcular el consumo. Si la apruebas sin más, se
-              cobraría <strong>el medidor completo ({l && numero.format(l.valor)} m³)</strong> como si
-              fuera consumo de este mes.
-            </p>
-          ) : (
-            <p>
-              Un medidor no retrocede. Si se cambió por uno nuevo, usa esta lectura como punto de
-              partida; si fue un error de digitación, recházala.
-            </p>
-          )}
-          <p className="rounded-lg bg-muted/60 px-3.5 py-2.5 text-[0.85rem]">
-            <strong>Usarla como lectura inicial</strong> la deja registrada sin cobrar nada: la próxima
-            lectura de este arranque calculará el consumo desde aquí.
-          </p>
-          {error && <p className="text-destructive">{error}</p>}
-        </div>
+        {error && <p className="text-[0.9rem] text-destructive">{error}</p>}
 
         <DialogFooter className="sm:flex-wrap">
           <Button variant="ghost" onClick={onCerrar} disabled={trabajando} className="h-10 rounded-lg px-4 font-semibold">
