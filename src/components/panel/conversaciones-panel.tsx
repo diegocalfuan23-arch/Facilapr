@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { ArrowLeft, Bot, Check, CheckCheck, ChevronDown, CreditCard, FileText, Hand, Info, Loader2, MessageCircle, Pencil, Phone, Search, SendHorizontal, Settings2, ShieldCheck, Sparkles, Trash2, X, Zap } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowLeft, Bot, Check, CheckCheck, ChevronDown, CreditCard, Hand, Info, Loader2, MessageCircle, MoreVertical, Paperclip, Pencil, Phone, Search, SendHorizontal, Sparkles, Trash2, X, Zap } from "lucide-react";
 import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones } from "@/app/panel/conversaciones/actions";
 import { fichaDelSocio, type FichaSocio } from "@/app/panel/conversaciones/ficha-actions";
 import { escucharChat, escucharComite } from "@/lib/chat/cliente";
@@ -111,8 +112,8 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
   const [filtro, setFiltro] = useState<"todas" | "leer" | "atencion">("todas");
   const [fichas, setFichas] = useState<Record<string, FichaSocio | null>>({});
   const [fichaAbierta, setFichaAbierta] = useState(false);
-  // En pantallas anchas la ficha va fija a un costado; se puede ocultar para darle todo el ancho al chat.
-  const [fichaOculta, setFichaOculta] = useState(false);
+  // En pantallas anchas la ficha puede ir fija a un costado; parte cerrada para darle todo el ancho al chat.
+  const [fichaVisible, setFichaVisible] = useState(false);
   const [ajustesIa, setAjustesIa] = useState(ia);
   const [configurando, setConfigurando] = useState(false);
   // Un texto que la ficha le pide al chat que ponga en la caja de escribir (el número cambia en cada pedido).
@@ -176,7 +177,7 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
 
   // El botón de información: en pantalla ancha muestra u oculta la ficha del costado; en las angostas la abre como hoja.
   const alternarFicha = () => {
-    if (window.matchMedia("(min-width: 1280px)").matches) setFichaOculta((v) => !v);
+    if (window.matchMedia("(min-width: 1280px)").matches) setFichaVisible((v) => !v);
     else setFichaAbierta(true);
   };
 
@@ -199,8 +200,8 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
 
       <div
         className={cn(
-          "grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-2xl bg-card lg:grid-cols-[340px_minmax(0,1fr)]",
-          fichaOculta ? "xl:grid-cols-[340px_minmax(0,1fr)]" : "xl:grid-cols-[340px_minmax(0,1fr)_300px]",
+          "grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-2xl bg-card lg:grid-cols-[320px_minmax(0,1fr)]",
+          fichaVisible && "xl:grid-cols-[300px_minmax(0,1fr)_300px]",
           verChat && "max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:rounded-none",
           SOMBRA
         )}
@@ -264,14 +265,6 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
             })}
             {lista.length === 0 && <li className={cn("px-6 py-12 text-center text-sm", GRIS)}>No hay conversaciones con ese filtro.</li>}
           </ul>
-          {iaActiva && (
-            <p className={cn("flex items-center gap-1.5 border-t border-[#F0EEF6] px-4 py-2.5 text-[11px]", GRIS)}>
-              <span aria-hidden className="flex size-3.5 items-center justify-center rounded-full bg-[#6B46F5] text-white">
-                <Sparkles className="size-2" />
-              </span>
-              La IA atiende {conversaciones.filter((c) => conIa(c.socioId)).length} de {conversaciones.length} conversaciones
-            </p>
-          )}
         </section>
 
         {/* Chat */}
@@ -286,6 +279,7 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
               onIaPausada={(pausada) => setIaPausadas((prev) => ({ ...prev, [socio.socioId]: pausada }))}
               onVolver={() => setVerChat(false)}
               onFicha={alternarFicha}
+              fichaVisible={fichaVisible}
               onActividad={refrescarLista}
               insertar={insertar}
             />
@@ -295,9 +289,9 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
         </section>
 
         {/* Ficha */}
-        {!fichaOculta && (
+        {fichaVisible && (
           <aside className="hidden min-h-0 border-l border-[#F0EEF6] xl:block">
-            {socio && <Ficha socio={socio} ficha={fichas[socio.socioId]} iaDisponible={ajustesIa.disponible} onLinkPago={pedirLinkPago} onConfigurar={() => setConfigurando(true)} onCerrar={() => setFichaOculta(true)} />}
+            {socio && <Ficha socio={socio} ficha={fichas[socio.socioId]} onLinkPago={pedirLinkPago} onCerrar={() => setFichaVisible(false)} />}
           </aside>
         )}
       </div>
@@ -306,7 +300,7 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
         <div className="fixed inset-0 z-40 xl:hidden" role="dialog" aria-modal="true" aria-label="Ficha del socio">
           <button type="button" aria-label="Cerrar" onClick={() => setFichaAbierta(false)} className="absolute inset-0 bg-[#15132B]/40" />
           <div className="absolute inset-x-0 bottom-0 h-[85vh] overflow-hidden rounded-t-2xl bg-white lg:inset-y-0 lg:right-0 lg:left-auto lg:h-full lg:w-[340px] lg:rounded-none">
-            <Ficha socio={socio} ficha={fichas[socio.socioId]} iaDisponible={ajustesIa.disponible} onLinkPago={pedirLinkPago} onConfigurar={() => setConfigurando(true)} onCerrar={() => setFichaAbierta(false)} />
+            <Ficha socio={socio} ficha={fichas[socio.socioId]} onLinkPago={pedirLinkPago} onCerrar={() => setFichaAbierta(false)} />
           </div>
         </div>
       )}
@@ -334,7 +328,7 @@ function Burbuja({ m, primero, acciones }: { m: MensajeChat; primero: boolean; a
   const f = new Date(m.createdAt);
   return (
     <li className={cn("group flex", mio ? "justify-end" : "justify-start", primero ? "mt-3" : "mt-1")}>
-      <div className={cn("flex max-w-[85%] flex-col sm:max-w-[68%]", mio ? "items-end" : "items-start")}>
+      <div className={cn("flex max-w-[85%] flex-col sm:max-w-[min(62%,560px)]", mio ? "items-end" : "items-start")}>
         {primero && mio ? (
           <span className={cn("mb-1 inline-flex items-center gap-1 px-1 text-[11px] font-semibold", ia ? "text-[#6B46F5]" : GRIS)}>
             {ia ? (
@@ -352,7 +346,7 @@ function Burbuja({ m, primero, acciones }: { m: MensajeChat; primero: boolean; a
           <div
             className={cn(
               "rounded-2xl px-3.5 py-2 text-[14px] leading-relaxed",
-              mio ? (ia ? "rounded-tr-md border border-[#E2DBFD] bg-[#F4F1FF] text-[#15132B]" : "rounded-tr-md bg-[#3A0CE3] text-white") : "rounded-tl-md bg-white text-[#15132B] shadow-[0_1px_2px_rgba(21,19,43,0.06)]"
+              mio ? (ia ? "rounded-tr-md bg-[#EFEBFF] text-[#15132B]" : "rounded-tr-md bg-[#3A0CE3] text-white") : "rounded-tl-md bg-white text-[#15132B] shadow-[0_1px_2px_rgba(21,19,43,0.06)]"
             )}
           >
             <p className="break-words whitespace-pre-line">{m.contenido}</p>
@@ -376,6 +370,7 @@ function ChatConSocio({
   onIaPausada,
   onVolver,
   onFicha,
+  fichaVisible,
   onActividad,
   insertar,
 }: {
@@ -389,11 +384,14 @@ function ChatConSocio({
   onVolver: () => void;
   /** Muestra u oculta la ficha del socio (a un costado en pantalla ancha, como hoja en las angostas). */
   onFicha: () => void;
+  /** La ficha del socio está a la vista a un costado (para marcar el botón de información). */
+  fichaVisible: boolean;
   /** Pasó algo en este chat (llegó o se envió un mensaje): la lista de conversaciones se pone al día. */
   onActividad: () => void;
   /** Un texto que la ficha pide poner en la caja de escribir. */
   insertar: { n: number; texto: string } | null;
 }) {
+  const router = useRouter();
   const socioId = socio.socioId;
   const nombre = socio.nombre;
   const conIa = iaActiva && !iaPausada;
@@ -546,6 +544,7 @@ function ChatConSocio({
     ["Gracias por tu pago", `Hola ${p}, recibimos tu pago. ¡Gracias por estar al día!`],
     ["Datos para factura", `Hola ${p}, con gusto. ¿Me confirmas el RUT y la razón social para emitir la factura?`],
   ] as const;
+  const opciones: (readonly [string, string])[] = [...(ficha?.boleta ? ([["Boleta del mes", `Hola ${p}, tu boleta de ${mesDe(ficha.boleta.periodo)} es de ${clp(ficha.boleta.monto)} y vence el ${diaMes(ficha.boleta.vence)}.`]] as const) : []), ...plantillas];
 
   // El chat por días, con una línea cuando la IA pasa la conversación a una persona.
   type Fila = { tipo: "dia"; clave: string; etiqueta: string } | { tipo: "msg"; m: MensajeChat; primero: boolean } | { tipo: "pase"; clave: string; texto: string };
@@ -580,14 +579,12 @@ function ChatConSocio({
           {otroEscribe ? (
             <p className="text-xs font-medium text-[#0A7A52]">escribiendo…</p>
           ) : (
-            <p className={cn("truncate text-xs", GRIS)}>{[socio.numeroCliente ? `N° ${socio.numeroCliente}` : null, socio.telefono ? formatearTelefono(socio.telefono) : null].filter(Boolean).join(" · ") || datosDelSocio(socio)}</p>
+            <p className={cn("truncate text-xs", GRIS)}>
+              {socio.numeroCliente ? `N° ${socio.numeroCliente} · ` : ""}
+              {socio.deuda > 0 ? <span className="font-medium text-[#A32020]">Debe {clp(socio.deuda)}</span> : <span className="font-medium text-[#075A3C]">Al día</span>}
+            </p>
           )}
         </div>
-        {socio.deuda > 0 ? (
-          <span className="hidden rounded-md bg-[#FDEFEF] px-2 py-1 text-xs font-semibold text-[#A32020] md:inline">Debe {clp(socio.deuda)}</span>
-        ) : (
-          <span className="hidden rounded-md bg-[#E6F6EF] px-2 py-1 text-xs font-semibold text-[#075A3C] md:inline">Al día</span>
-        )}
         {iaActiva && (
           <div role="radiogroup" aria-label="Quién responde" title="Quién responde solo en esta conversación" className="hidden rounded-lg bg-[#F4F3F9] p-0.5 sm:flex">
             {(
@@ -610,18 +607,35 @@ function ChatConSocio({
             ))}
           </div>
         )}
-        <Button variant="ghost" size="icon" aria-label="Mostrar u ocultar la ficha del socio" title="Ficha del socio" onClick={onFicha} className="size-9 shrink-0 rounded-lg">
+        <Button variant="ghost" size="icon" aria-label="Mostrar u ocultar la ficha del socio" title="Ficha del socio" aria-pressed={fichaVisible} onClick={onFicha} className={cn("size-9 shrink-0 rounded-lg", fichaVisible && "bg-[#F1EEFD] text-[#2A07A8]")}>
           <Info className="size-[18px]" />
         </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" aria-label="Más opciones" className="hidden size-9 shrink-0 rounded-lg sm:inline-flex">
+                <MoreVertical className="size-[18px]" />
+              </Button>
+            }
+          />
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={onFicha}>
+              <Info />
+              {fichaVisible ? "Ocultar la ficha" : "Ver la ficha"}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push("/panel/socios")}>
+              <Phone />
+              Ir a Socios
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {iaActiva && (
-        <div className={cn("flex items-center gap-2 border-b px-4 py-2 text-xs sm:px-5", conIa ? "border-[#E8E2FD] bg-[#F7F5FF] text-[#3B2A9A]" : "border-[#F6E3C4] bg-[#FFF8EC] text-[#7A4A00]")}>
+        <div className={cn("flex items-center gap-2 border-b px-4 py-2 text-xs sm:hidden", conIa ? "border-[#E8E2FD] bg-[#F7F5FF] text-[#3B2A9A]" : "border-[#F6E3C4] bg-[#FFF8EC] text-[#7A4A00]")}>
           {conIa ? <Bot className="size-4 shrink-0" aria-hidden /> : <Hand className="size-4 shrink-0" aria-hidden />}
-          <span className="min-w-0 flex-1">{conIa ? "La IA responde esta conversación. Pásala a «Yo» si prefieres atenderla tú." : "Estás atendiendo tú. La IA no responderá hasta que la vuelvas a activar."}</span>
-          <span className="sm:hidden">
-            <Switch size="sm" checked={conIa} onCheckedChange={alternarIa} aria-label="Respuestas automáticas de la IA" />
-          </span>
+          <span className="min-w-0 flex-1">{conIa ? "Responde la IA" : "Respondes tú"}</span>
+          <Switch size="sm" checked={conIa} onCheckedChange={alternarIa} aria-label="Respuestas automáticas de la IA" />
         </div>
       )}
 
@@ -690,7 +704,7 @@ function ChatConSocio({
         <div ref={finRef} />
       </div>
 
-      <div className="border-t border-[#F0EEF6] bg-white px-3 pt-3 pb-3 sm:px-5">
+      <div className="border-t border-[#F0EEF6] bg-white px-3 py-3 sm:px-5">
         {editando && (
           <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-[#F4F3F9] px-3 py-2 text-[13px] text-[#3F3C55]">
             <Pencil className="size-3.5 shrink-0" aria-hidden />
@@ -700,15 +714,6 @@ function ChatConSocio({
             </button>
           </div>
         )}
-        {!conIa && !entrada && !editando ? (
-          <button type="button" onClick={() => poner(sugerencia)} className="mb-2.5 flex w-full items-start gap-2.5 rounded-xl border border-dashed border-[#D9D0FC] bg-[#FAF8FF] px-3 py-2 text-left hover:border-[#B9A8F9]">
-            <Sparkles className="mt-0.5 size-4 shrink-0 text-[#6B46F5]" aria-hidden />
-            <span className="min-w-0 flex-1">
-              <span className="block text-[11px] font-semibold text-[#5530E8]">Sugerencia · toca para usarla</span>
-              <span className="block truncate text-[13px] text-[#3F3C55]">{sugerencia}</span>
-            </span>
-          </button>
-        ) : null}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -716,62 +721,57 @@ function ChatConSocio({
           }}
           className="rounded-xl border border-[#E4E1F0] bg-white transition-shadow focus-within:border-[#C4B7FA] focus-within:ring-4 focus-within:ring-[#ECE8FD]"
         >
-          <textarea
-            aria-label="Mensaje"
-            rows={2}
-            value={entrada}
-            maxLength={1000}
-            onChange={(e) => {
-              setEntrada(e.target.value);
-              if (e.target.value.trim()) alTeclear();
-              else alDejarDeEscribir();
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                enviar();
-              }
-            }}
-            placeholder={editando ? "Corrige tu mensaje" : `Escribe a ${p}…`}
-            className="block max-h-32 w-full resize-none rounded-t-xl bg-transparent px-3.5 pt-3 text-sm outline-none placeholder:text-[#9A98AB]"
-          />
-          <div className="flex items-center gap-1 px-2 pb-2">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={!ficha?.boleta}
-              onClick={() => ficha?.boleta && poner(`Hola ${p}, tu boleta de ${mesDe(ficha.boleta.periodo)} es de ${clp(ficha.boleta.monto)} y vence el ${diaMes(ficha.boleta.vence)}.`)}
-              className="h-9 rounded-lg px-2.5 text-[13px] font-medium text-[#5B5970]"
-            >
-              <FileText className="size-4" />
-              <span className="hidden sm:inline">Boleta</span>
+          {!conIa && !entrada && !editando ? (
+            <button type="button" onClick={() => poner(sugerencia)} className="flex w-full items-center gap-2 border-b border-[#F3F1F8] px-3.5 py-2 text-left text-[13px] hover:bg-[#FAF8FF]">
+              <Sparkles className="size-3.5 shrink-0 text-[#6B46F5]" aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-[#3F3C55]">{sugerencia}</span>
+              <span className="shrink-0 text-xs font-semibold text-[#5530E8]">Usar</span>
+            </button>
+          ) : null}
+          <div className="flex items-end gap-1 p-1.5">
+            <Button type="button" variant="ghost" size="icon" aria-label="Adjuntar" title="Adjuntar" onClick={() => toast.info("Adjuntar archivos todavía no está disponible en el chat.")} className="size-9 shrink-0 rounded-lg text-[#5B5970]">
+              <Paperclip className="size-4" />
             </Button>
-            <Button type="button" variant="ghost" size="sm" onClick={() => poner(textoLinkPago(socio, ficha))} className="h-9 rounded-lg px-2.5 text-[13px] font-medium text-[#5B5970]">
+            <Button type="button" variant="ghost" size="icon" aria-label="Enviar link de pago" title="Link de pago" onClick={() => poner(textoLinkPago(socio, ficha))} className="size-9 shrink-0 rounded-lg text-[#5B5970]">
               <CreditCard className="size-4" />
-              <span className="hidden sm:inline">Link de pago</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
-                  <Button type="button" variant="ghost" size="sm" className="h-9 rounded-lg px-2.5 text-[13px] font-medium text-[#5B5970]">
+                  <Button type="button" variant="ghost" size="icon" aria-label="Plantillas" title="Plantillas" className="size-9 shrink-0 rounded-lg text-[#5B5970]">
                     <Zap className="size-4" />
-                    <span className="hidden sm:inline">Plantillas</span>
                   </Button>
                 }
               />
               <DropdownMenuContent align="start">
-                {plantillas.map(([t, texto]) => (
+                {opciones.map(([t, texto]) => (
                   <DropdownMenuItem key={t} onClick={() => poner(texto)}>
                     {t}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <span className={cn("ml-auto hidden text-[11px] xl:inline", GRIS)}>Enter envía · Shift+Enter salto</span>
-            <Button type="submit" size="sm" aria-label="Enviar" disabled={enviando || !entrada.trim()} className="ml-auto h-9 rounded-lg px-3.5 font-semibold xl:ml-2">
+            <textarea
+              aria-label="Mensaje"
+              rows={1}
+              value={entrada}
+              maxLength={1000}
+              onChange={(e) => {
+                setEntrada(e.target.value);
+                if (e.target.value.trim()) alTeclear();
+                else alDejarDeEscribir();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  enviar();
+                }
+              }}
+              placeholder={editando ? "Corrige tu mensaje" : `Escribe a ${p}…`}
+              className="block max-h-32 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-[#9A98AB]"
+            />
+            <Button type="submit" size="icon" aria-label="Enviar" disabled={enviando || !entrada.trim()} className="size-9 shrink-0 rounded-lg">
               <SendHorizontal className="size-4" />
-              <span className="hidden sm:inline">Enviar</span>
             </Button>
           </div>
         </form>
@@ -798,7 +798,7 @@ function ChatConSocio({
 }
 
 /** La ficha del socio al lado de su conversación: lo que debe, su última boleta, su consumo y lo último que le pasó. */
-function Ficha({ socio, ficha, iaDisponible, onLinkPago, onConfigurar, onCerrar }: { socio: ConversacionResumen; ficha: FichaSocio | null | undefined; iaDisponible: boolean; onLinkPago: () => void; onConfigurar: () => void; onCerrar?: () => void }) {
+function Ficha({ socio, ficha, onLinkPago, onCerrar }: { socio: ConversacionResumen; ficha: FichaSocio | null | undefined; onLinkPago: () => void; onCerrar?: () => void }) {
   const consumo = ficha?.consumo ?? [];
   const max = Math.max(1, ...consumo.map((c) => c.m3));
   const COLOR = { morado: "bg-[#6B46F5]", azul: "bg-[#0B8BD3]", verde: "bg-[#2FB386]" } as const;
@@ -907,20 +907,6 @@ function Ficha({ socio, ficha, iaDisponible, onLinkPago, onConfigurar, onCerrar 
           </section>
         )}
 
-        <section className="px-5 py-4">
-          <div className="flex items-start gap-2.5 rounded-xl bg-[#F8F7FC] px-3 py-2.5">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[#0A7A52]" aria-hidden />
-            <p className={cn("text-xs leading-relaxed", GRIS)}>
-              La IA responde deuda, boletas, consumo y cortes. <b className="font-semibold text-[#15132B]">No entrega RUT, dirección ni teléfono.</b>
-            </p>
-          </div>
-          {iaDisponible ? (
-            <Button variant="ghost" size="sm" onClick={onConfigurar} className="mt-1.5 h-8 rounded-lg px-2 text-xs font-semibold text-[#2A07A8]">
-              <Settings2 className="size-3.5" />
-              Configurar asistente
-            </Button>
-          ) : null}
-        </section>
       </div>
     </div>
   );
