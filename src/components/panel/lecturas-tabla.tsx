@@ -199,7 +199,7 @@ function FilaLectura({ lectura: l, consumo, anteriorMedida, onRechazar, onAproba
       <span className="text-right">
         {inicial ? (
           <span className="inline-flex rounded-md bg-[#F0EFF4] px-1.5 py-0.5 text-xs font-semibold text-[#4A4760]" title={l.estado === "APROBADA" ? "Punto de partida del medidor: no genera boleta." : "Primera lectura del arranque: al aprobarla se usa como inicial."}>
-            {l.estado === "APROBADA" ? "Inicial" : "Primera"}
+            {l.estado === "APROBADA" || l.observacion?.startsWith("Lectura inicial") ? "Inicial" : "Primera"}
           </span>
         ) : (
           <span className={cn("block text-[15px] font-semibold tabular-nums", atras && "text-[#A32020]")}>

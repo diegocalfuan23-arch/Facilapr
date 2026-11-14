@@ -20,6 +20,8 @@ export type LecturaEnCola = {
   /** Cambio de medidor: «1» si lo hubo y lo que marcaba el viejo (las lecturas guardadas antes de esto no traen estos campos). */
   medidorCambiado?: string;
   lecturaFinalAnterior?: string;
+  /** «on» si el operador la marcó como lectura inicial (el primer medidor del arranque). */
+  comoInicial?: string;
   guardadaEn: number;
 };
 

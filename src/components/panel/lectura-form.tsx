@@ -257,6 +257,14 @@ function FormularioLectura({
         </div>
       </div>
 
+      {/* Sin lectura anterior: puede ser el punto de partida del medidor. La directiva la aprueba sin cobrar nada. */}
+      {!anterior && !cambio && (
+        <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-sm font-medium">
+          <input type="checkbox" name="comoInicial" defaultChecked className="size-4 shrink-0 accent-primary" />
+          Lectura inicial
+        </label>
+      )}
+
       {bloqueado ? (
         <p role="alert" className="mt-2 flex items-start gap-1.5 text-[13px] leading-snug text-[#A32020]">
           <AlertTriangle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
@@ -462,6 +470,7 @@ export function LecturaForm({
       observacion: String(formData.get("observacion") ?? ""),
       medidorCambiado: String(formData.get("medidorCambiado") ?? ""),
       lecturaFinalAnterior: String(formData.get("lecturaFinalAnterior") ?? ""),
+      comoInicial: String(formData.get("comoInicial") ?? ""),
     });
     return guardada
       ? { ok: true, enCola: true }
@@ -522,6 +531,7 @@ export function LecturaForm({
         datos.set("periodo", lectura.periodo);
         datos.set("valor", lectura.valor);
         if (lectura.observacion) datos.set("observacion", lectura.observacion);
+        if (lectura.comoInicial) datos.set("comoInicial", lectura.comoInicial);
         if (lectura.medidorCambiado === "1") {
           datos.set("medidorCambiado", "1");
           if (lectura.lecturaFinalAnterior) datos.set("lecturaFinalAnterior", lectura.lecturaFinalAnterior);

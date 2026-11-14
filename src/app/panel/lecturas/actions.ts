@@ -102,23 +102,37 @@ export async function registrarLectura(
   }
 
   if (comoInicial) {
-    // Solo la directiva aprueba, y solo vale si el arranque de verdad no tiene una lectura anterior con la que comparar.
-    if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede registrar una lectura como inicial." };
     if (medidorCambiado) return { ok: false, error: "Un cambio de medidor no es una lectura inicial: quita una de las dos marcas." };
-    if (await anteriorDelSocio(datos.socioId)) {
-      return { ok: false, error: "Este arranque ya tiene una lectura anterior: no puede ser la inicial. Desmarca «Cuenta como lectura inicial»." };
+    // Solo vale si el arranque de verdad no tiene una lectura anterior con la que comparar.
+    const hayAnterior = Boolean(await anteriorDelSocio(datos.socioId));
+
+    if (user.rol === "ADMIN") {
+      // La directiva la deja aprobada de inmediato, como punto de partida: no genera boleta.
+      if (hayAnterior) return { ok: false, error: "Este arranque ya tiene una lectura anterior: no puede ser la inicial." };
+      await db.insert(lecturas).values({
+        socioId: datos.socioId,
+        periodo,
+        valor: datos.valor,
+        observacion: datos.observacion ?? "Lectura inicial",
+        estado: "APROBADA",
+        registradaPorId: user.id,
+        revisadaPorId: user.id,
+      });
+      return { ok: true };
     }
 
-    await db.insert(lecturas).values({
-      socioId: datos.socioId,
-      periodo,
-      valor: datos.valor,
-      observacion: datos.observacion ?? "Lectura inicial",
-      estado: "APROBADA",
-      registradaPorId: user.id,
-      revisadaPorId: user.id,
-    });
-    return { ok: true };
+    // El operador no aprueba: la deja por revisar con la marca «Lectura inicial», y la directiva la aprueba con un clic
+    // sin que le pregunte nada. Si entre tanto el arranque ya tiene una anterior (una lectura enviada sin señal), se registra normal.
+    if (!hayAnterior) {
+      await db.insert(lecturas).values({
+        socioId: datos.socioId,
+        periodo,
+        valor: datos.valor,
+        observacion: datos.observacion ? `Lectura inicial · ${datos.observacion}` : "Lectura inicial",
+        registradaPorId: user.id,
+      });
+      return { ok: true };
+    }
   }
 
   await db.insert(lecturas).values({
@@ -159,6 +173,7 @@ async function aprobarNucleo(
       periodo: lecturas.periodo,
       valor: lecturas.valor,
       estado: lecturas.estado,
+      observacion: lecturas.observacion,
       medidorCambiado: lecturas.medidorCambiado,
       lecturaFinalAnterior: lecturas.lecturaFinalAnterior,
     })
@@ -179,6 +194,12 @@ async function aprobarNucleo(
   // La lectura anterior de este socio, para calcular el consumo: la última aprobada
   // o, si no tiene ninguna, la de su última boleta. Si no hay ni una ni otra, es la primera.
   const anterior = await anteriorDelSocio(actual.socioId);
+
+  // El operador la marcó como lectura inicial y el arranque sigue sin anterior: se aprueba como punto de partida, sin boleta.
+  if (!anterior && !opciones.cobrarDesdeCero && actual.observacion?.startsWith("Lectura inicial")) {
+    await db.update(lecturas).set({ estado: "APROBADA", revisadaPorId: user.id, updatedAt: new Date() }).where(eq(lecturas.id, lecturaId));
+    return { ok: true };
+  }
 
   if (!anterior && !opciones.cobrarDesdeCero) {
     return {
