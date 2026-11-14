@@ -988,7 +988,7 @@ export function AsistenciaVista({ dia, datos }: { dia: string; datos: DatosAsist
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Asistencia</h1>
-          <p className={cn("mt-0.5 text-[15px]", GRIS)}>Quién vino cada día según su horario. Feriados, vacaciones y licencias se marcan solos.</p>
+          <p className={cn("mt-0.5 text-[15px]", GRIS)}>Quién vino cada día. Las vacaciones y licencias aprobadas se marcan solas.</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Button data-tour="asi-calendario" variant="outline" onClick={() => setConfig("comite")} disabled={personas.length === 0} className="h-11 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
@@ -1224,7 +1224,7 @@ function Cuerpo({
               ) : futuro || conTurno.length === 0 ? (
                 <p className={cn("flex items-center gap-2 bg-[#F7F6FC] px-4 py-2 text-[13px] lg:px-5", GRIS)}>
                   <CalendarCheck2 className="size-4 shrink-0" aria-hidden />
-                  {futuro ? "Día futuro: solo puedes registrar permisos." : ctx.cerrado(dia) ? "El comité no funciona este día. Marca solo si alguien trabajó." : "A nadie le toca trabajar este día según su horario. Marca solo si alguien trabajó."}
+                  {futuro ? "Día futuro: solo puedes registrar permisos." : ctx.cerrado(dia) ? "El comité no funciona este día. Marca solo si alguien trabajó." : [0, 6].includes(diaSem(dia)) ? "Fin de semana: marca solo si hubo turno." : "A nadie le toca trabajar este día según su horario. Marca solo si alguien trabajó."}
                 </p>
               ) : null}
 

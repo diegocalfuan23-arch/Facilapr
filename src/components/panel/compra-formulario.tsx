@@ -98,7 +98,7 @@ function Opciones<T extends string>({ valor, opciones, onElegir, etiqueta, class
  * resumen fijo con el total. Si se marca pagada, el egreso queda en Caja; si no, queda como una cuenta por pagar.
  * La factura suma IVA a los precios (van netos); la boleta y los otros documentos ya lo traen incluido.
  */
-export function CompraFormulario({ proveedores, insumos, proveedorInicial }: { proveedores: ProveedorFila[]; insumos: Insumo[]; proveedorInicial?: string }) {
+export function CompraFormulario({ proveedores, insumos, proveedorInicial, insumoInicial }: { proveedores: ProveedorFila[]; insumos: Insumo[]; proveedorInicial?: string; insumoInicial?: string }) {
   const router = useRouter();
   const [pendiente, iniciar] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +116,13 @@ export function CompraFormulario({ proveedores, insumos, proveedorInicial }: { p
   const [pagada, setPagada] = useState(inicial ? inicial.diasPago === 0 : false);
   const [medio, setMedio] = useState("TRANSFERENCIA");
   const [notas, setNotas] = useState<string | null>(null);
-  const [lineas, setLineas] = useState<Linea[]>([]);
+  // Desde «Comprar más» en Inventario la compra parte con ese material ya en la lista.
+  const [lineas, setLineas] = useState<Linea[]>(() => {
+    const m = insumos.find((i) => i.id === insumoInicial);
+    return m
+      ? [{ clave: 0, origen: "INVENTARIO", insumoId: m.id, nombre: m.nombre, detalle: [m.codigo, UNIDADES_INSUMO.find((u) => u.valor === m.unidad)?.texto.toLowerCase()].filter(Boolean).join(" · "), unidad: m.unidad, cantidad: "1", precio: m.costo, stock: m.stock }]
+      : [];
+  });
   const [siguiente, setSiguiente] = useState(1);
   const [tipo, setTipo] = useState<OrigenItem>("INVENTARIO");
   const [qMat, setQMat] = useState("");

@@ -171,7 +171,7 @@ export function Anillo({ pct }: { pct: number }) {
 }
 
 /** El saldo de la caja de los últimos días, en miniatura. Con menos de dos puntos no hay curva que dibujar. */
-export function MiniSaldo({ valores }: { valores: number[] }) {
+export function MiniSaldo({ valores, linea = "#1F9A70", relleno = "#2FB386" }: { valores: number[]; linea?: string; relleno?: string }) {
   const id = useId();
   if (valores.length < 2) return null;
   const min = Math.min(...valores);
@@ -182,12 +182,12 @@ export function MiniSaldo({ valores }: { valores: number[] }) {
     <svg viewBox="0 0 100 36" preserveAspectRatio="none" className="h-12 w-full" aria-hidden>
       <defs>
         <linearGradient id={`${id}-m`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#2FB386" stopOpacity="0.25" />
-          <stop offset="100%" stopColor="#2FB386" stopOpacity="0" />
+          <stop offset="0%" stopColor={relleno} stopOpacity="0.25" />
+          <stop offset="100%" stopColor={relleno} stopOpacity="0" />
         </linearGradient>
       </defs>
       <path d={`${l} L100,36 L0,36 Z`} fill={`url(#${id}-m)`} />
-      <path d={l} fill="none" stroke="#1F9A70" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+      <path d={l} fill="none" stroke={linea} strokeWidth="2" vectorEffect="non-scaling-stroke" />
     </svg>
   );
 }

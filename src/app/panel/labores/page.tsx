@@ -11,8 +11,9 @@ export const metadata: Metadata = {
   title: "Labores",
 };
 
-export default async function LaboresPage() {
+export default async function LaboresPage({ searchParams }: { searchParams: Promise<{ insumo?: string }> }) {
   const { apr } = await requireAdmin();
+  const { insumo } = await searchParams;
 
   // Las labores usan el inventario: van con el mismo plan.
   if (!puede(apr.plan as Plan, "inventario")) redirect("/panel");
@@ -21,5 +22,5 @@ export default async function LaboresPage() {
   await avanzarLaboresVencidas(apr.id);
   const [labores, insumos] = await Promise.all([listarLabores(apr.id), listarInsumos(apr.id)]);
 
-  return <LaboresVista labores={labores} insumos={insumos} />;
+  return <LaboresVista labores={labores} insumos={insumos} insumoInicial={insumos.some((i) => i.id === insumo) ? insumo : undefined} />;
 }

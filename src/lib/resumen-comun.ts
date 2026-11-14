@@ -56,6 +56,11 @@ export type DatosResumen = {
 
   pagos: { id: string; socio: string; cuando: string; medio: string; monto: number }[];
 
+  /** Los socios con boletas vencidas contra el padrón, y cuántas boletas vencidas había al cierre de cada mes. */
+  morosidad: { tasa: number; socios: number; total: number; serie: number[] };
+  /** El mes que más recaudó y quiénes más pagaron en él. */
+  mejorMes: { texto: string; pagadores: { id: string; nombre: string; pagado: number; boletas: number }[] } | null;
+
   boletas: { id: string; socio: string; periodo: string; m3: number | null; monto: number; estado: EstadoBoletaResumen }[];
   subtituloBoletas: string;
 

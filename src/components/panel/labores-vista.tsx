@@ -281,12 +281,13 @@ function Detalle({
  * desde abajo). Al pasar una a «Hecha» sus materiales se descuentan del inventario; al sacarla de ahí, que se
  * hace desde el lápiz de edición, vuelven.
  */
-export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insumos: Insumo[] }) {
+export function LaboresVista({ labores, insumos, insumoInicial }: { labores: LaborFila[]; insumos: Insumo[]; insumoInicial?: string }) {
   const [filtro, setFiltro] = useState<"todas" | EstadoLabor>("todas");
   const [busqueda, setBusqueda] = useState("");
   const [sel, setSel] = useState<string | null>(null);
   const [movil, setMovil] = useState(false);
-  const [creando, setCreando] = useState(false);
+  // Desde «Usar en labor» en Inventario se abre la labor nueva con ese material.
+  const [creando, setCreando] = useState(Boolean(insumoInicial));
   const [editando, setEditando] = useState<LaborFila | null>(null);
   const [movidas, setMovidas] = useState<Record<string, EstadoLabor>>({});
   const [ocupado, iniciar] = useTransition();
@@ -525,7 +526,7 @@ export function LaboresVista({ labores, insumos }: { labores: LaborFila[]; insum
         </div>
       ) : null}
 
-      {(creando || editando) && <LaborDialog key={editando?.id ?? "nueva"} labor={editando} insumos={insumos} onCerrar={cerrar} />}
+      {(creando || editando) && <LaborDialog key={editando?.id ?? "nueva"} labor={editando} insumos={insumos} insumoInicial={insumoInicial} onCerrar={cerrar} />}
     </div>
   );
 }

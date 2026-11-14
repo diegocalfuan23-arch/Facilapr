@@ -334,11 +334,11 @@ function Detalle({
       </div>
 
       <div className="grid grid-cols-2 gap-2 border-t border-[#F0EEF6] p-4">
-        <Link href="/panel/compras" className={cn(buttonVariants({ variant: "outline" }), "h-11 rounded-xl border-[#E4E1F0] font-semibold")}>
+        <Link href={`/panel/compras/nueva?insumo=${i.id}`} className={cn(buttonVariants({ variant: "outline" }), "h-11 rounded-xl border-[#E4E1F0] font-semibold")}>
           <ShoppingCart className="size-4" />
           Comprar más
         </Link>
-        <Link href="/panel/labores" className={cn(buttonVariants({ variant: "outline" }), "h-11 rounded-xl border-[#E4E1F0] font-semibold")}>
+        <Link href={`/panel/labores?insumo=${i.id}`} className={cn(buttonVariants({ variant: "outline" }), "h-11 rounded-xl border-[#E4E1F0] font-semibold")}>
           <Wrench className="size-4" />
           Usar en labor
         </Link>

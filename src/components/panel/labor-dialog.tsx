@@ -86,7 +86,7 @@ function Campo({ id, label, opcional, className, children }: { id: string; label
 }
 
 /** Registrar una labor del comité y los materiales del inventario que usa. */
-export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; onCerrar: () => void }) {
+export function LaborDialog({ labor, insumos, insumoInicial, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; insumoInicial?: string; onCerrar: () => void }) {
   const { confirmar, dialogo } = useConfirmar();
   const [resultado, enviar, pendiente] = useActionState<ResultadoLabores | null, FormData>(guardarLabor, null);
   const [borrando, iniciarBorrado] = useTransition();
@@ -94,7 +94,11 @@ export function LaborDialog({ labor, insumos, onCerrar }: { labor: LaborFila | n
   const [titulo, setTitulo] = useState(labor?.titulo ?? "");
   const [estado, setEstado] = useState<EstadoLabor>(labor?.estado ?? "PROGRAMADA");
   const [lineas, setLineas] = useState<Linea[]>(
-    (labor?.materiales ?? []).filter((m) => m.insumoId).map((m, i) => ({ clave: i, insumoId: m.insumoId as string, cantidad: String(m.cantidad) }))
+    labor
+      ? labor.materiales.filter((m) => m.insumoId).map((m, i) => ({ clave: i, insumoId: m.insumoId as string, cantidad: String(m.cantidad) }))
+      : insumoInicial && insumos.some((i) => i.id === insumoInicial)
+        ? [{ clave: 0, insumoId: insumoInicial, cantidad: "1" }]
+        : []
   );
   const [siguiente, setSiguiente] = useState(100);
   // Inicio y término, y cuánto dura: al escribir la duración, el término se calcula solo.
