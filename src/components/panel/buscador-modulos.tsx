@@ -17,7 +17,7 @@ const normalizar = (t: string) =>
     .toLowerCase();
 
 /**
- * Buscador de módulos del encabezado (plan Grande). Se abre con el botón o con Ctrl + K (⌘ + K en
+ * Buscador de módulos del encabezado (desde el plan Estándar). Se abre con el botón o con Ctrl + K (⌘ + K en
  * Mac), se escribe, se elige con las flechas y se entra con Enter. Muestra solo lo que este
  * comité puede ver, con la misma lista que el menú lateral.
  */

@@ -156,7 +156,7 @@ export default async function PanelLayout({
               )}
             </div>
 
-            {/* El buscador de módulos es solo del plan Grande. */}
+            {/* El buscador de módulos va desde el plan Estándar. */}
             {rol === "ADMIN" && puede(apr.plan as Plan, "buscador") && (
               <BuscadorModulos
                 rol={rol}

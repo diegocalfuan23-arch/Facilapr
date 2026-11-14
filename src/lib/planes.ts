@@ -18,9 +18,9 @@ export type Capacidad =
 
 const CAPACIDADES: Record<Plan, Capacidad[]> = {
   BASICO: [],
-  // Finanzas (Pagos, Caja, Compras, Reportes), Inventario, Labores y Activos fijos: desde el plan Estándar.
-  ESTANDAR: ["chat", "iaChat", "finanzas", "inventario", "activos"],
-  // RR.HH. (personal), Operación (incidentes y arranques) y el buscador de módulos (Ctrl K): solo del plan Grande.
+  // Finanzas (Pagos, Caja, Compras, Reportes), Inventario, Labores, Activos fijos y el buscador de módulos (Ctrl K): desde el plan Estándar.
+  ESTANDAR: ["chat", "iaChat", "finanzas", "inventario", "activos", "buscador"],
+  // RR.HH. (personal) y Operación (incidentes y arranques): solo del plan Grande.
   PREMIUM: ["chat", "iaChat", "finanzas", "inventario", "personal", "incidentes", "activos", "arranques", "buscador"],
 };
 
