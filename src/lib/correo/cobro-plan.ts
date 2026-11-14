@@ -1,10 +1,11 @@
 import { Resend } from "resend";
+import { remitente } from "@/lib/correo/remitente";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const REMITENTE = "Facilapr <contacto@facilapr.cl>";
+const REMITENTE = remitente("Facilapr");
 
 const escapar = (t: string) =>
   t
