@@ -2,7 +2,7 @@
  * Postgres avisa con un código cuando falta una tabla (42P01) o una columna (42703). Drizzle envuelve
  * el error original, así que se mira también su `cause`.
  */
-function codigoPg(e: unknown): string | null {
+export function codigoPg(e: unknown): string | null {
   const directo = (e as { code?: unknown } | null)?.code;
   if (typeof directo === "string") return directo;
   const causa = (e as { cause?: { code?: unknown } } | null)?.cause?.code;

@@ -9,6 +9,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { cuentaDeSocio } from "@/lib/socios-acceso";
 import { huellaDeClave, urlRestablecerClave } from "@/lib/invitacion-socio";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
+import { codigoPg, mensajeError } from "@/lib/db-errores";
 
 const socioSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es obligatorio."),
@@ -76,7 +77,11 @@ export async function crearSocio(
       return { ok: false, error: "Ya hay un arranque con ese N.º. Usa otro número." };
     }
 
-    return { ok: false, error: "No pudimos guardar el socio. Inténtalo otra vez." };
+    // Se deja el error completo en el registro del servidor y, en pantalla, el código de Postgres: sin eso un fallo de la base
+    // de datos se ve igual que cualquier otro y no hay cómo saber qué pasó.
+    console.error("Socios: no se pudo crear:", error);
+    const codigo = codigoPg(error);
+    return { ok: false, error: `${mensajeError(error, "No pudimos guardar el socio. Inténtalo otra vez.")}${codigo ? ` (código ${codigo})` : ""}` };
   }
 
   revalidatePath("/panel/socios");
