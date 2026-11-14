@@ -37,7 +37,7 @@ import {
   eliminarSocio,
   eliminarSociosSinMovimientos,
 } from "@/app/panel/socios/actions";
-import { SocioDialog, type SocioEditable } from "./socio-dialog";
+import { SocioDialog, siguientesNumeros, type SocioEditable } from "./socio-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -1066,7 +1066,8 @@ export function SociosTabla({
         urlSolicitud={urlSolicitud}
       />
 
-      <SocioDialog abierto={creando} onAbiertoChange={setCreando} />
+      {/* Con la clave, cada vez que se abre el formulario parte de cero y sugiere el N.º que corresponde en ese momento. */}
+      <SocioDialog key={creando ? "nuevo" : "cerrado"} abierto={creando} onAbiertoChange={setCreando} siguientes={siguientesNumeros(socios)} />
 
       {editando && (
         <SocioDialog

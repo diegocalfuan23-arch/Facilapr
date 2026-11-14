@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import {
   crearSocio,
@@ -32,16 +32,32 @@ export type SocioEditable = {
   whatsappConsentimiento: boolean;
 };
 
+/** El siguiente N.º de arranque libre para cada tipo: el mayor que ya hay, más uno (1 si no hay ninguno con número). */
+export function siguientesNumeros(socios: { tipo: "SOCIO" | "USUARIO"; numeroCliente: string | null }[]): Record<"SOCIO" | "USUARIO", string> {
+  const siguiente = (tipo: "SOCIO" | "USUARIO") => {
+    const numeros = socios.filter((s) => s.tipo === tipo && s.numeroCliente && /^\d+$/.test(s.numeroCliente.trim())).map((s) => Number(s.numeroCliente));
+    return String((numeros.length ? Math.max(...numeros) : 0) + 1);
+  };
+  return { SOCIO: siguiente("SOCIO"), USUARIO: siguiente("USUARIO") };
+}
+
 export function SocioDialog({
   abierto,
   onAbiertoChange,
   socio,
+  siguientes,
 }: {
   abierto: boolean;
   onAbiertoChange: (abierto: boolean) => void;
   socio?: SocioEditable;
+  /** Solo al crear: el N.º que se sugiere para cada tipo. Se puede cambiar o borrar. */
+  siguientes?: Record<"SOCIO" | "USUARIO", string>;
 }) {
   const editando = Boolean(socio);
+  // Al crear, el N.º de arranque parte con el siguiente libre de su tipo; si la persona lo toca, deja de cambiar solo.
+  const [tipo, setTipo] = useState<"SOCIO" | "USUARIO">(socio?.tipo ?? "SOCIO");
+  const [numero, setNumero] = useState(socio ? (socio.numeroCliente ?? "") : (siguientes?.SOCIO ?? ""));
+  const [numeroTocado, setNumeroTocado] = useState(false);
   const [estado, accion, pendiente] = useActionState<
     ResultadoAccion | null,
     FormData
@@ -121,7 +137,13 @@ export function SocioDialog({
             <select
               id="tipo"
               name="tipo"
-              defaultValue={v?.tipo ?? socio?.tipo ?? "SOCIO"}
+              value={tipo}
+              onChange={(e) => {
+                const nuevo = e.target.value === "USUARIO" ? "USUARIO" : "SOCIO";
+                setTipo(nuevo);
+                // Socios y usuarios llevan numeración aparte: si el N.º es el sugerido, pasa al siguiente del otro tipo.
+                if (!editando && !numeroTocado && siguientes) setNumero(siguientes[nuevo]);
+              }}
               className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="SOCIO">Socio</option>
@@ -148,9 +170,19 @@ export function SocioDialog({
               <Input
                 id="numeroCliente"
                 name="numeroCliente"
-                defaultValue={v?.numeroCliente ?? socio?.numeroCliente ?? ""}
+                value={numero}
+                onChange={(e) => {
+                  setNumero(e.target.value);
+                  setNumeroTocado(true);
+                }}
                 placeholder="Opcional"
+                inputMode="numeric"
               />
+              {!editando && siguientes ? (
+                <p className="text-[0.78rem] text-muted-foreground">
+                  Sugerido: el {siguientes[tipo]}, el siguiente libre. Cámbialo si quieres otro, o bórralo para dejarlo sin número.
+                </p>
+              ) : null}
             </div>
 
             <div className="flex flex-col gap-1.5">
