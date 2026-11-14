@@ -196,6 +196,23 @@ export async function ajustarStock(
   return { ok: true };
 }
 
+/** Cambia solo el stock mínimo de un material (desde el cual se avisa que se acaba). 0 quita el aviso. */
+export async function definirStockMinimo(id: string, minimo: number): Promise<ResultadoInventario> {
+  const { apr } = await requireFinanzas();
+  if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: SIN_PLAN };
+  if (!Number.isFinite(minimo) || minimo < 0 || minimo > 1_000_000_000) return { ok: false, error: "El aviso no es un número válido." };
+
+  const cambiados = await db
+    .update(insumos)
+    .set({ stockMinimo: Math.round(minimo * 1000) / 1000, updatedAt: new Date() })
+    .where(and(eq(insumos.id, id), eq(insumos.aprId, apr.id)))
+    .returning({ id: insumos.id });
+  if (cambiados.length === 0) return { ok: false, error: "No encontramos ese material." };
+
+  revalidatePath("/panel/inventario");
+  return { ok: true };
+}
+
 export async function eliminarInsumo(id: string): Promise<ResultadoInventario> {
   const { apr } = await requireFinanzas();
 

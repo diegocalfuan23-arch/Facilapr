@@ -502,28 +502,28 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
         selector: enMenu("inv-kpis"),
         titulo: "Lo que tienes en bodega",
         texto:
-          "El valor total del inventario, cuántos materiales hay y cuántos están con stock bajo. Si un material no tiene aviso definido, el resumen te lo indica.",
+          "El valor total del inventario por categoría, cuántos materiales están con stock bajo y cuántos no tienen aviso definido. Toca «Stock bajo» o «Sin aviso» para ver solo esos.",
         lado: "bottom",
       },
       {
         selector: enMenu("inv-acciones"),
-        titulo: "Crear materiales y categorías",
+        titulo: "Historial, categorías y materiales nuevos",
         texto:
-          "Nuevo material: nombre, unidad, stock, costo y el stock mínimo desde el que quieres que te avise. Con Categorías los ordenas, por ejemplo cloro, cañerías o repuestos.",
+          "Nuevo material: nombre, unidad, stock, costo y el stock mínimo desde el que quieres que te avise. Con Categorías los ordenas, por ejemplo cloro, cañerías o repuestos. Historial muestra cada entrada y salida de stock: quién lo hizo, cuándo y por qué.",
         lado: "bottom",
       },
       {
-        selector: '[aria-label^="Ajustar "]',
-        titulo: "Ajustar el stock",
+        selector: enMenu("inv-lista"),
+        titulo: "Elige un material",
         texto:
-          "En la fila de cada material, el botón Ajustar te deja registrar una entrada (una donación o una devolución) o una salida (una reparación o la cloración), y anotas el motivo. La cantidad no puede pasar de lo que hay.",
-        lado: "left",
+          "Al elegir uno ves a la derecha (en el celular, desde abajo) cuánto hay, cuánto dura según lo que se consume, y puedes ajustar el stock, cambiar su aviso y ver sus últimos movimientos. Las compras suman stock y las labores lo descuentan solas.",
+        lado: "top",
       },
       {
-        selector: enMenu("inv-pestanas"),
-        titulo: "El historial",
+        selector: enMenu("inv-filtros"),
+        titulo: "Filtrar y ordenar",
         texto:
-          "En Historial queda cada movimiento: quién lo hizo, cuándo y por qué. Así sabes adónde se fue un material. Las compras y las labores también mueven el stock y quedan anotadas ahí.",
+          "Busca por nombre o código, filtra por categoría y ordena por valor, nombre o por lo que se acaba antes. Las pestañas separan los de stock bajo y los que no tienen aviso.",
         lado: "bottom",
       },
     ],

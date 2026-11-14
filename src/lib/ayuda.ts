@@ -1020,7 +1020,7 @@ export const ARTICULOS: Articulo[] = [
     pasos: [
       {
         titulo: "Abre Inventario",
-        texto: "En Gestión → Inventario ves cada material con su stock. Está en los planes Estándar y Grande.",
+        texto: "En Gestión → Inventario ves cada material con su stock, y arriba cuánto vale todo y cuántos están por acabarse. Al elegir uno, a la derecha (en el celular, desde abajo) aparece su detalle. Está en los planes Estándar y Grande.",
       },
       {
         titulo: "Agrega un material",
@@ -1033,12 +1033,12 @@ export const ARTICULOS: Articulo[] = [
       {
         titulo: "Ajusta el stock",
         texto:
-          "Con Ajustar stock registras una entrada o una salida, por ejemplo cuando se usa cloro o se pierde un repuesto. Cada ajuste queda guardado.",
+          "En el detalle del material, Ajustar stock te deja sumar o restar con los botones + y −, elegir el motivo (conteo físico, pérdida o daño…) y guardar. Cada ajuste queda guardado. Ahí mismo defines con cuánto stock quieres que te avise.",
         nota: "Las compras de materiales suman el stock automáticamente.",
       },
       {
         titulo: "Mira el historial",
-        texto: "Pulsa Ver el historial de un material para saber cuándo y por qué cambió su stock.",
+        texto: "En el detalle de cada material ves sus últimos movimientos, y el botón Historial de arriba muestra todos: cuándo y por qué cambió el stock.",
       },
     ],
   },

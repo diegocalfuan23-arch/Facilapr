@@ -5,7 +5,7 @@ import { puede, type Plan } from "@/lib/planes";
 import { listarCategorias, listarInsumos } from "@/lib/inventario";
 import { avanzarLaboresVencidas } from "@/lib/labores-auto";
 import { listarHistorial } from "@/lib/inventario-historial";
-import { InventarioVista, ResumenInventario } from "@/components/panel/inventario-vista";
+import { InventarioVista } from "@/components/panel/inventario-vista";
 import { ConsultasProvider } from "@/components/panel/consultas-provider";
 
 export const metadata: Metadata = {
@@ -29,16 +29,7 @@ export default async function InventarioPage() {
 
   return (
     <ConsultasProvider>
-      <div className="flex flex-col gap-8">
-        <div>
-          <h1 className="text-[32px] leading-tight font-bold tracking-tight">Inventario</h1>
-          <p className="mt-1 text-[15px] text-muted-foreground">
-            <ResumenInventario inicial={{ insumos, categoriasPropias, historial }} />
-          </p>
-        </div>
-
-        <InventarioVista insumos={insumos} categoriasPropias={categoriasPropias} historial={historial} />
-      </div>
+      <InventarioVista insumos={insumos} categoriasPropias={categoriasPropias} historial={historial} />
     </ConsultasProvider>
   );
 }

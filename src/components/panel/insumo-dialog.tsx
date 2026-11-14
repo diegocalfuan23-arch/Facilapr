@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import { guardarInsumo, type ResultadoInventario } from "@/app/panel/inventario/actions";
+import { eliminarInsumo, guardarInsumo, type ResultadoInventario } from "@/app/panel/inventario/actions";
+import { useConfirmar } from "@/components/ui/confirmar";
 import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -26,7 +27,9 @@ export function InsumoDialog({
   categorias: OpcionCategoria[];
   onCerrar: () => void;
 }) {
+  const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoInventario | null, FormData>(guardarInsumo, null);
+  const [borrando, iniciarBorrado] = useTransition();
   const editando = insumo !== null;
   // «Otros» era la categoría por omisión de antes: ahora es no tener categoría.
   const [categoria, setCategoria] = useState(insumo && insumo.categoria !== "OTROS" ? insumo.categoria : "");
@@ -38,6 +41,21 @@ export function InsumoDialog({
       onCerrar();
     }
   }, [estado, editando, onCerrar]);
+
+  async function borrar() {
+    if (!insumo) return;
+    if (!(await confirmar({ titulo: `¿Borrar «${insumo.nombre}»?`, descripcion: "Se borra del inventario y no se puede deshacer.", boton: "Borrar" }))) return;
+    iniciarBorrado(async () => {
+      const r = await eliminarInsumo(insumo.id);
+      if (r.ok) {
+        toast.success("Material eliminado");
+        avisarCambio("inventario");
+        onCerrar();
+      } else {
+        toast.error(r.error);
+      }
+    });
+  }
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -176,16 +194,27 @@ export function InsumoDialog({
             </p>
           )}
 
-          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" className="h-10 px-4 text-[0.95rem]" onClick={onCerrar}>
-              Cancelar
-            </Button>
-            <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente}>
-              {pendiente && <Loader2 className="animate-spin" />}
-              {editando ? "Guardar cambios" : "Registrar material"}
-            </Button>
+          <div className="mt-2 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+            {editando ? (
+              <Button type="button" variant="ghost" className="h-10 px-4 text-[0.95rem] text-destructive" onClick={borrar} disabled={borrando || pendiente}>
+                {borrando && <Loader2 className="animate-spin" />}
+                Borrar
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex flex-col-reverse gap-2 sm:flex-row">
+              <Button type="button" variant="outline" className="h-10 px-4 text-[0.95rem]" onClick={onCerrar}>
+                Cancelar
+              </Button>
+              <Button type="submit" className="h-10 rounded-full px-5 text-[0.95rem]" disabled={pendiente || borrando}>
+                {pendiente && <Loader2 className="animate-spin" />}
+                {editando ? "Guardar cambios" : "Registrar material"}
+              </Button>
+            </div>
           </div>
         </form>
+        {dialogo}
       </DialogContent>
     </Dialog>
   );
