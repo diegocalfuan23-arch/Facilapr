@@ -644,8 +644,11 @@ function PanelLiquidacion({
         {!pagada && (
           <div className="flex flex-wrap gap-1 px-5 py-3">
             <Button variant="ghost" size="sm" onClick={onEditar} className="-ml-2 h-8 rounded-lg px-2 text-[13px] font-semibold text-[#2A07A8]">
+              <Plus className="size-4" />
+              Agregar bono o descuento
+            </Button>
+            <Button variant="ghost" size="icon" aria-label="Editar liquidación" title="Editar liquidación" onClick={onEditar} className="size-8 rounded-lg text-[#2A07A8]">
               <Pencil className="size-4" />
-              Editar liquidación
             </Button>
             <Button variant="ghost" size="sm" onClick={onRecalcular} disabled={ocupado} className="h-8 rounded-lg px-2 text-[13px] font-semibold text-[#2A07A8]">
               <RefreshCw className="size-4" />
