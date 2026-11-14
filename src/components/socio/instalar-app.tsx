@@ -46,7 +46,7 @@ function fueDescartada() {
  */
 export function InstalarApp({
   titulo = "Ten tu cuenta a mano",
-  descripcion = "Instálala en tu celular y ábrela como cualquier app, sin buscar el link.",
+  descripcion = "Instálala en tu celular como una app.",
   compacto = false,
 }: {
   titulo?: string;
@@ -118,34 +118,30 @@ export function InstalarApp({
   }
 
   return (
-    <div className="mb-8 flex items-start gap-3 rounded-2xl border border-primary/25 bg-primary/5 p-4">
-      <div className="flex-1">
-        <div className="font-semibold">{titulo}</div>
-        {evento ? (
-          <p className="mt-1 text-[0.88rem] text-muted-foreground">
-            {descripcion}
-          </p>
-        ) : (
-          <p className="mt-1 text-[0.88rem] text-muted-foreground">
-            Toca <Share className="inline size-4 align-text-bottom" />{" "}
-            <strong>Compartir</strong> y luego{" "}
-            <strong>Añadir a pantalla de inicio</strong> para abrirla como app.
-          </p>
-        )}
-        {evento && (
-          <Button size="sm" className="mt-3" onClick={instalar}>
-            Instalar app
-          </Button>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={descartar}
-        aria-label="Cerrar"
-        className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-      >
+    <div className="mt-4 flex items-center gap-3 rounded-xl border border-[#E4DEFC] bg-white/80 px-3.5 py-2.5">
+      <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#ECE8FD] text-[#3A0CE3]">
+        <Smartphone className="size-4" />
+      </span>
+      <p className="min-w-0 flex-1 text-[13px]">
+        <b className="font-semibold">{titulo}.</b>{" "}
+        <span className="hidden text-[#5B5970] sm:inline">
+          {evento ? (
+            descripcion
+          ) : (
+            <>
+              Toca <Share className="inline size-3.5 align-text-bottom" /> <strong>Compartir</strong> y luego <strong>Añadir a pantalla de inicio</strong>.
+            </>
+          )}
+        </span>
+      </p>
+      {evento && (
+        <Button size="sm" className="h-8 rounded-lg px-3 text-xs font-semibold" onClick={instalar}>
+          Instalar
+        </Button>
+      )}
+      <Button variant="ghost" size="icon" aria-label="Cerrar" onClick={descartar} className="size-8 rounded-lg text-[#8A8799]">
         <X className="size-4" />
-      </button>
+      </Button>
     </div>
   );
 }
