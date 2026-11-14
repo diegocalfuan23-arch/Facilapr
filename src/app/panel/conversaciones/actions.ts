@@ -7,6 +7,8 @@ import { socios, mensajesSocio } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { enviarMensajeChat, type MensajeChat } from "@/lib/chat-socio";
 import { puede, type Plan } from "@/lib/planes";
+import { listarConversaciones } from "@/lib/conversaciones";
+import type { ConversacionResumen } from "@/lib/conversaciones-comun";
 
 const mensajeSchema = z.string().trim().min(1).max(1000);
 
@@ -126,4 +128,11 @@ export async function pausarIaConversacion(socioId: string, pausada: boolean) {
     .returning({ id: socios.id });
 
   return r.length > 0;
+}
+
+/** La lista de conversaciones, para que la pantalla la vuelva a pedir sola (la usa TanStack Query). */
+export async function consultarConversaciones(): Promise<ConversacionResumen[]> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "chat")) return [];
+  return listarConversaciones(apr.id);
 }

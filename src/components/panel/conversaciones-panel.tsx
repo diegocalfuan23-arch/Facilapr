@@ -3,13 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { ArrowLeft, Bot, Check, CheckCheck, ChevronDown, CreditCard, FileText, Hand, Info, Loader2, MessageCircle, Pencil, Phone, Search, SendHorizontal, Settings2, ShieldCheck, Sparkles, Trash2, X, Zap } from "lucide-react";
-import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion } from "@/app/panel/conversaciones/actions";
+import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones } from "@/app/panel/conversaciones/actions";
 import { fichaDelSocio, type FichaSocio } from "@/app/panel/conversaciones/ficha-actions";
 import { escucharChat } from "@/lib/chat/cliente";
 import type { MensajeChat } from "@/lib/chat-socio";
 import { formatearRut, formatearTelefono, iniciales } from "@/lib/formato";
 import { hoyEnChile } from "@/lib/finanzas-comun";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
+import type { ConversacionResumen } from "@/lib/conversaciones-comun";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,23 +23,7 @@ import { IndicadorEscribiendo } from "@/components/chat/burbuja";
 import { IaChatDialog, estadoIa, type IaChatAjustes } from "@/components/panel/ia-chat-dialog";
 import { useEscribiendo } from "@/components/chat/use-escribiendo";
 
-export type ConversacionResumen = {
-  socioId: string;
-  nombre: string;
-  ultimoMensaje: string;
-  ultimaFecha: Date | null;
-  sinLeer: number;
-  /** La IA le pasó la conversación a una persona y nadie ha respondido. */
-  necesitaHumano: boolean;
-  rut: string | null;
-  numeroCliente: string | null;
-  tipo: "SOCIO" | "USUARIO";
-  telefono: string | null;
-  /** Lo que debe en total (CLP); 0 si está al día. */
-  deuda: number;
-  /** La IA está pausada solo en esta conversación. */
-  iaPausada: boolean;
-};
+export type { ConversacionResumen };
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
@@ -111,14 +98,15 @@ function textoLinkPago(c: ConversacionResumen, f: FichaSocio | null | undefined)
   return f?.portal ? `Hola ${p}, puedes ver y pagar ${saldo} en línea desde tu cuenta: ${f.portal}` : `Hola ${p}, ${c.deuda > 0 ? `tu saldo es de ${clp(c.deuda)}` : "estás al día"}. ¿Te enviamos los datos para pagar?`;
 }
 
-export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: ConversacionResumen[]; ia: IaChatAjustes }) {
-  const [seleccionado, setSeleccionado] = useState<string | null>(conversaciones[0]?.socioId ?? null);
-  // Qué conversaciones tienen la IA pausada; se mantiene aquí para no perderlo al cambiar de chat.
-  const [iaPausadas, setIaPausadas] = useState<Record<string, boolean>>(() => Object.fromEntries(conversaciones.map((c) => [c.socioId, c.iaPausada])));
+export function ConversacionesPanel({ conversaciones: iniciales, ia }: { conversaciones: ConversacionResumen[]; ia: IaChatAjustes }) {
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se actualiza sola: cada pocos segundos y al volver a la pestaña.
+  const { data: conversaciones } = useQuery({ queryKey: ["conversaciones"], queryFn: () => consultarConversaciones(), initialData: iniciales, refetchInterval: INTERVALO_RAPIDO / 2 });
+  const [seleccionado, setSeleccionado] = useState<string | null>(iniciales[0]?.socioId ?? null);
+  // Lo que se cambió a mano en esta pantalla sobre la IA de cada conversación; lo demás viene de la lista.
+  const [iaPausadas, setIaPausadas] = useState<Record<string, boolean>>({});
   // En pantallas angostas se ve una cosa a la vez: la lista o el chat abierto.
   const [verChat, setVerChat] = useState(false);
-  // Se descuenta localmente al abrir un chat, sin esperar a recargar toda la lista.
-  const [sinLeerLocal, setSinLeerLocal] = useState<Record<string, number>>(() => Object.fromEntries(conversaciones.map((c) => [c.socioId, c.sinLeer])));
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState<"todas" | "leer" | "atencion">("todas");
   const [fichas, setFichas] = useState<Record<string, FichaSocio | null>>({});
@@ -132,7 +120,11 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
 
   const iaActiva = ajustesIa.disponible && ajustesIa.modo !== "APAGADO";
   const estado = estadoIa(ajustesIa);
-  const conIa = (id: string) => iaActiva && !(iaPausadas[id] ?? false);
+  const pausadaDe = (id: string) => iaPausadas[id] ?? conversaciones.find((c) => c.socioId === id)?.iaPausada ?? false;
+  const conIa = (id: string) => iaActiva && !pausadaDe(id);
+  // La conversación abierta se está leyendo: no cuenta como pendiente aunque la lista aún no se haya actualizado.
+  const noLeidosDe = (c: ConversacionResumen) => (c.socioId === seleccionado ? 0 : c.sinLeer);
+  const refrescarLista = () => void cliente.invalidateQueries({ queryKey: ["conversaciones"] });
 
   // La ficha del socio elegido se vuelve a pedir cada vez que se abre su chat.
   useEffect(() => {
@@ -170,10 +162,10 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
   }
 
   const q = busqueda.trim().toLowerCase();
-  const sinLeer = conversaciones.filter((c) => (sinLeerLocal[c.socioId] ?? 0) > 0).length;
+  const sinLeer = conversaciones.filter((c) => noLeidosDe(c) > 0).length;
   const paraTi = conversaciones.filter((c) => c.necesitaHumano || !conIa(c.socioId)).length;
   const lista = conversaciones.filter((c) => {
-    if (filtro === "leer" && !((sinLeerLocal[c.socioId] ?? 0) > 0)) return false;
+    if (filtro === "leer" && !(noLeidosDe(c) > 0)) return false;
     if (filtro === "atencion" && !(c.necesitaHumano || !conIa(c.socioId))) return false;
     return !q || `${c.nombre} ${c.numeroCliente ?? ""} ${c.rut ?? ""}`.toLowerCase().includes(q);
   });
@@ -234,7 +226,7 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
           <ul className="min-h-0 flex-1 overflow-y-auto p-2">
             {lista.map((c) => {
               const activo = c.socioId === seleccionado;
-              const noLeidos = sinLeerLocal[c.socioId] ?? 0;
+              const noLeidos = noLeidosDe(c);
               return (
                 <li key={c.socioId}>
                   <button
@@ -242,7 +234,6 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
                     onClick={() => {
                       setSeleccionado(c.socioId);
                       setVerChat(true);
-                      setSinLeerLocal((prev) => ({ ...prev, [c.socioId]: 0 }));
                     }}
                     aria-current={activo ? "true" : undefined}
                     className={cn("flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors", activo ? "bg-[#F1EEFD]" : "hover:bg-[#F8F7FC]")}
@@ -288,10 +279,11 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
               socio={socio}
               ficha={fichas[socio.socioId]}
               iaActiva={iaActiva}
-              iaPausada={iaPausadas[socio.socioId] ?? false}
+              iaPausada={pausadaDe(socio.socioId)}
               onIaPausada={(pausada) => setIaPausadas((prev) => ({ ...prev, [socio.socioId]: pausada }))}
               onVolver={() => setVerChat(false)}
               onFicha={alternarFicha}
+              onActividad={refrescarLista}
               insertar={insertar}
             />
           ) : (
@@ -381,6 +373,7 @@ function ChatConSocio({
   onIaPausada,
   onVolver,
   onFicha,
+  onActividad,
   insertar,
 }: {
   socio: ConversacionResumen;
@@ -393,6 +386,8 @@ function ChatConSocio({
   onVolver: () => void;
   /** Muestra u oculta la ficha del socio (a un costado en pantalla ancha, como hoja en las angostas). */
   onFicha: () => void;
+  /** Pasó algo en este chat (llegó o se envió un mensaje): la lista de conversaciones se pone al día. */
+  onActividad: () => void;
   /** Un texto que la ficha pide poner en la caja de escribir. */
   insertar: { n: number; texto: string } | null;
 }) {
@@ -418,6 +413,11 @@ function ChatConSocio({
   const [editando, setEditando] = useState<MensajeChat | null>(null);
   const [eliminando, setEliminando] = useState<MensajeChat | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  // Se guarda en una referencia para que cambiar la función no vuelva a abrir la conexión en vivo.
+  const actividad = useRef(onActividad);
+  useEffect(() => {
+    actividad.current = onActividad;
+  });
   const { otroEscribe, alEscribirElOtro, conectar, alTeclear, alDejarDeEscribir } = useEscribiendo();
 
   // Lo que la ficha pide poner en la caja de escribir (por ejemplo, el enlace de pago).
@@ -443,6 +443,7 @@ function ChatConSocio({
       socioId,
       (mensaje) => {
         setMensajes((prev) => agregarSinRepetir(prev, mensaje));
+        actividad.current();
         if (mensaje.remitente === "SOCIO") {
           alEscribirElOtro(false);
           marcarLeidoDirectiva(socioId);
@@ -498,7 +499,10 @@ function ChatConSocio({
     iniciarEnvio(async () => {
       const r = await enviarMensajeDirectiva(socioId, texto);
       // El mensaje propio se ve de inmediato; si luego llega el eco en vivo, no se repite.
-      if (r.ok) setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
+      if (r.ok) {
+        setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
+        actividad.current();
+      }
     });
   }
 
