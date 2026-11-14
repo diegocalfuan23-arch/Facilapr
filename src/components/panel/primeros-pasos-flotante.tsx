@@ -157,10 +157,8 @@ export function PrimerosPasosFlotante() {
 
   if (!cargado) return null;
 
-  // Modo terreno ya trae su propio «?» junto al estado de conexión (también lo necesita el operador, que no tiene este botón):
-  // dos signos de pregunta en la misma pantalla confundían.
   const recorridoDePantalla = [...RECORRIDOS, ...RECORRIDOS_NUEVOS].find(
-    (r) => r.ruta === pathname && r.id !== "resumen" && r.id !== "terreno"
+    (r) => r.ruta === pathname && r.id !== "resumen"
   );
 
   function explicarPantalla() {
