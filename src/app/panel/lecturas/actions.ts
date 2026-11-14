@@ -59,6 +59,8 @@ export async function registrarLectura(
     observacion: formData.get("observacion") || undefined,
   });
   const medidorCambiado = formData.get("medidorCambiado") === "1";
+  // «Cuenta como lectura inicial»: la primera lectura de un arranque, como punto de partida (queda aprobada y no cobra nada).
+  const comoInicial = formData.get("comoInicial") === "on";
   const finalAnterior = medidorCambiado ? aEntero(formData.get("lecturaFinalAnterior")) : null;
 
   if (!parsed.success) {
@@ -97,6 +99,26 @@ export async function registrarLectura(
       error:
         "Ya hay una lectura pendiente de este socio para ese período. Espera a que se revise antes de cargar otra.",
     };
+  }
+
+  if (comoInicial) {
+    // Solo la directiva aprueba, y solo vale si el arranque de verdad no tiene una lectura anterior con la que comparar.
+    if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede registrar una lectura como inicial." };
+    if (medidorCambiado) return { ok: false, error: "Un cambio de medidor no es una lectura inicial: quita una de las dos marcas." };
+    if (await anteriorDelSocio(datos.socioId)) {
+      return { ok: false, error: "Este arranque ya tiene una lectura anterior: no puede ser la inicial. Desmarca «Cuenta como lectura inicial»." };
+    }
+
+    await db.insert(lecturas).values({
+      socioId: datos.socioId,
+      periodo,
+      valor: datos.valor,
+      observacion: datos.observacion ?? "Lectura inicial",
+      estado: "APROBADA",
+      registradaPorId: user.id,
+      revisadaPorId: user.id,
+    });
+    return { ok: true };
   }
 
   await db.insert(lecturas).values({
