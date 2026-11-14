@@ -1070,14 +1070,9 @@ function NuevaLecturaDialog({
 
           {/* El arranque no tiene una lectura con la que comparar: esta puede ser su punto de partida, sin cobrar nada. */}
           {hayElegido && anterior === null && !cambioMedidor && (
-            <label className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-[#E4DEFC] bg-[#F7F5FF] px-3.5 py-3 text-[0.88rem]">
-              <input type="checkbox" name="comoInicial" defaultChecked className="mt-0.5 size-4 shrink-0 accent-primary" />
-              <span>
-                <span className="font-medium">Cuenta como lectura inicial</span>
-                <span className="mt-0.5 block text-[0.8rem] text-muted-foreground">
-                  Es la primera de este arranque: queda aprobada como punto de partida y no genera boleta. La próxima lectura se compara con esta. Desmárcalo si quieres cobrarla.
-                </span>
-              </span>
+            <label className="flex cursor-pointer items-center gap-2 text-[0.88rem] font-medium">
+              <input type="checkbox" name="comoInicial" defaultChecked className="size-4 accent-primary" />
+              Lectura inicial
             </label>
           )}
 

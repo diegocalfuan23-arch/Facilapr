@@ -96,6 +96,7 @@ function FormularioLectura({ socio, periodo, onSaltar, onRegistrada }: { socio: 
         </div>
       </div>
 
+      {socio.anterior !== null && (
       <p role={aviso ? "alert" : undefined} className={cn("mt-2 flex items-start gap-1.5 text-[13px] leading-snug", retrocede ? "text-[#A32020]" : alto ? "text-[#8F4400]" : GRIS)}>
         {retrocede ? (
           <>
@@ -109,21 +110,17 @@ function FormularioLectura({ socio, periodo, onSaltar, onRegistrada }: { socio: 
               Consumo {Math.round((consumo ?? 0) / (socio.promedio ?? 1))}× mayor que su promedio. {confirmar ? "Presiona otra vez para enviarla igual." : "¿Está bien el número?"}
             </span>
           </>
-        ) : socio.anterior !== null ? (
-          `Debe ser igual o mayor a ${num(socio.anterior)}.`
         ) : (
-          "Primera lectura de este socio: no hay una anterior con la que comparar."
+          `Debe ser igual o mayor a ${num(socio.anterior)}.`
         )}
       </p>
+      )}
 
-      {/* Sin lectura anterior: esta puede ser el punto de partida del medidor, sin cobrar nada. */}
+      {/* Sin lectura anterior: puede ser el punto de partida del medidor (queda aprobada, sin boleta). */}
       {socio.anterior === null && (
-        <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-[#E4DEFC] bg-[#F7F5FF] px-3.5 py-3 text-[13px]">
-          <input type="checkbox" name="comoInicial" defaultChecked className="mt-0.5 size-4 shrink-0 accent-primary" />
-          <span>
-            <span className="font-medium">Cuenta como lectura inicial</span>
-            <span className={cn("mt-0.5 block text-xs", GRIS)}>Queda aprobada como punto de partida y no genera boleta: la próxima lectura se compara con esta. Desmárcalo si quieres cobrarla.</span>
-          </span>
+        <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-sm font-medium">
+          <input type="checkbox" name="comoInicial" defaultChecked className="size-4 shrink-0 accent-primary" />
+          Lectura inicial
         </label>
       )}
 
