@@ -123,6 +123,8 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
   const [filtro, setFiltro] = useState<"todas" | "leer" | "atencion">("todas");
   const [fichas, setFichas] = useState<Record<string, FichaSocio | null>>({});
   const [fichaAbierta, setFichaAbierta] = useState(false);
+  // En pantallas anchas la ficha va fija a un costado; se puede ocultar para darle todo el ancho al chat.
+  const [fichaOculta, setFichaOculta] = useState(false);
   const [ajustesIa, setAjustesIa] = useState(ia);
   const [configurando, setConfigurando] = useState(false);
   // Un texto que la ficha le pide al chat que ponga en la caja de escribir (el número cambia en cada pedido).
@@ -143,6 +145,16 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
       vivo = false;
     };
   }, [seleccionado]);
+
+  // Escape cierra la hoja de la ficha.
+  useEffect(() => {
+    if (!fichaAbierta) return;
+    const alTeclear = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFichaAbierta(false);
+    };
+    window.addEventListener("keydown", alTeclear);
+    return () => window.removeEventListener("keydown", alTeclear);
+  }, [fichaAbierta]);
 
   if (conversaciones.length === 0) {
     return (
@@ -167,6 +179,12 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
   });
   const socio = conversaciones.find((c) => c.socioId === seleccionado);
 
+  // El botón de información: en pantalla ancha muestra u oculta la ficha del costado; en las angostas la abre como hoja.
+  const alternarFicha = () => {
+    if (window.matchMedia("(min-width: 1280px)").matches) setFichaOculta((v) => !v);
+    else setFichaAbierta(true);
+  };
+
   const pedirLinkPago = () => {
     if (!socio) return;
     setInsertar({ n: (insertar?.n ?? 0) + 1, texto: textoLinkPago(socio, fichas[socio.socioId]) });
@@ -186,7 +204,8 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
 
       <div
         className={cn(
-          "grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-2xl bg-card lg:grid-cols-[340px_minmax(0,1fr)] xl:grid-cols-[340px_minmax(0,1fr)_300px]",
+          "grid min-h-0 flex-1 grid-cols-1 overflow-hidden rounded-2xl bg-card lg:grid-cols-[340px_minmax(0,1fr)]",
+          fichaOculta ? "xl:grid-cols-[340px_minmax(0,1fr)]" : "xl:grid-cols-[340px_minmax(0,1fr)_300px]",
           verChat && "max-lg:fixed max-lg:inset-0 max-lg:z-30 max-lg:rounded-none",
           SOMBRA
         )}
@@ -272,7 +291,7 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
               iaPausada={iaPausadas[socio.socioId] ?? false}
               onIaPausada={(pausada) => setIaPausadas((prev) => ({ ...prev, [socio.socioId]: pausada }))}
               onVolver={() => setVerChat(false)}
-              onFicha={() => setFichaAbierta(true)}
+              onFicha={alternarFicha}
               insertar={insertar}
             />
           ) : (
@@ -281,7 +300,11 @@ export function ConversacionesPanel({ conversaciones, ia }: { conversaciones: Co
         </section>
 
         {/* Ficha */}
-        <aside className="hidden min-h-0 border-l border-[#F0EEF6] xl:block">{socio && <Ficha socio={socio} ficha={fichas[socio.socioId]} iaDisponible={ajustesIa.disponible} onLinkPago={pedirLinkPago} onConfigurar={() => setConfigurando(true)} />}</aside>
+        {!fichaOculta && (
+          <aside className="hidden min-h-0 border-l border-[#F0EEF6] xl:block">
+            {socio && <Ficha socio={socio} ficha={fichas[socio.socioId]} iaDisponible={ajustesIa.disponible} onLinkPago={pedirLinkPago} onConfigurar={() => setConfigurando(true)} onCerrar={() => setFichaOculta(true)} />}
+          </aside>
+        )}
       </div>
 
       {fichaAbierta && socio && (
@@ -368,7 +391,7 @@ function ChatConSocio({
   onIaPausada: (pausada: boolean) => void;
   /** Solo en pantallas angostas: volver a la lista. */
   onVolver: () => void;
-  /** Abre la ficha del socio donde no cabe a un costado. */
+  /** Muestra u oculta la ficha del socio (a un costado en pantalla ancha, como hoja en las angostas). */
   onFicha: () => void;
   /** Un texto que la ficha pide poner en la caja de escribir. */
   insertar: { n: number; texto: string } | null;
@@ -580,7 +603,7 @@ function ChatConSocio({
             ))}
           </div>
         )}
-        <Button variant="ghost" size="icon" aria-label="Ficha del socio" onClick={onFicha} className="size-9 shrink-0 rounded-lg xl:hidden">
+        <Button variant="ghost" size="icon" aria-label="Mostrar u ocultar la ficha del socio" title="Ficha del socio" onClick={onFicha} className="size-9 shrink-0 rounded-lg">
           <Info className="size-[18px]" />
         </Button>
       </div>
