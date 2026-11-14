@@ -414,6 +414,7 @@ function ChatConSocio({
   const [editando, setEditando] = useState<MensajeChat | null>(null);
   const [eliminando, setEliminando] = useState<MensajeChat | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const cajaRef = useRef<HTMLTextAreaElement>(null);
   // Se guarda en una referencia para que cambiar la función no vuelva a abrir la conexión en vivo.
   const actividad = useRef(onActividad);
   useEffect(() => {
@@ -478,6 +479,14 @@ function ChatConSocio({
   useEffect(() => {
     finRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [mensajes, otroEscribe]);
+
+  // La caja de escribir crece con el texto (hasta unas 6 líneas): un mensaje largo, como el enlace de pago, se ve completo.
+  useEffect(() => {
+    const el = cajaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  }, [entrada]);
 
   function enviar() {
     const texto = entrada.trim();
@@ -752,6 +761,7 @@ function ChatConSocio({
               </DropdownMenuContent>
             </DropdownMenu>
             <textarea
+              ref={cajaRef}
               aria-label="Mensaje"
               rows={1}
               value={entrada}
@@ -768,7 +778,7 @@ function ChatConSocio({
                 }
               }}
               placeholder={editando ? "Corrige tu mensaje" : `Escribe a ${p}…`}
-              className="block max-h-32 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-sm outline-none placeholder:text-[#9A98AB]"
+              className="block max-h-40 min-h-9 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-sm [overflow-wrap:anywhere] outline-none placeholder:text-[#9A98AB]"
             />
             <Button type="submit" size="icon" aria-label="Enviar" disabled={enviando || !entrada.trim()} className="size-9 shrink-0 rounded-lg">
               <SendHorizontal className="size-4" />
