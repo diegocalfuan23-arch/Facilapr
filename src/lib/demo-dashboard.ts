@@ -66,17 +66,6 @@ export const DEMO: DatosResumen = {
     { clave: "stock", titulo: "Materiales con stock bajo", detalle: "Inventario", n: 0, tono: "alerta", href: "/panel/inventario" },
   ],
   comunicados: [],
-  morosidad: { tasa: 8.47, socios: 21, total: 248, serie: [12, 9, 14, 11, 16, 19, 24, 21] },
-  mejorMes: {
-    texto: "Abril 2026",
-    pagadores: [
-      { id: "m1", nombre: "Luis Painemal", pagado: 39_450, boletas: 3 },
-      { id: "m2", nombre: "María Huenchuñir", pagado: 27_750, boletas: 3 },
-      { id: "m3", nombre: "Elena Quilaqueo", pagado: 22_100, boletas: 2 },
-      { id: "m4", nombre: "Rosa Millán", pagado: 14_800, boletas: 2 },
-      { id: "m5", nombre: "Juan Marileo", pagado: 11_300, boletas: 1 },
-    ],
-  },
   pagos: [
     { id: "p1", socio: "Luis Painemal", cuando: "Hoy, 10:42", medio: "Transferencia", monto: 13_150 },
     { id: "p2", socio: "María Huenchuñir", cuando: "12-11", medio: "Efectivo", monto: 9_250 },

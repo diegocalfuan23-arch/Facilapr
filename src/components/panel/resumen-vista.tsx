@@ -378,56 +378,7 @@ export function ResumenVista({ d }: { d: DatosResumen }) {
         </section>
       </div>
 
-      {/* Fila 4: la morosidad y quiénes pagaron en el mejor mes. */}
-      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <section className={cn("rounded-2xl bg-card p-5 sm:p-6", SOMBRA)}>
-          <Encabezado titulo="Tasa de morosidad" sub="Socios con boletas vencidas" accion={<Enlace href="/panel/boletas">Ver boletas</Enlace>} />
-          <div className="mt-4 flex items-end justify-between gap-4">
-            <div>
-              <p className={cn("text-[30px] leading-none font-semibold tabular-nums", d.morosidad.socios > 0 && "text-[#A32020]")}>{d.morosidad.tasa.toLocaleString("es-CL", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</p>
-              <p className={cn("mt-1.5 text-xs", GRIS)}>
-                {numero(d.morosidad.socios)} de {numero(d.morosidad.total)} socios
-              </p>
-            </div>
-            <div className="w-36">
-              {d.morosidad.serie.some((v) => v > 0) ? (
-                <>
-                  <MiniSaldo valores={d.morosidad.serie} linea="#D6403D" relleno="#D6403D" />
-                  <p className={cn("text-center text-[11px]", GRIS)}>Boletas vencidas, 8 meses</p>
-                </>
-              ) : (
-                <p className={cn("text-right text-xs", GRIS)}>Sin boletas vencidas en 8 meses</p>
-              )}
-            </div>
-          </div>
-        </section>
-
-        <section className={cn("rounded-2xl bg-card p-5 sm:p-6", SOMBRA)}>
-          <Encabezado titulo="Quiénes pagaron" sub={d.mejorMes ? `En ${d.mejorMes.texto}, el mejor mes` : "Aún no hay pagos registrados"} />
-          {d.mejorMes && d.mejorMes.pagadores.length > 0 ? (
-            <ul className="mt-4 flex flex-col gap-3">
-              {d.mejorMes.pagadores.map((s) => (
-                <li key={s.id} className="flex items-center gap-3">
-                  <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#E6F6EF] text-xs font-bold text-[#075A3C]">
-                    {iniciales(s.nombre)}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold">{s.nombre}</span>
-                    <span className={cn("block text-xs", GRIS)}>
-                      {s.boletas} {s.boletas === 1 ? "boleta" : "boletas"}
-                    </span>
-                  </span>
-                  <span className="text-sm font-semibold text-[#075A3C] tabular-nums">{clp(s.pagado)}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className={cn("mt-4 text-sm", GRIS)}>Todavía nadie ha pagado.</p>
-          )}
-        </section>
-      </div>
-
-      {/* Fila 5: las boletas del período. */}
+      {/* Fila 4: las boletas del período. */}
       <section className={cn("mt-4 overflow-hidden rounded-2xl bg-card", SOMBRA)}>
         <div className="p-5 pb-4 sm:px-6 sm:pt-6">
           <Encabezado titulo="Boletas recientes" sub={d.subtituloBoletas} accion={<Enlace href="/panel/boletas">Ver todas</Enlace>} />

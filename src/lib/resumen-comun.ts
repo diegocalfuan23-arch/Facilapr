@@ -59,11 +59,6 @@ export type DatosResumen = {
   /** Los últimos comunicados publicados a los socios (para el botón «Comunicado»). */
   comunicados: { id: string; titulo: string; hace: string }[];
 
-  /** Los socios con boletas vencidas contra el padrón, y cuántas boletas vencidas había al cierre de cada mes. */
-  morosidad: { tasa: number; socios: number; total: number; serie: number[] };
-  /** El mes que más recaudó y quiénes más pagaron en él. */
-  mejorMes: { texto: string; pagadores: { id: string; nombre: string; pagado: number; boletas: number }[] } | null;
-
   boletas: { id: string; socio: string; periodo: string; m3: number | null; monto: number; estado: EstadoBoletaResumen }[];
   subtituloBoletas: string;
 

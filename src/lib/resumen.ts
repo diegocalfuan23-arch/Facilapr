@@ -74,7 +74,6 @@ export async function datosResumen(opts: {
     stockBajo,
     pagosRecientes,
     boletasRecientes,
-    vencidasPorPeriodo,
     comunicadosRecientes,
     cajaDatos,
   ] = await Promise.all([
@@ -208,14 +207,6 @@ export async function datosResumen(opts: {
       .orderBy(desc(boletas.createdAt))
       .limit(5),
 
-    // Cuántas boletas siguen impagas y vencidas en cada mes (para el minigráfico de morosidad).
-    db
-      .select({ periodo: boletas.periodo, n: sql<number>`count(*) filter (where ${boletas.montoPagado} < ${boletas.montoTotal} and ${boletas.fechaVencimiento} < now())::int` })
-      .from(boletas)
-      .innerJoin(socios, eq(boletas.socioId, socios.id))
-      .where(and(eq(socios.aprId, aprId), noAnulada, inArray(boletas.periodo, periodos)))
-      .groupBy(boletas.periodo),
-
     listarComunicados(aprId, 5),
 
     opts.conCaja
@@ -295,28 +286,6 @@ export async function datosResumen(opts: {
   ];
   if (opts.conInventario) atencion.push({ clave: "stock", titulo: "Materiales con stock bajo", detalle: "Inventario", n: stockBajo[0]?.n ?? 0, tono: "alerta", href: "/panel/inventario" });
 
-  // ---- Morosidad y el mejor mes.
-  const deVencidas = new Map(vencidasPorPeriodo.map((v) => [v.periodo, v.n]));
-  const mejor = periodos.reduce<{ periodo: string; monto: number } | null>((m, p) => {
-    const monto = porP.get(p)?.recaudado ?? 0;
-    return monto > 0 && (!m || monto > m.monto) ? { periodo: p, monto } : m;
-  }, null);
-  const pagadoresMejor = mejor
-    ? await db
-        .select({
-          id: socios.id,
-          nombre: socios.nombre,
-          pagado: sql<number>`sum(${boletas.montoPagado})::int`,
-          boletas: sql<number>`count(*)::int`,
-        })
-        .from(boletas)
-        .innerJoin(socios, eq(boletas.socioId, socios.id))
-        .where(and(eq(socios.aprId, aprId), noAnulada, eq(boletas.periodo, mejor.periodo), sql`${boletas.montoPagado} > 0`))
-        .groupBy(socios.id, socios.nombre)
-        .orderBy(desc(sql`sum(${boletas.montoPagado})`))
-        .limit(5)
-    : [];
-
   // ---- Últimos pagos y boletas recientes.
   const dia = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago" });
   const horaFmt = new Intl.DateTimeFormat("es-CL", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Santiago" });
@@ -374,13 +343,6 @@ export async function datosResumen(opts: {
     consumo: { meses, valores: valoresConsumo, actual, raro, avisoRaro, residencial, comercial },
     atencion,
     comunicados: comunicadosRecientes.map((c) => ({ id: c.id, titulo: c.titulo, hace: tiempoRelativo(c.createdAt) })),
-    morosidad: {
-      tasa: totalSocios > 0 ? ((morosos?.socios ?? 0) / totalSocios) * 100 : 0,
-      socios: morosos?.socios ?? 0,
-      total: totalSocios,
-      serie: periodos.map((p) => deVencidas.get(p) ?? 0),
-    },
-    mejorMes: mejor ? { texto: `${mayus(mesDe(mejor.periodo))} ${mejor.periodo.slice(0, 4)}`, pagadores: pagadoresMejor } : null,
     pagos: pagosRecientes.map((p) => ({ id: p.id, socio: p.socio, cuando: cuando(p.fecha), medio: textoMedioPago(p.medio), monto: p.monto })),
     boletas: boletasRecientes.map((b) => {
       const estado: EstadoBoletaResumen = b.pagado >= b.monto ? "Pagada" : b.vence.getTime() < ahora ? "Vencida" : "Pendiente";

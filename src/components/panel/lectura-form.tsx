@@ -22,7 +22,6 @@ import {
   SkipForward,
   Smartphone,
   Users,
-  CircleHelp,
   Wifi,
   X,
   XCircle,
@@ -30,7 +29,6 @@ import {
 import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
-import { lanzarRecorrido } from "@/components/panel/recorrido";
 import {
   COLA_VACIA,
   encolarLectura,
@@ -594,9 +592,6 @@ export function LecturaForm({
             {enLinea ? <Wifi className="size-3.5" aria-hidden /> : <CloudOff className="size-3.5" aria-hidden />}
             {enLinea ? "En línea" : "Sin conexión"}
           </span>
-          <button type="button" onClick={() => lanzarRecorrido("terreno")} aria-label="Cómo se usa el modo terreno" title="Cómo se usa" className="flex size-9 shrink-0 items-center justify-center rounded-full bg-white text-[#6F6C82] shadow-[0_2px_8px_rgba(58,12,227,0.08)] hover:text-[#15132B]">
-            <CircleHelp className="size-5" aria-hidden />
-          </button>
         </div>
 
         {(cola.length > 0 || enviando) && (
