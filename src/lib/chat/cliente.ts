@@ -14,6 +14,27 @@ export type OpcionesEscribiendo = {
   alEscribir: (activo: boolean) => void;
 };
 
+/**
+ * La directiva escucha la actividad de todas las conversaciones de su comité: cada vez que llega un mensaje a cualquiera,
+ * se llama a `alActividad` (para volver a pedir la lista). Devuelve la función que deja de escuchar.
+ */
+export function escucharComite(alActividad: () => void) {
+  const socket = io(process.env.NEXT_PUBLIC_CHAT_URL!, {
+    transports: ["websocket", "polling"],
+    auth: (entregar) => {
+      fetch("/api/chat/token?comite=1", { cache: "no-store" })
+        .then((r) => (r.ok ? r.json() : { token: "" }))
+        .then((d: { token: string }) => entregar({ token: d.token }))
+        .catch(() => entregar({ token: "" }));
+    },
+  });
+  socket.on("conversacion-activa", alActividad);
+  return () => {
+    socket.off("conversacion-activa", alActividad);
+    socket.disconnect();
+  };
+}
+
 export function escucharChat<T>(
   socioId: string,
   alRecibir: (mensaje: T) => void,

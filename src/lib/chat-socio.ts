@@ -1,7 +1,7 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { mensajesSocio } from "@/lib/db/schema";
-import { publicarMensajeEnVivo } from "@/lib/chat/tiempo-real";
+import { mensajesSocio, socios } from "@/lib/db/schema";
+import { publicarActividadComite, publicarMensajeEnVivo } from "@/lib/chat/tiempo-real";
 
 export type MensajeChat = {
   id: string;
@@ -84,8 +84,11 @@ export async function enviarMensajeChat({
   // Vercel la función puede congelarse apenas responde y la petición queda a
   // medias: el mensaje se guarda pero nadie lo ve en vivo. Si falla, el mensaje
   // ya está guardado y aparece en el próximo refresco del historial.
+  // También se avisa a la sala del comité, para que la lista de Conversaciones de la directiva se ponga al día sola.
   try {
-    await publicarMensajeEnVivo(socioId, mensaje);
+    const [socio] = await db.select({ aprId: socios.aprId }).from(socios).where(eq(socios.id, socioId)).limit(1);
+    const resultados = await Promise.allSettled([publicarMensajeEnVivo(socioId, mensaje), socio ? publicarActividadComite(socio.aprId, socioId) : Promise.resolve()]);
+    for (const r of resultados) if (r.status === "rejected") console.error("No se pudo publicar el mensaje en tiempo real:", r.reason);
   } catch (error) {
     console.error("No se pudo publicar el mensaje en tiempo real:", error);
   }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Bot, Check, CheckCheck, ChevronDown, CreditCard, FileText, Hand, Info, Loader2, MessageCircle, Pencil, Phone, Search, SendHorizontal, Settings2, ShieldCheck, Sparkles, Trash2, X, Zap } from "lucide-react";
 import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones } from "@/app/panel/conversaciones/actions";
 import { fichaDelSocio, type FichaSocio } from "@/app/panel/conversaciones/ficha-actions";
-import { escucharChat } from "@/lib/chat/cliente";
+import { escucharChat, escucharComite } from "@/lib/chat/cliente";
 import type { MensajeChat } from "@/lib/chat-socio";
 import { formatearRut, formatearTelefono, iniciales } from "@/lib/formato";
 import { hoyEnChile } from "@/lib/finanzas-comun";
@@ -125,6 +125,9 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
   // La conversación abierta se está leyendo: no cuenta como pendiente aunque la lista aún no se haya actualizado.
   const noLeidosDe = (c: ConversacionResumen) => (c.socioId === seleccionado ? 0 : c.sinLeer);
   const refrescarLista = () => void cliente.invalidateQueries({ queryKey: ["conversaciones"] });
+
+  // En vivo: cada mensaje que llega a cualquier conversación del comité vuelve a pedir la lista al instante.
+  useEffect(() => escucharComite(() => void cliente.invalidateQueries({ queryKey: ["conversaciones"] })), [cliente]);
 
   // La ficha del socio elegido se vuelve a pedir cada vez que se abre su chat.
   useEffect(() => {
