@@ -25,7 +25,16 @@ const socioSchema = z.object({
   numeroCliente: z.string().trim().optional(),
 });
 
-export type ResultadoAccion = { ok: true } | { ok: false; error: string };
+/** Al fallar devuelve también lo que se escribió: React vacía el formulario después de cada envío y, sin esto, quien se equivoca en un dato tendría que volver a escribirlo todo. */
+export type ResultadoAccion = { ok: true } | { ok: false; error: string; valores?: Record<string, string>; intento?: number };
+
+/** Lo que había en el formulario, para devolverlo si el envío falla. */
+function conValores(formData: FormData) {
+  const campos = ["nombre", "rut", "telefono", "tipo", "uso", "numeroCliente", "direccion"];
+  const valores: Record<string, string> = Object.fromEntries(campos.map((c) => [c, String(formData.get(c) ?? "")]));
+  valores.whatsappConsentimiento = formData.get("whatsappConsentimiento") === "on" ? "on" : "";
+  return { valores, intento: Date.now() };
+}
 
 /** La casilla marcada llega como "on"; sin marcar, no llega. */
 const aceptaWhatsapp = (formData: FormData) => formData.get("whatsappConsentimiento") === "on";
@@ -52,7 +61,7 @@ export async function crearSocio(
   });
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message };
+    return { ok: false, error: parsed.error.issues[0].message, ...conValores(formData) };
   }
 
   const datos = parsed.data;
@@ -74,7 +83,7 @@ export async function crearSocio(
     const mensaje = textoErrorPg(error);
 
     if (mensaje.includes("Socio_apr_tipo_numero_key")) {
-      return { ok: false, error: "Ya hay un arranque con ese N.º. Usa otro número." };
+      return { ok: false, error: `Ya hay un arranque con el N.º ${datos.numeroCliente ?? ""} (de tipo ${datos.tipo === "USUARIO" ? "usuario" : "socio"}). Usa otro número o déjalo vacío.`, ...conValores(formData) };
     }
 
     // Se deja el error completo en el registro del servidor y, en pantalla, el código de Postgres: sin eso un fallo de la base
@@ -82,7 +91,7 @@ export async function crearSocio(
     console.error("Socios: no se pudo crear:", error);
     const codigo = codigoPg(error);
     const restriccion = restriccionPg(error);
-    return { ok: false, error: `${mensajeError(error, "No pudimos guardar el socio. Inténtalo otra vez.")}${codigo ? ` (código ${codigo}${restriccion ? `, ${restriccion}` : ""})` : ""}` };
+    return { ok: false, error: `${mensajeError(error, "No pudimos guardar el socio. Inténtalo otra vez.")}${codigo ? ` (código ${codigo}${restriccion ? `, ${restriccion}` : ""})` : ""}`, ...conValores(formData) };
   }
 
   revalidatePath("/panel/socios");
@@ -111,7 +120,7 @@ export async function editarSocio(
   });
 
   if (!parsed.success) {
-    return { ok: false, error: parsed.error.issues[0].message };
+    return { ok: false, error: parsed.error.issues[0].message, ...conValores(formData) };
   }
 
   const datos = parsed.data;
@@ -140,12 +149,13 @@ export async function editarSocio(
     const mensaje = textoErrorPg(error);
 
     if (mensaje.includes("Socio_apr_tipo_numero_key")) {
-      return { ok: false, error: "Ya hay otro arranque con ese N.º. Usa otro número." };
+      return { ok: false, error: `Ya hay otro arranque con el N.º ${datos.numeroCliente ?? ""} (de tipo ${datos.tipo === "USUARIO" ? "usuario" : "socio"}). Usa otro número o déjalo vacío.`, ...conValores(formData) };
     }
 
     return {
       ok: false,
       error: "No pudimos guardar los cambios. Inténtalo otra vez.",
+      ...conValores(formData),
     };
   }
 

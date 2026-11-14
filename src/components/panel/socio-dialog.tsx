@@ -51,6 +51,9 @@ export function SocioDialog({
     if (estado?.ok) onAbiertoChange(false);
   }, [estado, onAbiertoChange]);
 
+  // Después de un error el formulario se vacía solo; se vuelve a armar con lo que la persona había escrito.
+  const v = estado && !estado.ok ? estado.valores : undefined;
+
   return (
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>
       <DialogContent className="sm:max-w-[460px]">
@@ -62,7 +65,7 @@ export function SocioDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={accion} className="flex flex-col gap-4">
+        <form key={estado && !estado.ok ? (estado.intento ?? 0) : "base"} action={accion} className="flex flex-col gap-4">
           {socio && <input type="hidden" name="socioId" value={socio.id} />}
 
           <div className="flex flex-col gap-1.5">
@@ -70,7 +73,7 @@ export function SocioDialog({
             <Input
               id="nombre"
               name="nombre"
-              defaultValue={socio?.nombre}
+              defaultValue={v?.nombre ?? socio?.nombre}
               placeholder="María Huenchuñir"
               required
             />
@@ -82,7 +85,7 @@ export function SocioDialog({
               <Input
                 id="rut"
                 name="rut"
-                defaultValue={socio?.rut ?? ""}
+                defaultValue={v?.rut ?? socio?.rut ?? ""}
                 placeholder="12.345.678-9"
               />
             </div>
@@ -92,7 +95,7 @@ export function SocioDialog({
               <Input
                 id="telefono"
                 name="telefono"
-                defaultValue={socio?.telefono ?? ""}
+                defaultValue={v?.telefono ?? socio?.telefono ?? ""}
                 placeholder="9 1234 5678"
               />
             </div>
@@ -102,7 +105,7 @@ export function SocioDialog({
             <input
               type="checkbox"
               name="whatsappConsentimiento"
-              defaultChecked={socio?.whatsappConsentimiento ?? false}
+              defaultChecked={v ? v.whatsappConsentimiento === "on" : (socio?.whatsappConsentimiento ?? false)}
               className="mt-0.5 size-4 shrink-0 accent-primary"
             />
             <span className="text-[0.88rem]">
@@ -118,7 +121,7 @@ export function SocioDialog({
             <select
               id="tipo"
               name="tipo"
-              defaultValue={socio?.tipo ?? "SOCIO"}
+              defaultValue={v?.tipo ?? socio?.tipo ?? "SOCIO"}
               className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="SOCIO">Socio</option>
@@ -131,7 +134,7 @@ export function SocioDialog({
             <select
               id="uso"
               name="uso"
-              defaultValue={socio?.uso ?? "RESIDENCIAL"}
+              defaultValue={v?.uso ?? socio?.uso ?? "RESIDENCIAL"}
               className="h-8 rounded-lg border border-input bg-transparent px-2.5 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <option value="RESIDENCIAL">Residencial</option>
@@ -145,7 +148,7 @@ export function SocioDialog({
               <Input
                 id="numeroCliente"
                 name="numeroCliente"
-                defaultValue={socio?.numeroCliente ?? ""}
+                defaultValue={v?.numeroCliente ?? socio?.numeroCliente ?? ""}
                 placeholder="Opcional"
               />
             </div>
@@ -155,7 +158,7 @@ export function SocioDialog({
               <Input
                 id="direccion"
                 name="direccion"
-                defaultValue={socio?.direccion ?? ""}
+                defaultValue={v?.direccion ?? socio?.direccion ?? ""}
                 placeholder="Opcional"
               />
             </div>
