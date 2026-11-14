@@ -8,6 +8,7 @@ import { Button, buttonVariants } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ComunicadoDialog } from "@/components/panel/comunicado-dialog";
 import { Anillo, GraficoConsumo, GraficoRecaudacion, MiniSaldo } from "@/components/panel/resumen-graficos";
+import { iniciales } from "@/lib/formato";
 import type { DatosResumen } from "@/lib/resumen-comun";
 import { cn } from "@/lib/utils";
 
@@ -15,13 +16,6 @@ const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
 const clp = (n: number) => (n < 0 ? "-" : "") + "$" + Math.abs(Math.round(n)).toLocaleString("es-CL");
 const numero = (n: number) => n.toLocaleString("es-CL");
-const iniciales = (s: string) =>
-  s
-    .split(" ")
-    .filter((w) => /^[A-ZÁÉÍÓÚÑ]/.test(w))
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("");
 
 function Encabezado({ titulo, sub, accion }: { titulo: string; sub?: React.ReactNode; accion?: React.ReactNode }) {
   return (
@@ -396,8 +390,14 @@ export function ResumenVista({ d }: { d: DatosResumen }) {
               </p>
             </div>
             <div className="w-36">
-              <MiniSaldo valores={d.morosidad.serie} linea="#D6403D" relleno="#D6403D" />
-              <p className={cn("text-center text-[11px]", GRIS)}>Boletas vencidas, 8 meses</p>
+              {d.morosidad.serie.some((v) => v > 0) ? (
+                <>
+                  <MiniSaldo valores={d.morosidad.serie} linea="#D6403D" relleno="#D6403D" />
+                  <p className={cn("text-center text-[11px]", GRIS)}>Boletas vencidas, 8 meses</p>
+                </>
+              ) : (
+                <p className={cn("text-right text-xs", GRIS)}>Sin boletas vencidas en 8 meses</p>
+              )}
             </div>
           </div>
         </section>
