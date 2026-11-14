@@ -9,6 +9,21 @@ export function codigoPg(e: unknown): string | null {
   return typeof causa === "string" ? causa : null;
 }
 
+/**
+ * Todo lo que dice un error de la base de datos, junto: Drizzle envuelve el error original y el nombre de la restricción
+ * que falló (por ejemplo «Socio_apr_tipo_numero_key») viene en `cause`, no en el mensaje de arriba.
+ */
+export function textoErrorPg(e: unknown): string {
+  const causa = (e as { cause?: { message?: unknown; constraint?: unknown; detail?: unknown } } | null)?.cause;
+  return [(e as { message?: unknown } | null)?.message, causa?.message, causa?.constraint, causa?.detail].filter((x): x is string => typeof x === "string").join(" · ");
+}
+
+/** El nombre de la restricción que falló (una clave única, por ejemplo), si el error la trae. */
+export function restriccionPg(e: unknown): string | null {
+  const r = (e as { constraint?: unknown; cause?: { constraint?: unknown } } | null)?.constraint ?? (e as { cause?: { constraint?: unknown } } | null)?.cause?.constraint;
+  return typeof r === "string" ? r : null;
+}
+
 /** true si el error es porque la base de datos no tiene todavía una tabla o columna que el código espera. */
 export function faltaEsquema(e: unknown): boolean {
   const c = codigoPg(e);

@@ -9,7 +9,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { cuentaDeSocio } from "@/lib/socios-acceso";
 import { huellaDeClave, urlRestablecerClave } from "@/lib/invitacion-socio";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
-import { codigoPg, mensajeError } from "@/lib/db-errores";
+import { codigoPg, mensajeError, restriccionPg, textoErrorPg } from "@/lib/db-errores";
 
 const socioSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es obligatorio."),
@@ -71,7 +71,7 @@ export async function crearSocio(
       whatsappConsentimientoAt: aceptaWhatsapp(formData) ? new Date() : null,
     });
   } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "";
+    const mensaje = textoErrorPg(error);
 
     if (mensaje.includes("Socio_apr_tipo_numero_key")) {
       return { ok: false, error: "Ya hay un arranque con ese N.º. Usa otro número." };
@@ -81,7 +81,8 @@ export async function crearSocio(
     // de datos se ve igual que cualquier otro y no hay cómo saber qué pasó.
     console.error("Socios: no se pudo crear:", error);
     const codigo = codigoPg(error);
-    return { ok: false, error: `${mensajeError(error, "No pudimos guardar el socio. Inténtalo otra vez.")}${codigo ? ` (código ${codigo})` : ""}` };
+    const restriccion = restriccionPg(error);
+    return { ok: false, error: `${mensajeError(error, "No pudimos guardar el socio. Inténtalo otra vez.")}${codigo ? ` (código ${codigo}${restriccion ? `, ${restriccion}` : ""})` : ""}` };
   }
 
   revalidatePath("/panel/socios");
@@ -136,7 +137,7 @@ export async function editarSocio(
       // El filtro por aprId impide editar un socio de otro comité.
       .where(and(eq(socios.id, socioId), eq(socios.aprId, apr.id)));
   } catch (error) {
-    const mensaje = error instanceof Error ? error.message : "";
+    const mensaje = textoErrorPg(error);
 
     if (mensaje.includes("Socio_apr_tipo_numero_key")) {
       return { ok: false, error: "Ya hay otro arranque con ese N.º. Usa otro número." };
