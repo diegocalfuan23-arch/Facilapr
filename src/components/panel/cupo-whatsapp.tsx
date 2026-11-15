@@ -12,6 +12,8 @@ export function CupoWhatsappInfo({ cupo, compacto = false, className }: { cupo: 
       </p>
     );
   }
+  // Sin mensajes automáticos en el plan (la prueba y el plan Pequeño): no se muestra un cupo que nunca existió, el envío es a mano.
+  if (cupo.limite === 0) return null;
   const pct = cupo.limite > 0 ? Math.min(100, Math.round((cupo.usados / cupo.limite) * 100)) : 100;
   const agotado = !cupo.disponible;
   const poco = !agotado && (cupo.restantes ?? 0) <= Math.max(5, Math.round(cupo.limite * 0.1));
