@@ -506,7 +506,6 @@ export function RendicionesVista({ inicial, hoy }: { inicial: DatosRendicion; ho
                           <ShoppingCart className="size-4 shrink-0 text-[#6B46F5] sm:hidden" aria-hidden />
                           <span className="truncate">{c.proveedor}</span>
                         </span>
-                        {c.rut ? <span className={`hidden text-xs sm:block ${GRIS}`}>{formatearRut(c.rut)}</span> : null}
                         <span className={`block text-xs sm:hidden ${GRIS}`}>
                           {fecha(c.fecha)} · {detalle}
                           {pendiente ? " · Pendiente" : ""}
