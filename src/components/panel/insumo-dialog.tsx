@@ -33,6 +33,8 @@ export function InsumoDialog({
   const editando = insumo !== null;
   // «Otros» era la categoría por omisión de antes: ahora es no tener categoría.
   const [categoria, setCategoria] = useState(insumo && insumo.categoria !== "OTROS" ? insumo.categoria : "");
+  // El costo se escribe en dígitos y se muestra con $ y puntos de miles; al guardar el servidor se queda con los dígitos.
+  const [costo, setCosto] = useState(insumo ? String(insumo.costo) : "");
 
   useEffect(() => {
     if (estado?.ok) {
@@ -180,9 +182,11 @@ export function InsumoDialog({
               <Input
                 id="ins-costo"
                 name="costo"
-                defaultValue={insumo ? String(insumo.costo) : ""}
-                placeholder="17500"
+                value={costo ? `$${Number(costo).toLocaleString("es-CL")}` : ""}
+                onChange={(e) => setCosto(e.target.value.replace(/\D/g, "").slice(0, 10))}
+                placeholder="$17.500"
                 inputMode="numeric"
+                autoComplete="off"
                 className={campo}
               />
             </div>
