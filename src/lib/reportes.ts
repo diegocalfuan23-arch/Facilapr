@@ -24,8 +24,16 @@ export type ResumenAnual = {
  * lo demás de Movimiento; el saldo inicial y los cierres de caja no cuentan.
  */
 export async function resumenAnual(aprId: string, anio: number): Promise<ResumenAnual> {
-  const desde = `${anio}-01-01`;
-  const hasta = `${anio + 1}-01-01`;
+  const meses = Array.from({ length: 12 }, (_, i) => `${anio}-${String(i + 1).padStart(2, "0")}`);
+  const r = await resumenRango(aprId, `${anio}-01-01`, `${anio + 1}-01-01`, meses);
+  return { anio, ...r };
+}
+
+/**
+ * Lo mismo para cualquier rango de meses completos (un trimestre, un semestre…): `desde` es el primer día y `hasta` el
+ * primer día que ya no entra. `meses` son los AAAA-MM que abarca, aunque no tengan movimientos.
+ */
+export async function resumenRango(aprId: string, desde: string, hasta: string, mesesDelRango: string[]): Promise<Omit<ResumenAnual, "anio">> {
 
   const mesDeMovimiento = sql<string>`to_char(${movimientos.fecha}, 'YYYY-MM')`;
   const deMovimientos = await db
@@ -61,11 +69,7 @@ export async function resumenAnual(aprId: string, anio: number): Promise<Resumen
     .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`))
     .groupBy(mesChile, pagos.concepto);
 
-  const meses: MesDelAnio[] = Array.from({ length: 12 }, (_, i) => ({
-    mes: `${anio}-${String(i + 1).padStart(2, "0")}`,
-    ingresos: 0,
-    egresos: 0,
-  }));
+  const meses: MesDelAnio[] = mesesDelRango.map((mes) => ({ mes, ingresos: 0, egresos: 0 }));
   const porMes = new Map(meses.map((m) => [m.mes, m]));
   const ingresos = new Map<string, number>();
   const egresos = new Map<string, number>();
@@ -93,7 +97,6 @@ export async function resumenAnual(aprId: string, anio: number): Promise<Resumen
     [...mapa.entries()].map(([categoria, total]) => ({ categoria, total })).sort((a, b) => b.total - a.total);
 
   return {
-    anio,
     meses,
     ingresos: ordenar(ingresos),
     egresos: ordenar(egresos),

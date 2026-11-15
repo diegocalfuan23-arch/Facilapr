@@ -301,10 +301,10 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
                   Excel de movimientos
                 </button>
                 {anio <= anioActual ? (
-                  <a href={`/panel/reportes/rendicion?anio=${anio}`} target="_blank" rel="noopener noreferrer" onClick={() => setDescarga(false)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent">
+                  <Link href={`/panel/rendiciones?tipo=anio&anio=${anio}`} onClick={() => setDescarga(false)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent">
                     <FileText className="size-4" aria-hidden />
                     Rendición de cuentas {anio}
-                  </a>
+                  </Link>
                 ) : null}
                 {mes ? (
                   <Link href={`/informes/caja/${mes.mes}`} target="_blank" onClick={() => setDescarga(false)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent">

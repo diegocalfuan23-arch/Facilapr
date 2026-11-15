@@ -382,7 +382,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
   const etiqueta = modo === "dia" ? desde : nombreMes(mesDe);
   // El informe es del mes que se está mirando (en la vista de un día, el mes de ese día); la rendición, del año.
   const hrefInforme = `/informes/caja/${mesDe}`;
-  const hrefRendicion = `/panel/reportes/rendicion?anio=${desde.slice(0, 4)}`;
+  const hrefRendicion = `/panel/rendiciones?tipo=anio&anio=${desde.slice(0, 4)}`;
   function irA(p: Periodo) {
     setPeriodo(p);
     window.history.replaceState(null, "", urlDe(p));
@@ -620,7 +620,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
                     </>
                   );
                   return o.href ? (
-                    <Link key={o.texto} role="menuitem" href={o.href} target={o.href.startsWith("/informes") || o.href.startsWith("/panel/reportes/rendicion") ? "_blank" : undefined} onClick={() => setMenu(false)} className={clase}>
+                    <Link key={o.texto} role="menuitem" href={o.href} target={o.href.startsWith("/informes") ? "_blank" : undefined} onClick={() => setMenu(false)} className={clase}>
                       {interior}
                     </Link>
                   ) : (

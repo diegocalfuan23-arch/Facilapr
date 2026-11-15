@@ -7,6 +7,7 @@ import {
   Stethoscope,
   UsersRound,
   BarChart3,
+  ClipboardCheck,
   ArrowLeftRight,
   Banknote,
   ClipboardList,
@@ -95,6 +96,7 @@ const finanzas: Enlace[] = [
   { href: "/panel/giros", label: "Giros", icon: ArrowLeftRight },
   { href: "/panel/compras", label: "Compras", icon: ShoppingCart },
   { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
+  { href: "/panel/rendiciones", label: "Rendiciones", icon: ClipboardCheck },
 ];
 
 const atencion: Enlace[] = [
@@ -203,6 +205,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",
   "/panel/compras": "proveedores facturas comprar gastos",
   "/panel/reportes": "informe año resumen estadisticas",
+  "/panel/rendiciones": "rendicion cuentas asamblea informe mes trimestre semestre año ingresos egresos compras proveedores pdf excel",
   "/panel/conversaciones": "chat mensajes socios ia",
   "/panel/socios/solicitudes": "pedidos acceso clave",
   "/panel/cortes": "morosidad corte suspension reposicion",
