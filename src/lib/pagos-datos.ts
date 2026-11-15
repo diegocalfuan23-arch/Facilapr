@@ -69,6 +69,7 @@ export async function datosPagos(apr: { id: string; plan: string }): Promise<Dat
       periodo: boletas.periodo,
       montoTotal: boletas.montoTotal,
       montoPagado: boletas.montoPagado,
+      vence: boletas.fechaVencimiento,
       socioId: socios.id,
       socioNombre: socios.nombre,
       socioTelefono: socios.telefono,
@@ -142,6 +143,7 @@ export async function datosPagos(apr: { id: string; plan: string }): Promise<Dat
       periodo: b.periodo,
       montoTotal: b.montoTotal,
       montoPagado: b.montoPagado,
+      vence: b.vence ? b.vence.toISOString() : null,
     })),
     cupoWhatsapp: cupo,
   };

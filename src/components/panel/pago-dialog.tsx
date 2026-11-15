@@ -49,6 +49,8 @@ export type BoletaParaPago = {
   periodo: string;
   montoTotal: number;
   montoPagado: number;
+  /** Fecha de vencimiento (ISO), si la pantalla la necesita para marcar las vencidas. */
+  vence?: string | null;
 };
 
 /** Registrar un pago o abono sobre una boleta, con su historial y comprobante. */
