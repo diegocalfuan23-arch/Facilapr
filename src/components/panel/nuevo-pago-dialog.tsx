@@ -151,16 +151,18 @@ export function NuevoPagoDialog({
   }, [boletas, socios, todosLosSocios, hoy]);
 
   const conDeuda = cuentas.filter((c) => c.deuda > 0).length;
+  const esBoleta = tipo === "BOLETA";
+  // Pagar una boleta solo tiene sentido para quien la debe: los que están al día no aparecen.
+  const filtroActivo: Filtro = esBoleta ? "deuda" : filtro;
   const lista = useMemo(() => {
     const t = q.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[.\-]/g, "");
     return cuentas
-      .filter((c) => filtro === "todos" || (filtro === "deuda" ? c.deuda > 0 : c.deuda === 0))
+      .filter((c) => filtroActivo === "todos" || (filtroActivo === "deuda" ? c.deuda > 0 : c.deuda === 0))
       .filter((c) => !t || `${c.nombre} ${c.rut ?? ""} ${c.numeroCliente ?? ""}`.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[.\-]/g, "").includes(t))
       .sort((a, z) => z.vencidas - a.vencidas || z.deuda - a.deuda || a.nombre.localeCompare(z.nombre));
-  }, [cuentas, filtro, q]);
+  }, [cuentas, filtroActivo, q]);
 
   const socio = cuentas.find((c) => c.id === socioId) ?? null;
-  const esBoleta = tipo === "BOLETA";
   const elegidas = socio ? socio.pendientes.filter((b) => marcadas.includes(b.id)) : [];
   const total = elegidas.reduce((t, b) => t + saldo(b.montoTotal, b.montoPagado), 0);
   const recibido = esBoleta ? (monto ? Number(monto) : total) : Number(monto || 0);
@@ -436,6 +438,7 @@ export function NuevoPagoDialog({
                     <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8A8799]" aria-hidden />
                     <Input autoFocus aria-label="Buscar socio" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nombre, RUT o N.º de arranque" className={cn(CAMPO, "pl-9")} />
                   </div>
+                  {!esBoleta && (
                   <div className="flex gap-2">
                     {(
                       [
@@ -458,6 +461,7 @@ export function NuevoPagoDialog({
                       </button>
                     ))}
                   </div>
+                  )}
                 </div>
                 <ul className="mt-3 min-h-0 flex-1 overflow-y-auto px-3 pb-3 sm:px-4">
                   {lista.map((c) => (
@@ -497,7 +501,7 @@ export function NuevoPagoDialog({
                       </button>
                     </li>
                   ))}
-                  {lista.length === 0 ? <li className={cn("px-4 py-12 text-center text-sm", GRIS)}>Ningún socio coincide con la búsqueda.</li> : null}
+                  {lista.length === 0 ? <li className={cn("px-4 py-12 text-center text-sm", GRIS)}>{esBoleta && !q.trim() ? "No hay boletas por pagar." : "Ningún socio coincide con la búsqueda."}</li> : null}
                 </ul>
               </div>
             ) : (
