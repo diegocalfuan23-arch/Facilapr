@@ -1359,7 +1359,14 @@ function ImportarDialog({
     FormData
   >(async (prev, formData) => {
     const r = await importarBoletas(prev, formData);
-    if (r.ok) void cliente.invalidateQueries({ queryKey: ["boletas"] });
+    if (r.ok) {
+      void cliente.invalidateQueries({ queryKey: ["boletas"] });
+      // Sin filas omitidas no hay nada que revisar: el modal se cierra y avisa. Con omitidas se queda abierto para verlas.
+      if (r.omitidas.length === 0) {
+        onAbiertoChange(false);
+        toast.success(`${r.creadas} creadas · ${r.actualizadas} actualizadas${r.pagosRegistrados ? ` · ${r.pagosRegistrados} pagos` : ""}`);
+      }
+    }
     return r;
   }, null);
 
