@@ -353,7 +353,7 @@ export function PagosTabla({
     const r = await eliminarPago(p.id);
     if (r.ok) {
       toast.success("Pago eliminado");
-      avisarCambio("caja", "pagos");
+      avisarCambio("caja", "pagos", "boletas");
       setMovil(false);
     } else {
       toast.error(r.error);

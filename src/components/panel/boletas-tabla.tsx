@@ -4,8 +4,12 @@ import { CupoWhatsappInfo } from "@/components/panel/cupo-whatsapp";
 import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
 
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { consultarBoletas } from "@/app/panel/boletas/consulta-actions";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
 import {
   useActionState,
+  useCallback,
   useMemo,
   useRef,
   useState,
@@ -219,13 +223,13 @@ function TarjetaResumen({
 }
 
 export function BoletasTabla({
-  boletas,
-  socios,
+  boletas: boletasIniciales,
+  socios: sociosIniciales,
   tarifas,
   tarifasComercial,
   comite,
-  envioAutomatico,
-  cupoWhatsapp,
+  envioAutomatico: envioIniciales,
+  cupoWhatsapp: cupoIniciales,
   plantillaBoleta,
 }: {
   boletas: BoletaFila[];
@@ -241,6 +245,17 @@ export function BoletasTabla({
   /** Plantilla de Meta que usa el envío automático: de ella depende el texto de la vista previa. */
   plantillaBoleta: PlantillaBoleta;
 }) {
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 10 segundos, al volver a la pestaña y tras cada cambio.
+  const { data } = useQuery({
+    queryKey: ["boletas"],
+    queryFn: () => consultarBoletas(),
+    initialData: { boletas: boletasIniciales, socios: sociosIniciales, cupoWhatsapp: cupoIniciales, envioAutomatico: envioIniciales },
+    refetchInterval: INTERVALO_RAPIDO,
+  });
+  const { boletas, socios, cupoWhatsapp, envioAutomatico } = data;
+  const cliente = useQueryClient();
+  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["boletas"] }), [cliente]);
+
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<"todas" | Estado>("todas");
   const [periodo, setPeriodo] = useState("todos");
@@ -451,6 +466,7 @@ export function BoletasTabla({
                 onClick={() =>
                   iniciar(async () => {
                     await anularBoleta(b.id);
+                    volverAPedir();
                     toast.success("Boleta anulada");
                   })
                 }
@@ -883,6 +899,7 @@ export function BoletasTabla({
                 iniciar(async () => {
                   if (porEliminar) {
                     await eliminarBoleta(porEliminar.id);
+                    volverAPedir();
                     toast.success("Boleta eliminada");
                   }
                   setPorEliminar(null);
@@ -913,6 +930,7 @@ function BoletaDialog({
   tarifasComercial: { cargoFijo: number; valorM3: number } | null;
   boleta?: BoletaFila;
 }) {
+  const cliente = useQueryClient();
   // La tarifa depende del uso del arranque elegido: comercial o residencial.
   const [usoElegido, setUsoElegido] = useState<string>(
     socios.find((s) => s.id === boleta?.socioId)?.uso ?? "RESIDENCIAL"
@@ -930,7 +948,10 @@ function BoletaDialog({
     FormData
   >(async (prev, formData) => {
     const r = await guardarBoleta(prev, formData);
-    if (r.ok) onAbiertoChange(false);
+    if (r.ok) {
+      onAbiertoChange(false);
+      void cliente.invalidateQueries({ queryKey: ["boletas"] });
+    }
     return r;
   }, null);
 
@@ -1332,10 +1353,15 @@ function ImportarDialog({
   abierto: boolean;
   onAbiertoChange: (v: boolean) => void;
 }) {
+  const cliente = useQueryClient();
   const [estado, accion, pendiente] = useActionState<
     ResultadoImportacion | null,
     FormData
-  >(importarBoletas, null);
+  >(async (prev, formData) => {
+    const r = await importarBoletas(prev, formData);
+    if (r.ok) void cliente.invalidateQueries({ queryKey: ["boletas"] });
+    return r;
+  }, null);
 
   return (
     <Dialog open={abierto} onOpenChange={onAbiertoChange}>

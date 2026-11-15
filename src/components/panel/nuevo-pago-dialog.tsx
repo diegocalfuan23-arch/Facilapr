@@ -243,7 +243,7 @@ export function NuevoPagoDialog({
           return;
         }
         toast.success("Pago registrado");
-        avisarCambio("caja", "pagos");
+        avisarCambio("caja", "pagos", "boletas");
         setResultado({
           ...base,
           total: recibido,
@@ -271,7 +271,7 @@ export function NuevoPagoDialog({
         resto -= porcion;
       }
 
-      if (hechos.length > 0) avisarCambio("caja", "pagos");
+      if (hechos.length > 0) avisarCambio("caja", "pagos", "boletas");
       if (falla) {
         toast.error(hechos.length ? `Se registraron ${hechos.length} pago${hechos.length === 1 ? "" : "s"} y falló el siguiente: ${falla}` : falla);
         if (hechos.length === 0) {

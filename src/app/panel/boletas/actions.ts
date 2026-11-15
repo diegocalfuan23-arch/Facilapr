@@ -252,7 +252,6 @@ export async function guardarBoleta(
     throw e;
   }
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel");
   return { ok: true };
 }
@@ -368,7 +367,6 @@ export async function registrarPago(
   // Si el comité lo prendió, el comprobante sale solo por WhatsApp, sin demorar esta respuesta.
   after(() => enviarComprobanteAuto(pago.id));
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel");
   return {
     ok: true,
@@ -585,7 +583,6 @@ export async function editarPago(
 
   if (actual.boletaId) await recalcularBoleta(actual.boletaId);
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel/caja");
   revalidatePath("/panel");
   return { ok: true, comprobanteUrl: urlComprobante(pagoId) };
@@ -613,7 +610,6 @@ export async function eliminarPago(pagoId: string): Promise<ResultadoAccion> {
     }
   }
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel");
   return { ok: true };
 }
@@ -637,7 +633,6 @@ export async function anularBoleta(boletaId: string): Promise<ResultadoAccion> {
     .set({ estado: "ANULADA", updatedAt: new Date() })
     .where(eq(boletas.id, boletaId));
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel");
   return { ok: true };
 }
@@ -660,7 +655,6 @@ export async function eliminarBoleta(
 
   await db.delete(boletas).where(eq(boletas.id, boletaId));
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel");
   return { ok: true };
 }
@@ -1024,7 +1018,6 @@ export async function importarBoletas(
     }
   }
 
-  revalidatePath("/panel/boletas");
   revalidatePath("/panel/pagos");
   revalidatePath("/panel");
 

@@ -316,7 +316,7 @@ export function PagoDialog({
                         const r = await eliminarPago(h.id);
                         if (r.ok) {
                           toast.success("Pago eliminado");
-                          avisarCambio("caja", "pagos");
+                          avisarCambio("caja", "pagos", "boletas");
                           setHistorial((prev) => prev?.filter((x) => x.id !== h.id) ?? null);
                           setRegistrado(null);
                         } else {
@@ -353,7 +353,7 @@ export function PagoDialog({
                   });
                   if (r.ok) {
                     toast.success("Pago registrado");
-                    avisarCambio("caja", "pagos");
+                    avisarCambio("caja", "pagos", "boletas");
                     setRegistrado({
                       monto: Number(monto),
                       comprobanteUrl: r.comprobanteUrl,
