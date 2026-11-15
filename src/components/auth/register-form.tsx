@@ -3,12 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
 import { signUp } from "@/lib/auth-client";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CampoClave } from "@/components/auth/campo-clave";
-import { Label } from "@/components/ui/label";
 import { CARGOS } from "@/lib/cargos";
 import { origenGuardado } from "@/lib/origen";
 import {
@@ -20,6 +18,11 @@ import {
 } from "@/components/ui/select";
 
 const cargos = CARGOS;
+
+// Mismo aspecto que el acceso (login-form): campo alto, borde suave y foco en el color de la marca.
+const CAMPO =
+  "mt-1.5 h-12 rounded-xl border-[#E4E1F0] bg-white text-[15px] text-[#15132B] shadow-none transition-colors focus-visible:border-[#3A0CE3] focus-visible:ring-2 focus-visible:ring-[#3A0CE3]/20 dark:bg-white [&:-webkit-autofill]:shadow-[inset_0_0_0_40px_#fff]";
+const ETIQUETA = "text-sm font-medium";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -74,47 +77,44 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-7 grid gap-4 sm:grid-cols-2">
-      <div className="flex flex-col gap-1.5 sm:col-span-2">
-        <Label htmlFor="apr">Nombre del APR o SSR</Label>
-        <Input id="apr" name="apr" placeholder="Ej: APR Pitrelahué" required />
+    <form onSubmit={handleSubmit} className="mt-8 grid gap-4 sm:grid-cols-2">
+      <div className="sm:col-span-2">
+        <label htmlFor="apr" className={ETIQUETA}>
+          Nombre del APR o SSR
+        </label>
+        <Input id="apr" name="apr" placeholder="Ej: APR Pitrelahué" required autoFocus className={CAMPO} />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="rutComite">RUT del comité</Label>
-        <Input
-          id="rutComite"
-          name="rutComite"
-          placeholder="76.543.210-9"
-          className="h-10"
-          required
-        />
+      <div>
+        <label htmlFor="rutComite" className={ETIQUETA}>
+          RUT del comité
+        </label>
+        <Input id="rutComite" name="rutComite" placeholder="76.543.210-9" required className={CAMPO} />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="comuna">Comuna</Label>
-        <Input id="comuna" name="comuna" placeholder="Ej: Freire" required />
+      <div>
+        <label htmlFor="comuna" className={ETIQUETA}>
+          Comuna
+        </label>
+        <Input id="comuna" name="comuna" placeholder="Ej: Freire" required className={CAMPO} />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="responsable">Nombre del responsable</Label>
-        <Input
-          id="responsable"
-          name="responsable"
-          placeholder="Nombre y apellido"
-          className="h-10"
-          required
-        />
+      <div>
+        <label htmlFor="responsable" className={ETIQUETA}>
+          Nombre del responsable
+        </label>
+        <Input id="responsable" name="responsable" placeholder="Nombre y apellido" required className={CAMPO} />
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="cargo">Cargo en el comité</Label>
-        <Select
-          items={cargos}
-          value={cargo}
-          onValueChange={(value) => setCargo(value ?? "")}
-        >
-          <SelectTrigger id="cargo" className="w-full">
+      <div>
+        <label htmlFor="cargo" className={ETIQUETA}>
+          Cargo en el comité
+        </label>
+        <Select items={cargos} value={cargo} onValueChange={(value) => setCargo(value ?? "")}>
+          <SelectTrigger
+            id="cargo"
+            className="mt-1.5 h-12 w-full rounded-xl border-[#E4E1F0] bg-white px-3 text-[15px] text-[#15132B] shadow-none focus-visible:border-[#3A0CE3] focus-visible:ring-2 focus-visible:ring-[#3A0CE3]/20 dark:bg-white"
+          >
             <SelectValue placeholder="Selecciona un cargo" />
           </SelectTrigger>
           <SelectContent>
@@ -127,68 +127,82 @@ export function RegisterForm() {
         </Select>
       </div>
 
-      <div className="flex flex-col gap-1.5 sm:col-span-2">
-        <Label htmlFor="email">Correo del comité</Label>
+      <div className="sm:col-span-2">
+        <label htmlFor="email" className={ETIQUETA}>
+          Correo del comité
+        </label>
         <Input
           id="email"
           name="email"
           type="email"
           autoComplete="email"
+          inputMode="email"
           placeholder="tesoreria@apr-ejemplo.cl"
-          className="h-10"
           required
+          className={CAMPO}
         />
       </div>
 
-      <div className="flex flex-col gap-1.5 sm:col-span-2">
-        <Label htmlFor="telefono">WhatsApp o teléfono de contacto</Label>
+      <div className="sm:col-span-2">
+        <label htmlFor="telefono" className={ETIQUETA}>
+          WhatsApp o teléfono de contacto
+        </label>
         <Input
           id="telefono"
           name="telefono"
           type="tel"
           autoComplete="tel"
+          inputMode="tel"
           placeholder="+56 9 1234 5678"
-          className="h-10"
           required
+          className={CAMPO}
         />
-        <p className="text-[0.8rem] text-muted-foreground">Para ayudarte a dar los primeros pasos. No lo compartimos con nadie.</p>
       </div>
 
       <CampoClave
         id="password"
         name="password"
         label="Contraseña"
-        className="flex flex-col gap-1.5 sm:col-span-2"
+        className="sm:col-span-2"
+        labelClassName={ETIQUETA}
+        inputClassName={`${CAMPO} pr-20`}
       />
 
       {error && (
-        <p
-          role="alert"
-          className="rounded-lg bg-destructive/10 px-3.5 py-2.5 text-[0.88rem] text-destructive sm:col-span-2"
-        >
+        <p role="alert" className="flex items-start gap-2 rounded-xl bg-[#FDECEC] px-3 py-2.5 text-sm font-medium text-[#A32020] sm:col-span-2">
+          <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
           {error}
         </p>
       )}
 
-      <Button
+      <button
         type="submit"
         disabled={enviando}
-        className="mt-2 h-10 w-full sm:col-span-2"
+        className="mt-2 flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#3A0CE3] px-6 text-[15px] font-semibold text-white transition-colors hover:bg-[#2A07A8] focus-visible:ring-2 focus-visible:ring-[#3A0CE3] focus-visible:ring-offset-2 focus-visible:outline-none disabled:opacity-70 sm:col-span-2"
       >
-        {enviando && <Loader2 className="animate-spin" />}
-        {enviando ? "Creando cuenta…" : "Crear cuenta del comité"}
-      </Button>
+        {enviando ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            Creando cuenta
+          </>
+        ) : (
+          <>
+            Crear cuenta del comité
+            <ArrowRight className="size-4" aria-hidden />
+          </>
+        )}
+      </button>
 
-      <p className="text-center text-[0.8rem] leading-relaxed text-muted-foreground sm:col-span-2">
+      <p className="text-center text-[13px] leading-relaxed text-[#5B5970] sm:col-span-2">
         Al crear la cuenta aceptas los{" "}
-        <Link href="/terminos" className="text-primary hover:underline">
+        <Link href="/terminos" className="font-medium text-[#3A0CE3] hover:underline">
           términos de uso
         </Link>{" "}
         y la{" "}
-        <Link href="/privacidad" className="text-primary hover:underline">
+        <Link href="/privacidad" className="font-medium text-[#3A0CE3] hover:underline">
           política de privacidad
-        </Link>{" "}
-        de Facilapr.
+        </Link>
+        .
       </p>
     </form>
   );

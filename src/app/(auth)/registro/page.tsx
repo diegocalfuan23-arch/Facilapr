@@ -12,19 +12,14 @@ export const metadata: Metadata = {
 export default function RegistroPage() {
   return (
     <div className="w-full max-w-[540px]">
-      <h1 className="text-[1.6rem] font-semibold tracking-tight">
-        Registra tu comité en Facilapr
-      </h1>
-      <p className="mt-2 text-[0.95rem] text-muted-foreground">
-        Creamos la cuenta de tu APR o SSR. Después podrás cargar tus socios y
-        boletas desde el panel.
-      </p>
+      <h1 className="text-4xl leading-[1.08] font-semibold tracking-[-0.035em] md:text-[44px]">Registra tu comité</h1>
+      <p className="mt-3 text-[17px] leading-relaxed text-[#5B5970]">Crea la cuenta de tu APR o SSR y carga tus socios desde el panel.</p>
 
       <RegisterForm />
 
-      <p className="mt-6 text-center text-[0.9rem] text-muted-foreground">
+      <p className="mt-7 text-center text-[15px] text-[#5B5970]">
         ¿Tu comité ya tiene cuenta?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className="font-semibold text-[#3A0CE3] hover:underline">
           Iniciar sesión
         </Link>
       </p>

@@ -18,6 +18,8 @@ export function CampoClave({
   ayuda,
   confirmarId,
   className,
+  inputClassName,
+  labelClassName,
 }: {
   id: string;
   name: string;
@@ -27,6 +29,9 @@ export function CampoClave({
   /** id del campo "repite la contraseña", para rellenarlo igual. */
   confirmarId?: string;
   className?: string;
+  /** Estilo del campo y de la etiqueta, para los formularios de acceso (mismo aspecto que el login). */
+  inputClassName?: string;
+  labelClassName?: string;
 }) {
   const campo = useRef<HTMLInputElement>(null);
   const [mostrar, setMostrar] = useState(false);
@@ -59,7 +64,7 @@ export function CampoClave({
   return (
     <div className={className ?? "flex flex-col gap-1.5"}>
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor={id}>{label}</Label>
+        <Label htmlFor={id} className={labelClassName}>{label}</Label>
         <button
           type="button"
           onClick={sugerir}
@@ -78,7 +83,7 @@ export function CampoClave({
           type={mostrar ? "text" : "password"}
           autoComplete="new-password"
           minLength={8}
-          className="h-10 pr-20"
+          className={inputClassName ?? "h-10 pr-20"}
           required
         />
         <div className="absolute top-1/2 right-1.5 flex -translate-y-1/2 items-center gap-0.5">
