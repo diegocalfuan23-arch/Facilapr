@@ -239,9 +239,6 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
   const alcance = mes ? `${mes.nombre} ${anio}` : String(anio);
   const elegir = (id: string) => setSel((s) => (s === id ? null : id));
 
-  // El informe imprimible es el de un mes: el elegido o, si no hay, el último con movimientos.
-  const mesInforme = mes?.mes ?? conDatos[conDatos.length - 1]?.mes ?? null;
-
   function descargarExcel() {
     const celda = (t: string | number) => `"${String(t).replace(/"/g, '""')}"`;
     const csv = "﻿" + planilla.map((f) => f.map(celda).join(";")).join("\r\n");
@@ -309,10 +306,10 @@ export function ReportesVista({ anio, anioActual, planilla, meses, origen, desti
                     Rendición de cuentas {anio}
                   </a>
                 ) : null}
-                {mesInforme ? (
-                  <Link href={`/informes/caja/${mesInforme}`} target="_blank" onClick={() => setDescarga(false)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent">
+                {mes ? (
+                  <Link href={`/informes/caja/${mes.mes}`} target="_blank" onClick={() => setDescarga(false)} className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left text-sm font-medium hover:bg-accent">
                     <FileText className="size-4" aria-hidden />
-                    PDF del período
+                    Informe de {mes.nombre}
                   </Link>
                 ) : null}
               </div>

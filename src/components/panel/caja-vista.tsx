@@ -380,7 +380,9 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
   const { modo, desde } = periodo;
   const mesDe = desde.slice(0, 7);
   const etiqueta = modo === "dia" ? desde : nombreMes(mesDe);
-  const hrefInforme = modo === "mes" ? `/informes/caja/${mesDe}` : null;
+  // El informe es del mes que se está mirando (en la vista de un día, el mes de ese día); la rendición, del año.
+  const hrefInforme = `/informes/caja/${mesDe}`;
+  const hrefRendicion = `/panel/reportes/rendicion?anio=${desde.slice(0, 4)}`;
   function irA(p: Periodo) {
     setPeriodo(p);
     window.history.replaceState(null, "", urlDe(p));
@@ -510,7 +512,8 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
     ...(resumen.bolsillos ? [{ icono: ArrowLeftRight, texto: "Giros", solo: "movil" as const, href: "/panel/giros" }] : []),
     ...(esDia ? [{ icono: Lock, texto: cerrada ? "Caja cerrada" : "Cerrar caja", solo: "movil" as const, onClick: () => setCerrando(true) }] : []),
     { icono: Tags, texto: "Categorías", onClick: () => setGestionandoCategorias(true) },
-    ...(hrefInforme ? [{ icono: FileText, texto: "Informe del mes", href: hrefInforme }] : []),
+    { icono: FileText, texto: "Informe del mes", href: hrefInforme },
+    { icono: FileText, texto: "Rendición del año", href: hrefRendicion },
     { icono: Download, texto: "Exportar a Excel", onClick: () => descargarCsv(lineas, desde, categoriasPropias) },
   ];
 
@@ -617,7 +620,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
                     </>
                   );
                   return o.href ? (
-                    <Link key={o.texto} role="menuitem" href={o.href} target={o.href.startsWith("/informes") ? "_blank" : undefined} onClick={() => setMenu(false)} className={clase}>
+                    <Link key={o.texto} role="menuitem" href={o.href} target={o.href.startsWith("/informes") || o.href.startsWith("/panel/reportes/rendicion") ? "_blank" : undefined} onClick={() => setMenu(false)} className={clase}>
                       {interior}
                     </Link>
                   ) : (
