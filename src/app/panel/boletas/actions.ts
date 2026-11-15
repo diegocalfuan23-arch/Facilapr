@@ -980,17 +980,25 @@ export async function importarBoletas(
     existentes.has(`${b.socioId}|${b.periodo}`)
   ).length;
 
+  // Una boleta que ya tenía pagos vuelve a quedar con su saldo y estado: el upsert de arriba los reinicia como si no hubiera pagado nada.
   // Historial ya pagado: cada boleta con «pagado» recibe su pago, salvo que ya tenga pagos (reimportar no duplica).
   let pagosRegistrados = 0;
-  if (pagosDelArchivo.size > 0) {
+  {
     const guardadas = await db
       .select({ id: boletas.id, socioId: boletas.socioId, periodo: boletas.periodo, montoTotal: boletas.montoTotal, vence: boletas.fechaVencimiento })
       .from(boletas)
       .innerJoin(socios, eq(boletas.socioId, socios.id))
       .where(and(eq(socios.aprId, apr.id), inArray(boletas.periodo, periodosDelArchivo)));
     const conPagos = new Set(
-      (await db.select({ boletaId: pagos.boletaId }).from(pagos).where(inArray(pagos.boletaId, guardadas.map((g) => g.id)))).map((p) => p.boletaId)
+      guardadas.length > 0
+        ? (await db.select({ boletaId: pagos.boletaId }).from(pagos).where(inArray(pagos.boletaId, guardadas.map((g) => g.id)))).map((p) => p.boletaId)
+        : []
     );
+    const delArchivo = new Set(aInsertar.map((b) => `${b.socioId}|${b.periodo}`));
+    const yaPagadas = guardadas.filter((g) => conPagos.has(g.id) && delArchivo.has(`${g.socioId}|${g.periodo}`));
+    for (let i = 0; i < yaPagadas.length; i += 25) {
+      await Promise.all(yaPagadas.slice(i, i + 25).map((b) => recalcularBoleta(b.id)));
+    }
 
     const nuevos: (typeof pagos.$inferInsert)[] = [];
     const afectadas: { id: string; montoTotal: number; vence: Date }[] = [];
