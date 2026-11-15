@@ -37,6 +37,8 @@ export type ResultadoImportacion =
       ok: true;
       creadas: number;
       actualizadas: number;
+      /** Pagos históricos que trajo el archivo (columna «pagado»). */
+      pagosRegistrados?: number;
       omitidas: { linea: number; motivo: string }[];
     }
   | { ok: false; error: string };
@@ -741,7 +743,7 @@ export async function importarBoletas(
   _prev: ResultadoImportacion | null,
   formData: FormData
 ): Promise<ResultadoImportacion> {
-  const { apr } = await requireAdmin();
+  const { user, apr } = await requireAdmin();
 
   const archivo = formData.get("archivo");
   if (!(archivo instanceof File) || archivo.size === 0) {
@@ -778,6 +780,10 @@ export async function importarBoletas(
   const iEmision = col("emision", "fechaemision", "fecha emision");
   const iLecAnt = col("lecturaanterior", "lectura anterior");
   const iLecAct = col("lecturaactual", "lectura actual");
+  // Historial ya pagado: «pagado» (sí o un monto), «fechaPago» y «medioPago».
+  const iPagado = col("pagado", "pago", "monto pagado", "montopagado");
+  const iFechaPago = col("fechapago", "fecha pago", "fecha de pago");
+  const iMedioPago = col("mediopago", "medio pago", "medio de pago", "medio");
 
   if ((iRut < 0 && iNumero < 0) || iPeriodo < 0) {
     return {
@@ -806,6 +812,8 @@ export async function importarBoletas(
   const omitidas: { linea: number; motivo: string }[] = [];
   const aInsertar: (typeof boletas.$inferInsert)[] = [];
   const vistos = new Set<string>();
+  /** Pagos que trae el archivo, por «socio|período»: se registran después de guardar las boletas. */
+  const pagosDelArchivo = new Map<string, { linea: number; monto: number | "todo"; fecha: Date | null; medio: string }>();
 
   for (let i = 1; i < filas.length; i++) {
     const campos = filas[i];
@@ -886,6 +894,27 @@ export async function importarBoletas(
     const fechaVencimiento =
       vence ?? new Date(fechaEmision.getTime() + 30 * 86_400_000);
 
+    const textoPagado = iPagado >= 0 ? (campos[iPagado] ?? "").trim().toLowerCase() : "";
+    if (textoPagado && !/^(no|0|-)$/.test(textoPagado)) {
+      const monto = /^(si|sí|s|x|1|pagada|pagado|total)$/.test(textoPagado) ? "todo" : aMonto(textoPagado);
+      if (monto === null || monto === 0) {
+        omitidas.push({ linea: nLinea, motivo: `El valor de «pagado» no es válido: ${campos[iPagado]}` });
+        continue;
+      }
+      const fechaPago = iFechaPago >= 0 ? aFecha(campos[iFechaPago] ?? "") : null;
+      if (fechaPago && fechaPago.getTime() > Date.now() + 24 * 3600 * 1000) {
+        omitidas.push({ linea: nLinea, motivo: "La fecha del pago no puede ser futura" });
+        continue;
+      }
+      const medioCrudo = iMedioPago >= 0 ? (campos[iMedioPago] ?? "").toLowerCase() : "";
+      const medio = /transf/.test(medioCrudo) ? "TRANSFERENCIA" : /caja/.test(medioCrudo) ? "CAJA_VECINA" : /otro/.test(medioCrudo) ? "OTRO" : "EFECTIVO";
+      if (monto !== "todo" && monto > montoTotal) {
+        omitidas.push({ linea: nLinea, motivo: `El pago (${monto}) supera el total de la boleta (${montoTotal})` });
+        continue;
+      }
+      pagosDelArchivo.set(clave, { linea: nLinea, monto, fecha: fechaPago ?? vence ?? fechaEmision, medio });
+    }
+
     aInsertar.push({
       socioId,
       periodo,
@@ -951,13 +980,51 @@ export async function importarBoletas(
     existentes.has(`${b.socioId}|${b.periodo}`)
   ).length;
 
+  // Historial ya pagado: cada boleta con «pagado» recibe su pago, salvo que ya tenga pagos (reimportar no duplica).
+  let pagosRegistrados = 0;
+  if (pagosDelArchivo.size > 0) {
+    const guardadas = await db
+      .select({ id: boletas.id, socioId: boletas.socioId, periodo: boletas.periodo, montoTotal: boletas.montoTotal, vence: boletas.fechaVencimiento })
+      .from(boletas)
+      .innerJoin(socios, eq(boletas.socioId, socios.id))
+      .where(and(eq(socios.aprId, apr.id), inArray(boletas.periodo, periodosDelArchivo)));
+    const conPagos = new Set(
+      (await db.select({ boletaId: pagos.boletaId }).from(pagos).where(inArray(pagos.boletaId, guardadas.map((g) => g.id)))).map((p) => p.boletaId)
+    );
+
+    const nuevos: (typeof pagos.$inferInsert)[] = [];
+    const afectadas: { id: string; montoTotal: number; vence: Date }[] = [];
+    for (const g of guardadas) {
+      const p = pagosDelArchivo.get(`${g.socioId}|${g.periodo}`);
+      if (!p || conPagos.has(g.id)) continue;
+      const monto = p.monto === "todo" ? g.montoTotal : p.monto;
+      if (monto <= 0 || monto > g.montoTotal) {
+        omitidas.push({ linea: p.linea, motivo: "El pago no calza con el total de la boleta" });
+        continue;
+      }
+      nuevos.push({ boletaId: g.id, socioId: g.socioId, concepto: "BOLETA", monto, fecha: p.fecha ?? g.vence, medio: p.medio, registradoPorId: user.id });
+      afectadas.push({ id: g.id, montoTotal: g.montoTotal, vence: g.vence });
+    }
+
+    if (nuevos.length > 0) {
+      await db.insert(pagos).values(nuevos);
+      // El saldo y el estado de cada boleta salen de sus pagos, igual que al registrar uno a mano.
+      for (let i = 0; i < afectadas.length; i += 25) {
+        await Promise.all(afectadas.slice(i, i + 25).map((b) => recalcularBoleta(b.id)));
+      }
+      pagosRegistrados = nuevos.length;
+    }
+  }
+
   revalidatePath("/panel/boletas");
+  revalidatePath("/panel/pagos");
   revalidatePath("/panel");
 
   return {
     ok: true,
     creadas: aInsertar.length - actualizadas,
     actualizadas,
+    pagosRegistrados,
     omitidas,
   };
 }

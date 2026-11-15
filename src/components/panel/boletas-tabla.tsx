@@ -1359,7 +1359,10 @@ function ImportarDialog({
               <code className="font-mono">vencimiento</code>,{" "}
               <code className="font-mono">emision</code>,{" "}
               <code className="font-mono">lecturaAnterior</code>,{" "}
-              <code className="font-mono">lecturaActual</code>
+              <code className="font-mono">lecturaActual</code>,{" "}
+              <code className="font-mono">pagado</code>,{" "}
+              <code className="font-mono">fechaPago</code>,{" "}
+              <code className="font-mono">medioPago</code>
             </p>
             <p className="mt-2.5 text-muted-foreground">
               Si vienen las dos lecturas, el monto se calcula con tus tarifas.
@@ -1387,6 +1390,7 @@ function ImportarDialog({
             <div className="rounded-lg border border-forest/30 bg-forest/5 p-4 text-[0.88rem]">
               <p className="font-medium text-forest">
                 {estado.creadas} creadas · {estado.actualizadas} actualizadas
+                {estado.pagosRegistrados ? ` · ${estado.pagosRegistrados} pagos` : ""}
               </p>
               {estado.omitidas.length > 0 && (
                 <details className="mt-2">
