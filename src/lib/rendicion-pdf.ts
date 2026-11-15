@@ -157,11 +157,10 @@ export async function generarRendicionPdf(comite: ComiteFicha, d: DatosRendicion
   }
 
   // ---- Compras: a quién y qué se compró.
-  if (contenido.compras) {
+  if (contenido.compras && d.compras.detalle.length > 0) {
     const k = d.compras;
     seccion("COMPRAS A PROVEEDORES");
-    if (k.detalle.length === 0) vacio("Sin compras registradas en el período.");
-    else {
+    {
       fila(`${k.detalle.length} ${k.detalle.length === 1 ? "compra" : "compras"} en el período`, dinero(k.total), { negrita: true });
       if (k.porPagar > 0) fila("De eso, aún por pagar", dinero(k.porPagar));
       y -= 8;
@@ -213,7 +212,7 @@ export async function generarRendicionPdf(comite: ComiteFicha, d: DatosRendicion
   }
 
   // ---- Inventario: el material que entró y salió, y el que está por acabarse.
-  if (contenido.inventario && d.inventario) {
+  if (contenido.inventario && d.inventario && (d.inventario.materiales.length > 0 || d.inventario.stockBajo.length > 0)) {
     const inv = d.inventario;
     seccion("INVENTARIO DE MATERIALES");
     if (inv.materiales.length === 0) vacio("Sin movimientos de materiales en el período.");
@@ -261,20 +260,22 @@ export async function generarRendicionPdf(comite: ComiteFicha, d: DatosRendicion
   }
 
   // ---- Patrimonio y trabajos.
-  if (contenido.extras && d.activos) {
+  if (contenido.extras && d.activos && (d.activos.n > 0 || d.activos.comprados > 0)) {
     seccion("PATRIMONIO DEL COMITÉ");
     fila("Bienes vigentes", `${d.activos.n}`);
     fila("Valor actual de los bienes (referencia)", dinero(d.activos.valorTotal));
     fila(`Bienes comprados en el período`, d.activos.comprados > 0 ? `${d.activos.comprados}  ·  ${dinero(d.activos.costoComprados)}` : "Ninguno");
     y -= 14;
   }
-  if (contenido.extras && (d.labores || d.incidentes)) {
+  const hayLabores = Boolean(d.labores && d.labores.hechas + d.labores.programadas > 0);
+  const hayFallas = Boolean(d.incidentes && d.incidentes.resueltos + d.incidentes.abiertos > 0);
+  if (contenido.extras && (hayLabores || hayFallas)) {
     seccion("TRABAJOS Y FALLAS DEL SISTEMA");
-    if (d.labores) {
+    if (d.labores && hayLabores) {
       fila("Labores realizadas", `${d.labores.hechas}`);
       if (d.labores.programadas > 0) fila("Labores programadas o en curso", `${d.labores.programadas}`);
     }
-    if (d.incidentes) {
+    if (d.incidentes && hayFallas) {
       fila("Fallas o incidentes resueltos", `${d.incidentes.resueltos}`);
       if (d.incidentes.abiertos > 0) fila("Fallas o incidentes aún abiertos", `${d.incidentes.abiertos}`);
     }
