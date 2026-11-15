@@ -32,7 +32,8 @@ export type DatosPagos = {
  * Los datos de la pantalla de Pagos. La usan la página (al abrirse) y la acción que vuelve a pedirlos sin recargar.
  */
 export async function datosPagos(apr: { id: string; plan: string }): Promise<DatosPagos> {
-  const filas = await db
+  // Las consultas no dependen unas de otras: se piden todas a la vez (antes iban una tras otra y la lista tardaba en reflejar un pago nuevo).
+  const consultaFilas = db
     .select({
       id: pagos.id,
       monto: pagos.monto,
@@ -62,7 +63,7 @@ export async function datosPagos(apr: { id: string; plan: string }): Promise<Dat
     .limit(MAXIMO);
 
   // Boletas con saldo: de ahí se elige a qué socio y boleta se le registra un pago.
-  const pendientes = await db
+  const consultaPendientes = db
     .select({
       id: boletas.id,
       periodo: boletas.periodo,
@@ -82,7 +83,7 @@ export async function datosPagos(apr: { id: string; plan: string }): Promise<Dat
     .orderBy(asc(socios.nombre), asc(boletas.periodo));
 
   // Cualquier socio puede pagar una reposición, una reparación u otro cobro.
-  const todos = await db
+  const consultaTodos = db
     .select({
       id: socios.id,
       nombre: socios.nombre,
@@ -96,7 +97,7 @@ export async function datosPagos(apr: { id: string; plan: string }): Promise<Dat
     .orderBy(asc(socios.nombre));
 
   // Cuántos socios están al día y cuántos son morosos (con deuda ya vencida), igual que en el Resumen.
-  const [estadoSocios] = await db
+  const consultaEstado = db
     .select({
       morosos: sql<number>`count(distinct ${boletas.socioId}) filter (where ${boletas.montoPagado} < ${boletas.montoTotal} and ${boletas.fechaVencimiento} < now())::int`,
       deuda: sql<number>`coalesce(sum(${boletas.montoTotal} - ${boletas.montoPagado}) filter (where ${boletas.montoPagado} < ${boletas.montoTotal} and ${boletas.fechaVencimiento} < now()), 0)::int`,
@@ -106,13 +107,21 @@ export async function datosPagos(apr: { id: string; plan: string }): Promise<Dat
     .innerJoin(socios, eq(boletas.socioId, socios.id))
     .where(and(eq(socios.aprId, apr.id), eq(socios.activo, true), ne(boletas.estado, "ANULADA")));
 
+  // Mensajes automáticos del mes: de eso depende si «Enviar» sale por la API o abre wa.me.
+  const consultaCupo = envioAutomaticoActivo() ? cupoWhatsapp(apr.id, apr.plan as Plan) : Promise.resolve(null);
+
+  const [filas, pendientes, todos, [estadoSocios], cupo] = await Promise.all([
+    consultaFilas,
+    consultaPendientes,
+    consultaTodos,
+    consultaEstado,
+    consultaCupo,
+  ]);
+
   const sociosConSaldo = new Map<string, OpcionSocio>();
   for (const b of pendientes) {
     sociosConSaldo.set(b.socioId, { id: b.socioId, nombre: b.socioNombre, rut: b.socioRut, numeroCliente: b.socioNumero, tipo: b.socioTipo });
   }
-
-  // Mensajes automáticos del mes: de eso depende si «Enviar» sale por la API o abre wa.me.
-  const cupo = envioAutomaticoActivo() ? await cupoWhatsapp(apr.id, apr.plan as Plan) : null;
 
   return {
     pagos: filas.map((f) => ({ ...f, fecha: f.fecha.toISOString(), comprobanteUrl: urlComprobante(f.id) })),
