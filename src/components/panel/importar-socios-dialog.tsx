@@ -22,6 +22,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import { avisarCambio } from "@/lib/avisos-datos";
 
 type Vista = Extract<Previsualizacion, { ok: true }>;
 type FilaEditable = FilaSocio & { incluida: boolean };
@@ -119,6 +120,7 @@ export function ImportarSociosDialog({
             onListo={(r) => {
               setResultado(r);
               router.refresh();
+              avisarCambio("socios");
             }}
           />
         ) : (

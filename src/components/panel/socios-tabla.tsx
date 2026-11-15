@@ -1,7 +1,10 @@
 "use client";
 
 import { toast } from "sonner";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { consultarSocios } from "@/app/panel/socios/consulta-actions";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
 import {
   ArrowUpDown,
   ChevronDown,
@@ -196,7 +199,7 @@ function ColumnaOrdenable({
 }
 
 export function SociosTabla({
-  socios,
+  socios: delServidor,
   comite,
   urlSolicitud,
 }: {
@@ -204,6 +207,14 @@ export function SociosTabla({
   comite: { nombre: string; slug: string | null };
   urlSolicitud: string | null;
 }) {
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se actualiza sola: cada 10 segundos y al volver a la pestaña.
+  const { data: socios } = useQuery({ queryKey: ["socios"], queryFn: () => consultarSocios(), initialData: delServidor, refetchInterval: INTERVALO_RAPIDO });
+  // Tras crear, editar o importar, la página trae la lista nueva: se pasa a la caché para que se vea al instante.
+  useEffect(() => {
+    cliente.setQueryData(["socios"], delServidor);
+  }, [cliente, delServidor]);
+
   const [busqueda, setBusqueda] = useState("");
   const [pestana, setPestana] = useState<Pestana>("todos");
   const [orden, setOrden] = useState<{ columna: Columna; asc: boolean }>({
