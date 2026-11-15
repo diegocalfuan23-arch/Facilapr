@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ArrowRight, Check, Compass, Rocket, X } from "lucide-react";
+import { toast } from "sonner";
+import { ocultarAyuda, useAyudaOculta } from "@/lib/ayuda-flotante";
 import {
   progresoPrimerosPasos,
   type ProgresoPrimerosPasos,
@@ -33,6 +35,7 @@ const CLAVE_POSICION = "facilapr-ayuda-posicion";
  */
 export function PrimerosPasosFlotante() {
   const pathname = usePathname();
+  const oculta = useAyudaOculta();
   const [datos, setDatos] = useState<ProgresoPrimerosPasos | null>(null);
   const [cargado, setCargado] = useState(false);
   const [abierto, setAbierto] = useState(false);
@@ -155,7 +158,7 @@ export function PrimerosPasosFlotante() {
     }
   }, []);
 
-  if (!cargado) return null;
+  if (!cargado || oculta) return null;
 
   const recorridoDePantalla = [...RECORRIDOS, ...RECORRIDOS_NUEVOS].find(
     (r) => r.ruta === pathname && r.id !== "resumen"
@@ -190,7 +193,20 @@ export function PrimerosPasosFlotante() {
   const panelHaciaDerecha = typeof window !== "undefined" && pos.derecha + 28 > window.innerWidth / 2;
 
   return (
-    <div ref={caja} style={{ right: pos.derecha, bottom: pos.abajo }} className="fixed z-40">
+    <div ref={caja} style={{ right: pos.derecha, bottom: pos.abajo }} className="group/ayuda fixed z-40">
+      <button
+        type="button"
+        onClick={() => {
+          setAbierto(false);
+          ocultarAyuda(true);
+          toast("Ayuda oculta", { description: "Puedes volver a mostrarla en Ayuda." });
+        }}
+        aria-label="Ocultar la ayuda flotante"
+        title="Ocultar"
+        className="absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border border-border bg-card text-muted-foreground opacity-0 shadow transition-opacity group-focus-within/ayuda:opacity-100 group-hover/ayuda:opacity-100 hover:text-foreground [@media(hover:none)]:opacity-100"
+      >
+        <X className="size-3.5" />
+      </button>
       <div className="relative flex items-center gap-3">
       {datos && abierto && (
         <section

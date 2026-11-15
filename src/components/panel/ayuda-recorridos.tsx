@@ -5,16 +5,25 @@ import { ArrowRight, Clock, ExternalLink, ListChecks } from "lucide-react";
 import { RECORRIDOS, RECORRIDOS_NUEVOS } from "@/lib/recorridos";
 import { lanzarRecorrido } from "@/components/panel/recorrido";
 import { puede, type Plan } from "@/lib/planes";
+import { Switch } from "@/components/ui/switch";
+import { ocultarAyuda, useAyudaOculta } from "@/lib/ayuda-flotante";
 
 /** Lista de recorridos: cada uno lleva a su pantalla y la va explicando parte por parte. */
 export function AyudaRecorridos({ plan }: { plan: Plan }) {
+  const oculta = useAyudaOculta();
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Ayuda</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
-          Elige un tema y la pantalla te muestra, parte por parte, cómo se usa.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[1.35rem] font-semibold tracking-tight">Ayuda</h1>
+          <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
+            Elige un tema y la pantalla te muestra, parte por parte, cómo se usa.
+          </p>
+        </div>
+        <label className="flex cursor-pointer items-center gap-2 text-[0.88rem] font-medium">
+          <Switch checked={!oculta} onCheckedChange={(v) => ocultarAyuda(!v)} aria-label="Ayuda flotante" />
+          Ayuda flotante
+        </label>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
