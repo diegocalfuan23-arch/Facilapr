@@ -1,12 +1,13 @@
 import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, compras, comprasItems, incidentes, labores, movimientos, proveedores, socios } from "@/lib/db/schema";
+import { boletas, compras, comprasItems, incidentes, insumos, labores, movimientos, movimientosStock, proveedores, socios } from "@/lib/db/schema";
 import { resumenRango, type ResumenAnual } from "@/lib/reportes";
 import { bolsillosAl, listarCategoriasMovimiento } from "@/lib/finanzas";
 import { diaVecino, textoCategoria } from "@/lib/finanzas-comun";
 import { listarActivos } from "@/lib/activos";
 import { valorActual } from "@/lib/activos-comun";
 import { rangoDe, type PeriodoRendicion } from "@/lib/rendicion-periodo";
+import { estaBajo } from "@/lib/inventario-comun";
 
 export type GastoGrande = { fecha: string; concepto: string; categoria: string; monto: number; contraparte: string | null };
 
@@ -32,6 +33,14 @@ export type ComprasRendidas = {
   porPagar: number;
 };
 
+/** El material que se movió en el período y el que está por acabarse hoy. */
+export type InventarioRendido = {
+  /** Lo que entró y salió de cada material (una compra anulada no cuenta como entrada, un material devuelto de una labor no cuenta como salida). */
+  materiales: { nombre: string; unidad: string; entradas: number; salidas: number }[];
+  /** Los que hoy están en su mínimo o por debajo: el stock de hoy, no el del cierre del período. */
+  stockBajo: { nombre: string; unidad: string; stock: number; minimo: number }[];
+};
+
 export type DatosRendicion = {
   periodo: PeriodoRendicion;
   /** «2.º trimestre 2026», «Año 2026», «Marzo 2026». */
@@ -50,6 +59,8 @@ export type DatosRendicion = {
   egresos: { nombre: string; monto: number }[];
   gastosGrandes: GastoGrande[];
   compras: ComprasRendidas;
+  /** Null si el plan no incluye Inventario. */
+  inventario: InventarioRendido | null;
   cobranza: { boletas: number; emitido: number; pagado: number; sociosConDeuda: number; deudaTotal: number };
   activos: { n: number; valorTotal: number; comprados: number; costoComprados: number } | null;
   labores: { hechas: number; programadas: number } | null;
@@ -127,12 +138,54 @@ async function comprasDelPeriodo(aprId: string, desde: string, tope: string): Pr
   };
 }
 
+/** Lo que entró y salió de la bodega en el período, según el historial de movimientos de stock, y lo que hoy está bajo. */
+async function inventarioDelPeriodo(aprId: string, desde: string, topeDatos: string): Promise<InventarioRendido> {
+  const diaChile = sql<string>`to_char((${movimientosStock.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const [movs, todos] = await Promise.all([
+    db
+      .select({ nombre: movimientosStock.insumoNombre, unidad: movimientosStock.unidad, cantidad: movimientosStock.cantidad, origen: movimientosStock.origen })
+      .from(movimientosStock)
+      .where(and(eq(movimientosStock.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${topeDatos}`))
+      .catch(() => []),
+    db
+      .select({ nombre: insumos.nombre, unidad: insumos.unidad, stock: insumos.stock, stockMinimo: insumos.stockMinimo })
+      .from(insumos)
+      .where(eq(insumos.aprId, aprId))
+      .catch(() => []),
+  ]);
+
+  const porMaterial = new Map<string, { nombre: string; unidad: string; entradas: number; salidas: number }>();
+  for (const m of movs) {
+    // El stock inicial es la carga de partida, no algo que entró en el período.
+    if (m.origen === "INICIAL") continue;
+    const clave = `${m.nombre.toLowerCase()}|${m.unidad}`;
+    const f = porMaterial.get(clave) ?? { nombre: m.nombre, unidad: m.unidad, entradas: 0, salidas: 0 };
+    if (m.origen === "ANULACION") f.entradas += m.cantidad;
+    else if (m.origen === "LABOR_DEVUELTA") f.salidas -= m.cantidad;
+    else if (m.cantidad > 0) f.entradas += m.cantidad;
+    else f.salidas += -m.cantidad;
+    porMaterial.set(clave, f);
+  }
+  const materiales = [...porMaterial.values()]
+    .map((f) => ({ ...f, entradas: Math.max(0, Math.round(f.entradas * 100) / 100), salidas: Math.max(0, Math.round(f.salidas * 100) / 100) }))
+    .filter((f) => f.entradas > 0 || f.salidas > 0)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+  return {
+    materiales,
+    stockBajo: todos
+      .filter((i) => estaBajo(i))
+      .map((i) => ({ nombre: i.nombre, unidad: i.unidad, stock: i.stock, minimo: i.stockMinimo }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+  };
+}
+
 /** Junta lo que ya está registrado en la app en una sola mirada para rendir cuentas de un período a la asamblea. */
 export async function datosRendicion(
   aprId: string,
   periodo: PeriodoRendicion,
   hoy: string,
-  opciones: { activos: boolean; labores: boolean; incidentes: boolean }
+  opciones: { activos: boolean; labores: boolean; incidentes: boolean; inventario: boolean }
 ): Promise<DatosRendicion> {
   const { desde, tope, mesInicio, mesTope, meses, etiqueta } = rangoDe(periodo);
   const ultimoDia = diaVecino(tope, -1);
@@ -143,12 +196,13 @@ export async function datosRendicion(
   // Las movimientos y las compras se cuentan hasta el fin del período (o de hoy): lo posterior no existe aún.
   const topeDatos = enCurso ? finExclusivo : tope;
 
-  const [resumen, propias, inicio, cierre, comprasRendidas] = await Promise.all([
+  const [resumen, propias, inicio, cierre, comprasRendidas, inventarioRendido] = await Promise.all([
     resumenRango(aprId, desde, tope, meses),
     listarCategoriasMovimiento(aprId),
     bolsillosAl(aprId, desde).catch(() => null),
     bolsillosAl(aprId, finExclusivo).catch(() => null),
     comprasDelPeriodo(aprId, desde, topeDatos),
+    opciones.inventario ? inventarioDelPeriodo(aprId, desde, topeDatos) : Promise.resolve(null),
   ]);
 
   const grandes = await db
@@ -229,6 +283,7 @@ export async function datosRendicion(
     egresos: resumen.egresos.map((c) => ({ nombre: textoCategoria(c.categoria, propias), monto: c.total })),
     gastosGrandes: grandes.map((g) => ({ ...g, categoria: textoCategoria(g.categoria, propias) })),
     compras: comprasRendidas,
+    inventario: inventarioRendido,
     cobranza: { boletas: emitidas?.n ?? 0, emitido: emitidas?.emitido ?? 0, pagado: emitidas?.pagado ?? 0, sociosConDeuda: deuda?.socios ?? 0, deudaTotal: deuda?.total ?? 0 },
     activos,
     labores: laboresDatos,

@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     activos: puede(plan, "activos"),
     labores: puede(plan, "inventario"),
     incidentes: puede(plan, "incidentes"),
+    inventario: puede(plan, "inventario"),
   });
   const pdf = await generarRendicionPdf(
     {
@@ -38,7 +39,8 @@ export async function GET(req: NextRequest) {
     },
     datos,
     hoy,
-    contenido
+    // Lo que el plan no incluye no se anuncia en el encabezado.
+    { ...contenido, inventario: contenido.inventario && Boolean(datos.inventario), extras: contenido.extras && Boolean(datos.activos || datos.labores || datos.incidentes) }
   );
 
   const nombre = `Rendicion-${datos.etiqueta.replace(/\./g, "").replace(/\s+/g, "-")}`;

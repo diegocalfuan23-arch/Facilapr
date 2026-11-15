@@ -4,6 +4,7 @@ import { dibujarLogo, seguro } from "@/lib/recibo-pdf";
 import type { ComiteFicha } from "@/lib/activo-pdf";
 import type { DatosRendicion } from "@/lib/rendicion";
 import { descripcionContenido, type ContenidoRendicion } from "@/lib/rendicion-periodo";
+import { formatoCantidad, unidadCorta } from "@/lib/inventario-comun";
 
 /**
  * La rendición de cuentas de un período (mes, trimestre, semestre o año) en PDF (A4), para presentarla a la asamblea:
@@ -207,6 +208,40 @@ export async function generarRendicionPdf(comite: ComiteFicha, d: DatosRendicion
       }
       texto("Los valores de cada ítem no incluyen IVA; el total de la compra sí.", margen, 8, { color: GRIS });
       y -= 12;
+    }
+    y -= 14;
+  }
+
+  // ---- Inventario: el material que entró y salió, y el que está por acabarse.
+  if (contenido.inventario && d.inventario) {
+    const inv = d.inventario;
+    seccion("INVENTARIO DE MATERIALES");
+    if (inv.materiales.length === 0) vacio("Sin movimientos de materiales en el período.");
+    else {
+      espacio(30);
+      texto("MATERIAL", margen, 8.5, { fuente: negrita, color: GRIS });
+      texto("ENTRÓ", derechaX - 110, 8.5, { fuente: negrita, color: GRIS, derecha: true });
+      texto("SALIÓ", derechaX, 8.5, { fuente: negrita, color: GRIS, derecha: true });
+      y -= 15;
+      for (const m of inv.materiales) {
+        espacio(20);
+        texto(ajustar(m.nombre, 10.5, derechaX - margen - 250), margen, 10.5);
+        texto(m.entradas > 0 ? `${formatoCantidad(m.entradas)} ${unidadCorta(m.unidad)}` : "-", derechaX - 110, 10.5, { derecha: true });
+        texto(m.salidas > 0 ? `${formatoCantidad(m.salidas)} ${unidadCorta(m.unidad)}` : "-", derechaX, 10.5, { derecha: true });
+        y -= 17;
+      }
+    }
+    if (inv.stockBajo.length > 0) {
+      y -= 8;
+      espacio(40);
+      texto("CON POCO STOCK HOY", margen, 8.5, { fuente: negrita, color: GRIS });
+      y -= 15;
+      for (const m of inv.stockBajo) {
+        espacio(20);
+        texto(ajustar(m.nombre, 10.5, derechaX - margen - 250), margen, 10.5);
+        texto(`quedan ${formatoCantidad(m.stock)} ${unidadCorta(m.unidad)} (mínimo ${formatoCantidad(m.minimo)})`, derechaX, 10.5, { derecha: true });
+        y -= 17;
+      }
     }
     y -= 14;
   }

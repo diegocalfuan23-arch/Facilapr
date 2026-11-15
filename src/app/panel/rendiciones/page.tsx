@@ -29,6 +29,7 @@ export default async function RendicionesPage({ searchParams }: { searchParams: 
     activos: puede(plan, "activos"),
     labores: puede(plan, "inventario"),
     incidentes: puede(plan, "incidentes"),
+    inventario: puede(plan, "inventario"),
   });
 
   return (

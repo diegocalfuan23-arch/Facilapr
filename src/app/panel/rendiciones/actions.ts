@@ -17,5 +17,6 @@ export async function consultarRendicion(periodo: PeriodoRendicion): Promise<Dat
     activos: puede(plan, "activos"),
     labores: puede(plan, "inventario"),
     incidentes: puede(plan, "incidentes"),
+    inventario: puede(plan, "inventario"),
   });
 }

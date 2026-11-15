@@ -18,6 +18,7 @@ import {
 } from "@/lib/rendicion-periodo";
 import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
 import { formatearRut } from "@/lib/formato";
+import { formatoCantidad, unidadCorta } from "@/lib/inventario-comun";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +30,7 @@ const PARTES: { clave: keyof ContenidoRendicion; texto: string }[] = [
   { clave: "ingresos", texto: "Ingresos" },
   { clave: "egresos", texto: "Egresos" },
   { clave: "compras", texto: "Compras" },
+  { clave: "inventario", texto: "Inventario" },
   { clave: "cobranza", texto: "Cobranza" },
   { clave: "saldos", texto: "Saldos" },
   { clave: "extras", texto: "Patrimonio y trabajos" },
@@ -64,6 +66,10 @@ function filasExcel(d: DatosRendicion, c: ContenidoRendicion): (string | number)
       k.items.forEach((it, i) => f.push(["", fecha(k.fecha), `C-${k.numero}`, k.proveedor, k.documento, k.estado, it.descripcion, it.cantidad, it.costoUnitario, i === 0 ? k.total : ""]));
     }
     f.push([]);
+  }
+  if (c.inventario && d.inventario) {
+    f.push(["INVENTARIO", "Unidad", "Entró", "Salió"], ...d.inventario.materiales.map((m) => [m.nombre, unidadCorta(m.unidad), m.entradas, m.salidas]), []);
+    if (d.inventario.stockBajo.length > 0) f.push(["CON POCO STOCK HOY", "Unidad", "Stock", "Mínimo"], ...d.inventario.stockBajo.map((m) => [m.nombre, unidadCorta(m.unidad), m.stock, m.minimo]), []);
   }
   if (c.cobranza) {
     f.push(["COBRANZA"], ["Boletas emitidas", d.cobranza.boletas], ["Monto emitido", d.cobranza.emitido], ["Monto pagado", d.cobranza.pagado], ["Deuda de socios, a hoy", d.cobranza.deudaTotal], []);
@@ -133,7 +139,8 @@ export function RendicionesVista({ inicial, hoy }: { inicial: DatosRendicion; ho
   });
   const d = data ?? inicial;
   const hayExtras = Boolean(inicial.activos || inicial.labores || inicial.incidentes);
-  const partes = PARTES.filter((p) => p.clave !== "extras" || hayExtras);
+  const hayInventario = Boolean(inicial.inventario);
+  const partes = PARTES.filter((p) => (p.clave !== "extras" || hayExtras) && (p.clave !== "inventario" || hayInventario));
   const todo = partes.every((p) => contenido[p.clave]);
 
   function irA(p: PeriodoRendicion, c: ContenidoRendicion = contenido) {
@@ -208,7 +215,7 @@ export function RendicionesVista({ inicial, hoy }: { inicial: DatosRendicion; ho
             type="button"
             aria-pressed={todo}
             onClick={() => {
-              const sig = { ...CONTENIDO_TODO, extras: hayExtras };
+              const sig = { ...CONTENIDO_TODO, extras: hayExtras, inventario: hayInventario };
               setContenido(sig);
               window.history.replaceState(null, "", urlDe(periodo, sig, "/panel/rendiciones"));
             }}
@@ -313,6 +320,49 @@ export function RendicionesVista({ inicial, hoy }: { inicial: DatosRendicion; ho
                 </ul>
               </>
             )}
+          </section>
+        ) : null}
+
+        {contenido.inventario && d.inventario ? (
+          <section className={cn(TARJETA, "p-5")}>
+            <h2 className="text-lg font-bold">Inventario</h2>
+            {d.inventario.materiales.length === 0 ? (
+              <p className="mt-3 text-sm text-muted-foreground">Sin movimientos de materiales en el período.</p>
+            ) : (
+              <ul className="mt-3 divide-y divide-border">
+                <li className="flex justify-between gap-3 pb-2 text-[0.75rem] font-semibold text-muted-foreground uppercase">
+                  <span>Material</span>
+                  <span className="flex gap-6">
+                    <span className="w-20 text-right">Entró</span>
+                    <span className="w-20 text-right">Salió</span>
+                  </span>
+                </li>
+                {d.inventario.materiales.map((m) => (
+                  <li key={`${m.nombre}${m.unidad}`} className="flex items-baseline justify-between gap-3 py-2.5 text-sm">
+                    <span className="min-w-0 truncate font-medium">{m.nombre}</span>
+                    <span className="flex shrink-0 gap-6 tabular-nums">
+                      <span className="w-20 text-right">{m.entradas > 0 ? `${formatoCantidad(m.entradas)} ${unidadCorta(m.unidad)}` : "-"}</span>
+                      <span className="w-20 text-right">{m.salidas > 0 ? `${formatoCantidad(m.salidas)} ${unidadCorta(m.unidad)}` : "-"}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {d.inventario.stockBajo.length > 0 ? (
+              <>
+                <h3 className="mt-5 text-[0.8rem] font-semibold text-muted-foreground">Con poco stock hoy</h3>
+                <ul className="mt-2 divide-y divide-border">
+                  {d.inventario.stockBajo.map((m) => (
+                    <li key={`${m.nombre}${m.unidad}`} className="flex items-baseline justify-between gap-3 py-2.5 text-sm">
+                      <span className="min-w-0 truncate font-medium">{m.nombre}</span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        quedan {formatoCantidad(m.stock)} {unidadCorta(m.unidad)} · mínimo {formatoCantidad(m.minimo)}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : null}
           </section>
         ) : null}
 

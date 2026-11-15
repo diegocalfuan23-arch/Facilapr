@@ -15,13 +15,15 @@ export type ContenidoRendicion = {
   ingresos: boolean;
   egresos: boolean;
   compras: boolean;
+  /** Material que entró y salió de la bodega, y el que está bajo. */
+  inventario: boolean;
   cobranza: boolean;
   saldos: boolean;
   /** Patrimonio, labores e incidentes, según lo que incluya el plan. */
   extras: boolean;
 };
 
-export const CONTENIDO_TODO: ContenidoRendicion = { ingresos: true, egresos: true, compras: true, cobranza: true, saldos: true, extras: true };
+export const CONTENIDO_TODO: ContenidoRendicion = { ingresos: true, egresos: true, compras: true, inventario: true, cobranza: true, saldos: true, extras: true };
 
 export const TIPOS_PERIODO: { valor: TipoPeriodo; texto: string }[] = [
   { valor: "mes", texto: "Mes" },
@@ -111,6 +113,7 @@ export function contenidoDeParametro(c: string | undefined | null): ContenidoRen
     ingresos: pedidos.has("ingresos"),
     egresos: pedidos.has("egresos"),
     compras: pedidos.has("compras"),
+    inventario: pedidos.has("inventario"),
     cobranza: pedidos.has("cobranza"),
     saldos: pedidos.has("saldos"),
     extras: pedidos.has("extras"),
@@ -124,7 +127,7 @@ export function contenidoAParametro(c: ContenidoRendicion) {
 
 /** «Ingresos y egresos», «Solo egresos»…: para el encabezado del PDF. */
 export function descripcionContenido(c: ContenidoRendicion) {
-  const partes = [c.ingresos && "ingresos", c.egresos && "egresos", c.compras && "compras", c.cobranza && "cobranza", c.saldos && "saldos"].filter(Boolean) as string[];
+  const partes = [c.ingresos && "ingresos", c.egresos && "egresos", c.compras && "compras", c.inventario && "inventario", c.cobranza && "cobranza", c.saldos && "saldos"].filter(Boolean) as string[];
   if (c.extras) partes.push("patrimonio y trabajos");
   if (partes.length === 0) return "";
   const texto = partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
