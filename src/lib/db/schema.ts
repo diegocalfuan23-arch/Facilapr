@@ -1716,3 +1716,22 @@ export const arranqueSocios = pgTable(
   },
   (table) => [uniqueIndex("ArranqueSocio_socioId_key").on(table.socioId), index("ArranqueSocio_arranqueId_idx").on(table.arranqueId)]
 );
+
+/**
+ * Los comités que los socios buscaron en /socios y no encontraron: una fila por comité (nombre y comuna) y cuántas veces
+ * lo pidieron. Sirve para saber qué directivas contactar. No guarda nada de quien lo pidió.
+ */
+export const comitesBuscados = pgTable(
+  "ComiteBuscado",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    nombre: text("nombre").notNull(),
+    comuna: text("comuna").notNull(),
+    /** Nombre y comuna sin tildes, en minúscula y sin espacios de más: así «Los Aromos» y «los  aromos» son el mismo. */
+    clave: text("clave").notNull(),
+    veces: integer("veces").notNull().default(1),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("ComiteBuscado_clave_key").on(table.clave)]
+);

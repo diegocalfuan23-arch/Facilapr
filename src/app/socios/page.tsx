@@ -5,6 +5,7 @@ import { ArrowRight, Search } from "lucide-react";
 import { db } from "@/lib/db";
 import { aprs } from "@/lib/db/schema";
 import { Logo } from "@/components/marca/logo";
+import { AvisoComite } from "@/components/site/aviso-comite";
 
 export const metadata: Metadata = {
   title: "Paga tu cuenta del agua potable rural: encuentra tu comité (APR)",
@@ -129,6 +130,7 @@ export default async function SociosPage({ searchParams }: { searchParams: Promi
             Con Facilapr el comité cobra, registra los pagos y envía las boletas desde el celular, y tú ves tu cuenta en
             línea. Cuéntale a tu directiva.
           </p>
+          <AvisoComite />
           <div className="mt-4 flex flex-wrap gap-2">
             <a
               href={`https://wa.me/?text=${encodeURIComponent(
