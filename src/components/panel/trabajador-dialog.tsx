@@ -254,7 +254,7 @@ export function TrabajadorDialog({
           </ol>
 
           <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(0,1fr)_300px]">
-            <div className="min-h-0 overflow-y-auto px-6 py-4">
+            <div className="min-h-0 overflow-y-auto px-6 py-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {paso === 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Nombre completo" className="sm:col-span-2">
@@ -351,18 +351,18 @@ export function TrabajadorDialog({
                       </div>
                       <div className="grid gap-4 sm:grid-cols-2">
                         {!porDia ? (
-                          <Campo label="Valor del día (opcional)" ayuda="Se descuenta por cada falta">
+                          <Campo label="Valor del día (opcional)">
                             <Input inputMode="numeric" value={dinero(valorDia)} onChange={(e) => setValorDia(soloDigitos(e.target.value))} placeholder={bruto ? `${clp(bruto / 30)} (sueldo ÷ 30)` : "$0"} className={`${inputCls} text-right tabular-nums`} />
                           </Campo>
                         ) : null}
-                        <Campo label="Hora extra (opcional)" ayuda={`Legal: ${clp(valorDeHoraExtra({ ...datosJornada, valorHoraExtra: null }))}`}>
+                        <Campo label="Hora extra (opcional)">
                           <Input inputMode="numeric" value={dinero(valorExtra)} onChange={(e) => setValorExtra(soloDigitos(e.target.value))} placeholder={`${clp(valorDeHoraExtra({ ...datosJornada, valorHoraExtra: null }))} (legal)`} className={`${inputCls} text-right tabular-nums`} />
                         </Campo>
                       </div>
                     </>
                   ) : null}
 
-                  <Campo label="Colación y movilización al mes" ayuda="No imponible: se suma al líquido sin descuentos">
+                  <Campo label="Colación y movilización al mes">
                     <Input inputMode="numeric" value={dinero(noImp)} onChange={(e) => setNoImp(soloDigitos(e.target.value, 8))} placeholder="$0" className={`${inputCls} text-right tabular-nums`} />
                   </Campo>
 
@@ -437,81 +437,56 @@ export function TrabajadorDialog({
               )}
             </div>
 
-            <aside className="hidden overflow-y-auto border-l border-[#F0EEF6] bg-[#FAFAFD] p-5 md:block">
-              <div className="flex flex-col items-center text-center">
-                <span aria-hidden className="flex size-16 items-center justify-center rounded-full bg-[#ECE8FD] text-xl font-bold text-[#2A07A8]">
-                  {nombre.trim() ? iniciales(nombre) : <Users className="size-7" />}
+            <aside className="hidden border-l border-[#F0EEF6] bg-[#FAFAFD] p-5 md:flex md:flex-col">
+              <div className="flex items-center gap-3">
+                <span aria-hidden className="flex size-11 items-center justify-center rounded-full bg-[#ECE8FD] text-sm font-bold text-[#2A07A8]">
+                  {nombre.trim() ? iniciales(nombre) : <Users className="size-5" />}
                 </span>
-                <p className="mt-3 w-full truncate text-base font-semibold">{nombre.trim() || "Nueva persona"}</p>
-                <p className={`w-full truncate text-xs ${GRIS}`}>{cargo.trim() || "Sin cargo"}</p>
-                <span className={`mt-2 rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${tipo === "honorarios" ? "bg-[#FFF3E0] text-[#8A4B00]" : tipo === "diario" ? "bg-[#E3F3FD] text-[#0B5E94]" : "bg-[#ECE8FD] text-[#2A07A8]"}`}>{TIPOS.find((x) => x.id === tipo)!.nombre}</span>
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{nombre.trim() || "Nueva persona"}</span>
+                  <span className={`block truncate text-xs ${GRIS}`}>
+                    {cargo.trim() || "Sin cargo"} · {TIPOS.find((x) => x.id === tipo)!.nombre}
+                  </span>
+                </span>
               </div>
-
-              {[
-                ["RUT", rut.trim()],
-                ["Ingreso", ingreso ? ingreso.split("-").reverse().join("-") : ""],
-                ["Teléfono", telefono.trim()],
-                ["Correo", email.trim()],
-              ].some(([, v]) => v) ? (
-                <dl className="mt-5 space-y-2.5 border-t border-[#EFEDF6] pt-4 text-[13px]">
-                  {[
-                    ["RUT", rut.trim()],
-                    ["Ingreso", ingreso ? ingreso.split("-").reverse().join("-") : ""],
-                    ["Teléfono", telefono.trim()],
-                    ["Correo", email.trim()],
-                  ]
-                    .filter(([, v]) => v)
-                    .map(([k, v]) => (
-                      <div key={k} className="flex justify-between gap-3">
-                        <dt className={GRIS}>{k}</dt>
-                        <dd className="min-w-0 truncate font-medium">{v}</dd>
+              <p className={`mt-5 text-xs font-semibold tracking-wide uppercase ${GRIS}`}>Liquidación estimada</p>
+              <div className="mt-2 rounded-xl bg-white p-3.5 ring-1 ring-[#EFEDF6]">
+                {porDia ? (
+                  <p className={`py-3 text-center text-sm ${GRIS}`}>{Number(valorDia) ? `${clp(Number(valorDia))} por día · según los días trabajados` : "Indica el valor por día"}</p>
+                ) : bruto ? (
+                  <dl className="text-sm">
+                    <div className="flex justify-between py-1.5">
+                      <dt className={GRIS}>Sueldo bruto</dt>
+                      <dd className="font-semibold tabular-nums">{clp(calculo.bruto)}</dd>
+                    </div>
+                    {filas.map((f) => (
+                      <div key={f.t} className="flex justify-between gap-2 py-1.5">
+                        <dt className={GRIS}>− {f.t}</dt>
+                        <dd className="text-[#A32020] tabular-nums">{clp(f.v)}</dd>
                       </div>
                     ))}
-                </dl>
-              ) : null}
-
-              {paso >= 1 || bruto > 0 || Number(valorDia) > 0 ? (
-                <div className="mt-5 border-t border-[#EFEDF6] pt-4">
-                  <p className={`text-xs font-semibold tracking-wide uppercase ${GRIS}`}>Liquidación estimada</p>
-                  <div className="mt-2 rounded-xl bg-white p-3.5 ring-1 ring-[#EFEDF6]">
-                    {porDia ? (
-                      <p className={`py-3 text-center text-sm ${GRIS}`}>{Number(valorDia) ? `${clp(Number(valorDia))} por día · según los días trabajados` : "Indica el valor por día"}</p>
-                    ) : bruto ? (
-                      <dl className="text-sm">
-                        <div className="flex justify-between py-1.5">
-                          <dt className={GRIS}>Sueldo bruto</dt>
-                          <dd className="font-semibold tabular-nums">{clp(calculo.bruto)}</dd>
-                        </div>
-                        {filas.map((f) => (
-                          <div key={f.t} className="flex justify-between gap-2 py-1.5">
-                            <dt className={GRIS}>− {f.t}</dt>
-                            <dd className="text-[#A32020] tabular-nums">{clp(f.v)}</dd>
-                          </div>
-                        ))}
-                        {calculo.colacion > 0 ? (
-                          <div className="flex justify-between gap-2 py-1.5">
-                            <dt className={GRIS}>+ Colación</dt>
-                            <dd className="text-[#075A3C] tabular-nums">{clp(calculo.colacion)}</dd>
-                          </div>
-                        ) : null}
-                        <div className="mt-1.5 flex items-baseline justify-between border-t border-[#E9E6F3] pt-2.5">
-                          <dt className="font-semibold">Líquido</dt>
-                          <dd className="text-xl font-semibold tabular-nums">{clp(calculo.liquido)}</dd>
-                        </div>
-                      </dl>
-                    ) : (
-                      <p className={`py-4 text-center text-sm ${GRIS}`}>Ingresa el sueldo para calcular</p>
-                    )}
-                  </div>
-                  {!porDia && bruto ? (
-                    <div className="mt-3 flex items-baseline justify-between rounded-xl bg-[#F1EEFD] px-3.5 py-2.5 text-sm">
-                      <span className="text-[#2A07A8]">Costo mensual</span>
-                      <b className="font-semibold text-[#2A07A8] tabular-nums">{clp(bruto + calculo.colacion)}</b>
+                    {calculo.colacion > 0 ? (
+                      <div className="flex justify-between gap-2 py-1.5">
+                        <dt className={GRIS}>+ Colación</dt>
+                        <dd className="text-[#075A3C] tabular-nums">{clp(calculo.colacion)}</dd>
+                      </div>
+                    ) : null}
+                    <div className="mt-1.5 flex items-baseline justify-between border-t border-[#E9E6F3] pt-2.5">
+                      <dt className="font-semibold">Líquido</dt>
+                      <dd className="text-xl font-semibold tabular-nums">{clp(calculo.liquido)}</dd>
                     </div>
-                  ) : null}
-                  <p className={`mt-3 text-[11px] leading-relaxed ${GRIS}`}>Referencial: sin tope imponible ni impuesto único.</p>
+                  </dl>
+                ) : (
+                  <p className={`py-4 text-center text-sm ${GRIS}`}>Ingresa el sueldo para calcular</p>
+                )}
+              </div>
+              {!porDia && bruto ? (
+                <div className="mt-3 flex items-baseline justify-between rounded-xl bg-[#F1EEFD] px-3.5 py-2.5 text-sm">
+                  <span className="text-[#2A07A8]">Costo mensual</span>
+                  <b className="font-semibold text-[#2A07A8] tabular-nums">{clp(bruto + calculo.colacion)}</b>
                 </div>
               ) : null}
+              <p className={`mt-3 text-[11px] leading-relaxed ${GRIS}`}>Referencial: sin tope imponible ni impuesto único.</p>
             </aside>
           </div>
 
