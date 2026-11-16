@@ -242,13 +242,13 @@ export function AusenciasVista({ datos, filtroInicial = "todos" }: { datos: Dato
     <div className="mx-auto w-full max-w-[1376px]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[26px] leading-tight font-semibold tracking-tight sm:text-[28px]">Vacaciones</h1>
+          <h1 className="text-[26px] leading-tight font-semibold tracking-tight sm:text-[28px]">Ausencias</h1>
           <p className={`mt-0.5 text-[15px] ${GRIS}`}>Las vacaciones, permisos y licencias del personal, y cuántos días le quedan a cada uno.</p>
         </div>
         {personas.length > 0 ? (
           <Button data-tour="aus-nueva" onClick={() => setCreando(true)} className="h-10 shrink-0 rounded-lg px-4 font-semibold">
             <Plus />
-            Vacaciones o permiso
+            Nueva ausencia
           </Button>
         ) : null}
       </div>

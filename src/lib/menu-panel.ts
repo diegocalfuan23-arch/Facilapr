@@ -80,7 +80,7 @@ const rrhh: Enlace[] = [
   { href: "/panel/personal", label: "Personal", icon: Briefcase },
   { href: "/panel/remuneraciones", label: "Remuneraciones", icon: HandCoins },
   { href: "/panel/prestamos", label: "Préstamos", icon: PiggyBank },
-  { href: "/panel/vacaciones", label: "Vacaciones", icon: Palmtree },
+  { href: "/panel/ausencias", label: "Ausencias", icon: Palmtree },
   { href: "/panel/asistencia", label: "Asistencia", icon: CalendarCheck },
 ];
 
@@ -191,7 +191,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/tecnicos": "operadores equipo invitar",
   "/panel/personal": "trabajadores empleados ficha operador tesorero recursos humanos rrhh",
   "/panel/remuneraciones": "sueldos liquidaciones honorarios pago bonos descuentos planilla",
-  "/panel/vacaciones": "feriado dias libres permisos saldo descanso licencia medica enfermedad reposo salud",
+  "/panel/ausencias": "vacaciones feriado dias libres permisos saldo descanso licencia medica enfermedad reposo salud",
   "/panel/asistencia": "marcar presente ausente atraso horario llegada",
   "/panel/giros": "banco retiro giro deposito efectivo cuenta cheque traspaso",
   "/panel/prestamos": "anticipo adelanto prestamo cuotas descuento sueldo deuda trabajador",

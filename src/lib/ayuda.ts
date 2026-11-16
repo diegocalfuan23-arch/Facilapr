@@ -1199,16 +1199,16 @@ export const ARTICULOS: Articulo[] = [
     minutos: 4,
     pasos: [
       {
-        titulo: "Abre Vacaciones",
-        texto: "En RR.HH. está la pantalla Vacaciones: un solo tablero con las vacaciones, los permisos y las licencias médicas, en tres columnas: Solicitadas, Aprobadas y Rechazadas. Con el filtro de arriba ves solo un tipo.",
+        titulo: "Abre Ausencias",
+        texto: "En RR.HH. está la pantalla Ausencias: un solo tablero con las vacaciones, los permisos y las licencias médicas, en tres columnas: Solicitadas, Aprobadas y Rechazadas. Con el filtro de arriba ves solo un tipo.",
       },
       {
         titulo: "Mira el saldo",
-        texto: "En Vacaciones, arriba ves el saldo de cada persona: se suman 15 días hábiles por cada año cumplido de trabajo, menos los días ya tomados. Quien aún no cumple su primer año no tiene días: ahí aparece desde cuándo podrá tomarlas.",
+        texto: "En Ausencias, arriba ves el saldo de cada persona: se suman 15 días hábiles por cada año cumplido de trabajo, menos los días ya tomados. Quien aún no cumple su primer año no tiene días: ahí aparece desde cuándo podrá tomarlas.",
       },
       {
         titulo: "Registra una solicitud",
-        texto: "Pulsa «+ Vacaciones o permiso», elige a la persona, el tipo (vacaciones, permiso con goce, permiso sin goce o licencia médica) y las fechas. Los días se cuentan solos, de lunes a viernes y sin los feriados nacionales (el sistema los conoce de 2026 y 2027; los feriados regionales no).",
+        texto: "Pulsa «Nueva ausencia», elige a la persona, el tipo (vacaciones, permiso con goce, permiso sin goce o licencia médica) y las fechas. Los días se cuentan solos, de lunes a viernes y sin los feriados nacionales (el sistema los conoce de 2026 y 2027; los feriados regionales no).",
       },
       {
         titulo: "Apruébala o recházala",

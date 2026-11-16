@@ -870,8 +870,8 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
   {
     id: "vacaciones",
     capacidad: "personal",
-    ruta: "/panel/vacaciones",
-    titulo: "Vacaciones, permisos y licencias",
+    ruta: "/panel/ausencias",
+    titulo: "Ausencias: vacaciones, permisos y licencias",
     resumen: "Solicitar, aprobar y ver cuántos días le quedan a cada persona.",
     minutos: 1,
     pasos: [
