@@ -3,8 +3,8 @@
 import { useActionState, useCallback, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { AlertTriangle, Ban, CalendarClock, Check, CheckCircle2, ChevronRight, HandCoins, Loader2, Plus, Search, Trash2, UserPlus, Users, Wallet, X } from "lucide-react";
-import { cerrarPrestamo, crearPrestamo, eliminarPrestamo, type ResultadoPrestamos } from "@/app/panel/prestamos/actions";
+import { AlertTriangle, Ban, Banknote, CalendarClock, Check, CheckCircle2, ChevronRight, FileSignature, HandCoins, Loader2, Plus, Printer, Search, Trash2, UserPlus, Users, Wallet, X } from "lucide-react";
+import { abonarPrestamo, cerrarPrestamo, crearPrestamo, eliminarPrestamo, marcarAutorizacionFirmada, type ResultadoPrestamos } from "@/app/panel/prestamos/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useConfirmar } from "@/components/ui/confirmar";
@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { mesVecino } from "@/lib/finanzas-comun";
 import { iniciales } from "@/lib/formato";
-import { TEXTO_TIPO_PRESTAMO, cuotaDelMes, planDeDescuentos, type PrestamoFila, type TipoPrestamo } from "@/lib/prestamos-comun";
+import { MEDIOS_ENTREGA, TEXTO_TIPO_PRESTAMO, cuotaDelMes, planDeDescuentos, textoMedioEntrega, type PrestamoFila, type TipoPrestamo } from "@/lib/prestamos-comun";
 import { cn } from "@/lib/utils";
 
 type Persona = { id: string; nombre: string; cargo: string; sueldo: number; activo: boolean };
@@ -45,6 +45,8 @@ function Detalle({
   trabajando,
   onCerrarPrestamo,
   onBorrar,
+  onAbonar,
+  onFirmada,
   onSalir,
 }: {
   p: PrestamoFila;
@@ -53,13 +55,15 @@ function Detalle({
   trabajando: boolean;
   onCerrarPrestamo: () => void;
   onBorrar: () => void;
+  onAbonar: () => void;
+  onFirmada: () => void;
   onSalir?: () => void;
 }) {
   const periodoActual = hoy.slice(0, 7);
   const plan = planDeDescuentos(p, siguiente);
   const pct = persona ? pctDelSueldo(p.cuotaMonto, persona.sueldo) : 0;
   const v = vigente(p);
-  const puedeBorrar = p.cuotasDescontadas === 0;
+  const puedeBorrar = p.cuotasDescontadas === 0 && p.abonos.length === 0;
   const puedeCerrar = p.estado === "ACTIVO" && !saldado(p);
 
   return (
@@ -70,7 +74,7 @@ function Detalle({
         </span>
         <div className="min-w-0 flex-1">
           <p className={`text-xs font-medium ${GRIS}`}>
-            {TEXTO_TIPO_PRESTAMO[p.tipo]} · entregado el {fecha(p.fecha)}
+            {TEXTO_TIPO_PRESTAMO[p.tipo]} {p.codigo} · entregado el {fecha(p.fecha)}
           </p>
           <h2 className="truncate text-lg leading-tight font-semibold">{p.trabajador}</h2>
         </div>
@@ -102,6 +106,17 @@ function Detalle({
             {p.cuotasDescontadas} de {p.cuotas} cuota{p.cuotas === 1 ? "" : "s"} descontada{p.cuotas === 1 ? "" : "s"} · {clp(p.cuotaMonto)} c/u
             {pct > 0 ? ` · ${formatoPct(pct)}% del sueldo` : ""}
           </p>
+          {!p.autorizacionFirmada ? (
+            <div className="mt-3 flex items-start gap-2 rounded-lg bg-[#FFF6E8] px-3 py-2 text-xs text-[#7A4A00]">
+              <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
+              <span className="min-w-0 flex-1">
+                Falta la autorización firmada del trabajador. Sin ella no se debería descontar de su sueldo.
+                <button type="button" disabled={trabajando} onClick={onFirmada} className="mt-1 block font-semibold underline underline-offset-2 hover:no-underline">
+                  Ya la firmó
+                </button>
+              </span>
+            </div>
+          ) : null}
           {p.estado === "CERRADO" && p.saldo > 0 ? (
             <p className="mt-3 flex items-start gap-2 rounded-lg bg-[#FFF6E8] px-3 py-2 text-xs text-[#7A4A00]">
               <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
@@ -147,8 +162,8 @@ function Detalle({
               <dd className="font-medium">{p.nota || (p.tipo === "ANTICIPO" ? "Anticipo de sueldo" : "Préstamo")}</dd>
             </div>
             <div>
-              <dt className={GRIS}>En la Caja</dt>
-              <dd className="font-medium">{p.costoEnCaja ? "Entrega anotada" : "Sin egreso"}</dd>
+              <dt className={GRIS}>Entregado por</dt>
+              <dd className="font-medium">{textoMedioEntrega(p.medioEntrega)}</dd>
             </div>
             {persona ? (
               <>
@@ -168,22 +183,34 @@ function Detalle({
         </section>
       </div>
 
-      {puedeCerrar || puedeBorrar ? (
-        <div className={`grid gap-2 border-t border-[#F0EEF6] p-4 ${puedeCerrar && puedeBorrar ? "grid-cols-2" : "grid-cols-1"}`}>
-          {puedeCerrar ? (
-            <Button type="button" variant="outline" disabled={trabajando} onClick={onCerrarPrestamo} className="h-11 rounded-xl border-[#E4E1F0] font-semibold">
-              <Ban className="size-4" />
-              Dejar de descontar
-            </Button>
-          ) : null}
-          {puedeBorrar ? (
-            <Button type="button" variant="outline" disabled={trabajando} onClick={onBorrar} className="h-11 rounded-xl border-[#E4E1F0] font-semibold text-[#A32020] hover:text-[#A32020]">
-              <Trash2 className="size-4" />
-              Borrar
-            </Button>
-          ) : null}
+      <div className="border-t border-[#F0EEF6] p-4">
+        <div className="grid grid-cols-2 gap-2">
+          <Button render={<a href={`/panel/prestamos/comprobante/${p.id}`} target="_blank" rel="noopener noreferrer" />} nativeButton={false} variant="outline" className="h-11 rounded-xl border-[#E4E1F0] font-semibold">
+            <Printer className="size-4" />
+            Comprobante
+          </Button>
+          <Button type="button" variant="outline" disabled={!v} onClick={onAbonar} className="h-11 rounded-xl border-[#E4E1F0] font-semibold">
+            <Banknote className="size-4" />
+            Abonar saldo
+          </Button>
         </div>
-      ) : null}
+        {puedeCerrar || puedeBorrar ? (
+          <div className="mt-2 flex justify-center gap-1">
+            {puedeCerrar ? (
+              <Button type="button" variant="ghost" disabled={trabajando} onClick={onCerrarPrestamo} className="h-9 rounded-lg px-3 text-[13px] font-medium text-[#5B5970]">
+                <Ban className="size-3.5" />
+                Dejar de descontar
+              </Button>
+            ) : null}
+            {puedeBorrar ? (
+              <Button type="button" variant="ghost" disabled={trabajando} onClick={onBorrar} className="h-9 rounded-lg px-3 text-[13px] font-medium text-[#A32020] hover:text-[#A32020]">
+                <Trash2 className="size-3.5" />
+                Borrar
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -197,7 +224,9 @@ export function PrestamosVista({ prestamos, personas, hoy }: { prestamos: Presta
   const [q, setQ] = useState("");
   const [sel, setSel] = useState<string | null>(null);
   const [movil, setMovil] = useState(false);
+  const [abonando, setAbonando] = useState<PrestamoFila | null>(null);
   const cerrar = useCallback(() => setCreando(false), []);
+  const cerrarAbono = useCallback(() => setAbonando(null), []);
 
   const periodoActual = hoy.slice(0, 7);
   const activas = personas.filter((p) => p.activo);
@@ -210,7 +239,7 @@ export function PrestamosVista({ prestamos, personas, hoy }: { prestamos: Presta
   const personasVigentes = new Set(vigentes.map((p) => p.trabajadorId)).size;
 
   const termino = q.trim().toLowerCase();
-  const lista = prestamos.filter((p) => (filtro === "todos" || (filtro === "vigentes" ? vigente(p) : !vigente(p))) && (!termino || p.trabajador.toLowerCase().includes(termino)));
+  const lista = prestamos.filter((p) => (filtro === "todos" || (filtro === "vigentes" ? vigente(p) : !vigente(p))) && (!termino || p.trabajador.toLowerCase().includes(termino) || p.codigo.toLowerCase().includes(termino)));
   const actual = prestamos.find((p) => p.id === sel) ?? lista[0] ?? null;
   const personaDe = (id: string) => personas.find((x) => x.id === id) ?? null;
 
@@ -235,8 +264,28 @@ export function PrestamosVista({ prestamos, personas, hoy }: { prestamos: Presta
     });
   }
 
+  function marcarFirmada(p: PrestamoFila) {
+    iniciar(async () => {
+      const r = await marcarAutorizacionFirmada(p.id);
+      if (r.ok) toast.success("Autorización marcada como firmada");
+      else toast.error(r.error);
+    });
+  }
+
   const detalle = (alSalir?: () => void) =>
-    actual ? <Detalle p={actual} persona={personaDe(actual.trabajadorId)} hoy={hoy} trabajando={trabajando} onCerrarPrestamo={() => void cerrarUno(actual)} onBorrar={() => void borrar(actual)} onSalir={alSalir} /> : null;
+    actual ? (
+      <Detalle
+        p={actual}
+        persona={personaDe(actual.trabajadorId)}
+        hoy={hoy}
+        trabajando={trabajando}
+        onCerrarPrestamo={() => void cerrarUno(actual)}
+        onBorrar={() => void borrar(actual)}
+        onAbonar={() => setAbonando(actual)}
+        onFirmada={() => marcarFirmada(actual)}
+        onSalir={alSalir}
+      />
+    ) : null;
 
   return (
     <div className="mx-auto w-full max-w-[1376px]">
@@ -321,7 +370,7 @@ export function PrestamosVista({ prestamos, personas, hoy }: { prestamos: Presta
                   </div>
                   <div className="relative min-w-0 flex-1 sm:ml-auto sm:max-w-[260px]">
                     <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                    <Input aria-label="Buscar" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Persona" className="h-10 rounded-lg border-[#E4E1F0] pl-9 shadow-none" />
+                    <Input aria-label="Buscar" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Persona o código" className="h-10 rounded-lg border-[#E4E1F0] pl-9 shadow-none" />
                   </div>
                 </div>
                 <div className={`hidden grid-cols-[minmax(0,1fr)_170px_120px_20px] gap-4 border-b border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2.5 text-xs font-medium md:grid ${GRIS}`}>
@@ -354,8 +403,9 @@ export function PrestamosVista({ prestamos, personas, hoy }: { prestamos: Presta
                               <span className="mt-0.5 flex items-center gap-1.5 text-[13px]">
                                 <span className={`rounded-md px-1.5 py-px text-[11px] font-semibold ${CHIP_TIPO[p.tipo]}`}>{TEXTO_TIPO_PRESTAMO[p.tipo]}</span>
                                 <span className={`truncate ${GRIS}`}>
-                                  {clp(p.monto)} · {fecha(p.fecha)}
+                                  {p.codigo} · {clp(p.monto)}
                                 </span>
+                                {!p.autorizacionFirmada ? <AlertTriangle className="size-3.5 shrink-0 text-[#B86400]" aria-label="Falta autorización firmada" /> : null}
                               </span>
                             </span>
                           </span>
@@ -405,6 +455,7 @@ export function PrestamosVista({ prestamos, personas, hoy }: { prestamos: Presta
 
       {dialogo}
       {creando && <PrestamoDialog personas={activas} hoy={hoy} onCerrar={cerrar} />}
+      {abonando && <AbonoDialog p={abonando} hoy={hoy} onCerrar={cerrarAbono} />}
     </div>
   );
 }
@@ -419,6 +470,8 @@ function PrestamoDialog({ personas, hoy, onCerrar }: { personas: Persona[]; hoy:
   const [cuotas, setCuotas] = useState("6");
   const periodoActual = hoy.slice(0, 7);
   const [inicio, setInicio] = useState(periodoActual);
+  const [medio, setMedio] = useState("TRANSFERENCIA");
+  const [firmada, setFirmada] = useState(false);
 
   useEffect(() => {
     if (estado?.ok) {
@@ -453,6 +506,7 @@ function PrestamoDialog({ personas, hoy, onCerrar }: { personas: Persona[]; hoy:
           <input type="hidden" name="monto" value={monto} />
           <input type="hidden" name="cuotas" value={String(n)} />
           <input type="hidden" name="primerPeriodo" value={inicio} />
+          <input type="hidden" name="medioEntrega" value={medio} />
 
           <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
             <div className="min-w-0 flex-1">
@@ -539,18 +593,35 @@ function PrestamoDialog({ personas, hoy, onCerrar }: { personas: Persona[]; hoy:
                   </SelectContent>
                 </Select>
               </div>
+              <div className="block">
+                <span className="text-[13px] font-semibold">Se entrega en</span>
+                <Select items={MEDIOS_ENTREGA.map((x) => ({ value: x.valor, label: x.texto }))} value={medio} onValueChange={(v) => setMedio(v ?? "TRANSFERENCIA")}>
+                  <SelectTrigger className="mt-1.5 h-11 w-full rounded-xl border-[#E4E1F0] px-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEDIOS_ENTREGA.map((x) => (
+                      <SelectItem key={x.valor} value={x.valor}>
+                        {x.texto}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <label className="block">
                 <span className="text-[13px] font-semibold">Fecha de entrega</span>
                 <Input name="fecha" type="date" defaultValue={hoy} max={hoy} required className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none" />
               </label>
+              <label className="block">
+                <span className="text-[13px] font-semibold">
+                  Motivo <span className={`font-normal ${GRIS}`}>(opcional)</span>
+                </span>
+                <Input name="nota" maxLength={200} placeholder="Ej.: gastos médicos" className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none" />
+              </label>
             </div>
-
-            <label className="block">
-              <span className="text-[13px] font-semibold">
-                Motivo <span className={`font-normal ${GRIS}`}>(opcional)</span>
-              </span>
-              <Input name="nota" maxLength={200} placeholder="Ej.: gastos médicos" className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none" />
-            </label>
 
             {m > 0 ? (
               <div className={`rounded-xl px-4 py-3 ${pasaDelTope ? "bg-[#FFF6E8]" : "bg-[#F8F7FC]"}`}>
@@ -572,6 +643,17 @@ function PrestamoDialog({ personas, hoy, onCerrar }: { personas: Persona[]; hoy:
             ) : null}
 
             <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E4E1F0] p-3">
+              <input type="checkbox" name="autorizacionFirmada" value="si" checked={firmada} onChange={(e) => setFirmada(e.target.checked)} className="mt-0.5 size-[18px] accent-[#3A0CE3]" />
+              <span className="text-sm">
+                <span className="flex items-center gap-1.5 font-semibold">
+                  <FileSignature className="size-4 text-[#6B46F5]" aria-hidden />
+                  El trabajador firmó la autorización de descuento
+                </span>
+                <span className={`mt-0.5 block text-xs ${GRIS}`}>Imprime el comprobante al guardar para que lo firme si aún no lo hace.</span>
+              </span>
+            </label>
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E4E1F0] p-3">
               <input type="checkbox" name="registrarEnCaja" value="si" defaultChecked className="mt-0.5 size-[18px] accent-[#3A0CE3]" />
               <span className="text-sm">
                 <span className="font-semibold">Anotar la entrega como egreso en la Caja</span>
@@ -587,11 +669,127 @@ function PrestamoDialog({ personas, hoy, onCerrar }: { personas: Persona[]; hoy:
           </div>
 
           <div className="flex items-center gap-3 border-t border-[#F0EEF6] bg-[#FAFAFD] px-6 py-3.5">
-            <p className={`min-w-0 flex-1 truncate text-xs ${GRIS}`}>{persona && m > 0 ? `${TEXTO_TIPO_PRESTAMO[tipo]} para ${persona.nombre.split(" ")[0]} · ${clp(m)}` : "Elige la persona y el monto"}</p>
+            <p className={`min-w-0 flex-1 truncate text-xs ${GRIS}`}>{!firmada ? "Marca la autorización firmada para guardar" : persona && m > 0 ? `${TEXTO_TIPO_PRESTAMO[tipo]} para ${persona.nombre.split(" ")[0]} · ${clp(m)}` : "Elige la persona y el monto"}</p>
             <DialogClose render={<Button type="button" variant="outline" className="hidden h-11 rounded-xl border-[#E4E1F0] bg-white font-semibold sm:inline-flex" />}>Cancelar</DialogClose>
-            <Button type="submit" disabled={pendiente || !m || !personaId} className="h-11 rounded-xl px-5 font-semibold">
+            <Button type="submit" disabled={pendiente || !m || !personaId || !firmada} className="h-11 rounded-xl px-5 font-semibold">
               {pendiente && <Loader2 className="animate-spin" />}
               Guardar
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function AbonoDialog({ p, hoy, onCerrar }: { p: PrestamoFila; hoy: string; onCerrar: () => void }) {
+  const [estado, enviar, pendiente] = useActionState<ResultadoPrestamos | null, FormData>(abonarPrestamo, null);
+  const [monto, setMonto] = useState(String(p.saldo));
+  const [medio, setMedio] = useState("EFECTIVO");
+
+  useEffect(() => {
+    if (estado?.ok) {
+      toast.success("Abono registrado");
+      avisarCambio("caja");
+      onCerrar();
+    }
+  }, [estado, onCerrar]);
+
+  const m = Number(monto) || 0;
+  const queda = Math.max(0, p.saldo - m);
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onCerrar()}>
+      <DialogContent
+        showCloseButton={false}
+        className="top-auto bottom-0 left-0 flex max-h-[94dvh] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-b-none bg-white p-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[92vh] sm:w-[460px] sm:max-w-[460px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-0"
+      >
+        <form action={enviar} className="flex min-h-0 flex-1 flex-col">
+          <input type="hidden" name="prestamoId" value={p.id} />
+          <input type="hidden" name="monto" value={monto} />
+          <input type="hidden" name="medio" value={medio} />
+
+          <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
+            <div className="min-w-0 flex-1">
+              <DialogTitle className="text-lg font-semibold">Abonar saldo</DialogTitle>
+              <p className={`mt-0.5 text-[13px] ${GRIS}`}>
+                {TEXTO_TIPO_PRESTAMO[p.tipo]} {p.codigo} · {p.trabajador}
+              </p>
+            </div>
+            <DialogClose aria-label="Cerrar" className="flex size-9 items-center justify-center rounded-lg text-[#5B5970] hover:bg-[#F4F3F9]">
+              <X className="size-[18px]" />
+            </DialogClose>
+          </div>
+
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
+            <div className="rounded-xl bg-[#F8F7FC] px-4 py-3">
+              <p className="flex items-baseline justify-between text-sm">
+                <span className={GRIS}>Falta por descontar</span>
+                <b className="text-lg font-semibold tabular-nums">{clp(p.saldo)}</b>
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-[13px] font-semibold">Monto que abona</span>
+                <Input inputMode="numeric" autoComplete="off" autoFocus value={m ? clp(m) : ""} onChange={(e) => setMonto(e.target.value.replace(/\D/g, "").slice(0, 9))} placeholder="$0" className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] text-right font-semibold tabular-nums shadow-none" />
+              </label>
+              <div className="block">
+                <span className="text-[13px] font-semibold">Lo entrega en</span>
+                <Select items={MEDIOS_ENTREGA.map((x) => ({ value: x.valor, label: x.texto }))} value={medio} onValueChange={(v) => setMedio(v ?? "EFECTIVO")}>
+                  <SelectTrigger className="mt-1.5 h-11 w-full rounded-xl border-[#E4E1F0] px-3">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {MEDIOS_ENTREGA.map((x) => (
+                      <SelectItem key={x.valor} value={x.valor}>
+                        {x.texto}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block">
+                <span className="text-[13px] font-semibold">Fecha</span>
+                <Input name="fecha" type="date" defaultValue={hoy} max={hoy} required className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none" />
+              </label>
+              <label className="block">
+                <span className="text-[13px] font-semibold">
+                  Nota <span className={`font-normal ${GRIS}`}>(opcional)</span>
+                </span>
+                <Input name="nota" maxLength={200} className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none" />
+              </label>
+            </div>
+
+            {m > 0 ? (
+              <p className={`rounded-xl px-4 py-3 text-sm ${m > p.saldo ? "bg-[#FDECEC] text-[#A32020]" : "bg-[#F8F7FC]"}`}>
+                {m > p.saldo ? `El abono supera lo que falta (${clp(p.saldo)}).` : queda > 0 ? `Después del abono quedan ${clp(queda)} por descontar.` : "Con este abono el saldo queda en cero."}
+              </p>
+            ) : null}
+
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E4E1F0] p-3">
+              <input type="checkbox" name="registrarEnCaja" value="si" defaultChecked className="mt-0.5 size-[18px] accent-[#3A0CE3]" />
+              <span className="text-sm">
+                <span className="font-semibold">Anotar el abono como ingreso en la Caja</span>
+                <span className={`mt-0.5 block text-xs ${GRIS}`}>Desmárcalo si la plata ya entró antes de usar Facilapr.</span>
+              </span>
+            </label>
+
+            {estado && !estado.ok ? (
+              <p role="alert" className="rounded-xl bg-[#FDECEC] px-3 py-2.5 text-sm font-medium text-[#A32020]">
+                {estado.error}
+              </p>
+            ) : null}
+          </div>
+
+          <div className="flex items-center justify-end gap-3 border-t border-[#F0EEF6] bg-[#FAFAFD] px-6 py-3.5">
+            <DialogClose render={<Button type="button" variant="outline" className="h-11 rounded-xl border-[#E4E1F0] bg-white font-semibold" />}>Cancelar</DialogClose>
+            <Button type="submit" disabled={pendiente || !m || m > p.saldo} className="h-11 rounded-xl px-5 font-semibold">
+              {pendiente && <Loader2 className="animate-spin" />}
+              Registrar abono
             </Button>
           </div>
         </form>

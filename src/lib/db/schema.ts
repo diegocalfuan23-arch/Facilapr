@@ -1484,9 +1484,40 @@ export const prestamos = pgTable(
     nota: text("nota"),
     /** El egreso de Caja con la entrega, si se anotó. */
     movimientoId: text("movimientoId"),
+    /** Correlativo por comité y tipo: P-1, P-2… para los préstamos y A-1, A-2… para los anticipos. */
+    numero: integer("numero").notNull(),
+    /** El trabajador firmó la autorización de descuento. */
+    autorizacionFirmada: boolean("autorizacionFirmada").notNull().default(false),
+    /** TRANSFERENCIA | EFECTIVO | CHEQUE: cómo se entregó la plata. */
+    medioEntrega: text("medioEntrega").notNull().default("EFECTIVO"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
-  (table) => [index("Prestamo_aprId_idx").on(table.aprId), index("Prestamo_trabajadorId_idx").on(table.trabajadorId)]
+  (table) => [
+    index("Prestamo_aprId_idx").on(table.aprId),
+    index("Prestamo_trabajadorId_idx").on(table.trabajadorId),
+    uniqueIndex("Prestamo_aprId_tipo_numero_key").on(table.aprId, table.tipo, table.numero),
+  ]
+);
+
+/** Plata que la persona devuelve antes de tiempo: baja el saldo del préstamo y, si se anota, entra a la Caja como ingreso. */
+export const prestamoAbonos = pgTable(
+  "PrestamoAbono",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    prestamoId: text("prestamoId")
+      .notNull()
+      .references(() => prestamos.id, { onDelete: "cascade" }),
+    monto: integer("monto").notNull(),
+    fecha: date("fecha", { mode: "string" }).notNull(),
+    /** TRANSFERENCIA | EFECTIVO | CHEQUE */
+    medio: text("medio").notNull().default("EFECTIVO"),
+    nota: text("nota"),
+    /** El ingreso de Caja con el abono, si se anotó. */
+    movimientoId: text("movimientoId"),
+    registradoPorId: text("registradoPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("PrestamoAbono_prestamoId_idx").on(table.prestamoId)]
 );
 
 /** Lo descontado de un préstamo en una liquidación. Si se borra la liquidación, el descuento se va con ella. */

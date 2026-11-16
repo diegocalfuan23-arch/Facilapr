@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, lte, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { movimientos, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { movimientos, prestamoAbonos, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
@@ -91,6 +91,14 @@ async function cargarPrestamos(tx: Pick<typeof db, "select">, aprId: string, per
     : [];
   const yaDescontado = new Map<string, number>();
   const yaEsteMes = new Set<string>();
+  // Lo que la persona devolvió con abonos baja el saldo igual que lo descontado: ya no se le descuenta.
+  const abonados = ids.length
+    ? await tx
+        .select({ prestamoId: prestamoAbonos.prestamoId, monto: prestamoAbonos.monto })
+        .from(prestamoAbonos)
+        .where(inArray(prestamoAbonos.prestamoId, ids))
+    : [];
+  for (const a of abonados) yaDescontado.set(a.prestamoId, (yaDescontado.get(a.prestamoId) ?? 0) + a.monto);
   for (const h of hechos) {
     yaDescontado.set(h.prestamoId, (yaDescontado.get(h.prestamoId) ?? 0) + h.monto);
     if (h.periodo === periodo) yaEsteMes.add(h.prestamoId);

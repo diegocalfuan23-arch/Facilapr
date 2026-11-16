@@ -1,21 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { movimientos, prestamoDescuentos, prestamos, trabajadores } from "@/lib/db/schema";
+import { movimientos, prestamoAbonos, prestamoDescuentos, prestamos, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { diaCerrado, mensajeDiaCerrado } from "@/lib/finanzas";
-import { PREFIJO_CONCEPTO_ANTICIPO, PREFIJO_CONCEPTO_PRESTAMO } from "@/lib/prestamos-comun";
+import { MEDIOS_ENTREGA, PREFIJO_CONCEPTO_ANTICIPO, PREFIJO_CONCEPTO_PRESTAMO } from "@/lib/prestamos-comun";
 
 export type ResultadoPrestamos = { ok: true } | { ok: false; error: string };
 
 const SIN_PLAN = "Remuneraciones está disponible en el plan Grande.";
 const aTexto = (v: FormDataEntryValue | null) => String(v ?? "").trim() || null;
+const medioValido = (v: FormDataEntryValue | null) => MEDIOS_ENTREGA.find((m) => m.valor === v)?.valor ?? "EFECTIVO";
 
 function refrescar() {
   revalidatePath("/panel/prestamos");
@@ -56,6 +57,8 @@ export async function crearPrestamo(_prev: ResultadoPrestamos | null, formData: 
   const d = parsed.data;
   if (d.fecha > hoyEnChile()) return { ok: false, error: "La fecha de entrega no puede ser futura." };
   const registrarEnCaja = formData.get("registrarEnCaja") === "si";
+  const medioEntrega = medioValido(formData.get("medioEntrega"));
+  const autorizacionFirmada = formData.get("autorizacionFirmada") === "si";
 
   try {
     const r = await db.transaction(async (tx) => {
@@ -79,7 +82,7 @@ export async function crearPrestamo(_prev: ResultadoPrestamos | null, formData: 
             monto: d.monto,
             categoria: "REMUNERACIONES",
             concepto: `${prefijo}${persona.nombre}`.slice(0, 200),
-            medio: "EFECTIVO",
+            medio: medioEntrega,
             contraparte: persona.nombre,
             registradoPorId: user.id,
           })
@@ -87,8 +90,17 @@ export async function crearPrestamo(_prev: ResultadoPrestamos | null, formData: 
         movimientoId = egreso.id;
       }
 
+      // El siguiente número de su tipo (P-04, A-08…). Si dos se guardan a la vez, el índice único hace fallar uno y se reintenta.
+      const [ultimo] = await tx
+        .select({ n: sql<number>`coalesce(max(${prestamos.numero}), 0)::int` })
+        .from(prestamos)
+        .where(and(eq(prestamos.aprId, apr.id), eq(prestamos.tipo, d.tipo)));
+
       await tx.insert(prestamos).values({
         aprId: apr.id,
+        numero: (ultimo?.n ?? 0) + 1,
+        autorizacionFirmada,
+        medioEntrega,
         trabajadorId: d.trabajadorId,
         tipo: d.tipo,
         monto: d.monto,
@@ -140,6 +152,8 @@ export async function eliminarPrestamo(id: string): Promise<ResultadoPrestamos> 
 
       const [usado] = await tx.select({ id: prestamoDescuentos.id }).from(prestamoDescuentos).where(eq(prestamoDescuentos.prestamoId, id)).limit(1);
       if (usado) return { ok: false as const, error: "Ya se descontó en una liquidación: no se puede borrar. Ciérralo para dejar de descontar." };
+      const [abonado] = await tx.select({ id: prestamoAbonos.id }).from(prestamoAbonos).where(eq(prestamoAbonos.prestamoId, id)).limit(1);
+      if (abonado) return { ok: false as const, error: "Ya tiene abonos: no se puede borrar. Ciérralo para dejar de descontar." };
 
       if (p.movimientoId) {
         const [mov] = await tx
@@ -158,5 +172,89 @@ export async function eliminarPrestamo(id: string): Promise<ResultadoPrestamos> 
   } catch (e) {
     console.error("Préstamos: no se pudo borrar:", e);
     return { ok: false, error: mensajeError(e, "No pudimos borrar. Inténtalo de nuevo en un momento.") };
+  }
+}
+
+/** Deja anotado que el trabajador ya firmó la autorización de descuento. */
+export async function marcarAutorizacionFirmada(id: string): Promise<ResultadoPrestamos> {
+  const { apr } = await requireAdmin();
+
+  const [p] = await db
+    .update(prestamos)
+    .set({ autorizacionFirmada: true })
+    .where(and(eq(prestamos.id, id), eq(prestamos.aprId, apr.id)))
+    .returning({ id: prestamos.id });
+  if (!p) return { ok: false, error: "No encontramos ese registro." };
+
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * La persona devuelve parte o todo lo que falta antes de tiempo. Baja el saldo (y por eso Remuneraciones deja de
+ * descontar eso) y, si se marca, entra a la Caja como ingreso.
+ */
+export async function abonarPrestamo(
+  _prev: ResultadoPrestamos | null,
+  formData: FormData
+): Promise<ResultadoPrestamos> {
+  const { user, apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
+
+  const id = String(formData.get("prestamoId") ?? "");
+  const monto = Number(String(formData.get("monto") ?? "").replace(/[^\d]/g, ""));
+  const fecha = String(formData.get("fecha") ?? "");
+  const medio = medioValido(formData.get("medio"));
+  const nota = aTexto(formData.get("nota"));
+  const registrarEnCaja = formData.get("registrarEnCaja") === "si";
+
+  if (!Number.isInteger(monto) || monto < 1) return { ok: false, error: "Escribe cuánto abona." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return { ok: false, error: "La fecha no es válida." };
+  if (fecha > hoyEnChile()) return { ok: false, error: "La fecha del abono no puede ser futura." };
+
+  try {
+    const r = await db.transaction(async (tx) => {
+      const [p] = await tx
+        .select({ id: prestamos.id, monto: prestamos.monto, tipo: prestamos.tipo, numero: prestamos.numero, trabajador: trabajadores.nombre })
+        .from(prestamos)
+        .innerJoin(trabajadores, eq(trabajadores.id, prestamos.trabajadorId))
+        .where(and(eq(prestamos.id, id), eq(prestamos.aprId, apr.id)))
+        .limit(1);
+      if (!p) return { ok: false as const, error: "No encontramos ese registro." };
+
+      const [descontado] = await tx.select({ n: sql<number>`coalesce(sum(${prestamoDescuentos.monto}), 0)::int` }).from(prestamoDescuentos).where(eq(prestamoDescuentos.prestamoId, id));
+      const [abonado] = await tx.select({ n: sql<number>`coalesce(sum(${prestamoAbonos.monto}), 0)::int` }).from(prestamoAbonos).where(eq(prestamoAbonos.prestamoId, id));
+      const saldo = p.monto - (descontado?.n ?? 0) - (abonado?.n ?? 0);
+      if (saldo <= 0) return { ok: false as const, error: "Este préstamo ya está saldado." };
+      if (monto > saldo) return { ok: false as const, error: `El abono supera lo que falta por descontar (${saldo.toLocaleString("es-CL")}).` };
+
+      let movimientoId: string | null = null;
+      if (registrarEnCaja) {
+        if (await diaCerrado(tx, apr.id, fecha)) return { ok: false as const, error: mensajeDiaCerrado(fecha) };
+        const [ingreso] = await tx
+          .insert(movimientos)
+          .values({
+            aprId: apr.id,
+            tipo: "INGRESO",
+            fecha,
+            monto,
+            categoria: "OTRO_INGRESO",
+            concepto: `Abono · ${p.tipo === "ANTICIPO" ? "Anticipo" : "Préstamo"} · ${p.trabajador}`.slice(0, 200),
+            medio,
+            contraparte: p.trabajador,
+            registradoPorId: user.id,
+          })
+          .returning({ id: movimientos.id });
+        movimientoId = ingreso.id;
+      }
+
+      await tx.insert(prestamoAbonos).values({ prestamoId: id, monto, fecha, medio, nota, movimientoId, registradoPorId: user.id });
+      return { ok: true as const };
+    });
+    if (r.ok) refrescar();
+    return r;
+  } catch (e) {
+    console.error("Préstamos: no se pudo registrar el abono:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos guardar el abono. Inténtalo de nuevo en un momento.") };
   }
 }

@@ -8,6 +8,17 @@ export const TEXTO_TIPO_PRESTAMO: Record<TipoPrestamo, string> = {
   PRESTAMO: "Préstamo",
 };
 
+export const MEDIOS_ENTREGA = [
+  { valor: "TRANSFERENCIA", texto: "Transferencia" },
+  { valor: "EFECTIVO", texto: "Efectivo" },
+  { valor: "CHEQUE", texto: "Cheque" },
+] as const;
+
+export const textoMedioEntrega = (medio: string) => MEDIOS_ENTREGA.find((m) => m.valor === medio)?.texto ?? "Efectivo";
+
+/** El código con que se reconoce un anticipo o préstamo: P-03, A-07. */
+export const codigoPrestamo = (tipo: TipoPrestamo, numero: number) => `${tipo === "ANTICIPO" ? "A" : "P"}-${String(numero).padStart(2, "0")}`;
+
 /** El concepto con que la entrega queda en Caja: así se reconoce que viene de Préstamos. */
 export const PREFIJO_CONCEPTO_ANTICIPO = "Anticipo · ";
 export const PREFIJO_CONCEPTO_PRESTAMO = "Préstamo · ";
@@ -26,12 +37,21 @@ export type PrestamoFila = {
   fecha: string;
   estado: EstadoPrestamo;
   nota: string | null;
+  /** Correlativo por tipo (P-03, A-07). */
+  numero: number;
+  codigo: string;
+  /** El trabajador firmó la autorización de descuento. */
+  autorizacionFirmada: boolean;
+  medioEntrega: string;
+  /** Lo que la persona devolvió antes de tiempo, abono por abono. */
+  abonos: { id: string; monto: number; fecha: string; medio: string; nota: string | null }[];
+  abonado: number;
   /** Lo que ya se descontó en liquidaciones y cuántas cuotas fueron. */
   descontado: number;
   cuotasDescontadas: number;
   /** Cada descuento hecho, por mes (AAAA-MM), del más antiguo al más reciente. */
   descuentos: { periodo: string; monto: number }[];
-  /** Lo que falta por descontar. */
+  /** Lo que falta por descontar (lo entregado menos lo descontado y lo abonado). */
   saldo: number;
   /** true si la entrega quedó como egreso en la Caja. */
   costoEnCaja: boolean;
