@@ -17,12 +17,10 @@ import {
   TASA_CESANTIA,
   TASA_RETENCION_HONORARIOS,
   TEXTO_ACCESO,
-  horasPorDia,
   liquidacionEstimada,
   tasaAfp,
   textoTasa,
   valorDeHoraExtra,
-  valorHoraOrdinaria,
   type AccesoPanel,
   type TrabajadorFila,
 } from "@/lib/personal-comun";
@@ -164,8 +162,6 @@ export function TrabajadorDialog({
   };
   const ficha = { contrato: contrato as "SUELDO" | "HONORARIO", afpTasa: deTextoTasa(afpTasaTexto), saludTasa: deTextoTasa(saludTexto), cesantia, noImponible: Number(noImp) || 0 };
   const calculo = liquidacionEstimada(ficha, bruto);
-  const horasDia = String(Math.round(horasPorDia(datosJornada) * 10) / 10).replace(".", ",");
-  const ordinaria = valorHoraOrdinaria(datosJornada);
 
   const pasoOk = [
     Boolean(nombre.trim() && cargo.trim()),
@@ -280,12 +276,9 @@ export function TrabajadorDialog({
                   <Campo label="Correo" className="sm:col-span-2" ayuda={!pasoOk[3] ? <span className="text-[#A32020]">El correo no es válido</span> : undefined}>
                     <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={120} placeholder="nombre@correo.cl" className={inputCls} />
                   </Campo>
-                  <Campo label="Notas" className="sm:col-span-2">
-                    <Input value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} className={inputCls} />
-                  </Campo>
                 </div>
               ) : paso === 1 ? (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div>
                     <span className="text-[13px] font-semibold">Tipo de contrato</span>
                     <div className="mt-1.5 grid gap-2 sm:grid-cols-3">
@@ -310,12 +303,12 @@ export function TrabajadorDialog({
                         <Input inputMode="numeric" value={dinero(valorDia)} onChange={(e) => setValorDia(soloDigitos(e.target.value))} placeholder="$0" className={`${inputCls} text-right font-semibold tabular-nums`} />
                       </Campo>
                     ) : (
-                      <Campo label={tipo === "honorarios" ? "Monto bruto mensual de la boleta" : "Sueldo bruto mensual"} ayuda={tipo === "mensual" && bruto ? `Día: ${clp((Number(valorDia) || bruto / 30))}` : undefined}>
+                      <Campo label={tipo === "honorarios" ? "Monto bruto mensual de la boleta" : "Sueldo bruto mensual"}>
                         <Input inputMode="numeric" value={dinero(sueldo)} onChange={(e) => setSueldo(soloDigitos(e.target.value))} placeholder="$0" className={`${inputCls} text-right font-semibold tabular-nums`} />
                       </Campo>
                     )}
                     {tipo !== "honorarios" ? (
-                      <Campo label="Duración del contrato" ayuda={cesantia ? `Se descuenta seguro de cesantía (${textoTasa(TASA_CESANTIA)})` : "A plazo fijo no se descuenta cesantía"}>
+                      <Campo label="Duración del contrato">
                         <Opciones
                           valor={cesantia ? "indefinido" : "plazo"}
                           opciones={[
@@ -331,13 +324,13 @@ export function TrabajadorDialog({
                   {tipo !== "honorarios" ? (
                     <>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <Campo label="Jornada semanal" ayuda={`${JORNADA_SEMANAL_LEGAL} horas desde el 26-04-2026 (Ley 21.561)`}>
+                        <Campo label="Jornada semanal">
                           <div className="relative">
                             <Input inputMode="decimal" value={jornada} onChange={(e) => setJornada(e.target.value.replace(/[^\d,.]/g, "").slice(0, 5))} className={`${inputCls} pr-16`} />
                             <span className={`absolute top-1/2 right-3.5 -translate-y-1/2 text-sm ${GRIS}`}>horas</span>
                           </div>
                         </Campo>
-                        <Campo label="Días a la semana" ayuda={`Su día dura ${horasDia} horas`}>
+                        <Campo label="Días a la semana">
                           <Opciones
                             valor={String(diasSemana)}
                             opciones={[
@@ -349,28 +342,25 @@ export function TrabajadorDialog({
                           />
                         </Campo>
                       </div>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        {!porDia ? (
-                          <Campo label="Valor del día (opcional)">
-                            <Input inputMode="numeric" value={dinero(valorDia)} onChange={(e) => setValorDia(soloDigitos(e.target.value))} placeholder={bruto ? `${clp(bruto / 30)} (sueldo ÷ 30)` : "$0"} className={`${inputCls} text-right tabular-nums`} />
-                          </Campo>
-                        ) : null}
-                        <Campo label="Hora extra (opcional)">
-                          <Input inputMode="numeric" value={dinero(valorExtra)} onChange={(e) => setValorExtra(soloDigitos(e.target.value))} placeholder={`${clp(valorDeHoraExtra({ ...datosJornada, valorHoraExtra: null }))} (legal)`} className={`${inputCls} text-right tabular-nums`} />
-                        </Campo>
-                      </div>
                     </>
                   ) : null}
 
-                  <Campo label="Colación y movilización al mes">
-                    <Input inputMode="numeric" value={dinero(noImp)} onChange={(e) => setNoImp(soloDigitos(e.target.value, 8))} placeholder="$0" className={`${inputCls} text-right tabular-nums`} />
-                  </Campo>
+                  <div className={`grid gap-4 ${tipo === "mensual" ? "sm:grid-cols-3" : tipo === "diario" ? "sm:grid-cols-2" : ""}`}>
+                    {tipo === "mensual" ? (
+                      <Campo label="Valor del día">
+                        <Input inputMode="numeric" value={dinero(valorDia)} onChange={(e) => setValorDia(soloDigitos(e.target.value))} placeholder={bruto ? clp(bruto / 30) : "$0"} className={`${inputCls} text-right tabular-nums`} />
+                      </Campo>
+                    ) : null}
+                    {tipo !== "honorarios" ? (
+                      <Campo label="Hora extra">
+                        <Input inputMode="numeric" value={dinero(valorExtra)} onChange={(e) => setValorExtra(soloDigitos(e.target.value))} placeholder={clp(valorDeHoraExtra({ ...datosJornada, valorHoraExtra: null }))} className={`${inputCls} text-right tabular-nums`} />
+                      </Campo>
+                    ) : null}
+                    <Campo label="Colación al mes">
+                      <Input inputMode="numeric" value={dinero(noImp)} onChange={(e) => setNoImp(soloDigitos(e.target.value, 8))} placeholder="$0" className={`${inputCls} text-right tabular-nums`} />
+                    </Campo>
+                  </div>
 
-                  {tipo === "mensual" && ordinaria > 0 ? (
-                    <p className={`rounded-xl bg-[#F8F7FC] px-3.5 py-2.5 text-xs ${GRIS}`}>
-                      Hora ordinaria <b className="font-semibold text-[#15132B]">{clp(ordinaria)}</b> · hora extra <b className="font-semibold text-[#15132B]">{clp(valorDeHoraExtra(datosJornada))}</b>
-                    </p>
-                  ) : null}
                   {tipo === "honorarios" ? <p className={`rounded-xl bg-[#F8F7FC] px-3.5 py-3 text-sm ${GRIS}`}>Se retiene el {textoTasa(TASA_RETENCION_HONORARIOS)} de la boleta. Sin AFP ni salud.</p> : null}
                 </div>
               ) : paso === 2 ? (
@@ -433,7 +423,12 @@ export function TrabajadorDialog({
                   </div>
                 )
               ) : (
-                <AccesoAlPanel acceso={acceso} correo={email} puedeTesorero={puedeTesorero} onCorreo={() => setPaso(0)} />
+                <div className="space-y-4">
+                  <AccesoAlPanel acceso={acceso} correo={email} puedeTesorero={puedeTesorero} onCorreo={() => setPaso(0)} />
+                  <Campo label="Notas">
+                    <Input value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} className={inputCls} />
+                  </Campo>
+                </div>
               )}
             </div>
 
