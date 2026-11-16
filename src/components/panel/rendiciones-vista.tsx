@@ -156,7 +156,7 @@ function Desglose({ filas, total, colores, vacio }: { filas: { nombre: string; m
   );
 }
 
-type Barra = { etiqueta: string; detalle: string; ing: number | null; egr: number | null; mes?: string };
+type Barra = { etiqueta: string; detalle: string; ing: number | null; egr: number | null; mes?: string; /** El mes todavía no termina: sus barras son parciales. */ enCurso?: boolean };
 
 function Grafico({ barras, onElegir }: { barras: Barra[]; onElegir?: (mes: string) => void }) {
   const tope = Math.max(100000, Math.ceil(Math.max(0, ...barras.map((b) => Math.max(b.ing ?? 0, b.egr ?? 0))) / 100000) * 100000);
@@ -185,12 +185,13 @@ function Grafico({ barras, onElegir }: { barras: Barra[]; onElegir?: (mes: strin
                     <span className={`mb-1 text-[10px] ${GRIS}`}>—</span>
                   ) : (
                     <>
-                      <span className="w-full max-w-[16px] rounded-t bg-[#2FB386]" style={{ height: `${((b.ing ?? 0) / tope) * 100}%` }} />
-                      <span className="w-full max-w-[16px] rounded-t bg-[#E8908E]" style={{ height: `${((b.egr ?? 0) / tope) * 100}%` }} />
+                      <span className={`w-full max-w-[16px] rounded-t bg-[#2FB386] ${b.enCurso ? "opacity-45" : ""}`} style={{ height: `${((b.ing ?? 0) / tope) * 100}%` }} />
+                      <span className={`w-full max-w-[16px] rounded-t bg-[#E8908E] ${b.enCurso ? "opacity-45" : ""}`} style={{ height: `${((b.egr ?? 0) / tope) * 100}%` }} />
                     </>
                   )}
                   <span className="pointer-events-none absolute bottom-full z-10 mb-1 hidden rounded-lg bg-[#15132B] px-2.5 py-1.5 text-left text-[11px] whitespace-nowrap text-white shadow-lg group-hover:block">
                     <span className="block font-semibold">{b.detalle}</span>
+                    {b.enCurso ? <span className="block text-white/70">Mes en curso: aún incompleto</span> : null}
                     {vacio ? (
                       <span className="block text-white/70">Aún sin datos</span>
                     ) : (
@@ -275,7 +276,8 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
       : d.resumen.meses.map((m) => {
           const futuro = `${m.mes}-01` > hoy;
           const n = Number(m.mes.slice(5, 7));
-          return { etiqueta: MES_CORTO[n - 1], detalle: `${mayuscula(nombreMes(m.mes))}`, ing: futuro ? null : m.ingresos, egr: futuro ? null : m.egresos, mes: m.mes };
+          // El mes en que estamos aún no termina: se dibuja más claro para que no parezca una caída.
+          return { etiqueta: MES_CORTO[n - 1], detalle: `${mayuscula(nombreMes(m.mes))}`, ing: futuro ? null : m.ingresos, egr: futuro ? null : m.egresos, mes: m.mes, enCurso: d.enCurso && m.mes === hoy.slice(0, 7) };
         });
 
   // Qué tiene datos: lo vacío se avisa en una línea al final, y las secciones vacías se marcan en gris.
