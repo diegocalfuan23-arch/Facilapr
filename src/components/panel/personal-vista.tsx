@@ -3,13 +3,14 @@
 import { useCallback, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
-import { Check, ChevronRight, Clock3, HandCoins, KeyRound, Mail, Palmtree, Pencil, Phone, Plus, Search, Smartphone, UserX, Users, X } from "lucide-react";
+import { CalendarDays, Check, ChevronRight, Clock3, HandCoins, KeyRound, Mail, Palmtree, Pencil, Phone, Plus, Search, Smartphone, UserX, Users, X } from "lucide-react";
 import { cambiarActivoTrabajador } from "@/app/panel/personal/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { TrabajadorDialog } from "@/components/panel/trabajador-dialog";
-import { TASA_RETENCION_HONORARIOS, TEXTO_ACCESO, liquidacionEstimada, textoTasa, type AccesoPanel, type CuentaPanel, type ExtrasPersona, type TrabajadorFila } from "@/lib/personal-comun";
+import { RenovarContratoDialog } from "@/components/panel/renovar-contrato-dialog";
+import { TASA_RETENCION_HONORARIOS, TEXTO_ACCESO, diasHasta, esPlazoFijo, fechaTermino, liquidacionEstimada, textoTasa, type AccesoPanel, type CuentaPanel, type ExtrasPersona, type TrabajadorFila } from "@/lib/personal-comun";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
@@ -47,6 +48,13 @@ const NOMBRE_TIPO = { mensual: "Sueldo mensual", diario: "Pago por día", honora
 
 /** Lo que cobra al mes: null si se le paga por día, porque eso depende de los días que trabaje. */
 const brutoMensual = (p: TrabajadorFila) => (p.porDia ? null : p.sueldo);
+
+/** Cuándo termina su contrato a plazo fijo y cuántos días faltan; null si no está a plazo fijo o falta algún dato. */
+function plazoDe(p: TrabajadorFila, hoy: string) {
+  if (!esPlazoFijo(p) || !p.plazoMeses || !p.fechaIngreso) return null;
+  const termino = fechaTermino(p.fechaIngreso, p.plazoMeses);
+  return { termino, dias: diasHasta(termino, hoy) };
+}
 
 const iconoAcceso = (a: AccesoPanel) => (a === "OPERADOR" ? Smartphone : KeyRound);
 
@@ -109,6 +117,7 @@ function Detalle({
   cambiando,
   onEditar,
   onEstado,
+  onRenovar,
   onCerrar,
 }: {
   p: TrabajadorFila;
@@ -118,9 +127,11 @@ function Detalle({
   cambiando: boolean;
   onEditar: () => void;
   onEstado: () => void;
+  onRenovar: () => void;
   onCerrar?: () => void;
 }) {
   const tipo = tipoDe(p);
+  const plazo = plazoDe(p, hoy);
   const vacaciones = p.contrato === "HONORARIO" ? "No aplica" : extras?.vacaciones == null ? "—" : `${numero(extras.vacaciones)} días`;
   const anticipo = extras && extras.anticipo > 0 ? clp(extras.anticipo) : "Ninguno";
   const tiles = [
@@ -170,12 +181,26 @@ function Detalle({
         </section>
 
         <section className="px-5 py-4">
+          {plazo && p.activo ? (
+            <div className={`mb-3 flex items-center gap-3 rounded-xl px-3.5 py-2.5 ${plazo.dias <= 30 ? "bg-[#FFF6E8]" : "bg-[#F8F7FC]"}`}>
+              <CalendarDays className={`size-4 shrink-0 ${plazo.dias <= 30 ? "text-[#B86400]" : "text-[#6B46F5]"}`} aria-hidden />
+              <p className="min-w-0 flex-1 text-[13px]">
+                <span className={GRIS}>Contrato termina el</span> <b className="font-semibold">{fechaCL(plazo.termino)}</b>
+                <span className={`block text-xs ${plazo.dias <= 30 ? "font-medium text-[#8A4B00]" : GRIS}`}>
+                  {plazo.dias < 0 ? "Vencido: si sigue trabajando pasa a indefinido" : plazo.dias === 0 ? "Termina hoy" : `Quedan ${plazo.dias} ${plazo.dias === 1 ? "día" : "días"}`}
+                </span>
+              </p>
+              <Button variant="outline" size="sm" onClick={onRenovar} className="h-8 shrink-0 rounded-lg border-[#E4E1F0] bg-white px-2.5 text-xs font-semibold">
+                Renovar
+              </Button>
+            </div>
+          ) : null}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
             <div>
               <dt className={GRIS}>Contrato</dt>
               <dd className="font-medium">
                 {NOMBRE_TIPO[tipo]}
-                {tipo === "mensual" ? ` · ${p.cesantia ? "indefinido" : "plazo fijo"}` : ""}
+                {tipo !== "honorarios" ? ` · ${p.cesantia ? "indefinido" : p.plazoMeses ? `plazo fijo de ${p.plazoMeses} ${p.plazoMeses === 1 ? "mes" : "meses"}` : "plazo fijo"}` : ""}
               </dd>
             </div>
             <div>
@@ -282,6 +307,7 @@ export function PersonalVista({
   const [movil, setMovil] = useState(false);
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<TrabajadorFila | null>(null);
+  const [renovando, setRenovando] = useState<TrabajadorFila | null>(null);
   // Una cuenta del panel sin ficha: al crearle la ficha se parte con sus datos.
   const [desdeCuenta, setDesdeCuenta] = useState<CuentaPanel | null>(null);
   const [cambiando, iniciar] = useTransition();
@@ -339,7 +365,7 @@ export function PersonalVista({
   }
 
   const detalle = (p: TrabajadorFila, onCerrar?: () => void) => (
-    <Detalle key={p.id} p={p} acceso={accesoDe(p)} extras={extras[p.id]} hoy={hoy} cambiando={cambiando} onEditar={() => setEditando(p)} onEstado={() => cambiarEstado(p)} onCerrar={onCerrar} />
+    <Detalle key={p.id} p={p} acceso={accesoDe(p)} extras={extras[p.id]} hoy={hoy} cambiando={cambiando} onEditar={() => setEditando(p)} onEstado={() => cambiarEstado(p)} onRenovar={() => setRenovando(p)} onCerrar={onCerrar} />
   );
 
   return (
@@ -473,6 +499,10 @@ export function PersonalVista({
                     </span>
                     <span className="hidden md:block">
                       <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-semibold ${COLOR_TIPO[tipo]}`}>{ETIQUETA_TIPO[tipo]}</span>
+                      {(() => {
+                        const plazo = p.activo ? plazoDe(p, hoy) : null;
+                        return plazo ? <span className={`mt-1 block text-[11px] ${plazo.dias <= 30 ? "font-medium text-[#8A4B00]" : GRIS}`}>vence {fechaCL(plazo.termino).slice(0, 5)}</span> : null;
+                      })()}
                     </span>
                     <span className={`hidden items-center gap-1.5 text-[13px] md:flex ${acceso && acceso !== "DESACTIVADO" ? "text-[#3F3C55]" : "text-[#A19FB2]"}`}>
                       {acceso && AccesoIcono ? (
@@ -514,6 +544,8 @@ export function PersonalVista({
           <div className="absolute inset-x-0 bottom-0 h-[88vh] overflow-hidden rounded-t-2xl bg-white">{detalle(actual, () => setMovil(false))}</div>
         </div>
       ) : null}
+
+      {renovando ? <RenovarContratoDialog key={renovando.id} persona={renovando} hoy={hoy} onCerrar={() => setRenovando(null)} /> : null}
 
       {(creando || editando || desdeCuenta) && (
         <TrabajadorDialog

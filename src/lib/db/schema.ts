@@ -1172,6 +1172,10 @@ export const trabajadores = pgTable(
     saludTasa: integer("saludTasa").notNull().default(700),
     /** Si paga el aporte del trabajador al seguro de cesantía (0,6 %). */
     cesantia: boolean("cesantia").notNull().default(true),
+    /** Cuántos meses dura el contrato a plazo fijo (se cuentan desde la fecha de ingreso). Null = indefinido u honorarios. */
+    plazoMeses: integer("plazoMeses"),
+    /** Cuántas veces se renovó el plazo fijo: la segunda renovación lo convierte en indefinido. */
+    renovaciones: integer("renovaciones").notNull().default(0),
     activo: boolean("activo").notNull().default(true),
     notas: text("notas"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),

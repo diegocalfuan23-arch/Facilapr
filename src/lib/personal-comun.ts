@@ -50,9 +50,32 @@ export type TrabajadorFila = {
   /** Centésimas de %: 700 = 7 %. */
   saludTasa: number;
   cesantia: boolean;
+  /** Meses que dura el contrato a plazo fijo, contados desde el ingreso; null si es indefinido o a honorarios. */
+  plazoMeses: number | null;
+  /** Veces que se renovó el plazo fijo. */
+  renovaciones: number;
   activo: boolean;
   notas: string | null;
 };
+
+/** Las duraciones que se ofrecen para un contrato a plazo fijo, en meses. */
+export const PLAZOS_FIJOS = [1, 2, 3, 6, 9, 12];
+
+/** Un plazo fijo dura a lo más un año; dos para gerentes y profesionales (Código del Trabajo, art. 159). */
+export const PLAZO_MAXIMO_MESES = 24;
+export const PLAZO_COMUN_MESES = 12;
+
+/** AAAA-MM-DD del último día de un contrato que empieza en `ingreso` y dura `meses`: el día antes del mismo día, `meses` después. */
+export function fechaTermino(ingreso: string, meses: number): string {
+  const [y, m, d] = ingreso.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1 + meses, d - 1)).toISOString().slice(0, 10);
+}
+
+/** Cuántos días faltan desde `hoy` hasta `iso` (ambos AAAA-MM-DD); negativo si ya pasó. */
+export const diasHasta = (iso: string, hoy: string) => Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${hoy}T00:00:00Z`)) / 86_400_000);
+
+/** Está a plazo fijo: con contrato de sueldo y sin seguro de cesantía a cargo del trabajador. */
+export const esPlazoFijo = (p: { contrato: string; cesantia: boolean }) => p.contrato === "SUELDO" && !p.cesantia;
 
 /** Las AFP con lo que cobran de comisión (centésimas de %). Cambian: conviene confirmarlas cada tanto. */
 export const AFPS = [

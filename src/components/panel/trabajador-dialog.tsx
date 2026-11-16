@@ -14,9 +14,13 @@ import {
   AFPS,
   CARGOS_SUGERIDOS,
   JORNADA_SEMANAL_LEGAL,
+  PLAZOS_FIJOS,
+  PLAZO_COMUN_MESES,
+  PLAZO_MAXIMO_MESES,
   TASA_CESANTIA,
   TASA_RETENCION_HONORARIOS,
   TEXTO_ACCESO,
+  fechaTermino,
   liquidacionEstimada,
   tasaAfp,
   textoTasa,
@@ -116,6 +120,7 @@ export function TrabajadorDialog({
   const [valorExtra, setValorExtra] = useState(persona?.valorHoraExtra ? String(persona.valorHoraExtra) : "");
   const [noImp, setNoImp] = useState(persona?.noImponible ? String(persona.noImponible) : "");
   const [cesantia, setCesantia] = useState(persona?.cesantia ?? true);
+  const [plazoMeses, setPlazoMeses] = useState<number | null>(persona?.plazoMeses ?? null);
 
   const [afp, setAfp] = useState(persona?.afp ?? "");
   const [afpTasaTexto, setAfpTasaTexto] = useState(persona ? aTextoTasa(persona.afpTasa) : "");
@@ -151,6 +156,7 @@ export function TrabajadorDialog({
 
   const contrato = tipo === "honorarios" ? "HONORARIO" : "SUELDO";
   const porDia = tipo === "diario";
+  const plazoFijo = tipo !== "honorarios" && !cesantia;
   const bruto = Number(sueldo) || 0;
   const datosJornada = {
     sueldo: bruto,
@@ -163,13 +169,14 @@ export function TrabajadorDialog({
   const ficha = { contrato: contrato as "SUELDO" | "HONORARIO", afpTasa: deTextoTasa(afpTasaTexto), saludTasa: deTextoTasa(saludTexto), cesantia, noImponible: Number(noImp) || 0 };
   const calculo = liquidacionEstimada(ficha, bruto);
 
+  const sueldoOk = porDia ? Number(valorDia) > 0 : bruto > 0;
   const pasoOk = [
     Boolean(nombre.trim() && cargo.trim()),
-    porDia ? Number(valorDia) > 0 : bruto > 0,
+    sueldoOk && (!plazoFijo || (Boolean(plazoMeses) && Boolean(ingreso))),
     true,
     !email.trim() || email.includes("@"),
   ];
-  const falta = !nombre.trim() ? "Escribe el nombre" : !cargo.trim() ? "Escribe el cargo" : !pasoOk[1] ? (porDia ? "Indica el valor por día" : "Indica el sueldo") : !pasoOk[3] ? "El correo no es válido" : null;
+  const falta = !nombre.trim() ? "Escribe el nombre" : !cargo.trim() ? "Escribe el cargo" : !pasoOk[1] ? (!sueldoOk ? (porDia ? "Indica el valor por día" : "Indica el sueldo") : !plazoMeses ? "Indica la duración del plazo fijo" : "Indica la fecha de ingreso") : !pasoOk[3] ? "El correo no es válido" : null;
   const ultimo = paso === PASOS.length - 1;
 
   const filas =
@@ -218,6 +225,7 @@ export function TrabajadorDialog({
           <input type="hidden" name="afpTasa" value={afpTasaTexto} />
           <input type="hidden" name="saludTasa" value={saludTexto} />
           <input type="hidden" name="cesantia" value={cesantia ? "si" : "no"} />
+          <input type="hidden" name="plazoMeses" value={plazoFijo && plazoMeses ? plazoMeses : ""} />
           <input type="hidden" name="activo" value={persona && !persona.activo ? "no" : "si"} />
 
           <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
@@ -315,9 +323,60 @@ export function TrabajadorDialog({
                             ["indefinido", "Indefinido"],
                             ["plazo", "Plazo fijo"],
                           ]}
-                          onCambio={(v) => setCesantia(v === "indefinido")}
+                          onCambio={(v) => {
+                            setCesantia(v === "indefinido");
+                            if (v === "plazo" && !plazoMeses) setPlazoMeses(3);
+                          }}
                         />
                       </Campo>
+                    ) : null}
+                    {plazoFijo ? (
+                      <div className="rounded-xl border border-[#E4E1F0] p-3.5 sm:col-span-2">
+                        <span className="text-[13px] font-semibold">Duración del plazo fijo</span>
+                        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                          {PLAZOS_FIJOS.map((m) => (
+                            <button
+                              key={m}
+                              type="button"
+                              onClick={() => setPlazoMeses(m)}
+                              aria-pressed={plazoMeses === m}
+                              className={`h-9 min-w-[64px] rounded-lg border px-3 text-[13px] font-semibold ${plazoMeses === m ? "border-[#3A0CE3] bg-[#F4F1FF] text-[#2A07A8]" : "border-[#E4E1F0] text-[#46435C] hover:bg-[#F8F7FC]"}`}
+                            >
+                              {m} {m === 1 ? "mes" : "meses"}
+                            </button>
+                          ))}
+                          <div className="relative w-[110px]">
+                            <Input
+                              inputMode="numeric"
+                              autoComplete="off"
+                              aria-label="Otra cantidad de meses"
+                              value={plazoMeses && !PLAZOS_FIJOS.includes(plazoMeses) ? plazoMeses : ""}
+                              onChange={(e) => setPlazoMeses(Math.min(PLAZO_MAXIMO_MESES, Number(e.target.value.replace(/\D/g, "")) || 0) || null)}
+                              placeholder="Otro"
+                              className="h-9 rounded-lg border-[#E4E1F0] pr-14 shadow-none"
+                            />
+                            <span className={`absolute top-1/2 right-2.5 -translate-y-1/2 text-xs ${GRIS}`}>meses</span>
+                          </div>
+                        </div>
+                        {plazoMeses ? (
+                          <p className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+                            {ingreso ? (
+                              <span>
+                                <span className={GRIS}>Termina el</span> <b className="font-semibold">{fechaTermino(ingreso, plazoMeses).split("-").reverse().join("-")}</b>
+                              </span>
+                            ) : (
+                              <span className="text-[#8A4B00]">
+                                Falta la fecha de ingreso.{" "}
+                                <button type="button" onClick={() => setPaso(0)} className="font-semibold underline">
+                                  Agrégala en Datos
+                                </button>
+                              </span>
+                            )}
+                            {plazoMeses > PLAZO_COMUN_MESES ? <span className="text-xs font-medium text-[#8A4B00]">Más de 1 año solo para gerentes o profesionales (máx. 2 años)</span> : null}
+                          </p>
+                        ) : null}
+                        <p className={`mt-1.5 text-xs leading-snug ${GRIS}`}>Si se renueva dos veces o sigue trabajando después del término, pasa a ser indefinido.</p>
+                      </div>
                     ) : null}
                   </div>
 

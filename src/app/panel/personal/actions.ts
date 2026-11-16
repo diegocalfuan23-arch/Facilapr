@@ -8,6 +8,8 @@ import { remuneraciones, trabajadores } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
+import { PLAZO_MAXIMO_MESES, diasHasta, esPlazoFijo, fechaTermino } from "@/lib/personal-comun";
+import { hoyEnChile } from "@/lib/finanzas-comun";
 
 export type ResultadoPersonal = { ok: true } | { ok: false; error: string };
 
@@ -44,6 +46,7 @@ const trabajadorSchema = z.object({
   afpTasa: z.number().int().min(0).max(3000),
   saludTasa: z.number().int().min(0).max(3000),
   cesantia: z.boolean(),
+  plazoMeses: z.number().int().min(1).max(PLAZO_MAXIMO_MESES, "Un plazo fijo no puede pasar de 24 meses.").nullable(),
   fechaIngreso: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha de ingreso no es válida.").nullable(),
   activo: z.boolean(),
   notas: z.string().trim().max(500).nullable(),
@@ -73,10 +76,19 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
     afpTasa: tasa(formData.get("afpTasa")),
     saludTasa: tasa(formData.get("saludTasa")),
     cesantia: formData.get("cesantia") === "si",
+    plazoMeses: aEntero(formData.get("plazoMeses")) || null,
     activo: formData.get("activo") !== "no",
     notas: aTexto(formData.get("notas")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
+
+  // A plazo fijo hay que saber cuánto dura y desde cuándo, para calcular cuándo termina. Si no, no hay plazo.
+  if (esPlazoFijo(parsed.data)) {
+    if (!parsed.data.plazoMeses) return { ok: false, error: "Indica la duración del plazo fijo." };
+    if (!parsed.data.fechaIngreso) return { ok: false, error: "Indica la fecha de ingreso para calcular cuándo termina el plazo fijo." };
+  } else {
+    parsed.data.plazoMeses = null;
+  }
 
   if (parsed.data.porDia && !parsed.data.valorDia) return { ok: false, error: "Escribe cuánto se le paga por día trabajado." };
   // A quien cobra por día no se le fija un sueldo mensual: cada mes sale de sus días trabajados.
@@ -96,6 +108,41 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
     }
   } catch (e) {
     console.error("Personal: no se pudo guardar:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos guardar. Inténtalo de nuevo en un momento.") };
+  }
+
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * Renueva un contrato a plazo fijo sumándole meses, o lo pasa a indefinido. Solo cabe una renovación: la segunda, o seguir
+ * trabajando después del término, lo deja indefinido (Código del Trabajo, art. 159).
+ */
+export async function renovarContrato(id: string, meses: number | "indefinido"): Promise<ResultadoPersonal> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
+
+  try {
+    const [p] = await db
+      .select({ contrato: trabajadores.contrato, cesantia: trabajadores.cesantia, plazoMeses: trabajadores.plazoMeses, renovaciones: trabajadores.renovaciones, fechaIngreso: trabajadores.fechaIngreso })
+      .from(trabajadores)
+      .where(and(eq(trabajadores.id, id), eq(trabajadores.aprId, apr.id)))
+      .limit(1);
+    if (!p) return { ok: false, error: "No encontramos a esa persona." };
+    if (!esPlazoFijo(p) || !p.plazoMeses || !p.fechaIngreso) return { ok: false, error: "Esta persona no tiene un contrato a plazo fijo." };
+
+    if (meses === "indefinido") {
+      await db.update(trabajadores).set({ cesantia: true, plazoMeses: null }).where(and(eq(trabajadores.id, id), eq(trabajadores.aprId, apr.id)));
+    } else {
+      if (p.renovaciones >= 1) return { ok: false, error: "Ya se renovó una vez: la siguiente renovación lo deja indefinido." };
+      if (diasHasta(fechaTermino(p.fechaIngreso, p.plazoMeses), hoyEnChile()) < 0) return { ok: false, error: "El contrato ya venció: si sigue trabajando pasa a indefinido." };
+      const total = p.plazoMeses + meses;
+      if (!Number.isInteger(meses) || meses < 1 || total > PLAZO_MAXIMO_MESES) return { ok: false, error: `Un plazo fijo no puede pasar de ${PLAZO_MAXIMO_MESES} meses en total.` };
+      await db.update(trabajadores).set({ plazoMeses: total, renovaciones: 1 }).where(and(eq(trabajadores.id, id), eq(trabajadores.aprId, apr.id)));
+    }
+  } catch (e) {
+    console.error("Personal: no se pudo renovar el contrato:", e);
     return { ok: false, error: mensajeError(e, "No pudimos guardar. Inténtalo de nuevo en un momento.") };
   }
 
