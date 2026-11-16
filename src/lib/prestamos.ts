@@ -1,4 +1,4 @@
-import { desc, eq, inArray, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { prestamoDescuentos, prestamos, trabajadores } from "@/lib/db/schema";
 import type { EstadoPrestamo, PrestamoFila, TipoPrestamo } from "@/lib/prestamos-comun";
@@ -31,7 +31,7 @@ export async function listarPrestamos(aprId: string): Promise<PrestamoFila[]> {
     if (filas.length === 0) return [];
 
     const hechos = await db
-      .select({ prestamoId: prestamoDescuentos.prestamoId, total: sql<number>`coalesce(sum(${prestamoDescuentos.monto}), 0)::int`, n: sql<number>`count(*)::int` })
+      .select({ prestamoId: prestamoDescuentos.prestamoId, periodo: prestamoDescuentos.periodo, monto: prestamoDescuentos.monto })
       .from(prestamoDescuentos)
       .where(
         inArray(
@@ -39,12 +39,13 @@ export async function listarPrestamos(aprId: string): Promise<PrestamoFila[]> {
           filas.map((f) => f.id)
         )
       )
-      .groupBy(prestamoDescuentos.prestamoId);
-    const porPrestamo = new Map(hechos.map((h) => [h.prestamoId, h]));
+      .orderBy(asc(prestamoDescuentos.periodo));
+    const porPrestamo = new Map<string, { periodo: string; monto: number }[]>();
+    for (const h of hechos) porPrestamo.set(h.prestamoId, [...(porPrestamo.get(h.prestamoId) ?? []), { periodo: h.periodo, monto: h.monto }]);
 
     return filas.map((f) => {
-      const h = porPrestamo.get(f.id);
-      const descontado = h?.total ?? 0;
+      const descuentos = porPrestamo.get(f.id) ?? [];
+      const descontado = descuentos.reduce((s, d) => s + d.monto, 0);
       return {
         id: f.id,
         trabajadorId: f.trabajadorId,
@@ -58,7 +59,8 @@ export async function listarPrestamos(aprId: string): Promise<PrestamoFila[]> {
         estado: f.estado as EstadoPrestamo,
         nota: f.nota,
         descontado,
-        cuotasDescontadas: h?.n ?? 0,
+        cuotasDescontadas: descuentos.length,
+        descuentos,
         saldo: Math.max(0, f.monto - descontado),
         costoEnCaja: f.movimientoId !== null,
       };
