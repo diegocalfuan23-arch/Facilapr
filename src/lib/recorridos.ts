@@ -871,20 +871,20 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
     id: "vacaciones",
     capacidad: "personal",
     ruta: "/panel/vacaciones",
-    titulo: "Vacaciones y permisos",
+    titulo: "Vacaciones, permisos y licencias",
     resumen: "Solicitar, aprobar y ver cuántos días le quedan a cada persona.",
     minutos: 1,
     pasos: [
       {
         selector: enMenu("aus-kpis"),
-        titulo: "Quién está de vacaciones",
-        texto: "Quiénes están de vacaciones hoy, cuántos días se han tomado este año y cuántas solicitudes esperan tu respuesta.",
+        titulo: "Quién está fuera",
+        texto: "Quiénes están fuera hoy (de vacaciones, con permiso o con licencia), cuántos días de vacaciones se han tomado este año y cuántas solicitudes esperan tu respuesta.",
         lado: "bottom",
       },
       {
         selector: enMenu("aus-nueva"),
-        titulo: "Registrar vacaciones o un permiso",
-        texto: "Eliges a la persona y las fechas. Queda como solicitada hasta que la apruebes o la rechaces.",
+        titulo: "Registrar una ausencia",
+        texto: "Eliges a la persona, el tipo (vacaciones, permiso o licencia médica) y las fechas. Si dejas «Dejar aprobada» desmarcado, queda como solicitada hasta que la apruebes o la rechaces. Una licencia lleva su folio y su archivo.",
         lado: "bottom",
       },
       {
@@ -897,32 +897,6 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
         titulo: "El saldo de cada persona",
         texto: "Se suman 15 días hábiles por cada año cumplido y se restan los ya tomados. Quien aún no cumple su primer año no tiene días.",
         lado: "left",
-      },
-    ],
-  },
-  {
-    id: "licencias",
-    capacidad: "personal",
-    ruta: "/panel/licencias",
-    titulo: "Licencias médicas",
-    resumen: "Registrar las licencias del personal, con su folio y sus fechas.",
-    minutos: 1,
-    pasos: [
-      {
-        selector: enMenu("aus-kpis"),
-        titulo: "Quién está con licencia",
-        texto: "Quiénes tienen licencia hoy, cuántos días de licencia van este año y cuántas esperan tu respuesta.",
-        lado: "bottom",
-      },
-      {
-        selector: enMenu("aus-nueva"),
-        titulo: "Registrar una licencia",
-        texto: "Eliges a la persona, anotas el folio y las fechas. Se aprueba igual que unas vacaciones.",
-        lado: "bottom",
-      },
-      {
-        titulo: "Efecto en asistencia",
-        texto: "Una licencia aprobada marca esos días solos en Asistencia, para que no cuenten como ausencia.",
       },
     ],
   },

@@ -30,15 +30,12 @@ const ESTADOS: { valor: EstadoAusencia; texto: string }[] = [
 /** Registrar unas vacaciones, un permiso o una licencia médica. Los días se calculan solos. */
 export function AusenciaDialog({
   ausencia,
-  tipo,
   personas,
   saldos,
   ajenas = [],
   onCerrar,
 }: {
   ausencia: AusenciaFila | null;
-  /** Lo que se registra: vacaciones o licencia (los permisos se eligen dentro de Vacaciones). */
-  tipo: "VACACIONES" | "LICENCIA";
   personas: { id: string; nombre: string }[];
   /** Solo en vacaciones: lo que le queda a cada persona. */
   saldos?: SaldoVacaciones[];
@@ -52,8 +49,8 @@ export function AusenciaDialog({
   const editando = ausencia !== null;
   const hoy = hoyEnChile();
 
-  const clasesOfrecidas: ClaseAusencia[] = tipo === "LICENCIA" ? ["LICENCIA"] : ["VACACIONES", "CON_GOCE", "SIN_GOCE"];
-  const [clase, setClase] = useState<ClaseAusencia>(ausencia ? claseDe(ausencia) : clasesOfrecidas[0]);
+  const clasesOfrecidas: ClaseAusencia[] = ["VACACIONES", "CON_GOCE", "SIN_GOCE", "LICENCIA"];
+  const [clase, setClase] = useState<ClaseAusencia>(ausencia ? claseDe(ausencia) : "VACACIONES");
   const [personaId, setPersonaId] = useState(ausencia?.trabajadorId ?? personas[0]?.id ?? "");
   const [desde, setDesde] = useState(ausencia?.desde ?? hoy);
   const [hasta, setHasta] = useState(ausencia?.hasta ?? hoy);
@@ -129,8 +126,8 @@ export function AusenciaDialog({
 
           <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
             <div className="min-w-0 flex-1">
-              <DialogTitle className="text-lg font-semibold">{editando ? "Editar ausencia" : tipo === "LICENCIA" ? "Registrar licencia" : "Registrar ausencia"}</DialogTitle>
-              <p className={`mt-0.5 text-[13px] ${GRIS}`}>{tipo === "LICENCIA" ? "Licencia médica del personal." : "Vacaciones, permisos o licencias del personal."}</p>
+              <DialogTitle className="text-lg font-semibold">{editando ? "Editar ausencia" : "Registrar ausencia"}</DialogTitle>
+              <p className={`mt-0.5 text-[13px] ${GRIS}`}>Vacaciones, permisos o licencias del personal.</p>
             </div>
             <DialogClose aria-label="Cerrar" className="flex size-9 items-center justify-center rounded-lg text-[#5B5970] hover:bg-[#F4F3F9]">
               <X className="size-[18px]" />

@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowRight, CalendarCheck, Check, Clock3, Download, HeartPulse, Palmtree, Paperclip, Plus, Printer, Search, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarCheck, Check, Clock3, Download, Palmtree, Paperclip, Plus, Printer, Search, type LucideIcon } from "lucide-react";
 import { adjuntarLicencia, cambiarEstadoAusencia } from "@/app/panel/ausencias/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -65,26 +65,23 @@ function lineaSaldo(p: SaldoVacaciones, pedidos: number) {
 }
 
 /**
- * Vacaciones (con permisos) o licencias médicas del personal. En vacaciones se ve además el saldo de
- * cada persona: lo que ganó desde su ingreso menos lo que ya tomó.
+ * Las ausencias del personal en un solo tablero: vacaciones, permisos (con y sin goce) y licencias médicas, con el saldo de
+ * vacaciones de cada persona. Cada tipo conserva sus reglas (días hábiles o corridos, saldo, archivo de la licencia).
  */
 export function AusenciasVista({
-  tipo,
   ausencias,
-  ajenas = [],
   personas,
   saldos,
+  filtroInicial = "todos",
 }: {
-  tipo: "VACACIONES" | "LICENCIA";
   ausencias: AusenciaFila[];
-  /** Las ausencias del otro módulo (licencias en Vacaciones y al revés): solo sirven para avisar de cruces. */
-  ajenas?: AusenciaFila[];
   personas: { id: string; nombre: string }[];
-  /** Solo en vacaciones. */
   saldos?: SaldoVacaciones[];
+  /** Con qué tipo parte filtrado el tablero (las licencias llegan desde el enlace antiguo). */
+  filtroInicial?: "todos" | ClaseAusencia;
 }) {
   const [busqueda, setBusqueda] = useState("");
-  const [fTipo, setFTipo] = useState<"todos" | ClaseAusencia>("todos");
+  const [fTipo, setFTipo] = useState<"todos" | ClaseAusencia>(filtroInicial);
   const [fPersona, setFPersona] = useState("todos");
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<AusenciaFila | null>(null);
@@ -106,7 +103,7 @@ export function AusenciasVista({
   const cerrarMotivo = useCallback(() => setRechazando(null), []);
 
   const estadoDe = (a: AusenciaFila) => movidas[a.id] ?? a.estado;
-  const todasConEstado = [...ausencias, ...ajenas].map((a) => ({ ...a, estado: estadoDe(a) }));
+  const todasConEstado = ausencias.map((a) => ({ ...a, estado: estadoDe(a) }));
 
   function aplicar(a: AusenciaFila, destino: EstadoAusencia, motivo?: string) {
     const origen = estadoDe(a);
@@ -153,10 +150,9 @@ export function AusenciasVista({
 
   const hoy = hoyEnChile();
   const anio = hoy.slice(0, 4);
-  const esLicencia = tipo === "LICENCIA";
   const vigentes = ausencias.filter((a) => estadoDe(a) === "APROBADA" && a.desde <= hoy && a.hasta >= hoy);
   const solicitadas = ausencias.filter((a) => estadoDe(a) === "SOLICITADA").length;
-  const diasAnio = ausencias.filter((a) => estadoDe(a) === "APROBADA" && a.desde.startsWith(anio) && (esLicencia || a.tipo === "VACACIONES")).reduce((s, a) => s + a.dias, 0);
+  const diasAnio = ausencias.filter((a) => estadoDe(a) === "APROBADA" && a.desde.startsWith(anio) && a.tipo === "VACACIONES").reduce((s, a) => s + a.dias, 0);
 
   const q = busqueda.trim().toLowerCase();
   const filtradas = ausencias.filter(
@@ -166,23 +162,23 @@ export function AusenciasVista({
       (!q || a.trabajador.toLowerCase().includes(q) || (a.detalle ?? "").toLowerCase().includes(q) || (a.nota ?? "").toLowerCase().includes(q) || (a.motivoRechazo ?? "").toLowerCase().includes(q))
   );
 
-  const conSaldos = !esLicencia && saldos && saldos.length > 0;
+  const conSaldos = saldos && saldos.length > 0;
   const saldoDe = (id: string) => saldos?.find((s) => s.id === id)?.saldo ?? null;
   const pedidos = (id: string) => ausencias.filter((a) => a.trabajadorId === id && estadoDe(a) === "SOLICITADA" && a.tipo === "VACACIONES").reduce((s, a) => s + a.dias, 0);
-  const clasesFiltro: ClaseAusencia[] = esLicencia ? [] : ["VACACIONES", "CON_GOCE", "SIN_GOCE"];
+  const clasesFiltro: ClaseAusencia[] = ["VACACIONES", "CON_GOCE", "SIN_GOCE", "LICENCIA"];
 
   function exportar() {
     const celda = (t: string | number) => `"${String(t).replace(/"/g, '""')}"`;
     const estados = { SOLICITADA: "Solicitada", APROBADA: "Aprobada", RECHAZADA: "Rechazada" } as const;
     const filas: (string | number)[][] = [
-      ["Persona", "Tipo", "Desde", "Hasta", esLicencia ? "Días corridos" : "Días hábiles", "Horas", "Estado", "Detalle", "Nota", "Motivo del rechazo"],
+      ["Persona", "Tipo", "Desde", "Hasta", "Días (hábiles; corridos en licencias)", "Horas", "Estado", "Detalle", "Nota", "Motivo del rechazo"],
       ...filtradas.map((a) => [a.trabajador, CLASES[claseDe(a)].texto, a.desde.split("-").reverse().join("-"), a.hasta.split("-").reverse().join("-"), a.horas != null ? "" : a.dias, a.horas ?? "", estados[estadoDe(a)], a.detalle ?? "", a.nota ?? "", a.motivoRechazo ?? ""]),
     ];
     const csv = "﻿" + filas.map((f) => f.map(celda).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
     const enlace = document.createElement("a");
     enlace.href = url;
-    enlace.download = `${esLicencia ? "licencias" : "vacaciones-y-permisos"}-${hoy}.csv`;
+    enlace.download = `ausencias-${hoy}.csv`;
     enlace.click();
     URL.revokeObjectURL(url);
   }
@@ -190,19 +186,19 @@ export function AusenciasVista({
   const kpis: { clave: string; titulo: string; corto: string; valor: string; detalle: string; icono: LucideIcon; color: string }[] = [
     {
       clave: "hoy",
-      titulo: esLicencia ? "Con licencia hoy" : "De vacaciones hoy",
+      titulo: "Fuera hoy",
       corto: "Fuera hoy",
       valor: String(vigentes.length),
       detalle: vigentes.length ? [...new Set(vigentes.map((a) => a.trabajador.split(" ")[0]))].join(", ") : "Todos trabajando",
-      icono: esLicencia ? HeartPulse : Palmtree,
+      icono: Palmtree,
       color: "bg-[#E6F6EF] text-[#0A7A52]",
     },
     {
       clave: "anio",
-      titulo: esLicencia ? `Días de licencia en ${anio}` : `Días tomados en ${anio}`,
+      titulo: `Días tomados en ${anio}`,
       corto: `Días en ${anio}`,
       valor: String(diasAnio),
-      detalle: esLicencia ? "días corridos" : "días hábiles de vacaciones",
+      detalle: "días hábiles de vacaciones",
       icono: CalendarCheck,
       color: "bg-[#ECE8FD] text-[#3A0CE3]",
     },
@@ -213,13 +209,13 @@ export function AusenciasVista({
     <div className="mx-auto w-full max-w-[1376px]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-[26px] leading-tight font-semibold tracking-tight sm:text-[28px]">{esLicencia ? "Licencias" : "Vacaciones"}</h1>
-          <p className={`mt-0.5 text-[15px] ${GRIS}`}>{esLicencia ? "Las licencias médicas del personal, con su folio y sus fechas." : "Las vacaciones y permisos del personal, y cuántos días le quedan a cada uno."}</p>
+          <h1 className="text-[26px] leading-tight font-semibold tracking-tight sm:text-[28px]">Vacaciones</h1>
+          <p className={`mt-0.5 text-[15px] ${GRIS}`}>Las vacaciones, permisos y licencias del personal, y cuántos días le quedan a cada uno.</p>
         </div>
         {personas.length > 0 ? (
           <Button data-tour="aus-nueva" onClick={() => setCreando(true)} className="h-10 shrink-0 rounded-lg px-4 font-semibold">
             <Plus />
-            {esLicencia ? "Nueva licencia" : "Vacaciones o permiso"}
+            Vacaciones o permiso
           </Button>
         ) : null}
       </div>
@@ -363,7 +359,7 @@ export function AusenciasVista({
                               ) : null}
                               <span className="ml-auto text-right">
                                 <span className="block text-[17px] leading-none font-semibold tabular-nums">{porHoras ? numero(a.horas as number) : a.dias}</span>
-                                <span className={`text-[10px] ${GRIS}`}>{porHoras ? ((a.horas as number) === 1 ? "hora" : "horas") : esLicencia ? `día${a.dias === 1 ? "" : "s"} corrido${a.dias === 1 ? "" : "s"}` : `día${a.dias === 1 ? "" : "s"} hábil${a.dias === 1 ? "" : "es"}`}</span>
+                                <span className={`text-[10px] ${GRIS}`}>{porHoras ? ((a.horas as number) === 1 ? "hora" : "horas") : a.tipo === "LICENCIA" ? `día${a.dias === 1 ? "" : "s"} corrido${a.dias === 1 ? "" : "s"}` : `día${a.dias === 1 ? "" : "s"} hábil${a.dias === 1 ? "" : "es"}`}</span>
                               </span>
                             </div>
                             <div className="px-3.5 pt-2 pb-3.5">
@@ -525,7 +521,7 @@ export function AusenciasVista({
         </div>
       )}
 
-      {(creando || editando) && <AusenciaDialog key={editando?.id ?? "nueva"} ausencia={editando} tipo={tipo} personas={personas} saldos={saldos} ajenas={todasConEstado} onCerrar={cerrar} />}
+      {(creando || editando) && <AusenciaDialog key={editando?.id ?? "nueva"} ausencia={editando} personas={personas} saldos={saldos} ajenas={todasConEstado} onCerrar={cerrar} />}
       {rechazando && <MotivoRechazoDialog key={rechazando.a.id} ausencia={rechazando.a} anular={rechazando.anular} onCerrar={cerrarMotivo} onConfirmar={(motivo) => aplicar(rechazando.a, "RECHAZADA", motivo)} />}
     </div>
   );

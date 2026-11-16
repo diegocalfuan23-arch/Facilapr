@@ -11,21 +11,19 @@ export const metadata: Metadata = {
   title: "Vacaciones",
 };
 
-export default async function VacacionesPage() {
+export default async function VacacionesPage({ searchParams }: { searchParams: Promise<{ tipo?: string }> }) {
   const { apr } = await requireAdmin();
 
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "personal")) redirect("/panel");
 
-  const [personas, todas, tomadas, detalle] = await Promise.all([
+  const { tipo } = await searchParams;
+  const [personas, ausencias, tomadas, detalle] = await Promise.all([
     listarTrabajadores(apr.id),
     listarAusencias(apr.id, ["VACACIONES", "PERMISO", "LICENCIA"]),
     vacacionesTomadas(apr.id),
     vacacionesTomadasDetalle(apr.id),
   ]);
-  // El tablero muestra vacaciones y permisos; las licencias solo sirven para avisar cuando una solicitud se cruza con alguien que no estará.
-  const ausencias = todas.filter((a) => a.tipo !== "LICENCIA");
-  const ajenas = todas.filter((a) => a.tipo === "LICENCIA");
   const activas = personas.filter((p) => p.activo);
   const hoy = hoyEnChile();
   const saldos = activas.map((p) => {
@@ -43,5 +41,5 @@ export default async function VacacionesPage() {
     };
   });
 
-  return <AusenciasVista tipo="VACACIONES" ausencias={ausencias} ajenas={ajenas} personas={activas.map((p) => ({ id: p.id, nombre: p.nombre }))} saldos={saldos} />;
+  return <AusenciasVista ausencias={ausencias} personas={activas.map((p) => ({ id: p.id, nombre: p.nombre }))} saldos={saldos} filtroInicial={tipo === "LICENCIA" ? "LICENCIA" : "todos"} />;
 }

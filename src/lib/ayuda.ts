@@ -1199,8 +1199,8 @@ export const ARTICULOS: Articulo[] = [
     minutos: 4,
     pasos: [
       {
-        titulo: "Abre Vacaciones o Licencias",
-        texto: "En RR.HH. hay una pantalla para Vacaciones y otra para Licencias. Cada una es un tablero con tres columnas: Solicitadas, Aprobadas y Rechazadas.",
+        titulo: "Abre Vacaciones",
+        texto: "En RR.HH. está la pantalla Vacaciones: un solo tablero con las vacaciones, los permisos y las licencias médicas, en tres columnas: Solicitadas, Aprobadas y Rechazadas. Con el filtro de arriba ves solo un tipo.",
       },
       {
         titulo: "Mira el saldo",
@@ -1208,11 +1208,11 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Registra una solicitud",
-        texto: "Pulsa «+ Nuevas vacaciones o permiso» (o «+ Nueva licencia» en Licencias), elige a la persona y las fechas. Los días se cuentan solos, de lunes a viernes y sin los feriados nacionales (el sistema los conoce de 2026 y 2027; los feriados regionales no).",
+        texto: "Pulsa «+ Vacaciones o permiso», elige a la persona, el tipo (vacaciones, permiso con goce, permiso sin goce o licencia médica) y las fechas. Los días se cuentan solos, de lunes a viernes y sin los feriados nacionales (el sistema los conoce de 2026 y 2027; los feriados regionales no).",
       },
       {
         titulo: "Apruébala o recházala",
-        texto: "Arrastra la tarjeta a Aprobadas o Rechazadas (en el celular, usa el botón de la tarjeta). Solo lo aprobado cuenta en el saldo y en Asistencia.",
+        texto: "Arrastra la tarjeta a Aprobadas o Rechazadas (en el celular, usa el botón de la tarjeta). Al rechazar o anular te pide el motivo, que queda en la tarjeta. Solo lo aprobado cuenta en el saldo y en Asistencia, y de lo aprobado puedes imprimir el comprobante para que lo firme la persona.",
       },
       {
         titulo: "Permisos por horas",
@@ -1221,7 +1221,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Permisos y licencias",
-        texto: "Un permiso puede marcarse «sin goce de sueldo»: esos días se descuentan en la liquidación. Los días de licencia médica tampoco los paga el comité.",
+        texto: "Un permiso puede marcarse «sin goce de sueldo»: esos días se descuentan en la liquidación. Los días de licencia médica tampoco los paga el comité, se cuentan corridos y no gastan días de vacaciones; la licencia puede llevar su archivo adjunto (PDF o foto).",
         nota: "Las vacaciones aprobadas se pagan completas: no descuentan nada del sueldo.",
       },
     ],
