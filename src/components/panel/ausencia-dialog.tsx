@@ -1,9 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AlertTriangle, Loader2, Paperclip, X } from "lucide-react";
-import { eliminarAusencia, guardarAusencia, type ResultadoAusencias } from "@/app/panel/ausencias/actions";
+import { guardarAusencia, type ResultadoAusencias } from "@/app/panel/ausencias/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ export function AusenciaDialog({
   saldos,
   ajenas = [],
   onCerrar,
+  onBorrar,
 }: {
   ausencia: AusenciaFila | null;
   personas: { id: string; nombre: string }[];
@@ -42,10 +43,11 @@ export function AusenciaDialog({
   /** Las demás ausencias del comité (con su estado actual): sirven para avisar si estas fechas se cruzan con las de otra persona. */
   ajenas?: AusenciaFila[];
   onCerrar: () => void;
+  /** Borra el registro: la pantalla lo quita al instante y avisa si el servidor falla. */
+  onBorrar: (ausencia: AusenciaFila) => void;
 }) {
   const { confirmar, dialogo } = useConfirmar();
   const [estado, enviar, pendiente] = useActionState<ResultadoAusencias | null, FormData>(guardarAusencia, null);
-  const [borrando, iniciarBorrado] = useTransition();
   const editando = ausencia !== null;
   const hoy = hoyEnChile();
 
@@ -98,15 +100,8 @@ export function AusenciaDialog({
   async function borrar() {
     if (!ausencia) return;
     if (!(await confirmar({ titulo: "¿Borrar este registro?", descripcion: "No se puede deshacer.", boton: "Borrar" }))) return;
-    iniciarBorrado(async () => {
-      const r = await eliminarAusencia(ausencia.id);
-      if (r.ok) {
-        toast.success("Registro borrado");
-        onCerrar();
-      } else {
-        toast.error(r.error);
-      }
-    });
+    // Confirmado: el registro desaparece del tablero al instante (la pantalla cierra este diálogo).
+    onBorrar(ausencia);
   }
 
   const valido = Boolean(personaId) && rangoOk && !propia && (modoHoras ? Number(horas.replace(",", ".")) > 0 : dias > 0);
@@ -307,14 +302,13 @@ export function AusenciaDialog({
 
           <div className="flex items-center gap-2 border-t border-[#F0EEF6] bg-[#FAFAFD] px-6 py-3.5">
             {editando ? (
-              <Button type="button" variant="ghost" onClick={borrar} disabled={borrando || pendiente} className="h-11 rounded-xl px-3 font-semibold text-[#A32020] hover:text-[#A32020]">
-                {borrando && <Loader2 className="animate-spin" />}
+              <Button type="button" variant="ghost" onClick={borrar} disabled={pendiente} className="h-11 rounded-xl px-3 font-semibold text-[#A32020] hover:text-[#A32020]">
                 Borrar
               </Button>
             ) : null}
             <span className="flex-1" />
             <DialogClose render={<Button type="button" variant="outline" className="h-11 rounded-xl border-[#E4E1F0] bg-white font-semibold" />}>Cancelar</DialogClose>
-            <Button type="submit" disabled={pendiente || borrando || !valido} className="h-11 rounded-xl px-5 font-semibold">
+            <Button type="submit" disabled={pendiente || !valido} className="h-11 rounded-xl px-5 font-semibold">
               {pendiente && <Loader2 className="animate-spin" />}
               {editando ? "Guardar cambios" : "Registrar"}
             </Button>

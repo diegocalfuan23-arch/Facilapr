@@ -82,8 +82,7 @@ async function mensajeDeChoque(aprId: string, trabajadorId: string, desde: strin
 }
 
 function refrescar() {
-  revalidatePath("/panel/vacaciones");
-  revalidatePath("/panel/licencias");
+  // Vacaciones se actualiza sola con TanStack Query: recargarla desde el servidor la haría parpadear. Asistencia sí depende de esto.
   revalidatePath("/panel/asistencia");
 }
 

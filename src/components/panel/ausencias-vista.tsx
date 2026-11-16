@@ -2,8 +2,12 @@
 
 import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowRight, CalendarCheck, Check, Clock3, Download, Palmtree, Paperclip, Plus, Printer, Search, type LucideIcon } from "lucide-react";
-import { adjuntarLicencia, cambiarEstadoAusencia } from "@/app/panel/ausencias/actions";
+import { adjuntarLicencia, cambiarEstadoAusencia, eliminarAusencia } from "@/app/panel/ausencias/actions";
+import { consultarAusencias } from "@/app/panel/ausencias/consulta-actions";
+import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
+import type { DatosAusencias } from "@/lib/ausencias-datos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,18 +72,11 @@ function lineaSaldo(p: SaldoVacaciones, pedidos: number) {
  * Las ausencias del personal en un solo tablero: vacaciones, permisos (con y sin goce) y licencias médicas, con el saldo de
  * vacaciones de cada persona. Cada tipo conserva sus reglas (días hábiles o corridos, saldo, archivo de la licencia).
  */
-export function AusenciasVista({
-  ausencias,
-  personas,
-  saldos,
-  filtroInicial = "todos",
-}: {
-  ausencias: AusenciaFila[];
-  personas: { id: string; nombre: string }[];
-  saldos?: SaldoVacaciones[];
-  /** Con qué tipo parte filtrado el tablero (las licencias llegan desde el enlace antiguo). */
-  filtroInicial?: "todos" | ClaseAusencia;
-}) {
+export function AusenciasVista({ datos, filtroInicial = "todos" }: { datos: DatosAusencias; filtroInicial?: "todos" | ClaseAusencia }) {
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se mantiene al día: cada 10 segundos, al volver a la pestaña y tras cada cambio.
+  const { data } = useQuery({ queryKey: ["ausencias"], queryFn: () => consultarAusencias(), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
+  const { ausencias, personas, saldos } = data;
   const [busqueda, setBusqueda] = useState("");
   const [fTipo, setFTipo] = useState<"todos" | ClaseAusencia>(filtroInicial);
   const [fPersona, setFPersona] = useState("todos");
@@ -94,12 +91,35 @@ export function AusenciasVista({
   const [, iniciar] = useTransition();
   const archivoRef = useRef<HTMLInputElement>(null);
   const [adjuntandoA, setAdjuntandoA] = useState<string | null>(null);
+  const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["ausencias"] }), [cliente]);
   const cerrar = useCallback(() => {
     setCreando(false);
     setEditando(null);
     // Lo que se editó en el diálogo manda sobre lo que se movió antes en el tablero.
     setMovidas({});
-  }, []);
+    // Se guardó o se corrigió algo: el tablero y los saldos se vuelven a pedir enseguida.
+    volverAPedir();
+  }, [volverAPedir]);
+
+  /** Borra un registro: desaparece del tablero al instante y, si el servidor falla, vuelve. */
+  const borrar = useCallback(
+    (a: AusenciaFila) => {
+      setCreando(false);
+      setEditando(null);
+      const antes = cliente.getQueryData<DatosAusencias>(["ausencias"]);
+      cliente.setQueryData<DatosAusencias>(["ausencias"], (d) => (d ? { ...d, ausencias: d.ausencias.filter((x) => x.id !== a.id) } : d));
+      void eliminarAusencia(a.id).then((r) => {
+        if (r.ok) {
+          toast.success("Registro borrado");
+        } else {
+          toast.error(r.error);
+          if (antes) cliente.setQueryData(["ausencias"], antes);
+        }
+        volverAPedir();
+      });
+    },
+    [cliente, volverAPedir]
+  );
   const cerrarMotivo = useCallback(() => setRechazando(null), []);
 
   const estadoDe = (a: AusenciaFila) => movidas[a.id] ?? a.estado;
@@ -113,6 +133,17 @@ export function AusenciasVista({
       if (!r.ok) {
         toast.error(r.error);
         setMovidas((m) => ({ ...m, [a.id]: origen }));
+      } else {
+        // El tablero ya tiene el estado nuevo: se actualiza la caché y se suelta el cambio provisional.
+        cliente.setQueryData<DatosAusencias>(["ausencias"], (d) =>
+          d ? { ...d, ausencias: d.ausencias.map((x) => (x.id === a.id ? { ...x, estado: destino, motivoRechazo: destino === "RECHAZADA" ? (motivo ?? "").trim() || null : null } : x)) } : d
+        );
+        setMovidas((m) => {
+          const resto = { ...m };
+          delete resto[a.id];
+          return resto;
+        });
+        volverAPedir();
       }
     });
   }
@@ -143,8 +174,10 @@ export function AusenciasVista({
     datos.set("archivo", archivo);
     iniciar(async () => {
       const r = await adjuntarLicencia(id, datos);
-      if (r.ok) toast.success("Licencia adjuntada");
-      else toast.error(r.error);
+      if (r.ok) {
+        toast.success("Licencia adjuntada");
+        volverAPedir();
+      } else toast.error(r.error);
     });
   }
 
@@ -521,7 +554,7 @@ export function AusenciasVista({
         </div>
       )}
 
-      {(creando || editando) && <AusenciaDialog key={editando?.id ?? "nueva"} ausencia={editando} personas={personas} saldos={saldos} ajenas={todasConEstado} onCerrar={cerrar} />}
+      {(creando || editando) && <AusenciaDialog key={editando?.id ?? "nueva"} ausencia={editando} personas={personas} saldos={saldos} ajenas={todasConEstado} onCerrar={cerrar} onBorrar={borrar} />}
       {rechazando && <MotivoRechazoDialog key={rechazando.a.id} ausencia={rechazando.a} anular={rechazando.anular} onCerrar={cerrarMotivo} onConfirmar={(motivo) => aplicar(rechazando.a, "RECHAZADA", motivo)} />}
     </div>
   );
