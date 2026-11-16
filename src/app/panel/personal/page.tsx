@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
-import { cuentasDelPanel, listarTrabajadores } from "@/lib/personal";
+import { cuentasDelPanel, listarTrabajadores, type ExtrasPersona } from "@/lib/personal";
+import { listarPrestamos } from "@/lib/prestamos";
+import { saldoVacaciones, vacacionesTomadas, vacacionesTomadasDetalle } from "@/lib/rrhh";
+import { hoyEnChile } from "@/lib/finanzas-comun";
 import { PersonalVista } from "@/components/panel/personal-vista";
 
 export const metadata: Metadata = {
@@ -15,16 +18,21 @@ export default async function PersonalPage() {
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "personal")) redirect("/panel");
 
-  const [personas, cuentas] = await Promise.all([listarTrabajadores(apr.id), cuentasDelPanel(apr.id)]);
+  const [personas, cuentas, tomadas, detalle, prestamos] = await Promise.all([
+    listarTrabajadores(apr.id),
+    cuentasDelPanel(apr.id),
+    vacacionesTomadas(apr.id),
+    vacacionesTomadasDetalle(apr.id),
+    listarPrestamos(apr.id),
+  ]);
 
-  return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Personal</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Quienes trabajan para el comité. Desde aquí se arma su remuneración, sus vacaciones y su asistencia.</p>
-      </div>
+  const hoy = hoyEnChile();
+  const extras: Record<string, ExtrasPersona> = {};
+  for (const p of personas) {
+    const s = saldoVacaciones(p.fechaIngreso, tomadas[p.id] ?? 0, hoy, detalle[p.id] ?? []);
+    const anticipo = prestamos.filter((x) => x.trabajadorId === p.id && x.estado === "ACTIVO" && x.saldo > 0).reduce((t, x) => t + x.saldo, 0);
+    extras[p.id] = { vacaciones: s?.saldo ?? null, anticipo };
+  }
 
-      <PersonalVista personas={personas} cuentas={cuentas} puedeTesorero={puede(apr.plan as Plan, "finanzas")} />
-    </div>
-  );
+  return <PersonalVista personas={personas} cuentas={cuentas} puedeTesorero={puede(apr.plan as Plan, "finanzas")} extras={extras} hoy={hoy} />;
 }

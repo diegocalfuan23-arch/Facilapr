@@ -123,3 +123,15 @@ export function valorHoraOrdinaria(j: DatosJornada): number {
 export function valorDeHoraExtra(j: DatosJornada): number {
   return j.valorHoraExtra && j.valorHoraExtra > 0 ? j.valorHoraExtra : Math.round(valorHoraOrdinaria(j) * (1 + RECARGO_HORA_EXTRA));
 }
+
+/** Lo que se ve de cada persona en la pantalla de Personal: su saldo de vacaciones y lo que debe en anticipos y préstamos. */
+export type ExtrasPersona = { vacaciones: number | null; anticipo: number };
+
+/** La liquidación estimada de un sueldo bruto: descuentos legales, colación y líquido. Es la misma cuenta que usa Remuneraciones. */
+export function liquidacionEstimada(
+  persona: Pick<TrabajadorFila, "contrato" | "afpTasa" | "saludTasa" | "cesantia" | "noImponible">,
+  bruto: number
+) {
+  const desc = descuentosLegales(persona, bruto);
+  return { bruto, desc, colacion: persona.noImponible, liquido: bruto - desc.total + persona.noImponible };
+}

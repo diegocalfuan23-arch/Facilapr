@@ -103,6 +103,27 @@ export async function guardarTrabajador(_prev: ResultadoPersonal | null, formDat
   return { ok: true };
 }
 
+/** Da de baja a una persona o la vuelve a activar, sin tocar el resto de su ficha. */
+export async function cambiarActivoTrabajador(id: string, activo: boolean): Promise<ResultadoPersonal> {
+  const { apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: SIN_PLAN };
+
+  try {
+    const [editado] = await db
+      .update(trabajadores)
+      .set({ activo })
+      .where(and(eq(trabajadores.id, id), eq(trabajadores.aprId, apr.id)))
+      .returning({ id: trabajadores.id });
+    if (!editado) return { ok: false, error: "No encontramos a esa persona." };
+  } catch (e) {
+    console.error("Personal: no se pudo cambiar el estado:", e);
+    return { ok: false, error: mensajeError(e, "No pudimos guardar. Inténtalo de nuevo en un momento.") };
+  }
+
+  refrescar();
+  return { ok: true };
+}
+
 /** Borra a una persona sin remuneraciones registradas. Si ya tiene pagos, se desactiva para no perder el historial. */
 export async function eliminarTrabajador(id: string): Promise<ResultadoPersonal> {
   const { apr } = await requireAdmin();
