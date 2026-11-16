@@ -133,3 +133,35 @@ export function descripcionContenido(c: ContenidoRendicion) {
   const texto = partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
+
+/** Lo que se ve en la pantalla a la vez: todo el informe o una sola sección. El PDF y el Excel llevan lo mismo que se ve. */
+export type SeccionRendicion = "todo" | "saldos" | "ingresos" | "egresos" | "compras" | "cobranza" | "inventario" | "patrimonio";
+
+export const SECCIONES_RENDICION: { id: SeccionRendicion; nombre: string }[] = [
+  { id: "todo", nombre: "Todo" },
+  { id: "saldos", nombre: "Saldos" },
+  { id: "ingresos", nombre: "Ingresos" },
+  { id: "egresos", nombre: "Egresos" },
+  { id: "compras", nombre: "Compras" },
+  { id: "cobranza", nombre: "Cobranza" },
+  { id: "inventario", nombre: "Inventario" },
+  { id: "patrimonio", nombre: "Patrimonio y trabajos" },
+];
+
+export function seccionDeParametro(s: string | undefined | null): SeccionRendicion {
+  return SECCIONES_RENDICION.some((x) => x.id === s) ? (s as SeccionRendicion) : "todo";
+}
+
+/** Las partes del PDF y del Excel que corresponden a una sección. «Saldos» lleva el cuadro de caja completo, sin las listas por concepto. */
+export function contenidoDeSeccion(s: SeccionRendicion): ContenidoRendicion {
+  if (s === "todo") return CONTENIDO_TODO;
+  return {
+    ingresos: s === "ingresos",
+    egresos: s === "egresos",
+    compras: s === "compras",
+    inventario: s === "inventario",
+    cobranza: s === "cobranza",
+    saldos: s === "saldos",
+    extras: s === "patrimonio",
+  };
+}

@@ -114,9 +114,9 @@ export async function generarRendicionPdf(comite: ComiteFicha, d: DatosRendicion
   if (contenido.ingresos || contenido.egresos || contenido.saldos) {
     seccion("MOVIMIENTO DE LA CAJA");
     if (contenido.saldos && d.saldoInicio !== null) fila(`Saldo al ${fecha(d.desde)}`, dinero(d.saldoInicio));
-    if (contenido.ingresos) fila("Ingresos del período", dinero(ing));
-    if (contenido.egresos) fila("Egresos del período", dinero(egr));
-    if (contenido.ingresos && contenido.egresos) {
+    if (contenido.ingresos || contenido.saldos) fila("Ingresos del período", dinero(ing));
+    if (contenido.egresos || contenido.saldos) fila("Egresos del período", dinero(egr));
+    if ((contenido.ingresos && contenido.egresos) || contenido.saldos) {
       fila(resultado >= 0 ? "Resultado (entró más de lo que salió)" : "Resultado (salió más de lo que entró)", `${resultado < 0 ? "-" : ""}${dinero(Math.abs(resultado))}`, { negrita: true });
     }
     if (contenido.saldos) {

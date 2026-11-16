@@ -104,3 +104,35 @@ export async function resumenRango(aprId: string, desde: string, hasta: string, 
     totalEgresos: meses.reduce((s, m) => s + m.egresos, 0),
   };
 }
+
+/**
+ * Lo que entró y salió cada día de un rango (AAAA-MM-DD → ingresos y egresos), con las mismas fuentes que el resumen: los
+ * pagos de socios (día en hora de Chile) y los movimientos de Caja (sin el saldo inicial ni los cierres).
+ */
+export async function ingresosEgresosPorDia(aprId: string, desde: string, hasta: string): Promise<Map<string, { ing: number; egr: number }>> {
+  const dia = sql<string>`to_char(${movimientos.fecha}, 'YYYY-MM-DD')`;
+  const deMovimientos = await db
+    .select({ dia, tipo: movimientos.tipo, total: sql<number>`sum(${movimientos.monto})::int` })
+    .from(movimientos)
+    .where(and(eq(movimientos.aprId, aprId), inArray(movimientos.tipo, ["INGRESO", "EGRESO"]), sql`${movimientos.fecha} >= ${desde}`, sql`${movimientos.fecha} < ${hasta}`))
+    .groupBy(dia, movimientos.tipo)
+    .catch(() => []);
+
+  const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+  const deSocios = await db
+    .select({ dia: diaChile, total: sql<number>`sum(${pagos.monto})::int` })
+    .from(pagos)
+    .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+    .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+    .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${desde}`, sql`${diaChile} < ${hasta}`))
+    .groupBy(diaChile);
+
+  const porDia = new Map<string, { ing: number; egr: number }>();
+  const celda = (d: string) => porDia.get(d) ?? porDia.set(d, { ing: 0, egr: 0 }).get(d)!;
+  for (const f of deMovimientos) {
+    if (f.tipo === "INGRESO") celda(f.dia).ing += f.total;
+    else celda(f.dia).egr += f.total;
+  }
+  for (const f of deSocios) celda(f.dia).ing += f.total;
+  return porDia;
+}

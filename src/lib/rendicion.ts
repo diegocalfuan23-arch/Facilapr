@@ -1,9 +1,9 @@
 import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, compras, comprasItems, incidentes, insumos, labores, movimientos, movimientosStock, proveedores, socios } from "@/lib/db/schema";
-import { resumenRango, type ResumenAnual } from "@/lib/reportes";
+import { ingresosEgresosPorDia, resumenRango, type ResumenAnual } from "@/lib/reportes";
 import { bolsillosAl, listarCategoriasMovimiento } from "@/lib/finanzas";
-import { diaVecino, textoCategoria } from "@/lib/finanzas-comun";
+import { diaVecino, nombreMes, textoCategoria } from "@/lib/finanzas-comun";
 import { listarActivos } from "@/lib/activos";
 import { valorActual } from "@/lib/activos-comun";
 import { rangoDe, type PeriodoRendicion } from "@/lib/rendicion-periodo";
@@ -41,6 +41,9 @@ export type InventarioRendido = {
   stockBajo: { nombre: string; unidad: string; stock: number; minimo: number }[];
 };
 
+/** Un tramo de una semana de un mes: lo que entró y salió. Null si ese tramo aún no empieza. */
+export type SemanaRendida = { etiqueta: string; detalle: string; ingresos: number | null; egresos: number | null };
+
 export type DatosRendicion = {
   periodo: PeriodoRendicion;
   /** «2.º trimestre 2026», «Año 2026», «Marzo 2026». */
@@ -52,6 +55,8 @@ export type DatosRendicion = {
   /** El período aún no termina: se rinde hasta hoy. */
   enCurso: boolean;
   resumen: Omit<ResumenAnual, "anio">;
+  /** Solo cuando el período es un mes: el mes en cuatro tramos (1-7, 8-14, 15-21 y el resto). */
+  semanas: SemanaRendida[] | null;
   /** Cuánta plata había al empezar y al terminar el período (efectivo + banco). Null si el comité no registró su saldo inicial. */
   saldoInicio: number | null;
   saldoCierre: number | null;
@@ -138,6 +143,33 @@ async function comprasDelPeriodo(aprId: string, desde: string, tope: string): Pr
   };
 }
 
+/** El mes partido en cuatro tramos de días, cada uno con lo que entró y salió; los que aún no empiezan quedan sin datos. */
+async function semanasDelMes(aprId: string, desde: string, tope: string, hoy: string): Promise<SemanaRendida[]> {
+  const porDia = await ingresosEgresosPorDia(aprId, desde, tope).catch(() => new Map<string, { ing: number; egr: number }>());
+  const prefijo = desde.slice(0, 8);
+  const dias = Number(diaVecino(tope, -1).slice(8, 10));
+  const mes = nombreMes(desde.slice(0, 7)).split(" ")[0];
+  const tramos: [number, number][] = [
+    [1, 7],
+    [8, 14],
+    [15, 21],
+    [22, dias],
+  ];
+  return tramos.map(([a, z]) => {
+    const futuro = `${prefijo}${String(a).padStart(2, "0")}` > hoy;
+    let ingresos = 0;
+    let egresos = 0;
+    for (let dia = a; dia <= z; dia++) {
+      const f = porDia.get(`${prefijo}${String(dia).padStart(2, "0")}`);
+      if (f) {
+        ingresos += f.ing;
+        egresos += f.egr;
+      }
+    }
+    return { etiqueta: `${a}–${z}`, detalle: `${a} al ${z} de ${mes}`, ingresos: futuro ? null : ingresos, egresos: futuro ? null : egresos };
+  });
+}
+
 /** Lo que entró y salió de la bodega en el período, según el historial de movimientos de stock, y lo que hoy está bajo. */
 async function inventarioDelPeriodo(aprId: string, desde: string, topeDatos: string): Promise<InventarioRendido> {
   const diaChile = sql<string>`to_char((${movimientosStock.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
@@ -196,13 +228,14 @@ export async function datosRendicion(
   // Las movimientos y las compras se cuentan hasta el fin del período (o de hoy): lo posterior no existe aún.
   const topeDatos = enCurso ? finExclusivo : tope;
 
-  const [resumen, propias, inicio, cierre, comprasRendidas, inventarioRendido] = await Promise.all([
+  const [resumen, propias, inicio, cierre, comprasRendidas, inventarioRendido, semanas] = await Promise.all([
     resumenRango(aprId, desde, tope, meses),
     listarCategoriasMovimiento(aprId),
     bolsillosAl(aprId, desde).catch(() => null),
     bolsillosAl(aprId, finExclusivo).catch(() => null),
     comprasDelPeriodo(aprId, desde, topeDatos),
     opciones.inventario ? inventarioDelPeriodo(aprId, desde, topeDatos) : Promise.resolve(null),
+    periodo.tipo === "mes" ? semanasDelMes(aprId, desde, tope, hoy) : Promise.resolve(null),
   ]);
 
   const grandes = await db
@@ -277,6 +310,7 @@ export async function datosRendicion(
     hasta,
     enCurso,
     resumen,
+    semanas,
     saldoInicio: inicio ? inicio.efectivo + inicio.banco : null,
     saldoCierre: cierre ? cierre.efectivo + cierre.banco : null,
     ingresos: resumen.ingresos.map((c) => ({ nombre: textoCategoria(c.categoria, propias), monto: c.total })),
