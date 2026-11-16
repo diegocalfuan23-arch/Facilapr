@@ -895,7 +895,7 @@ export const RECORRIDOS_NUEVOS: Recorrido[] = [
       {
         selector: enMenu("aus-saldo"),
         titulo: "El saldo de cada persona",
-        texto: "Se suman 1,25 días hábiles por mes trabajado, 15 al año, y se restan los ya tomados.",
+        texto: "Se suman 15 días hábiles por cada año cumplido y se restan los ya tomados. Quien aún no cumple su primer año no tiene días.",
         lado: "left",
       },
     ],

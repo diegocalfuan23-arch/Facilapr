@@ -14,4 +14,12 @@ export const CLASES: Record<ClaseAusencia, { texto: string; color: string; suave
 /** La clase de un registro: un permiso es con o sin goce según se guardó. */
 export const claseDe = (a: Pick<AusenciaFila, "tipo" | "sinGoce">): ClaseAusencia => (a.tipo === "PERMISO" ? (a.sinGoce ? "SIN_GOCE" : "CON_GOCE") : a.tipo);
 
-export type SaldoVacaciones = { id: string; nombre: string; ganados: number | null; tomados: number; saldo: number | null };
+export type SaldoVacaciones = {
+  id: string;
+  nombre: string;
+  ganados: number | null;
+  tomados: number;
+  saldo: number | null;
+  /** AAAA-MM-DD: desde cuándo podrá tomar vacaciones, si aún no cumple su primer año. */
+  desde: string | null;
+};

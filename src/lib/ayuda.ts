@@ -1204,7 +1204,7 @@ export const ARTICULOS: Articulo[] = [
       },
       {
         titulo: "Mira el saldo",
-        texto: "En Vacaciones, arriba ves el saldo de cada persona: se acumulan 1,25 días hábiles por mes trabajado, menos los días ya tomados.",
+        texto: "En Vacaciones, arriba ves el saldo de cada persona: se suman 15 días hábiles por cada año cumplido de trabajo, menos los días ya tomados. Quien aún no cumple su primer año no tiene días: ahí aparece desde cuándo podrá tomarlas.",
       },
       {
         titulo: "Registra una solicitud",

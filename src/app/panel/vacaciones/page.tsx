@@ -26,7 +26,7 @@ export default async function VacacionesPage() {
   const hoy = hoyEnChile();
   const saldos = activas.map((p) => {
     const s = saldoVacaciones(p.fechaIngreso, tomadas[p.id] ?? 0, hoy);
-    return { id: p.id, nombre: p.nombre, ganados: s?.ganados ?? null, tomados: tomadas[p.id] ?? 0, saldo: s?.saldo ?? null };
+    return { id: p.id, nombre: p.nombre, ganados: s?.ganados ?? null, tomados: tomadas[p.id] ?? 0, saldo: s?.saldo ?? null, desde: s?.primerAniversario ?? null };
   });
 
   return (

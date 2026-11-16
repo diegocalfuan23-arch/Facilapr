@@ -69,7 +69,9 @@ export function AusenciaDialog({
   const estadoFinal: EstadoAusencia = editando ? estadoEditado : aprobada ? "APROBADA" : "SOLICITADA";
 
   // Lo que le queda a la persona: si se edita unas vacaciones ya aprobadas, esos días ya están descontados del saldo.
-  const saldo = saldos?.find((s) => s.id === personaId)?.saldo ?? null;
+  const saldoPersona = saldos?.find((s) => s.id === personaId) ?? null;
+  const saldo = saldoPersona?.saldo ?? null;
+  const primerAnio = saldoPersona !== null && saldoPersona.ganados === 0 && saldoPersona.desde !== null;
   const yaDescontado = ausencia && ausencia.tipo === "VACACIONES" && ausencia.estado === "APROBADA" && ausencia.trabajadorId === personaId ? ausencia.dias : 0;
   const disponibles = saldo === null ? null : saldo + yaDescontado;
   const queda = disponibles === null ? null : disponibles - dias;
@@ -210,7 +212,9 @@ export function AusenciaDialog({
                   </p>
                   {clase === "VACACIONES" && disponibles !== null ? (
                     <p className={`mt-2 border-t border-black/5 pt-2 text-[13px] ${excede ? "font-medium text-[#7A4A00]" : ""}`}>
-                      {queda !== null && queda < 0 ? (
+                      {primerAnio && saldoPersona?.desde ? (
+                        `${nombrePersona || "La persona"} aún no cumple un año en el comité: podrá tomar vacaciones desde el ${saldoPersona.desde.split("-").reverse().join("-")}.`
+                      ) : queda !== null && queda < 0 ? (
                         `Le faltan ${numero(-queda)} días: tiene ${numero(disponibles)} disponibles.`
                       ) : (
                         <>

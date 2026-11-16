@@ -213,20 +213,29 @@ export function diasDe(tipo: TipoAusencia, desde: string, hasta: string): number
   return tipo === "LICENCIA" ? diasCorridos(desde, hasta) : diasHabiles(desde, hasta);
 }
 
-/** Días de vacaciones que se ganan por mes trabajado (15 hábiles al año). */
-export const DIAS_VACACIONES_POR_MES = 1.25;
+/** Días hábiles de vacaciones (feriado anual) que se ganan por cada año cumplido de servicio. */
+export const DIAS_VACACIONES_POR_ANIO = 15;
 
 /**
- * El saldo de vacaciones: lo ganado desde el ingreso (1,25 días por mes cumplido) menos lo tomado.
- * Sin fecha de ingreso no se puede calcular y devuelve null.
+ * El saldo de vacaciones: 15 días hábiles por cada año cumplido desde el ingreso, menos lo tomado. Antes de cumplir el
+ * primer año no hay días: `primerAniversario` dice desde cuándo podrá tomarlas. No considera los días extra por muchos
+ * años de trabajo (vacaciones progresivas). Sin fecha de ingreso no se puede calcular y devuelve null.
  */
 export function saldoVacaciones(fechaIngreso: string | null, tomados: number, hoy: string) {
   if (!fechaIngreso) return null;
   const [ya, ma, da] = fechaIngreso.split("-").map(Number);
   const [yh, mh, dh] = hoy.split("-").map(Number);
   const meses = Math.max(0, (yh - ya) * 12 + (mh - ma) - (dh < da ? 1 : 0));
-  const ganados = Math.round(meses * DIAS_VACACIONES_POR_MES * 100) / 100;
-  return { ganados, tomados, saldo: Math.round((ganados - tomados) * 100) / 100 };
+  const anios = Math.floor(meses / 12);
+  const ganados = anios * DIAS_VACACIONES_POR_ANIO;
+  return {
+    ganados,
+    tomados,
+    saldo: ganados - tomados,
+    anios,
+    /** AAAA-MM-DD del primer aniversario, solo mientras aún no cumple el primer año. */
+    primerAniversario: anios === 0 ? new Date(Date.UTC(ya + 1, ma - 1, da)).toISOString().slice(0, 10) : null,
+  };
 }
 
 // ---------------------------------------------------------------- horario laboral y calendario

@@ -305,11 +305,12 @@ export function AusenciasVista({
           {conSaldos && saldos ? (
             <Card data-tour="aus-saldo" aria-label="Saldo de vacaciones" className={`rounded-2xl border-0 p-5 ${SOMBRA}`}>
               <h2 className="text-[15px] font-semibold">Saldo de vacaciones</h2>
-              <p className={`text-xs ${GRIS}`}>1,25 días hábiles por mes trabajado (15 al año)</p>
+              <p className={`text-xs ${GRIS}`}>15 días hábiles por cada año cumplido</p>
               <ul className="mt-4 flex flex-col divide-y divide-[#F3F1F8]">
                 {saldos.map((p) => {
                   const ped = pedidos(p.id);
-                  const sinDatos = p.saldo === null || (p.ganados ?? 0) === 0;
+                  // Sin días que mostrar: falta su ingreso, o aún no cumple el primer año y no ha tomado nada.
+                  const sinDatos = p.saldo === null || ((p.ganados ?? 0) === 0 && p.tomados === 0);
                   const saldo = p.saldo ?? 0;
                   const total = 15;
                   const r = 18;
@@ -327,7 +328,17 @@ export function AusenciasVista({
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{p.nombre}</span>
                         <span className={`block text-xs ${sinDatos ? GRIS : saldo < 0 ? "text-[#A32020]" : ped ? "text-[#8A4B00]" : GRIS}`}>
-                          {p.saldo === null ? "Falta su fecha de ingreso en Personal." : (p.ganados ?? 0) === 0 ? "Lleva menos de un mes en el comité." : ped ? `${numero(saldo)} días · ${ped} solicitados` : `${numero(saldo)} días disponibles`}
+                          {p.saldo === null
+                            ? "Falta su fecha de ingreso en Personal."
+                            : (p.ganados ?? 0) === 0 && p.tomados === 0
+                              ? p.desde
+                                ? `Podrá tomarlas desde ${p.desde.split("-").reverse().join("-")}`
+                                : "Aún no tiene días"
+                              : (p.ganados ?? 0) === 0
+                                ? `Tomó ${numero(p.tomados)} antes de cumplir el año`
+                                : ped
+                                  ? `${numero(saldo)} días · ${ped} solicitados`
+                                  : `${numero(saldo)} días disponibles`}
                         </span>
                       </span>
                     </li>
