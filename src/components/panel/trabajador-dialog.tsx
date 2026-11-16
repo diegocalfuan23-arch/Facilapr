@@ -254,10 +254,10 @@ export function TrabajadorDialog({
               {paso === 0 ? (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Campo label="Nombre completo" className="sm:col-span-2">
-                    <Input autoFocus value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={120} placeholder="Ej.: Juan Pérez Lagos" className={inputCls} />
+                    <Input autoFocus autoComplete="off" value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={120} placeholder="Ej.: Juan Pérez Lagos" className={inputCls} />
                   </Campo>
                   <Campo label="Cargo">
-                    <Input value={cargo} onChange={(e) => setCargo(e.target.value)} maxLength={60} placeholder="Ej.: Operador" list="per-cargos" className={inputCls} />
+                    <Input autoComplete="off" value={cargo} onChange={(e) => setCargo(e.target.value)} maxLength={60} placeholder="Ej.: Operador" list="per-cargos" className={inputCls} />
                     <datalist id="per-cargos">
                       {CARGOS_SUGERIDOS.map((c) => (
                         <option key={c} value={c} />
@@ -265,13 +265,13 @@ export function TrabajadorDialog({
                     </datalist>
                   </Campo>
                   <Campo label="RUT">
-                    <Input value={rut} onChange={(e) => setRut(e.target.value)} maxLength={20} placeholder="12.345.678-9" className={inputCls} />
+                    <Input autoComplete="off" value={rut} onChange={(e) => setRut(e.target.value)} maxLength={20} placeholder="12.345.678-9" className={inputCls} />
                   </Campo>
                   <Campo label="Fecha de ingreso">
                     <Input type="date" value={ingreso} onChange={(e) => setIngreso(e.target.value)} className={inputCls} />
                   </Campo>
                   <Campo label="Teléfono">
-                    <Input value={telefono} onChange={(e) => setTelefono(e.target.value)} maxLength={30} placeholder="+56 9 1234 5678" className={inputCls} />
+                    <Input autoComplete="off" value={telefono} onChange={(e) => setTelefono(e.target.value)} maxLength={30} placeholder="+56 9 1234 5678" className={inputCls} />
                   </Campo>
                   <Campo label="Correo" className="sm:col-span-2" ayuda={!pasoOk[3] ? <span className="text-[#A32020]">El correo no es válido</span> : undefined}>
                     <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} maxLength={120} placeholder="nombre@correo.cl" className={inputCls} />
@@ -426,7 +426,7 @@ export function TrabajadorDialog({
                 <div className="space-y-4">
                   <AccesoAlPanel acceso={acceso} correo={email} puedeTesorero={puedeTesorero} onCorreo={() => setPaso(0)} />
                   <Campo label="Notas">
-                    <Input value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} className={inputCls} />
+                    <Input autoComplete="off" value={notas} onChange={(e) => setNotas(e.target.value)} maxLength={500} className={inputCls} />
                   </Campo>
                 </div>
               )}
