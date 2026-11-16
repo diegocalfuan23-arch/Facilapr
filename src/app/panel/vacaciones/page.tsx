@@ -30,13 +30,6 @@ export default async function VacacionesPage() {
   });
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-[1.35rem] font-semibold tracking-tight">Vacaciones</h1>
-        <p className="mt-0.5 text-[0.9rem] text-muted-foreground">Las vacaciones y permisos del personal, y cuántos días le quedan a cada uno.</p>
-      </div>
-
-      <AusenciasVista tipo="VACACIONES" ausencias={ausencias} personas={activas.map((p) => ({ id: p.id, nombre: p.nombre }))} saldos={saldos} />
-    </div>
+    <AusenciasVista tipo="VACACIONES" ausencias={ausencias} personas={activas.map((p) => ({ id: p.id, nombre: p.nombre }))} saldos={saldos} />
   );
 }
