@@ -80,6 +80,11 @@ export function AusenciaDialog({
   const nombrePersona = personas.find((p) => p.id === personaId)?.nombre.split(" ")[0] ?? "";
   const choques = rangoOk && personaId ? cruces({ id: ausencia?.id ?? "_", trabajadorId: personaId, desde, hasta: modoHoras ? desde : hasta }, ajenas) : [];
   const quedarian = personas.length - 1 - new Set(choques.map((c) => c.trabajadorId)).size;
+  // La misma persona no puede tener dos ausencias que se pisen (dos permisos por horas sí). Una rechazada no cuenta.
+  const propia =
+    rangoOk && personaId && estadoFinal !== "RECHAZADA"
+      ? ajenas.find((o) => o.id !== ausencia?.id && o.trabajadorId === personaId && o.estado !== "RECHAZADA" && o.desde <= (modoHoras ? desde : hasta) && o.hasta >= desde && !(modoHoras && o.horas != null))
+      : undefined;
   const rangoCorto = (c: AusenciaFila) => (c.desde === c.hasta ? c.desde.split("-").reverse().slice(0, 2).join("-") : `${c.desde.split("-").reverse().slice(0, 2).join("-")} al ${c.hasta.split("-").reverse().slice(0, 2).join("-")}`);
   const feriados = Object.keys(FERIADOS_NACIONALES).filter((f) => f >= desde && f <= hasta && dia(f) !== 0 && dia(f) !== 6);
 
@@ -104,7 +109,7 @@ export function AusenciaDialog({
     });
   }
 
-  const valido = Boolean(personaId) && rangoOk && (modoHoras ? Number(horas.replace(",", ".")) > 0 : dias > 0);
+  const valido = Boolean(personaId) && rangoOk && !propia && (modoHoras ? Number(horas.replace(",", ".")) > 0 : dias > 0);
 
   return (
     <Dialog open onOpenChange={(v) => !v && onCerrar()}>
@@ -234,6 +239,16 @@ export function AusenciaDialog({
             ) : (
               <p className="text-xs text-[#A32020]">La fecha de término debe ser igual o posterior al inicio.</p>
             )}
+
+            {propia ? (
+              <p role="alert" className="flex items-start gap-2 rounded-xl bg-[#FDECEC] px-3.5 py-2.5 text-[13px] font-medium text-[#A32020]">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  {nombrePersona || "La persona"} ya tiene {CLASES[claseDe(propia)].texto.toLowerCase()} {propia.desde === propia.hasta ? `el ${rangoCorto(propia)}` : `del ${rangoCorto(propia)}`}
+                  {propia.estado === "SOLICITADA" ? " (solicitada)" : ""}. Cambia las fechas o anula ese registro antes de guardar este.
+                </span>
+              </p>
+            ) : null}
 
             {choques.length > 0 ? (
               <p className="flex items-start gap-2 rounded-xl bg-[#FFF6E8] px-3.5 py-2.5 text-[13px] text-[#7A4A00]">

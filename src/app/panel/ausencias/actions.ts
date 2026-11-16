@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, gte, lte, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { ausenciaAdjuntos, ausencias, trabajadores } from "@/lib/db/schema";
@@ -52,6 +52,35 @@ async function guardarAdjunto(aprId: string, ausenciaId: string, archivo: File):
   return null;
 }
 
+const fechaCorta = (iso: string) => iso.split("-").reverse().slice(0, 2).join("-");
+
+/**
+ * Si la misma persona ya tiene otra ausencia (solicitada o aprobada) que se pisa con estas fechas, devuelve el mensaje para
+ * avisarlo: nadie puede estar de vacaciones y con licencia el mismo día, y los días se contarían dos veces. Dos permisos por horas
+ * el mismo día sí pueden convivir.
+ */
+async function mensajeDeChoque(aprId: string, trabajadorId: string, desde: string, hasta: string, porHoras: boolean, excluirId: string | null): Promise<string | null> {
+  const filas = await db
+    .select({ id: ausencias.id, tipo: ausencias.tipo, desde: ausencias.desde, hasta: ausencias.hasta, horas: ausencias.horas, estado: ausencias.estado, nombre: trabajadores.nombre })
+    .from(ausencias)
+    .innerJoin(trabajadores, eq(trabajadores.id, ausencias.trabajadorId))
+    .where(
+      and(
+        eq(ausencias.aprId, aprId),
+        eq(ausencias.trabajadorId, trabajadorId),
+        ne(ausencias.estado, "RECHAZADA"),
+        lte(ausencias.desde, hasta),
+        gte(ausencias.hasta, desde),
+        excluirId ? ne(ausencias.id, excluirId) : undefined
+      )
+    );
+  const choque = filas.find((f) => !(porHoras && f.horas !== null));
+  if (!choque) return null;
+  const que = choque.tipo === "VACACIONES" ? "vacaciones" : choque.tipo === "LICENCIA" ? "una licencia" : "un permiso";
+  const rango = choque.desde === choque.hasta ? `el ${fechaCorta(choque.desde)}` : `del ${fechaCorta(choque.desde)} al ${fechaCorta(choque.hasta)}`;
+  return `${choque.nombre.split(" ")[0]} ya tiene ${que} ${rango}${choque.estado === "SOLICITADA" ? " (solicitada)" : ""}. Cambia las fechas o anula ese registro antes de guardar este.`;
+}
+
 function refrescar() {
   revalidatePath("/panel/vacaciones");
   revalidatePath("/panel/licencias");
@@ -91,6 +120,10 @@ export async function guardarAusencia(_prev: ResultadoAusencias | null, formData
   if (!persona) return { ok: false, error: "No encontramos a esa persona." };
 
   const id = String(formData.get("id") ?? "");
+  if (d.estado !== "RECHAZADA") {
+    const choque = await mensajeDeChoque(apr.id, d.trabajadorId, d.desde, d.hasta, d.horas !== null, id || null);
+    if (choque) return { ok: false, error: choque };
+  }
   const archivo = formData.get("archivo");
   const conArchivo = archivo instanceof File && archivo.size > 0 && d.tipo === "LICENCIA" ? archivo : null;
   try {
@@ -143,6 +176,19 @@ export async function cambiarEstadoAusencia(id: string, estado: "SOLICITADA" | "
   const { apr } = await requireAdmin();
   if (!puede(apr.plan as Plan, "personal")) return { ok: false, error: "RR.HH. está disponible en el plan Grande." };
   if (!["SOLICITADA", "APROBADA", "RECHAZADA"].includes(estado)) return { ok: false, error: "El estado no es válido." };
+
+  // Volver a revisar o aprobar algo que ahora se pisa con otra ausencia de la misma persona no se permite.
+  if (estado !== "RECHAZADA") {
+    const [actual] = await db
+      .select({ trabajadorId: ausencias.trabajadorId, desde: ausencias.desde, hasta: ausencias.hasta, horas: ausencias.horas })
+      .from(ausencias)
+      .where(and(eq(ausencias.id, id), eq(ausencias.aprId, apr.id)))
+      .limit(1);
+    if (actual) {
+      const choque = await mensajeDeChoque(apr.id, actual.trabajadorId, actual.desde, actual.hasta, actual.horas !== null, id);
+      if (choque) return { ok: false, error: choque };
+    }
+  }
 
   const [editada] = await db
     .update(ausencias)
