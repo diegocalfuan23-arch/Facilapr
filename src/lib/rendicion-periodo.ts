@@ -165,3 +165,32 @@ export function contenidoDeSeccion(s: SeccionRendicion): ContenidoRendicion {
     extras: s === "patrimonio",
   };
 }
+
+/** Lo que viene marcado al abrir la pantalla: lo que casi todos los comités tienen. Inventario y patrimonio se marcan a mano. */
+export const SECCIONES_DEFECTO: SeccionRendicion[] = ["saldos", "ingresos", "egresos", "compras", "cobranza"];
+
+const CLAVE_DE_SECCION: Record<Exclude<SeccionRendicion, "todo">, keyof ContenidoRendicion> = {
+  saldos: "saldos",
+  ingresos: "ingresos",
+  egresos: "egresos",
+  compras: "compras",
+  cobranza: "cobranza",
+  inventario: "inventario",
+  patrimonio: "extras",
+};
+
+/** Las partes del PDF y del Excel que corresponden a las secciones marcadas. «Saldos» lleva el cuadro de caja completo. */
+export function contenidoDeSecciones(marcadas: SeccionRendicion[]): ContenidoRendicion {
+  const c = { ingresos: false, egresos: false, compras: false, inventario: false, cobranza: false, saldos: false, extras: false };
+  for (const s of marcadas) if (s !== "todo") c[CLAVE_DE_SECCION[s]] = true;
+  return c;
+}
+
+export function seccionesDeContenido(c: ContenidoRendicion): SeccionRendicion[] {
+  return (Object.keys(CLAVE_DE_SECCION) as Exclude<SeccionRendicion, "todo">[]).filter((s) => c[CLAVE_DE_SECCION[s]]);
+}
+
+/** Las secciones marcadas según la dirección (?c=ingresos,egresos); sin dato, las de siempre. */
+export function seccionesIniciales(c: string | undefined | null): SeccionRendicion[] {
+  return c ? seccionesDeContenido(contenidoDeParametro(c)) : SECCIONES_DEFECTO;
+}

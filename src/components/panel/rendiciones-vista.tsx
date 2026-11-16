@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowRight, Boxes, ChevronLeft, ChevronRight, Download, FileText, Info, Landmark, Loader2, ShoppingCart, type LucideIcon } from "lucide-react";
+import { ArrowRight, Boxes, Check, ChevronLeft, ChevronRight, Download, FileText, Info, Landmark, ListChecks, Loader2, ShoppingCart, type LucideIcon } from "lucide-react";
 import { consultarRendicion } from "@/app/panel/rendiciones/actions";
 import type { DatosRendicion } from "@/lib/rendicion";
 import {
@@ -11,7 +11,7 @@ import {
   TIPOS_PERIODO,
   cambiarTipo,
   contenidoAParametro,
-  contenidoDeSeccion,
+  contenidoDeSecciones,
   periodoVecino,
   periodoYaEmpezo,
   rangoDe,
@@ -25,7 +25,6 @@ import { formatearRut } from "@/lib/formato";
 import { formatoCantidad, unidadCorta } from "@/lib/inventario-comun";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
@@ -39,8 +38,8 @@ const COL_EGR = ["bg-[#E8908E]", "bg-[#F0B07A]", "bg-[#F3C98B]", "bg-[#D9C2BE]"]
 
 const mismo = (a: PeriodoRendicion, b: PeriodoRendicion) => a.tipo === b.tipo && a.anio === b.anio && a.numero === b.numero;
 
-function urlDe(p: PeriodoRendicion, seccion: SeccionRendicion, c: ContenidoRendicion, base: string) {
-  const q = new URLSearchParams({ tipo: p.tipo, anio: String(p.anio), numero: String(p.numero), seccion, c: contenidoAParametro(c) });
+function urlDe(p: PeriodoRendicion, c: ContenidoRendicion, base: string) {
+  const q = new URLSearchParams({ tipo: p.tipo, anio: String(p.anio), numero: String(p.numero), c: contenidoAParametro(c) });
   return `${base}?${q.toString()}`;
 }
 
@@ -214,12 +213,13 @@ function Grafico({ barras, onElegir }: { barras: Barra[]; onElegir?: (mes: strin
 }
 
 /**
- * Rendición de cuentas: las cuentas del comité de un mes, un trimestre, un semestre o un año para la asamblea. Se ve todo el
- * informe o una sola sección a la vez, y el PDF y el Excel llevan lo mismo que se ve.
+ * Rendición de cuentas: las cuentas del comité de un mes, un trimestre, un semestre o un año para la asamblea. Se marca qué
+ * secciones lleva el informe, y el PDF y el Excel llevan solo lo marcado.
  */
-export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { inicial: DatosRendicion; hoy: string; seccionInicial?: SeccionRendicion }) {
+export function RendicionesVista({ inicial, hoy, seccionesIniciales }: { inicial: DatosRendicion; hoy: string; seccionesIniciales: SeccionRendicion[] }) {
   const [periodo, setPeriodo] = useState<PeriodoRendicion>(inicial.periodo);
-  const [seccion, setSeccion] = useState<SeccionRendicion>(seccionInicial);
+  const [incluidas, setIncluidas] = useState<SeccionRendicion[]>(seccionesIniciales);
+  const [verSecciones, setVerSecciones] = useState(false);
 
   const { data, isFetching, isError } = useQuery({
     queryKey: ["rendicion", periodo.tipo, periodo.anio, periodo.numero],
@@ -233,22 +233,21 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
   const hayInventario = Boolean(inicial.inventario);
 
   // Lo que el plan no incluye no se ofrece como sección.
-  const secciones = SECCIONES_RENDICION.filter((s) => (s.id !== "inventario" || hayInventario) && (s.id !== "patrimonio" || hayExtras));
-  const seccionVigente: SeccionRendicion = secciones.some((s) => s.id === seccion) ? seccion : "todo";
-  const contenido: ContenidoRendicion = (() => {
-    const c = contenidoDeSeccion(seccionVigente);
-    return { ...c, inventario: c.inventario && hayInventario, extras: c.extras && hayExtras };
-  })();
+  const disponibles = SECCIONES_RENDICION.filter((s) => s.id !== "todo" && (s.id !== "inventario" || hayInventario) && (s.id !== "patrimonio" || hayExtras));
+  const marcadas = incluidas.filter((s) => disponibles.some((x) => x.id === s));
+  const contenido = contenidoDeSecciones(marcadas);
+  const todo = disponibles.every((s) => marcadas.includes(s.id));
+  const ver = (s: SeccionRendicion) => marcadas.includes(s);
 
-  function irA(p: PeriodoRendicion, s: SeccionRendicion = seccionVigente) {
+  function irA(p: PeriodoRendicion, lista: SeccionRendicion[] = marcadas) {
     setPeriodo(p);
-    setSeccion(s);
-    window.history.replaceState(null, "", urlDe(p, s, contenidoDeSeccion(s), "/panel/rendiciones"));
+    window.history.replaceState(null, "", urlDe(p, contenidoDeSecciones(lista), "/panel/rendiciones"));
   }
-  function elegirSeccion(s: SeccionRendicion) {
-    setSeccion(s);
-    window.history.replaceState(null, "", urlDe(periodo, s, contenidoDeSeccion(s), "/panel/rendiciones"));
+  function marcar(lista: SeccionRendicion[]) {
+    setIncluidas(lista);
+    window.history.replaceState(null, "", urlDe(periodo, contenidoDeSecciones(lista), "/panel/rendiciones"));
   }
+  const alternar = (id: SeccionRendicion) => marcar(id === "todo" ? (todo ? [] : disponibles.map((s) => s.id)) : marcadas.includes(id) ? marcadas.filter((x) => x !== id) : [...marcadas, id]);
 
   const siguiente = periodoVecino(periodo, 1);
   const haySiguiente = periodoYaEmpezo(siguiente, hoy);
@@ -264,8 +263,7 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
   const ing = d.resumen.totalIngresos;
   const egr = d.resumen.totalEgresos;
   const resultado = ing - egr;
-  const ver = (s: SeccionRendicion) => seccionVigente === "todo" || seccionVigente === s;
-  const verGrafico = seccionVigente === "todo" || seccionVigente === "saldos" || seccionVigente === "ingresos" || seccionVigente === "egresos";
+  const verGrafico = ver("saldos") || ver("ingresos") || ver("egresos");
   const pct = d.cobranza.emitido > 0 ? Math.min(100, Math.round((d.cobranza.pagado / d.cobranza.emitido) * 100)) : 0;
 
   // El gráfico: un mes se ve por semana; lo demás, mes a mes (un mes futuro queda sin datos) y al tocar uno se abre su rendición.
@@ -280,7 +278,7 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
           return { etiqueta: MES_CORTO[n - 1], detalle: `${mayuscula(nombreMes(m.mes))}`, ing: futuro ? null : m.ingresos, egr: futuro ? null : m.egresos, mes: m.mes, enCurso: d.enCurso && m.mes === hoy.slice(0, 7) };
         });
 
-  // Qué tiene datos: lo vacío se avisa en una línea al final, y las secciones vacías se marcan en gris.
+  // Qué tiene datos: las secciones sin datos se marcan con borde punteado y «sin datos».
   const inv = d.inventario;
   const invConDatos = Boolean(inv && (inv.materiales.length > 0 || inv.stockBajo.length > 0));
   const activosConDatos = Boolean(d.activos && (d.activos.n > 0 || d.activos.comprados > 0));
@@ -288,13 +286,40 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
   const fallasConDatos = Boolean(d.incidentes && d.incidentes.resueltos + d.incidentes.abiertos > 0);
   const patrimonioConDatos = activosConDatos || laboresConDatos || fallasConDatos;
   const comprasConDatos = d.compras.detalle.length > 0;
-  const vacios = [...(hayInventario && !invConDatos ? ["Inventario"] : []), ...(hayExtras && !patrimonioConDatos ? ["Patrimonio y trabajos"] : []), ...(comprasConDatos ? [] : ["Compras"])];
+  const sinDatos = (id: SeccionRendicion) => (id === "inventario" && !invConDatos) || (id === "patrimonio" && !patrimonioConDatos) || (id === "compras" && !comprasConDatos);
+  const excluidas = disponibles.filter((s) => !marcadas.includes(s.id));
 
   const filasCaja = [
     ...(d.saldoInicio !== null ? [{ s: "", t: `Saldo al ${fecha(d.desde)}`, v: d.saldoInicio, c: "", barra: "" }] : []),
     { s: "+", t: "Ingresos", v: ing, c: "text-[#075A3C]", barra: "bg-[#2FB386]" },
     { s: "−", t: "Egresos", v: egr, c: "text-[#A32020]", barra: "bg-[#E8908E]" },
   ];
+
+  const chips = (
+    <div className="flex flex-wrap gap-1.5">
+      {[{ id: "todo" as SeccionRendicion, nombre: "Todo" }, ...disponibles].map((x) => {
+        const on = x.id === "todo" ? todo : marcadas.includes(x.id);
+        const vacia = x.id !== "todo" && sinDatos(x.id);
+        return (
+          <button
+            key={x.id}
+            type="button"
+            role="checkbox"
+            aria-checked={on}
+            title={vacia ? "Sin datos en este período" : undefined}
+            onClick={() => alternar(x.id)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-full border pr-3 pl-1.5 text-[13px] font-semibold transition-colors ${on ? "border-[#C9BCFB] bg-[#F4F1FF] text-[#2A07A8]" : `${vacia ? "border-dashed text-[#A19FB2]" : "text-[#77748C]"} border-[#DCD8EA] bg-white hover:border-[#C9BCFB]`}`}
+          >
+            <span aria-hidden className={`flex size-[18px] items-center justify-center rounded-full ${on ? "bg-[#3A0CE3] text-white" : "border border-[#CFCBE0]"}`}>
+              {on ? <Check className="size-3" strokeWidth={3} /> : null}
+            </span>
+            {x.nombre}
+            {vacia && !on ? <span className="text-xs font-normal text-[#A19FB2] lg:hidden">· sin datos</span> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
 
   return (
     <div className="mx-auto w-full max-w-[1376px]">
@@ -333,51 +358,41 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
             </Button>
           </div>
           <div className="flex gap-2 sm:ml-auto">
-            <div className="min-w-0 flex-1 lg:hidden">
-              <Select items={secciones.map((s) => ({ value: s.id, label: s.id === "todo" ? "Todo el informe" : s.nombre }))} value={seccionVigente} onValueChange={(v) => elegirSeccion((v ?? "todo") as SeccionRendicion)}>
-                <SelectTrigger aria-label="Sección" className="h-10 w-full rounded-lg border-[#E4E1F0] px-3 font-semibold sm:w-[190px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {secciones.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.id === "todo" ? "Todo el informe" : s.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="button" variant="outline" aria-label="Descargar Excel" onClick={() => descargarExcel(d, contenido)} className="h-10 shrink-0 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
+            <Button type="button" variant="outline" onClick={() => setVerSecciones(!verSecciones)} aria-expanded={verSecciones} className="h-10 min-w-0 flex-1 justify-start rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold lg:hidden">
+              <ListChecks className="size-4" />
+              <span className="truncate">
+                Secciones · {marcadas.length} de {disponibles.length}
+              </span>
+            </Button>
+            <Button type="button" variant="outline" aria-label="Descargar Excel" disabled={marcadas.length === 0} onClick={() => descargarExcel(d, contenido)} className="h-10 shrink-0 rounded-lg border-[#E4E1F0] bg-white px-3 font-semibold">
               <Download className="size-4" />
               <span className="hidden xl:inline">Excel</span>
             </Button>
-            <Button render={<a href={urlDe(periodo, seccionVigente, contenido, "/panel/rendiciones/pdf")} target="_blank" rel="noopener noreferrer" />} nativeButton={false} aria-label="Descargar PDF" className="h-10 shrink-0 rounded-lg px-4 font-semibold">
-              <FileText className="size-4" />
-              PDF
-            </Button>
+            {marcadas.length === 0 ? (
+              <Button type="button" disabled aria-label="Descargar PDF" className="h-10 shrink-0 rounded-lg px-4 font-semibold">
+                <FileText className="size-4" />
+                PDF
+              </Button>
+            ) : (
+              <Button render={<a href={urlDe(periodo, contenido, "/panel/rendiciones/pdf")} target="_blank" rel="noopener noreferrer" />} nativeButton={false} aria-label="Descargar PDF" className="h-10 shrink-0 rounded-lg px-4 font-semibold">
+                <FileText className="size-4" />
+                PDF
+              </Button>
+            )}
           </div>
         </div>
-        <nav aria-label="Secciones del informe" className="hidden gap-1 border-t border-[#F0EEF6] px-3 lg:flex">
-          {secciones.map((s) => {
-            const vacia = (s.id === "inventario" && !invConDatos) || (s.id === "patrimonio" && !patrimonioConDatos);
-            return (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => elegirSeccion(s.id)}
-                aria-current={seccionVigente === s.id ? "true" : undefined}
-                className={`relative h-11 px-3 text-[13px] font-semibold transition-colors ${seccionVigente === s.id ? "text-[#2A07A8]" : vacia ? "text-[#A19FB2] hover:text-[#5B5970]" : `${GRIS} hover:text-[#15132B]`}`}
-              >
-                {s.nombre}
-                {seccionVigente === s.id ? <span aria-hidden className="absolute inset-x-3 bottom-0 h-0.5 rounded-full bg-[#3A0CE3]" /> : null}
-              </button>
-            );
-          })}
-          <span className={`ml-auto flex items-center gap-1.5 pr-2 text-xs ${GRIS}`}>
+        <div className={`border-t border-[#F0EEF6] px-4 py-3 sm:px-5 ${verSecciones ? "block" : "hidden"} lg:flex lg:items-center lg:gap-4`}>
+          <p className="mb-2 flex shrink-0 items-center gap-1.5 text-[13px] font-semibold lg:mb-0">
+            <ListChecks className="size-4 text-[#6B46F5]" aria-hidden />
+            Incluir en el informe
+          </p>
+          {chips}
+          <span className={`mt-2 flex items-center gap-1.5 text-xs lg:mt-0 lg:ml-auto lg:shrink-0 ${GRIS}`}>
             {isFetching ? <Loader2 className="size-3.5 animate-spin" aria-label="Actualizando" /> : <Info className="size-3.5" aria-hidden />}
-            El PDF y el Excel incluyen lo que ves
+            <span className="xl:hidden 2xl:inline">El PDF y el Excel llevan solo lo marcado</span>
+            <span className="hidden xl:inline 2xl:hidden">El PDF lleva solo lo marcado</span>
           </span>
-        </nav>
+        </div>
       </Card>
 
       {isError ? (
@@ -509,7 +524,7 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
 
         {/* Ingresos / Egresos */}
         {ver("ingresos") || ver("egresos") ? (
-          <div className={`grid grid-cols-1 gap-4 ${seccionVigente === "todo" ? "md:grid-cols-2" : ""}`}>
+          <div className={`grid grid-cols-1 gap-4 ${ver("ingresos") && ver("egresos") ? "md:grid-cols-2" : ""}`}>
             {ver("ingresos") ? (
               <Card className={`rounded-2xl border-0 p-5 sm:p-6 ${SOMBRA}`}>
                 <Encabezado titulo="De dónde vino la plata" sub="Ingresos por concepto" accion={<span className="text-lg font-semibold text-[#075A3C] tabular-nums">{clp(ing)}</span>} />
@@ -566,9 +581,9 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
                 })}
               </ul>
             </Card>
-          ) : seccionVigente === "compras" ? (
+          ) : (
             <Vacio icono={ShoppingCart} titulo="Sin compras en el período" texto={`No se registraron compras en ${titulo.toLowerCase()}.`} />
-          ) : null
+          )
         ) : null}
 
         {/* Inventario */}
@@ -613,7 +628,7 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
             ) : null}
           </Card>
         ) : null}
-        {seccionVigente === "inventario" && !invConDatos ? <Vacio icono={Boxes} titulo="Sin movimientos de inventario" texto="No hubo entradas ni salidas de materiales en el período." /> : null}
+        {ver("inventario") && !invConDatos ? <Vacio icono={Boxes} titulo="Sin movimientos de inventario" texto="No hubo entradas ni salidas de materiales en el período." /> : null}
 
         {/* Patrimonio y trabajos */}
         {ver("patrimonio") && patrimonioConDatos ? (
@@ -662,16 +677,18 @@ export function RendicionesVista({ inicial, hoy, seccionInicial = "todo" }: { in
             </dl>
           </Card>
         ) : null}
-        {seccionVigente === "patrimonio" && !patrimonioConDatos ? <Vacio icono={Landmark} titulo="Sin movimientos de patrimonio" texto="Sin bienes nuevos, labores ni fallas registradas en el período." /> : null}
+        {ver("patrimonio") && !patrimonioConDatos ? <Vacio icono={Landmark} titulo="Sin movimientos de patrimonio" texto="Sin bienes nuevos, labores ni fallas registradas en el período." /> : null}
 
-        {seccionVigente === "todo" && vacios.length > 0 ? (
+        {marcadas.length === 0 ? <Vacio icono={ListChecks} titulo="No hay secciones marcadas" texto="Marca arriba lo que quieres incluir en el informe." /> : null}
+        {excluidas.length > 0 ? (
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-[#D9D5EA] bg-white/50 px-5 py-3.5 text-sm">
             <Info className="size-4 shrink-0 text-[#8A8799]" aria-hidden />
-            <span className={GRIS}>Sin movimientos en el período:</span>
-            {vacios.map((v) => (
-              <span key={v} className="rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[#46435C] ring-1 ring-[#E9E6F3]">
-                {v}
-              </span>
+            <span className={GRIS}>No incluido en el informe:</span>
+            {excluidas.map((x) => (
+              <button key={x.id} type="button" onClick={() => alternar(x.id)} className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-medium text-[#46435C] ring-1 ring-[#E9E6F3] hover:ring-[#C9BCFB]">
+                + {x.nombre}
+                {sinDatos(x.id) ? <span className="text-[#A19FB2]"> · sin datos</span> : null}
+              </button>
             ))}
           </div>
         ) : null}
