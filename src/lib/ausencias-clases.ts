@@ -22,4 +22,13 @@ export type SaldoVacaciones = {
   saldo: number | null;
   /** AAAA-MM-DD: desde cuándo podrá tomar vacaciones, si aún no cumple su primer año. */
   desde: string | null;
+  /** El saldo partido: 15 del período en curso, lo que viene de años anteriores y lo usado en este período. */
+  delAnio: number | null;
+  acumulados: number | null;
+  usadosPeriodo: number | null;
 };
+
+/** Las ausencias aprobadas de otras personas que coinciden con las fechas de una (para avisar que se cruzan). */
+export function cruces(a: Pick<AusenciaFila, "id" | "trabajadorId" | "desde" | "hasta">, todas: AusenciaFila[]) {
+  return todas.filter((o) => o.id !== a.id && o.trabajadorId !== a.trabajadorId && o.estado === "APROBADA" && o.desde <= a.hasta && o.hasta >= a.desde);
+}

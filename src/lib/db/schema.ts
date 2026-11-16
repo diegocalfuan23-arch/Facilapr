@@ -1451,9 +1451,33 @@ export const ausencias = pgTable(
     /** Solo en un permiso por horas (de un solo día): cuántas horas. Null = el permiso es por días. */
     horas: doublePrecision("horas"),
     nota: text("nota"),
+    /** Por qué se rechazó o se anuló una solicitud. */
+    motivoRechazo: text("motivoRechazo"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [index("Ausencia_aprId_desde_idx").on(table.aprId, table.desde)]
+);
+
+/** El archivo de una licencia médica (PDF o foto), en base64 como los documentos de Activos fijos. */
+export const ausenciaAdjuntos = pgTable(
+  "AusenciaAdjunto",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    ausenciaId: text("ausenciaId")
+      .notNull()
+      .references(() => ausencias.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /** application/pdf | image/png | image/jpeg */
+    tipo: text("tipo").notNull(),
+    tamano: integer("tamano").notNull(),
+    /** El archivo en base64. */
+    contenido: text("contenido").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("AusenciaAdjunto_ausenciaId_idx").on(table.ausenciaId)]
 );
 
 /**

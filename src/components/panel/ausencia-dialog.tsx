@@ -2,13 +2,13 @@
 
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Loader2, X } from "lucide-react";
+import { AlertTriangle, Loader2, Paperclip, X } from "lucide-react";
 import { eliminarAusencia, guardarAusencia, type ResultadoAusencias } from "@/app/panel/ausencias/actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CLASES, claseDe, type ClaseAusencia, type SaldoVacaciones } from "@/lib/ausencias-clases";
+import { CLASES, claseDe, cruces, type ClaseAusencia, type SaldoVacaciones } from "@/lib/ausencias-clases";
 import { FERIADOS_NACIONALES } from "@/lib/feriados";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { diasDe, type AusenciaFila, type EstadoAusencia, type TipoAusencia } from "@/lib/rrhh-comun";
@@ -33,6 +33,7 @@ export function AusenciaDialog({
   tipo,
   personas,
   saldos,
+  ajenas = [],
   onCerrar,
 }: {
   ausencia: AusenciaFila | null;
@@ -41,6 +42,8 @@ export function AusenciaDialog({
   personas: { id: string; nombre: string }[];
   /** Solo en vacaciones: lo que le queda a cada persona. */
   saldos?: SaldoVacaciones[];
+  /** Las demás ausencias del comité (con su estado actual): sirven para avisar si estas fechas se cruzan con las de otra persona. */
+  ajenas?: AusenciaFila[];
   onCerrar: () => void;
 }) {
   const { confirmar, dialogo } = useConfirmar();
@@ -59,6 +62,7 @@ export function AusenciaDialog({
   const [horas, setHoras] = useState(ausencia?.horas != null ? String(ausencia.horas).replace(".", ",") : "");
   const [aprobada, setAprobada] = useState(true);
   const [estadoEditado, setEstadoEditado] = useState<EstadoAusencia>(ausencia?.estado ?? "APROBADA");
+  const [archivo, setArchivo] = useState("");
 
   const tipoReal = tipoDe(clase);
   const esPermiso = tipoReal === "PERMISO";
@@ -77,6 +81,9 @@ export function AusenciaDialog({
   const queda = disponibles === null ? null : disponibles - dias;
   const excede = clase === "VACACIONES" && queda !== null && queda < 0;
   const nombrePersona = personas.find((p) => p.id === personaId)?.nombre.split(" ")[0] ?? "";
+  const choques = rangoOk && personaId ? cruces({ id: ausencia?.id ?? "_", trabajadorId: personaId, desde, hasta: modoHoras ? desde : hasta }, ajenas) : [];
+  const quedarian = personas.length - 1 - new Set(choques.map((c) => c.trabajadorId)).size;
+  const rangoCorto = (c: AusenciaFila) => (c.desde === c.hasta ? c.desde.split("-").reverse().slice(0, 2).join("-") : `${c.desde.split("-").reverse().slice(0, 2).join("-")} al ${c.hasta.split("-").reverse().slice(0, 2).join("-")}`);
   const feriados = Object.keys(FERIADOS_NACIONALES).filter((f) => f >= desde && f <= hasta && dia(f) !== 0 && dia(f) !== 6);
 
   useEffect(() => {
@@ -117,6 +124,8 @@ export function AusenciaDialog({
           {modoHoras ? <input type="hidden" name="hasta" value={desde} /> : null}
           {/* La nota larga que ya tenía el registro se conserva aunque aquí solo se edite el detalle. */}
           <input type="hidden" name="nota" value={ausencia?.nota ?? ""} />
+          {/* El motivo de un rechazo se conserva mientras siga rechazada. */}
+          <input type="hidden" name="motivoRechazo" value={ausencia?.motivoRechazo ?? ""} />
 
           <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
             <div className="min-w-0 flex-1">
@@ -228,6 +237,26 @@ export function AusenciaDialog({
             ) : (
               <p className="text-xs text-[#A32020]">La fecha de término debe ser igual o posterior al inicio.</p>
             )}
+
+            {choques.length > 0 ? (
+              <p className="flex items-start gap-2 rounded-xl bg-[#FFF6E8] px-3.5 py-2.5 text-[13px] text-[#7A4A00]">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <span>
+                  Se cruza con {choques.map((c) => `${c.trabajador.split(" ")[0]} (${CLASES[claseDe(c)].texto.toLowerCase()}, ${rangoCorto(c)})`).join(" y ")}. Quedarían {Math.max(0, quedarian)} de {personas.length} trabajando.
+                </span>
+              </p>
+            ) : null}
+
+            {esLicencia ? (
+              <label className="flex w-full cursor-pointer items-center gap-3 rounded-xl border border-dashed border-[#C9BCFB] px-3.5 py-3 text-left text-sm hover:bg-[#FAF8FF]">
+                <Paperclip className="size-4 shrink-0 text-[#6B46F5]" aria-hidden />
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{archivo || (ausencia?.adjuntoId ? "Reemplazar la licencia médica adjunta" : "Adjuntar licencia médica")}</span>
+                  <span className={`block text-xs ${GRIS}`}>PDF o foto, de hasta 3 MB. Puedes agregarla después.</span>
+                </span>
+                <input type="file" name="archivo" accept="application/pdf,image/png,image/jpeg" className="hidden" onChange={(e) => setArchivo(e.target.files?.[0]?.name ?? "")} />
+              </label>
+            ) : null}
 
             <label className="block">
               <span className="text-[13px] font-semibold">

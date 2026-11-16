@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { asistencias, ausencias, configAsistencia, diasCalendario, horariosComite, horariosLaborales, horasExtras, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
+import { asistencias, ausenciaAdjuntos, ausencias, configAsistencia, diasCalendario, horariosComite, horariosLaborales, horasExtras, prestamoDescuentos, prestamos, remuneraciones, trabajadores } from "@/lib/db/schema";
 import type {
   AsistenciaDia,
   CuotaPrestamoLinea,
@@ -149,16 +149,43 @@ export async function listarAusencias(aprId: string, tipos: TipoAusencia[]): Pro
         sinGoce: ausencias.sinGoce,
         horas: ausencias.horas,
         nota: ausencias.nota,
+        motivoRechazo: ausencias.motivoRechazo,
       })
       .from(ausencias)
       .innerJoin(trabajadores, eq(trabajadores.id, ausencias.trabajadorId))
       .where(and(eq(ausencias.aprId, aprId), inArray(ausencias.tipo, tipos)))
       .orderBy(desc(ausencias.desde))
       .limit(500);
-    return filas.map((f) => ({ ...f, tipo: f.tipo as TipoAusencia, estado: f.estado as EstadoAusencia }));
+    // Los archivos adjuntos: solo su id (el contenido se pide aparte, al abrirlo).
+    const adjuntos = filas.length
+      ? await db
+          .select({ id: ausenciaAdjuntos.id, ausenciaId: ausenciaAdjuntos.ausenciaId })
+          .from(ausenciaAdjuntos)
+          .where(eq(ausenciaAdjuntos.aprId, aprId))
+          .orderBy(asc(ausenciaAdjuntos.createdAt))
+          .catch(() => [])
+      : [];
+    const adjuntoDe = new Map(adjuntos.map((a) => [a.ausenciaId, a.id]));
+    return filas.map((f) => ({ ...f, tipo: f.tipo as TipoAusencia, estado: f.estado as EstadoAusencia, adjuntoId: adjuntoDe.get(f.id) ?? null }));
   } catch (e) {
     console.error("RR.HH.: no se pudieron leer las ausencias:", e);
     return [];
+  }
+}
+
+/** Cada vacación aprobada (fecha de inicio y días hábiles), por persona: de ahí sale cuánto usó en el período en curso y cuánto en años anteriores. */
+export async function vacacionesTomadasDetalle(aprId: string): Promise<Record<string, { desde: string; dias: number }[]>> {
+  try {
+    const filas = await db
+      .select({ trabajadorId: ausencias.trabajadorId, desde: ausencias.desde, dias: ausencias.dias })
+      .from(ausencias)
+      .where(and(eq(ausencias.aprId, aprId), eq(ausencias.tipo, "VACACIONES"), eq(ausencias.estado, "APROBADA")));
+    const porPersona: Record<string, { desde: string; dias: number }[]> = {};
+    for (const f of filas) (porPersona[f.trabajadorId] ??= []).push({ desde: f.desde, dias: f.dias });
+    return porPersona;
+  } catch (e) {
+    console.error("RR.HH.: no se pudo leer el detalle de las vacaciones tomadas:", e);
+    return {};
   }
 }
 

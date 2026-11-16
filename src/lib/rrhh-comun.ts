@@ -139,6 +139,10 @@ export type AusenciaFila = {
   /** Solo en un permiso por horas: cuántas. Null si es por días. */
   horas: number | null;
   nota: string | null;
+  /** Por qué se rechazó o anuló, si fue así. */
+  motivoRechazo: string | null;
+  /** Id del archivo adjunto (la licencia médica escaneada), si lo tiene. */
+  adjuntoId: string | null;
 };
 
 export type EstadoAsistencia = "PRESENTE" | "ATRASO" | "AUSENTE" | "PERMISO" | "VACACIONES" | "LICENCIA";
@@ -221,18 +225,29 @@ export const DIAS_VACACIONES_POR_ANIO = 15;
  * primer año no hay días: `primerAniversario` dice desde cuándo podrá tomarlas. No considera los días extra por muchos
  * años de trabajo (vacaciones progresivas). Sin fecha de ingreso no se puede calcular y devuelve null.
  */
-export function saldoVacaciones(fechaIngreso: string | null, tomados: number, hoy: string) {
+export function saldoVacaciones(fechaIngreso: string | null, tomados: number, hoy: string, detalle?: { desde: string; dias: number }[]) {
   if (!fechaIngreso) return null;
   const [ya, ma, da] = fechaIngreso.split("-").map(Number);
   const [yh, mh, dh] = hoy.split("-").map(Number);
   const meses = Math.max(0, (yh - ya) * 12 + (mh - ma) - (dh < da ? 1 : 0));
   const anios = Math.floor(meses / 12);
   const ganados = anios * DIAS_VACACIONES_POR_ANIO;
+  // El saldo partido: los 15 del período en curso (desde el último aniversario), lo que viene de años anteriores y lo usado en este período.
+  let acumulados: number | null = null;
+  let usadosPeriodo: number | null = null;
+  if (anios >= 1 && detalle) {
+    const aniversario = new Date(Date.UTC(ya + anios, ma - 1, da)).toISOString().slice(0, 10);
+    usadosPeriodo = detalle.filter((d) => d.desde >= aniversario).reduce((s, d) => s + d.dias, 0);
+    acumulados = DIAS_VACACIONES_POR_ANIO * (anios - 1) - detalle.filter((d) => d.desde < aniversario).reduce((s, d) => s + d.dias, 0);
+  }
   return {
     ganados,
     tomados,
     saldo: ganados - tomados,
     anios,
+    delAnio: anios >= 1 ? DIAS_VACACIONES_POR_ANIO : null,
+    acumulados,
+    usadosPeriodo,
     /** AAAA-MM-DD del primer aniversario, solo mientras aún no cumple el primer año. */
     primerAniversario: anios === 0 ? new Date(Date.UTC(ya + 1, ma - 1, da)).toISOString().slice(0, 10) : null,
   };

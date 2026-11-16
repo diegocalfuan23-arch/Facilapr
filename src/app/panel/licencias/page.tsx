@@ -16,9 +16,10 @@ export default async function LicenciasPage() {
   // Un plan que no incluye este módulo no lo tiene: no se muestra ni por la dirección directa.
   if (!puede(apr.plan as Plan, "personal")) redirect("/panel");
 
-  const [personas, ausencias] = await Promise.all([listarTrabajadores(apr.id), listarAusencias(apr.id, ["LICENCIA"])]);
+  const [personas, todas] = await Promise.all([listarTrabajadores(apr.id), listarAusencias(apr.id, ["VACACIONES", "PERMISO", "LICENCIA"])]);
+  // El tablero muestra licencias; vacaciones y permisos solo sirven para avisar cuando una solicitud se cruza con alguien que no estará.
+  const licencias = todas.filter((a) => a.tipo === "LICENCIA");
+  const ajenas = todas.filter((a) => a.tipo !== "LICENCIA");
 
-  return (
-    <AusenciasVista tipo="LICENCIA" ausencias={ausencias} personas={personas.filter((p) => p.activo).map((p) => ({ id: p.id, nombre: p.nombre }))} />
-  );
+  return <AusenciasVista tipo="LICENCIA" ausencias={licencias} ajenas={ajenas} personas={personas.filter((p) => p.activo).map((p) => ({ id: p.id, nombre: p.nombre }))} />;
 }

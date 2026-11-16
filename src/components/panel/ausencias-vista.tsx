@@ -1,16 +1,18 @@
 "use client";
 
-import { useCallback, useState, useTransition } from "react";
+import { useCallback, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowRight, CalendarCheck, Check, Clock3, HeartPulse, Palmtree, Plus, Search, type LucideIcon } from "lucide-react";
-import { cambiarEstadoAusencia } from "@/app/panel/ausencias/actions";
+import { AlertTriangle, ArrowRight, CalendarCheck, Check, Clock3, Download, HeartPulse, Palmtree, Paperclip, Plus, Printer, Search, type LucideIcon } from "lucide-react";
+import { adjuntarLicencia, cambiarEstadoAusencia } from "@/app/panel/ausencias/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AusenciaDialog } from "@/components/panel/ausencia-dialog";
+import { MotivoRechazoDialog } from "@/components/panel/motivo-rechazo-dialog";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { type AusenciaFila, type EstadoAusencia } from "@/lib/rrhh-comun";
-import { CLASES, claseDe, type SaldoVacaciones } from "@/lib/ausencias-clases";
+import { CLASES, claseDe, cruces, type ClaseAusencia, type SaldoVacaciones } from "@/lib/ausencias-clases";
 import { cn } from "@/lib/utils";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
@@ -22,12 +24,14 @@ const aFecha = (s: string) => {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
 };
+const cl = (s: string) => s.split("-").reverse().slice(0, 2).join("-");
 const diaSiguiente = (s: string) => {
   const f = aFecha(s);
   f.setDate(f.getDate() + 1);
   return `${String(f.getDate()).padStart(2, "0")}-${String(f.getMonth() + 1).padStart(2, "0")}`;
 };
 const numero = (n: number) => n.toLocaleString("es-CL", { maximumFractionDigits: 2 });
+const rango = (a: Pick<AusenciaFila, "desde" | "hasta">) => (a.desde === a.hasta ? cl(a.desde) : `${cl(a.desde)} al ${cl(a.hasta)}`);
 
 const COLUMNAS: { estado: EstadoAusencia; titulo: string; punto: string; vacio: string }[] = [
   { estado: "SOLICITADA", titulo: "Solicitadas", punto: "bg-[#F0A23C]", vacio: "Nada por aprobar" },
@@ -49,6 +53,17 @@ function Fecha({ f }: { f: string }) {
   );
 }
 
+/** El texto del saldo de una persona: de dónde sale su número. */
+function lineaSaldo(p: SaldoVacaciones, pedidos: number) {
+  if (p.saldo === null) return "Falta su fecha de ingreso en Personal.";
+  if ((p.ganados ?? 0) === 0 && p.tomados === 0) return p.desde ? `Podrá tomarlas desde ${p.desde.split("-").reverse().join("-")}` : "Aún no tiene días";
+  if ((p.ganados ?? 0) === 0) return `Tomó ${numero(p.tomados)} antes de cumplir el año`;
+  if (p.delAnio !== null && p.acumulados !== null && p.usadosPeriodo !== null) {
+    return `${p.delAnio} del año ${p.acumulados >= 0 ? "+" : "–"} ${numero(Math.abs(p.acumulados))} ${p.acumulados >= 0 ? "acumulados" : "de años anteriores"} – ${numero(p.usadosPeriodo)} usados`;
+  }
+  return pedidos ? `${numero(p.saldo)} días · ${pedidos} solicitados` : `${numero(p.saldo)} días disponibles`;
+}
+
 /**
  * Vacaciones (con permisos) o licencias médicas del personal. En vacaciones se ve además el saldo de
  * cada persona: lo que ganó desde su ingreso menos lo que ya tomó.
@@ -56,42 +71,83 @@ function Fecha({ f }: { f: string }) {
 export function AusenciasVista({
   tipo,
   ausencias,
+  ajenas = [],
   personas,
   saldos,
 }: {
   tipo: "VACACIONES" | "LICENCIA";
   ausencias: AusenciaFila[];
+  /** Las ausencias del otro módulo (licencias en Vacaciones y al revés): solo sirven para avisar de cruces. */
+  ajenas?: AusenciaFila[];
   personas: { id: string; nombre: string }[];
   /** Solo en vacaciones. */
   saldos?: SaldoVacaciones[];
 }) {
   const [busqueda, setBusqueda] = useState("");
+  const [fTipo, setFTipo] = useState<"todos" | ClaseAusencia>("todos");
+  const [fPersona, setFPersona] = useState("todos");
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<AusenciaFila | null>(null);
   const [arrastrando, setArrastrando] = useState<string | null>(null);
   const [sobre, setSobre] = useState<EstadoAusencia | null>(null);
+  // Al rechazar o anular se pide el motivo antes de mover la tarjeta.
+  const [rechazando, setRechazando] = useState<{ a: AusenciaFila; anular: boolean } | null>(null);
   // El estado se ve cambiar al instante; si el servidor falla, se vuelve atrás.
   const [movidas, setMovidas] = useState<Record<string, EstadoAusencia>>({});
   const [, iniciar] = useTransition();
+  const archivoRef = useRef<HTMLInputElement>(null);
+  const [adjuntandoA, setAdjuntandoA] = useState<string | null>(null);
   const cerrar = useCallback(() => {
     setCreando(false);
     setEditando(null);
     // Lo que se editó en el diálogo manda sobre lo que se movió antes en el tablero.
     setMovidas({});
   }, []);
+  const cerrarMotivo = useCallback(() => setRechazando(null), []);
 
   const estadoDe = (a: AusenciaFila) => movidas[a.id] ?? a.estado;
+  const todasConEstado = [...ausencias, ...ajenas].map((a) => ({ ...a, estado: estadoDe(a) }));
 
-  function mover(a: AusenciaFila, destino: EstadoAusencia) {
+  function aplicar(a: AusenciaFila, destino: EstadoAusencia, motivo?: string) {
     const origen = estadoDe(a);
-    if (origen === destino) return;
     setMovidas((m) => ({ ...m, [a.id]: destino }));
     iniciar(async () => {
-      const r = await cambiarEstadoAusencia(a.id, destino);
+      const r = await cambiarEstadoAusencia(a.id, destino, motivo);
       if (!r.ok) {
         toast.error(r.error);
         setMovidas((m) => ({ ...m, [a.id]: origen }));
       }
+    });
+  }
+
+  function mover(a: AusenciaFila, destino: EstadoAusencia) {
+    const origen = estadoDe(a);
+    if (origen === destino) return;
+    // Rechazar o anular pide el motivo; el resto cambia al instante.
+    if (destino === "RECHAZADA") {
+      setRechazando({ a, anular: origen === "APROBADA" });
+      return;
+    }
+    aplicar(a, destino);
+  }
+
+  function elegirArchivo(a: AusenciaFila) {
+    setAdjuntandoA(a.id);
+    archivoRef.current?.click();
+  }
+
+  function subirArchivo(e: React.ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    const id = adjuntandoA;
+    e.target.value = "";
+    setAdjuntandoA(null);
+    if (!archivo || !id) return;
+    const datos = new FormData();
+    datos.set("archivo", archivo);
+    iniciar(async () => {
+      const r = await adjuntarLicencia(id, datos);
+      if (r.ok) toast.success("Licencia adjuntada");
+      else toast.error(r.error);
     });
   }
 
@@ -103,11 +159,33 @@ export function AusenciasVista({
   const diasAnio = ausencias.filter((a) => estadoDe(a) === "APROBADA" && a.desde.startsWith(anio) && (esLicencia || a.tipo === "VACACIONES")).reduce((s, a) => s + a.dias, 0);
 
   const q = busqueda.trim().toLowerCase();
-  const filtradas = ausencias.filter((a) => !q || a.trabajador.toLowerCase().includes(q) || (a.detalle ?? "").toLowerCase().includes(q));
+  const filtradas = ausencias.filter(
+    (a) =>
+      (fTipo === "todos" || claseDe(a) === fTipo) &&
+      (fPersona === "todos" || a.trabajadorId === fPersona) &&
+      (!q || a.trabajador.toLowerCase().includes(q) || (a.detalle ?? "").toLowerCase().includes(q) || (a.nota ?? "").toLowerCase().includes(q) || (a.motivoRechazo ?? "").toLowerCase().includes(q))
+  );
 
   const conSaldos = !esLicencia && saldos && saldos.length > 0;
   const saldoDe = (id: string) => saldos?.find((s) => s.id === id)?.saldo ?? null;
   const pedidos = (id: string) => ausencias.filter((a) => a.trabajadorId === id && estadoDe(a) === "SOLICITADA" && a.tipo === "VACACIONES").reduce((s, a) => s + a.dias, 0);
+  const clasesFiltro: ClaseAusencia[] = esLicencia ? [] : ["VACACIONES", "CON_GOCE", "SIN_GOCE"];
+
+  function exportar() {
+    const celda = (t: string | number) => `"${String(t).replace(/"/g, '""')}"`;
+    const estados = { SOLICITADA: "Solicitada", APROBADA: "Aprobada", RECHAZADA: "Rechazada" } as const;
+    const filas: (string | number)[][] = [
+      ["Persona", "Tipo", "Desde", "Hasta", esLicencia ? "Días corridos" : "Días hábiles", "Horas", "Estado", "Detalle", "Nota", "Motivo del rechazo"],
+      ...filtradas.map((a) => [a.trabajador, CLASES[claseDe(a)].texto, a.desde.split("-").reverse().join("-"), a.hasta.split("-").reverse().join("-"), a.horas != null ? "" : a.dias, a.horas ?? "", estados[estadoDe(a)], a.detalle ?? "", a.nota ?? "", a.motivoRechazo ?? ""]),
+    ];
+    const csv = "﻿" + filas.map((f) => f.map(celda).join(";")).join("\r\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `${esLicencia ? "licencias" : "vacaciones-y-permisos"}-${hoy}.csv`;
+    enlace.click();
+    URL.revokeObjectURL(url);
+  }
 
   const kpis: { clave: string; titulo: string; corto: string; valor: string; detalle: string; icono: LucideIcon; color: string }[] = [
     {
@@ -174,13 +252,48 @@ export function AusenciasVista({
       ) : (
         <div className={cn("mt-4 grid grid-cols-1 items-start gap-4", conSaldos && "lg:grid-cols-[minmax(0,1fr)_320px]")}>
           <div className="min-w-0">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative sm:w-[300px]">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+              <div className="relative lg:w-[260px]">
                 <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
                 <Input aria-label="Buscar" value={busqueda} onChange={(e) => setBusqueda(e.target.value)} placeholder="Buscar por persona o detalle" className="h-10 rounded-lg border-[#E4E1F0] bg-white pl-9 shadow-none" />
               </div>
-              <p className={`hidden text-xs md:block ${GRIS}`}>Arrastra las tarjetas entre columnas o usa sus botones</p>
+              <div className="flex gap-2">
+                {clasesFiltro.length > 0 ? (
+                  <Select items={[{ value: "todos", label: "Todos los tipos" }, ...clasesFiltro.map((c) => ({ value: c, label: CLASES[c].texto }))]} value={fTipo} onValueChange={(v) => setFTipo((v ?? "todos") as "todos" | ClaseAusencia)}>
+                    <SelectTrigger aria-label="Tipo" className="h-10 min-w-0 flex-1 rounded-lg border-[#E4E1F0] bg-white px-3 shadow-none lg:w-[170px] lg:flex-none">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todos">Todos los tipos</SelectItem>
+                      {clasesFiltro.map((c) => (
+                        <SelectItem key={c} value={c}>
+                          {CLASES[c].texto}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : null}
+                <Select items={[{ value: "todos", label: "Todo el personal" }, ...personas.map((p) => ({ value: p.id, label: p.nombre }))]} value={fPersona} onValueChange={(v) => setFPersona(v ?? "todos")}>
+                  <SelectTrigger aria-label="Persona" className="h-10 min-w-0 flex-1 rounded-lg border-[#E4E1F0] bg-white px-3 shadow-none lg:w-[180px] lg:flex-none">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todo el personal</SelectItem>
+                    {personas.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.nombre}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="icon" aria-label="Exportar a Excel" title="Exportar a Excel" disabled={filtradas.length === 0} onClick={exportar} className="size-10 shrink-0 rounded-lg border-[#E4E1F0] bg-white">
+                  <Download className="size-4" />
+                </Button>
+              </div>
+              <p className={`hidden text-xs xl:ml-auto xl:block ${GRIS}`}>Arrastra las tarjetas entre columnas o usa sus botones</p>
             </div>
+
+            <input ref={archivoRef} type="file" accept="application/pdf,image/png,image/jpeg" className="hidden" onChange={subirArchivo} />
 
             <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
               {COLUMNAS.map((col) => {
@@ -218,6 +331,7 @@ export function AusenciasVista({
                         const saldo = saldoDe(a.trabajadorId);
                         const sinSaldo = a.tipo === "VACACIONES" && saldo !== null && saldo < a.dias;
                         const enCurso = col.estado === "APROBADA" && a.desde <= hoy && a.hasta >= hoy;
+                        const choques = col.estado === "SOLICITADA" ? cruces(a, todasConEstado) : [];
                         return (
                           <li
                             key={a.id}
@@ -228,7 +342,7 @@ export function AusenciasVista({
                               setSobre(null);
                             }}
                             onClick={() => setEditando(a)}
-                            className={`cursor-grab overflow-hidden rounded-xl bg-white shadow-[0_1px_3px_rgba(21,19,43,0.08)] ring-1 ring-[#EFEDF6] transition-opacity active:cursor-grabbing ${arrastrando === a.id ? "opacity-40" : ""} ${col.estado === "RECHAZADA" ? "opacity-80" : ""}`}
+                            className={`cursor-grab overflow-hidden rounded-xl bg-white shadow-[0_1px_3px_rgba(21,19,43,0.08)] ring-1 ring-[#EFEDF6] transition-opacity active:cursor-grabbing ${arrastrando === a.id ? "opacity-40" : ""} ${col.estado === "RECHAZADA" ? "opacity-90" : ""}`}
                           >
                             <div className="flex items-center gap-2.5 px-3.5 pt-3.5">
                               <span aria-hidden className={`flex size-9 shrink-0 items-center justify-center rounded-xl ${clase.suave} ${clase.tinte}`}>
@@ -254,9 +368,41 @@ export function AusenciasVista({
                             </div>
                             <div className="px-3.5 pt-2 pb-3.5">
                               {a.detalle || a.nota ? <p className={`truncate text-xs italic ${GRIS}`}>“{a.detalle || a.nota}”</p> : null}
+
+                              {a.tipo === "LICENCIA" && col.estado !== "RECHAZADA" ? (
+                                a.adjuntoId ? (
+                                  <a href={`/panel/ausencias/adjunto/${a.adjuntoId}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="mt-1 inline-flex items-center gap-1 text-xs font-medium text-[#075A3C] hover:underline">
+                                    <Paperclip className="size-3.5" aria-hidden />
+                                    Licencia adjunta
+                                  </a>
+                                ) : (
+                                  <p className="mt-1 flex items-center gap-1 text-xs font-medium text-[#8A4B00]">
+                                    <Paperclip className="size-3.5" aria-hidden />
+                                    Falta la licencia ·{" "}
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        elegirArchivo(a);
+                                      }}
+                                      className="underline underline-offset-2 hover:no-underline"
+                                    >
+                                      adjuntar
+                                    </button>
+                                  </p>
+                                )
+                              ) : null}
+
                               {enCurso ? <p className="mt-1 text-xs font-medium text-[#0B5E94]">En curso · vuelve el {diaSiguiente(a.hasta)}</p> : null}
+
                               {col.estado === "SOLICITADA" ? (
                                 <>
+                                  {choques.length > 0 ? (
+                                    <p className="mt-1 flex items-start gap-1 text-xs font-medium text-[#8A4B00]">
+                                      <AlertTriangle className="mt-px size-3.5 shrink-0" aria-hidden />
+                                      Se cruza con {choques.map((c) => `${c.trabajador.split(" ")[0]} (${rango(c)})`).join(" y ")}
+                                    </p>
+                                  ) : null}
                                   {a.tipo === "VACACIONES" && saldo !== null ? (
                                     <p className={`mt-1 text-xs ${sinSaldo ? "font-medium text-[#A32020]" : "text-[#075A3C]"}`}>{sinSaldo ? "No le alcanzan los días" : `Le quedarían ${numero(saldo - a.dias)} de ${numero(saldo)} días`}</p>
                                   ) : null}
@@ -286,6 +432,45 @@ export function AusenciasVista({
                                       Aprobar
                                     </Button>
                                   </div>
+                                </>
+                              ) : null}
+
+                              {col.estado === "APROBADA" ? (
+                                <div className="mt-3 flex items-center justify-between border-t border-[#F3F1F8] pt-2.5">
+                                  <a href={`/panel/ausencias/comprobante/${a.id}`} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-[#46435C] hover:text-[#15132B]">
+                                    <Printer className="size-4" aria-hidden />
+                                    Comprobante
+                                  </a>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      mover(a, "RECHAZADA");
+                                    }}
+                                    className="text-[13px] font-semibold text-[#A32020] hover:underline"
+                                  >
+                                    Anular
+                                  </button>
+                                </div>
+                              ) : null}
+
+                              {col.estado === "RECHAZADA" ? (
+                                <>
+                                  {a.motivoRechazo ? (
+                                    <p className="mt-2 rounded-lg bg-[#FDEFEF] px-2.5 py-1.5 text-xs text-[#A32020]">
+                                      <b className="font-semibold">Motivo:</b> {a.motivoRechazo}
+                                    </p>
+                                  ) : null}
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      aplicar(a, "SOLICITADA");
+                                    }}
+                                    className="mt-2 text-[13px] font-semibold text-[#2A07A8] hover:underline"
+                                  >
+                                    Volver a revisar
+                                  </button>
                                 </>
                               ) : null}
                             </div>
@@ -327,31 +512,21 @@ export function AusenciasVista({
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold">{p.nombre}</span>
-                        <span className={`block text-xs ${sinDatos ? GRIS : saldo < 0 ? "text-[#A32020]" : ped ? "text-[#8A4B00]" : GRIS}`}>
-                          {p.saldo === null
-                            ? "Falta su fecha de ingreso en Personal."
-                            : (p.ganados ?? 0) === 0 && p.tomados === 0
-                              ? p.desde
-                                ? `Podrá tomarlas desde ${p.desde.split("-").reverse().join("-")}`
-                                : "Aún no tiene días"
-                              : (p.ganados ?? 0) === 0
-                                ? `Tomó ${numero(p.tomados)} antes de cumplir el año`
-                                : ped
-                                  ? `${numero(saldo)} días · ${ped} solicitados`
-                                  : `${numero(saldo)} días disponibles`}
-                        </span>
+                        <span className={`block text-xs ${sinDatos ? GRIS : saldo < 0 ? "text-[#A32020]" : GRIS}`}>{lineaSaldo(p, ped)}</span>
+                        {ped > 0 && !sinDatos ? <span className="block text-xs text-[#8A4B00]">{ped} días solicitados por aprobar</span> : null}
                       </span>
                     </li>
                   );
                 })}
               </ul>
+              <p className={`mt-4 border-t border-[#F3F1F8] pt-4 text-xs leading-relaxed ${GRIS}`}>El feriado se puede acumular hasta por dos períodos. Imprime el comprobante de cada vacación aprobada para que el trabajador lo firme.</p>
             </Card>
           ) : null}
         </div>
       )}
 
-      {(creando || editando) && <AusenciaDialog key={editando?.id ?? "nueva"} ausencia={editando} tipo={tipo} personas={personas} saldos={saldos} onCerrar={cerrar} />}
+      {(creando || editando) && <AusenciaDialog key={editando?.id ?? "nueva"} ausencia={editando} tipo={tipo} personas={personas} saldos={saldos} ajenas={todasConEstado} onCerrar={cerrar} />}
+      {rechazando && <MotivoRechazoDialog key={rechazando.a.id} ausencia={rechazando.a} anular={rechazando.anular} onCerrar={cerrarMotivo} onConfirmar={(motivo) => aplicar(rechazando.a, "RECHAZADA", motivo)} />}
     </div>
   );
 }
-
