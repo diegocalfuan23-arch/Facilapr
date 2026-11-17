@@ -107,7 +107,15 @@ export type TraspasoFila = {
   fecha: string;
   monto: number;
   referencia: string | null;
+  /** Para qué fue, si quien lo anotó lo escribió. */
+  nota: string | null;
+  /** Quién lo anotó y con qué rol entra al panel. */
+  registradoPor: string | null;
+  rol: string | null;
 };
+
+/** Un giro o depósito con el saldo que tenía el banco al cerrar ese día (null si no se puede saber). */
+export type TraspasoConSaldo = TraspasoFila & { bancoAlCierre: number | null };
 
 export const textoTraspaso = (tipo: "GIRO" | "DEPOSITO") => (tipo === "GIRO" ? "Giro del banco a efectivo" : "Depósito de efectivo al banco");
 

@@ -13,6 +13,7 @@ import {
   esMedioBanco,
   mesVecino,
   textoCategoria,
+  textoTraspaso,
   type Bolsillos,
   type CategoriaMovimientoPropia,
   type LineaLibro,
@@ -304,8 +305,18 @@ export async function bolsillosAl(aprId: string, dia: string): Promise<Bolsillos
 /** Los giros y depósitos de un período, del más reciente al más antiguo. Si algo falla, devuelve vacío. */
 export async function traspasosEntre(aprId: string, desde: string, hasta: string): Promise<TraspasoFila[]> {
   const filas = await db
-    .select({ id: movimientos.id, tipo: movimientos.tipo, fecha: movimientos.fecha, monto: movimientos.monto, referencia: movimientos.referencia })
+    .select({
+      id: movimientos.id,
+      tipo: movimientos.tipo,
+      fecha: movimientos.fecha,
+      monto: movimientos.monto,
+      referencia: movimientos.referencia,
+      concepto: movimientos.concepto,
+      registradoPor: usuarios.name,
+      rolCuenta: usuarios.rol,
+    })
     .from(movimientos)
+    .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
     .where(
       and(
         eq(movimientos.aprId, aprId),
@@ -319,7 +330,77 @@ export async function traspasosEntre(aprId: string, desde: string, hasta: string
       console.error("Finanzas: no se pudieron leer los traspasos:", e);
       return [];
     });
-  return filas.map((f) => ({ ...f, tipo: f.tipo as "GIRO" | "DEPOSITO" }));
+  return filas.map((f) => {
+    const tipo = f.tipo as "GIRO" | "DEPOSITO";
+    const rol = f.rolCuenta === "ADMIN" ? "Administrador" : f.rolCuenta === "TESORERO" ? "Tesorero" : f.rolCuenta === "OPERADOR" ? "Operador" : null;
+    return {
+      id: f.id,
+      tipo,
+      fecha: f.fecha,
+      monto: f.monto,
+      referencia: f.referencia,
+      // El texto de un giro o depósito es fijo; si es otro, es lo que escribió quien lo anotó.
+      nota: f.concepto && f.concepto !== textoTraspaso(tipo) ? f.concepto : null,
+      registradoPor: f.registradoPor ?? null,
+      rol,
+    };
+  });
+}
+
+/**
+ * El saldo del banco al cierre de cada uno de los `dias` pedidos (AAAA-MM-DD): lo que había al partir más todo lo que
+ * entró y salió por el banco hasta ese día, no solo los giros y depósitos. Los días anteriores al saldo inicial no se
+ * pueden saber y quedan fuera. Si algo falla, devuelve vacío.
+ */
+export async function bancoAlCierre(aprId: string, dias: string[]): Promise<Record<string, number>> {
+  if (dias.length === 0) return {};
+  try {
+    const base = await saldoInicialDe(aprId);
+    if (!base) return {};
+    const diaChile = sql<string>`to_char((${pagos.fecha} AT TIME ZONE 'UTC') AT TIME ZONE 'America/Santiago', 'YYYY-MM-DD')`;
+    const [bancoInicial, movs, deSocios] = await Promise.all([
+      saldoBancoDe(aprId),
+      db
+        .select({ fecha: movimientos.fecha, tipo: movimientos.tipo, medio: movimientos.medio, total: sql<number>`coalesce(sum(${movimientos.monto}), 0)::int` })
+        .from(movimientos)
+        .where(and(eq(movimientos.aprId, aprId), inArray(movimientos.tipo, ["INGRESO", "EGRESO", TIPO_GIRO, TIPO_DEPOSITO]), sql`${movimientos.fecha} >= ${base.fecha}`))
+        .groupBy(movimientos.fecha, movimientos.tipo, movimientos.medio),
+      db
+        .select({ fecha: diaChile, medio: pagos.medio, total: sql<number>`coalesce(sum(${pagos.monto}), 0)::int` })
+        .from(pagos)
+        .leftJoin(boletas, eq(pagos.boletaId, boletas.id))
+        .innerJoin(socios, eq(socios.id, sql`coalesce(${pagos.socioId}, ${boletas.socioId})`))
+        .where(and(eq(socios.aprId, aprId), sql`${diaChile} >= ${base.fecha}`))
+        .groupBy(diaChile, pagos.medio),
+    ]);
+
+    // Cuánto cambió el banco cada día.
+    const delta = new Map<string, number>();
+    const sumar = (fecha: string, monto: number) => delta.set(fecha, (delta.get(fecha) ?? 0) + monto);
+    for (const m of movs) {
+      if (m.tipo === "INGRESO") sumar(m.fecha, esMedioBanco(m.medio) ? m.total : 0);
+      else if (m.tipo === "EGRESO") sumar(m.fecha, esMedioBanco(m.medio) ? -m.total : 0);
+      else if (m.tipo === TIPO_GIRO) sumar(m.fecha, -m.total);
+      else if (m.tipo === TIPO_DEPOSITO) sumar(m.fecha, m.total);
+    }
+    for (const p of deSocios) if (esMedioBanco(p.medio)) sumar(p.fecha, p.total);
+
+    const orden = [...delta.keys()].sort();
+    const salida: Record<string, number> = {};
+    for (const dia of new Set(dias)) {
+      if (dia < base.fecha) continue;
+      let banco = Math.min(bancoInicial, base.monto);
+      for (const f of orden) {
+        if (f > dia) break;
+        banco += delta.get(f) ?? 0;
+      }
+      salida[dia] = banco;
+    }
+    return salida;
+  } catch (e) {
+    console.error("Finanzas: no se pudo calcular el banco al cierre de cada día:", e);
+    return {};
+  }
 }
 
 /**

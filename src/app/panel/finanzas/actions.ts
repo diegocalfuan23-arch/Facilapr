@@ -417,12 +417,14 @@ export async function crearTraspaso(_prev: ResultadoFinanzas | null, formData: F
       fecha: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "La fecha no es válida."),
       monto: z.number().int("El monto debe ser un número entero.").min(1, "Escribe cuánto es.").max(2_000_000_000),
       referencia: z.string().trim().max(80).nullable(),
+      nota: z.string().trim().max(120, "El «para qué» es muy largo.").nullable(),
     })
     .safeParse({
       tipo: formData.get("tipo"),
       fecha: formData.get("fecha"),
       monto: Number(String(formData.get("monto") ?? "").replace(/[^\d]/g, "")),
       referencia: aTexto(formData.get("referencia")),
+      nota: aTexto(formData.get("nota")),
     });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
   const d = parsed.data;
@@ -448,7 +450,7 @@ export async function crearTraspaso(_prev: ResultadoFinanzas | null, formData: F
       fecha: d.fecha,
       monto: d.monto,
       categoria: d.tipo,
-      concepto: textoTraspaso(d.tipo),
+      concepto: d.nota ?? textoTraspaso(d.tipo),
       medio: d.tipo === TIPO_GIRO ? "TRANSFERENCIA" : "EFECTIVO",
       referencia: d.referencia,
       registradoPorId: user.id,
