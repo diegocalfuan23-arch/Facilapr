@@ -7,6 +7,7 @@ import { crearTraspaso, type ResultadoFinanzas } from "@/app/panel/finanzas/acti
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CampoComprobante } from "@/components/panel/comprobante";
 import { TIPO_DEPOSITO, TIPO_GIRO, hoyEnChile, type Bolsillos } from "@/lib/finanzas-comun";
 
 const GRIS = "text-[#5B5970]";
@@ -184,6 +185,8 @@ export function TraspasoDialog({
                 className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none"
               />
             </label>
+
+            <CampoComprobante />
 
             {estado && !estado.ok ? (
               <p className="text-[0.85rem] text-destructive" role="alert">

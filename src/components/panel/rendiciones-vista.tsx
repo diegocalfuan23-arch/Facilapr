@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { ArrowRight, Boxes, Check, ChevronLeft, ChevronRight, Download, FileText, Info, Landmark, ListChecks, Loader2, ShoppingCart, type LucideIcon } from "lucide-react";
+import { ArrowRight, Boxes, Check, ChevronLeft, ChevronRight, Download, FileText, Info, Landmark, ListChecks, Loader2, Paperclip, ShoppingCart, type LucideIcon } from "lucide-react";
 import { consultarRendicion } from "@/app/panel/rendiciones/actions";
 import type { DatosRendicion } from "@/lib/rendicion";
 import {
@@ -535,6 +535,15 @@ export function RendicionesVista({ inicial, hoy, seccionesIniciales }: { inicial
               <Card className={`rounded-2xl border-0 p-5 sm:p-6 ${SOMBRA}`}>
                 <Encabezado titulo="En qué se gastó" sub="Egresos por concepto" accion={<span className="text-lg font-semibold text-[#A32020] tabular-nums">{clp(egr)}</span>} />
                 <Desglose filas={d.egresos} total={egr} colores={COL_EGR} vacio="Sin egresos en el período." />
+                {d.sinComprobante.n > 0 ? (
+                  <p className="mt-4 flex flex-wrap items-center gap-x-1.5 gap-y-1 rounded-xl bg-[#FFF6E8] px-3.5 py-2.5 text-xs text-[#7A4A00]">
+                    <Paperclip className="size-3.5 shrink-0" aria-hidden />
+                    {d.sinComprobante.n} {d.sinComprobante.n === 1 ? "gasto sin comprobante" : "gastos sin comprobante"} ({clp(d.sinComprobante.monto)}).
+                    <a href="/panel/caja?vista=mes" className="font-semibold underline">
+                      Adjúntalos en Caja
+                    </a>
+                  </p>
+                ) : null}
               </Card>
             ) : null}
           </div>

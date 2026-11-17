@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { activosFijos, categoriasMovimiento, compras, incidentes, movimientos, prestamos, remuneraciones } from "@/lib/db/schema";
+import { activosFijos, categoriasMovimiento, compras, incidentes, movimientoAdjuntos, movimientos, prestamos, remuneraciones } from "@/lib/db/schema";
+import { archivoDe, leerComprobante } from "@/lib/comprobantes";
 import { requireFinanzas } from "@/lib/apr-session";
 import { puede, type Plan } from "@/lib/planes";
 import {
@@ -85,6 +86,11 @@ export async function crearMovimiento(
   }
   if (await diaCerrado(db, apr.id, d.fecha)) return { ok: false, error: mensajeDiaCerrado(d.fecha) };
 
+  // El comprobante es opcional; si viene, se revisa antes de guardar nada.
+  const archivo = archivoDe(formData.get("archivo"));
+  const comprobante = archivo ? await leerComprobante(archivo) : null;
+  if (comprobante && !comprobante.ok) return comprobante;
+
   // La categoría es ninguna, una del comité para este tipo de movimiento, o una nueva por crear.
   let categoria = d.categoria;
   if (categoria === CATEGORIA_MOV_NUEVA) {
@@ -111,7 +117,10 @@ export async function crearMovimiento(
   }
 
   try {
-    await db.insert(movimientos).values({ ...d, categoria, aprId: apr.id, registradoPorId: user.id });
+    await db.transaction(async (tx) => {
+      const [nuevo] = await tx.insert(movimientos).values({ ...d, categoria, aprId: apr.id, registradoPorId: user.id }).returning({ id: movimientos.id });
+      if (comprobante?.ok) await tx.insert(movimientoAdjuntos).values({ aprId: apr.id, movimientoId: nuevo.id, nombre: comprobante.nombre, tipo: comprobante.tipo, tamano: comprobante.tamano, contenido: comprobante.contenido });
+    });
   } catch (e) {
     console.error("Finanzas: no se pudo guardar el movimiento:", e);
     return { ok: false, error: "No pudimos guardar el movimiento. Inténtalo de nuevo en un momento." };
@@ -432,6 +441,10 @@ export async function crearTraspaso(_prev: ResultadoFinanzas | null, formData: F
   if (d.fecha > hoyEnChile()) return { ok: false, error: "La fecha no puede ser futura." };
   if (await diaCerrado(db, apr.id, d.fecha)) return { ok: false, error: mensajeDiaCerrado(d.fecha) };
 
+  const archivo = archivoDe(formData.get("archivo"));
+  const comprobante = archivo ? await leerComprobante(archivo) : null;
+  if (comprobante && !comprobante.ok) return comprobante;
+
   // Hay que saber con cuánta plata se parte, y que en el lugar de origen alcance.
   const hay = await bolsillosAl(apr.id, diaVecino(d.fecha, 1));
   if (!hay) return { ok: false, error: "Primero define el saldo inicial (con la fecha en que partes) para poder mover plata entre efectivo y banco." };
@@ -444,16 +457,22 @@ export async function crearTraspaso(_prev: ResultadoFinanzas | null, formData: F
   }
 
   try {
-    await db.insert(movimientos).values({
-      aprId: apr.id,
-      tipo: d.tipo,
-      fecha: d.fecha,
-      monto: d.monto,
-      categoria: d.tipo,
-      concepto: d.nota ?? textoTraspaso(d.tipo),
-      medio: d.tipo === TIPO_GIRO ? "TRANSFERENCIA" : "EFECTIVO",
-      referencia: d.referencia,
-      registradoPorId: user.id,
+    await db.transaction(async (tx) => {
+      const [nuevo] = await tx
+        .insert(movimientos)
+        .values({
+          aprId: apr.id,
+          tipo: d.tipo,
+          fecha: d.fecha,
+          monto: d.monto,
+          categoria: d.tipo,
+          concepto: d.nota ?? textoTraspaso(d.tipo),
+          medio: d.tipo === TIPO_GIRO ? "TRANSFERENCIA" : "EFECTIVO",
+          referencia: d.referencia,
+          registradoPorId: user.id,
+        })
+        .returning({ id: movimientos.id });
+      if (comprobante?.ok) await tx.insert(movimientoAdjuntos).values({ aprId: apr.id, movimientoId: nuevo.id, nombre: comprobante.nombre, tipo: comprobante.tipo, tamano: comprobante.tamano, contenido: comprobante.contenido });
     });
   } catch (e) {
     console.error("Finanzas: no se pudo guardar el traspaso:", e);

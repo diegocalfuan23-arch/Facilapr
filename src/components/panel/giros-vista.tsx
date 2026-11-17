@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { Fragment, useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronLeft, ChevronRight, Landmark, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronLeft, ChevronRight, Landmark, Paperclip, Search, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useConfirmar } from "@/components/ui/confirmar";
 import { TraspasoDialog } from "@/components/panel/traspaso-dialog";
+import { AccionComprobante } from "@/components/panel/comprobante";
 import { TIPO_DEPOSITO, TIPO_GIRO, type Bolsillos, type TraspasoConSaldo } from "@/lib/finanzas-comun";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
@@ -70,6 +71,7 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos, hoy }: { bol
   const total = bolsillos ? bolsillos.efectivo + bolsillos.banco : 0;
   const hayNegativo = bolsillos ? bolsillos.efectivo < 0 || bolsillos.banco < 0 : false;
   const pctEfectivo = bolsillos && total > 0 && !hayNegativo ? Math.round((bolsillos.efectivo / total) * 100) : null;
+  const sinComprobante = traspasos.filter((t) => !t.comprobante).length;
   const ultimoDeposito = traspasos.find((t) => t.tipo === TIPO_DEPOSITO);
   const diasDeposito = ultimoDeposito ? diasEntre(ultimoDeposito.fecha, hoy) : null;
 
@@ -260,7 +262,7 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos, hoy }: { bol
           <div className={`hidden grid-cols-[minmax(0,1fr)_190px_130px_130px_36px] gap-4 border-b border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2.5 text-xs font-medium md:grid ${GRIS}`}>
             <span>Movimiento</span>
             <span>Lo anotó</span>
-            <span>N° operación</span>
+            <span>Comprobante</span>
             <span className="text-right">Monto</span>
             <span />
           </div>
@@ -304,7 +306,10 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos, hoy }: { bol
                       </span>
                     </span>
                     <span className={`hidden min-w-0 truncate text-[13px] md:block ${GRIS}`}>{t.registradoPor ? `${t.registradoPor}${t.rol ? ` · ${t.rol}` : ""}` : "—"}</span>
-                    <span className={`hidden truncate text-[13px] md:block ${GRIS}`}>{t.referencia ? `N° ${t.referencia}` : "—"}</span>
+                    <span className="hidden min-w-0 md:block">
+                      {t.referencia ? <span className={`block truncate text-[13px] ${GRIS}`}>N° {t.referencia}</span> : null}
+                      <AccionComprobante movimientoId={t.id} tiene={t.comprobante} />
+                    </span>
                     <span className={`text-right text-[15px] font-semibold tabular-nums ${t.tipo === TIPO_DEPOSITO ? "text-[#075A3C]" : "text-[#8A4B00]"}`}>
                       {t.tipo === TIPO_DEPOSITO ? "+" : "−"}
                       {clp(t.monto)}
@@ -338,6 +343,12 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos, hoy }: { bol
               </li>
             ) : null}
           </ul>
+          {sinComprobante > 0 ? (
+            <p className="flex items-center gap-1.5 border-t border-[#F0EEF6] bg-[#FFFBF3] px-5 py-2.5 text-xs text-[#7A4A00]">
+              <Paperclip className="size-3.5 shrink-0" aria-hidden />
+              {sinComprobante} {sinComprobante === 1 ? "movimiento sin comprobante" : "movimientos sin comprobante"}. Adjúntalo{sinComprobante === 1 ? "" : "s"} para tener su respaldo.
+            </p>
+          ) : null}
         </Card>
       ) : null}
 

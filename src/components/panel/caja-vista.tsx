@@ -20,6 +20,7 @@ import {
   PiggyBank,
   Plus,
   RefreshCw,
+  Paperclip,
   Search,
   Tags,
   Trash2,
@@ -32,6 +33,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { CategoriasCajaDialog } from "@/components/panel/categorias-caja-dialog";
 import { CerrarCajaDialog } from "@/components/panel/cerrar-caja-dialog";
 import { NuevoMovimientoDialog } from "@/components/panel/nuevo-movimiento-dialog";
+import { AccionComprobante } from "@/components/panel/comprobante";
 import { SaldoInicialDialog } from "@/components/panel/saldo-inicial-dialog";
 import {
   diaVecino,
@@ -500,6 +502,12 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
     { valor: "compra", texto: "Compras" },
   ];
 
+  // Los gastos llevan su comprobante (la factura o la boleta): los pagos de socios no, su recibo lo genera el sistema.
+  const llevaComprobante = (l: LineaLibro) => !l.automatico && l.tipo === "EGRESO";
+  const sinComprobante = lineas.filter((l) => llevaComprobante(l) && !l.comprobante).length;
+  const accionComprobante = (l: LineaLibro, className?: string) =>
+    llevaComprobante(l) && <AccionComprobante className={className} movimientoId={l.id.replace("mov:", "")} tiene={Boolean(l.comprobante)} onListo={volverAPedir} />;
+
   const botonBorrar = (l: LineaLibro) =>
     puedeBorrar(l) && (
       <Button variant="ghost" size="icon" aria-label={`Borrar ${l.concepto}`} disabled={borrando || bloqueada} onClick={() => borrar(l)} className="size-9 rounded-lg text-muted-foreground">
@@ -860,6 +868,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
                           <td className="px-3 py-3.5">
                             <p className="font-semibold">{l.concepto}</p>
                             <p className={cn("text-xs", GRIS)}>{[l.contraparte, l.referencia ? `N.° ${l.referencia}` : null, origenDe(l)].filter(Boolean).join(" · ")}</p>
+                            {accionComprobante(l, "mt-1")}
                           </td>
                           <td className="px-3 py-3.5">
                             <TipoPill tipo={l.tipo} />
@@ -884,6 +893,7 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
                         <p className={cn("truncate text-[13px]", GRIS)}>
                           {[l.contraparte, textoMedioLinea(l.medio), esDia ? l.hora : fechaCorta(l.fecha).slice(0, 5)].filter(Boolean).join(" · ")}
                         </p>
+                        {accionComprobante(l, "mt-1")}
                       </div>
                       <div className="flex shrink-0 flex-col items-end">
                         <p className={cn("text-[15px] font-semibold tabular-nums", l.tipo === "EGRESO" ? "text-[#A32020]" : "text-[#075A3C]")}>{conSigno(firmado(l))}</p>
@@ -894,7 +904,13 @@ export function CajaVista({ modo: modoInicial, desde: desdeInicial, datos }: Pro
                 </ul>
               </>
             )}
-            <div className={cn("mt-auto flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-[#F0EEF6] bg-[#FAFAFD] px-4 py-3 text-sm sm:px-5", GRIS)}>
+            {sinComprobante > 0 ? (
+              <p className="mt-auto flex items-center gap-1.5 border-t border-[#F0EEF6] bg-[#FFFBF3] px-4 py-2.5 text-xs text-[#7A4A00] sm:px-5">
+                <Paperclip className="size-3.5 shrink-0" aria-hidden />
+                {sinComprobante} {sinComprobante === 1 ? "gasto sin comprobante" : "gastos sin comprobante"}. Adjúntalo{sinComprobante === 1 ? "" : "s"} para la rendición de cuentas.
+              </p>
+            ) : null}
+            <div className={cn(sinComprobante > 0 ? "" : "mt-auto", "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-[#F0EEF6] bg-[#FAFAFD] px-4 py-3 text-sm sm:px-5", GRIS)}>
               <span>
                 {filtradas.length} movimiento{filtradas.length === 1 ? "" : "s"}
               </span>

@@ -1735,3 +1735,29 @@ export const comitesBuscados = pgTable(
   },
   (table) => [uniqueIndex("ComiteBuscado_clave_key").on(table.clave)]
 );
+
+/**
+ * El comprobante de un movimiento de la Caja o de un giro o depósito (factura, boleta, voucher del banco): un PDF o una
+ * foto. Se guarda dentro de la base (base64) como los documentos de Activos fijos, así que se limita el tamaño y la lista
+ * nunca lee el contenido. Cada movimiento tiene uno; al borrar el movimiento se borra el archivo.
+ */
+export const movimientoAdjuntos = pgTable(
+  "MovimientoAdjunto",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    movimientoId: text("movimientoId")
+      .notNull()
+      .references(() => movimientos.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /** application/pdf | image/png | image/jpeg */
+    tipo: text("tipo").notNull(),
+    tamano: integer("tamano").notNull(),
+    /** El archivo en base64. */
+    contenido: text("contenido").notNull(),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("MovimientoAdjunto_movimientoId_key").on(table.movimientoId)]
+);

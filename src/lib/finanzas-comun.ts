@@ -112,6 +112,8 @@ export type TraspasoFila = {
   /** Quién lo anotó y con qué rol entra al panel. */
   registradoPor: string | null;
   rol: string | null;
+  /** Tiene su comprobante adjunto (foto o PDF). */
+  comprobante: boolean;
 };
 
 /** Un giro o depósito con el saldo que tenía el banco al cerrar ese día (null si no se puede saber). */
@@ -140,6 +142,8 @@ export type LineaLibro = {
   orden?: number;
   /** Quién del comité lo anotó; null en los antiguos. */
   registradoPor: string | null;
+  /** Tiene su comprobante adjunto (foto o PDF). Los pagos de socios no llevan: su recibo lo genera el sistema. */
+  comprobante?: boolean;
 };
 
 /** El disponible al cierre de un día, para el gráfico de tendencia. */

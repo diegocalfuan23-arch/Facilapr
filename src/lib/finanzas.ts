@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, categoriasMovimiento, movimientos, pagos, socios } from "@/lib/db/schema";
+import { boletas, categoriasMovimiento, movimientoAdjuntos, movimientos, pagos, socios } from "@/lib/db/schema";
 import { user as usuarios } from "@/lib/db/auth-schema";
 import { textoConcepto } from "@/lib/pagos";
 import {
@@ -60,7 +60,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
 
   // Si la tabla de movimientos todavía no existe en la base, el libro sigue mostrando los pagos de socios.
   const deMovimientosP = db
-    .select({ m: movimientos, registradoPor: usuarios.name })
+    .select({ m: movimientos, registradoPor: usuarios.name, comprobante: sql<boolean>`exists (select 1 from ${movimientoAdjuntos} where ${movimientoAdjuntos.movimientoId} = ${movimientos.id})` })
     .from(movimientos)
     .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
     .where(
@@ -112,7 +112,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
   const [deMovimientos, deSocios] = await Promise.all([deMovimientosP, deSociosP]);
 
   const lineas: LineaLibro[] = [
-    ...deMovimientos.map(({ m, registradoPor }) => ({
+    ...deMovimientos.map(({ m, registradoPor, comprobante }) => ({
       hora: horaChile(m.createdAt),
       orden: m.createdAt.getTime(),
       registradoPor,
@@ -126,6 +126,7 @@ async function lineasEntre(aprId: string, desde: string, hasta: string): Promise
       referencia: m.referencia,
       contraparte: m.contraparte,
       automatico: false,
+      comprobante,
     })),
     ...deSocios.map((p) => ({
       hora: horaChile(p.registrado),
@@ -314,6 +315,7 @@ export async function traspasosEntre(aprId: string, desde: string, hasta: string
       concepto: movimientos.concepto,
       registradoPor: usuarios.name,
       rolCuenta: usuarios.rol,
+      comprobante: sql<boolean>`exists (select 1 from ${movimientoAdjuntos} where ${movimientoAdjuntos.movimientoId} = ${movimientos.id})`,
     })
     .from(movimientos)
     .leftJoin(usuarios, eq(usuarios.id, movimientos.registradoPorId))
@@ -343,6 +345,7 @@ export async function traspasosEntre(aprId: string, desde: string, hasta: string
       nota: f.concepto && f.concepto !== textoTraspaso(tipo) ? f.concepto : null,
       registradoPor: f.registradoPor ?? null,
       rol,
+      comprobante: f.comprobante,
     };
   });
 }

@@ -7,6 +7,7 @@ import { crearMovimiento, type ResultadoFinanzas } from "@/app/panel/finanzas/ac
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { CampoComprobante } from "@/components/panel/comprobante";
 import {
   CATEGORIA_MOV_NUEVA,
   MEDIOS_MOVIMIENTO,
@@ -210,6 +211,10 @@ export function NuevoMovimientoDialog({
               </label>
               <Input id="mov-referencia" name="referencia" maxLength={80} className={campo} />
             </div>
+          </div>
+
+          <div className="mt-4">
+            <CampoComprobante />
           </div>
 
           {estado && !estado.ok && (

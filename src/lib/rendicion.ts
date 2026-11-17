@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, compras, comprasItems, incidentes, insumos, labores, movimientos, movimientosStock, proveedores, socios } from "@/lib/db/schema";
+import { boletas, compras, comprasItems, incidentes, insumos, labores, movimientoAdjuntos, movimientos, movimientosStock, proveedores, socios } from "@/lib/db/schema";
 import { ingresosEgresosPorDia, resumenRango, type ResumenAnual } from "@/lib/reportes";
 import { bolsillosAl, listarCategoriasMovimiento } from "@/lib/finanzas";
 import { diaVecino, nombreMes, textoCategoria } from "@/lib/finanzas-comun";
@@ -63,6 +63,8 @@ export type DatosRendicion = {
   ingresos: { nombre: string; monto: number }[];
   egresos: { nombre: string; monto: number }[];
   gastosGrandes: GastoGrande[];
+  /** Los gastos del período a los que aún les falta adjuntar su comprobante (la factura o la boleta). */
+  sinComprobante: { n: number; monto: number };
   compras: ComprasRendidas;
   /** Null si el plan no incluye Inventario. */
   inventario: InventarioRendido | null;
@@ -246,6 +248,20 @@ export async function datosRendicion(
     .limit(8)
     .catch(() => []);
 
+  const [faltantes] = await db
+    .select({ n: sql<number>`count(*)::int`, monto: sql<number>`coalesce(sum(${movimientos.monto}), 0)::int` })
+    .from(movimientos)
+    .where(
+      and(
+        eq(movimientos.aprId, aprId),
+        eq(movimientos.tipo, "EGRESO"),
+        sql`${movimientos.fecha} >= ${desde}`,
+        sql`${movimientos.fecha} < ${tope}`,
+        sql`not exists (select 1 from ${movimientoAdjuntos} where ${movimientoAdjuntos.movimientoId} = ${movimientos.id})`
+      )
+    )
+    .catch(() => [{ n: 0, monto: 0 }]);
+
   // Cobranza: lo que se emitió en el período y lo que se pagó de eso, y la deuda de hoy (toda, no solo la del período).
   const [emitidas] = await db
     .select({
@@ -316,6 +332,7 @@ export async function datosRendicion(
     ingresos: resumen.ingresos.map((c) => ({ nombre: textoCategoria(c.categoria, propias), monto: c.total })),
     egresos: resumen.egresos.map((c) => ({ nombre: textoCategoria(c.categoria, propias), monto: c.total })),
     gastosGrandes: grandes.map((g) => ({ ...g, categoria: textoCategoria(g.categoria, propias) })),
+    sinComprobante: { n: faltantes?.n ?? 0, monto: faltantes?.monto ?? 0 },
     compras: comprasRendidas,
     inventario: inventarioRendido,
     cobranza: { boletas: emitidas?.n ?? 0, emitido: emitidas?.emitido ?? 0, pagado: emitidas?.pagado ?? 0, sociosConDeuda: deuda?.socios ?? 0, deudaTotal: deuda?.total ?? 0 },
