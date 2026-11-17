@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { lecturas, socios } from "@/lib/db/schema";
-import { rutasDelComite } from "@/lib/rutas";
+import { arranquesParaRutas, rutasDelComite } from "@/lib/rutas";
 import { anterioresDelComite } from "@/lib/lectura-anterior";
 import { aprobadasPorSocio, promedioDe, type LecturaCalculo } from "@/lib/lecturas-calculos";
 
@@ -69,10 +69,11 @@ export async function datosTerreno(userId: string, aprId: string, rol: string = 
     return previas.length ? valor - previas[previas.length - 1].valor : null;
   };
 
-  const rutas = await rutasDelComite(aprId, userId, rol);
+  const [rutas, arranquesRuta] = await Promise.all([rutasDelComite(aprId, userId, rol), arranquesParaRutas(aprId)]);
 
   return {
     rutas,
+    arranques: arranquesRuta,
     esAdmin: rol === "ADMIN",
     leidas: delComite.map((l) => ({ socioId: l.socioId, periodo: l.periodo, estado: l.estado as "PENDIENTE" | "APROBADA" })),
     socios: listaSocios.map((s) => {

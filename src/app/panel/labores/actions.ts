@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { insumos, laborInsumos, labores } from "@/lib/db/schema";
+import { insumos, laborInsumos, labores, rutas } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
 import { puede, type Plan } from "@/lib/planes";
@@ -35,6 +35,7 @@ const laborSchema = z.object({
   hora: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "La hora de inicio no es válida.").nullable(),
   horaFin: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "La hora de término no es válida.").nullable(),
   responsable: z.string().trim().max(120).nullable(),
+  rutaId: z.string().trim().max(60).nullable(),
 });
 
 const lineasSchema = z
@@ -61,6 +62,7 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
     hora: aTexto(formData.get("hora")),
     horaFin: aTexto(formData.get("horaFin")),
     responsable: aTexto(formData.get("responsable")),
+    rutaId: aTexto(formData.get("rutaId")),
   });
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0].message };
 
@@ -78,6 +80,13 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
   for (const l of lineasParse.data) porMaterial.set(l.insumoId, (porMaterial.get(l.insumoId) ?? 0) + l.cantidad);
 
   const d = parsed.data;
+  // La ruta solo vale en una toma de lectura, y tiene que ser una ruta aprobada de este comité.
+  let rutaId: string | null = null;
+  if (d.tipo === "LECTURA" && d.rutaId) {
+    const [r] = await db.select({ id: rutas.id }).from(rutas).where(and(eq(rutas.id, d.rutaId), eq(rutas.aprId, apr.id), eq(rutas.aprobada, true))).limit(1);
+    if (!r) return { ok: false, error: "Esa ruta ya no existe o no está aprobada." };
+    rutaId = r.id;
+  }
   // Hecha: la fecha en que se terminó. Antes de eso, la fecha en que se programó que termine (si se puso).
   const fechaTermino = d.estado === "HECHA" ? (d.fechaTermino ?? hoyEnChile()) : d.fechaTermino;
   if (d.estado !== "HECHA" && d.fechaTermino && `${d.fechaTermino} ${d.horaFin ?? "23:59"}` < `${d.fecha} ${d.hora ?? "00:00"}`) {
@@ -119,7 +128,7 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
         numero = m + 1;
       }
 
-      const valores = { ...d, fechaTermino, horaFin, descontada: false, updatedAt: new Date() };
+      const valores = { ...d, rutaId, fechaTermino, horaFin, descontada: false, updatedAt: new Date() };
       if (id) {
         await tx.update(labores).set(valores).where(and(eq(labores.id, id), eq(labores.aprId, apr.id)));
         await tx.delete(laborInsumos).where(eq(laborInsumos.laborId, id));

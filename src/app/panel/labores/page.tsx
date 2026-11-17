@@ -5,6 +5,7 @@ import { puede, type Plan } from "@/lib/planes";
 import { listarLabores } from "@/lib/labores";
 import { avanzarLaboresVencidas } from "@/lib/labores-auto";
 import { listarInsumos } from "@/lib/inventario";
+import { rutasDelComite } from "@/lib/rutas";
 import { LaboresVista } from "@/components/panel/labores-vista";
 
 export const metadata: Metadata = {
@@ -12,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LaboresPage({ searchParams }: { searchParams: Promise<{ insumo?: string }> }) {
-  const { apr } = await requireAdmin();
+  const { user, apr } = await requireAdmin();
   const { insumo } = await searchParams;
 
   // Las labores usan el inventario: van con el mismo plan.
@@ -20,7 +21,8 @@ export default async function LaboresPage({ searchParams }: { searchParams: Prom
 
   // Las labores que llegaron a su hora pasan solas de estado antes de mostrarlas.
   await avanzarLaboresVencidas(apr.id);
-  const [labores, insumos] = await Promise.all([listarLabores(apr.id), listarInsumos(apr.id)]);
+  const [labores, insumos, todasLasRutas] = await Promise.all([listarLabores(apr.id), listarInsumos(apr.id), rutasDelComite(apr.id, user.id, "ADMIN")]);
+  const rutas = todasLasRutas.filter((r) => r.aprobada).map((r) => ({ id: r.id, nombre: r.nombre }));
 
-  return <LaboresVista labores={labores} insumos={insumos} insumoInicial={insumos.some((i) => i.id === insumo) ? insumo : undefined} />;
+  return <LaboresVista labores={labores} insumos={insumos} rutas={rutas} insumoInicial={insumos.some((i) => i.id === insumo) ? insumo : undefined} />;
 }

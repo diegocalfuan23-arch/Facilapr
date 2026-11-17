@@ -1,16 +1,9 @@
 import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { rutaParadas, rutas } from "@/lib/db/schema";
+import { arranqueSocios, arranques, rutaParadas, rutas } from "@/lib/db/schema";
+import type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
 
-/** Una ruta de terreno lista para la pantalla: sus socios ya vienen en el orden del recorrido. */
-export type RutaVista = {
-  id: string;
-  nombre: string;
-  aprobada: boolean;
-  /** La creó quien mira la pantalla. */
-  propia: boolean;
-  socioIds: string[];
-};
+export type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
 
 /**
  * Las rutas que ve cada usuario: el administrador, todas; los demás, las aprobadas y las propias aún por aprobar.
@@ -32,6 +25,24 @@ export async function rutasDelComite(aprId: string, userId: string, rol: string)
     return visibles.map((r) => ({ id: r.id, nombre: r.nombre, aprobada: r.aprobada, propia: r.creadaPorId === userId, socioIds: porRuta.get(r.id) ?? [] }));
   } catch (e) {
     console.error("Rutas: no se pudieron leer:", e);
+    return [];
+  }
+}
+
+export async function arranquesParaRutas(aprId: string): Promise<ArranqueRuta[]> {
+  try {
+    const filas = await db.select({ id: arranques.id, nombre: arranques.nombre, lat: arranques.lat, lng: arranques.lng }).from(arranques).where(eq(arranques.aprId, aprId)).orderBy(asc(arranques.nombre));
+    if (filas.length === 0) return [];
+    const vinculos = await db
+      .select({ arranqueId: arranqueSocios.arranqueId, socioId: arranqueSocios.socioId })
+      .from(arranqueSocios)
+      .innerJoin(arranques, eq(arranques.id, arranqueSocios.arranqueId))
+      .where(eq(arranques.aprId, aprId));
+    const porArranque = new Map<string, string[]>();
+    for (const v of vinculos) porArranque.set(v.arranqueId, [...(porArranque.get(v.arranqueId) ?? []), v.socioId]);
+    return filas.map((a) => ({ ...a, socioIds: porArranque.get(a.id) ?? [] })).filter((a) => a.socioIds.length > 0);
+  } catch (e) {
+    console.error("Rutas: no se pudieron leer los arranques:", e);
     return [];
   }
 }

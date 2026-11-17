@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   AlertTriangle,
@@ -18,6 +19,7 @@ import {
   Pencil,
   Play,
   Plus,
+  Route,
   Search,
   UserRound,
   Wrench,
@@ -29,7 +31,8 @@ import { avisarCambio } from "@/lib/avisos-datos";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LaborDialog } from "@/components/panel/labor-dialog";
-import { costoMateriales, textoTipoLabor, TEXTO_ESTADO_LABOR, type EstadoLabor, type LaborFila, type MaterialLabor } from "@/lib/labores-comun";
+import { guardarRutaElegida } from "@/components/panel/rutas-panel";
+import { costoMateriales, textoTipoLabor, TEXTO_ESTADO_LABOR, type EstadoLabor, type LaborFila, type MaterialLabor, type RutaOpcion } from "@/lib/labores-comun";
 import { formatoCantidad, unidadCorta, type Insumo } from "@/lib/inventario-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { cn } from "@/lib/utils";
@@ -51,6 +54,7 @@ function IconoTipo({ tipo, className }: { tipo: string; className?: string }) {
   if (tipo === "CLORACION") return <Droplets className={className} />;
   if (tipo === "REPARACION") return <Wrench className={className} />;
   if (tipo === "MANTENCION") return <Gauge className={className} />;
+  if (tipo === "LECTURA") return <Route className={className} />;
   return <ClipboardList className={className} />;
 }
 
@@ -89,6 +93,7 @@ function Detalle({
   onEditar: () => void;
   onEstado: (e: EstadoLabor) => void;
 }) {
+  const router = useRouter();
   const hecha = l.estado === "HECHA";
   const terminada = l.fechaTermino ?? l.fecha;
   // Lo que hay en bodega de cada material (si el material sigue en el inventario).
@@ -162,6 +167,31 @@ function Detalle({
             </dt>
             <dd className={cn("mt-0.5 font-medium", !l.lugar && GRIS)}>{l.lugar ?? "Sin lugar"}</dd>
           </div>
+          {l.tipo === "LECTURA" ? (
+            <div className="col-span-2">
+              <dt className={cn("flex items-center gap-1.5 text-xs", GRIS)}>
+                <Route className="size-3.5" aria-hidden />
+                Ruta
+              </dt>
+              <dd className="mt-1 flex flex-wrap items-center gap-2">
+                <span className={cn("font-medium", !l.rutaNombre && GRIS)}>{l.rutaNombre ?? "Todos los socios"}</span>
+                {!hecha ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      guardarRutaElegida(l.rutaId ?? "");
+                      router.push("/panel/lecturas/terreno");
+                    }}
+                    className="h-9 rounded-lg"
+                  >
+                    Tomar lecturas
+                  </Button>
+                ) : null}
+              </dd>
+            </div>
+          ) : null}
           <div className="col-span-2">
             <dt className={cn("flex items-center gap-1.5 text-xs", GRIS)}>
               <UserRound className="size-3.5" aria-hidden />
@@ -281,7 +311,7 @@ function Detalle({
  * desde abajo). Al pasar una a «Hecha» sus materiales se descuentan del inventario; al sacarla de ahí, que se
  * hace desde el lápiz de edición, vuelven.
  */
-export function LaboresVista({ labores, insumos, insumoInicial }: { labores: LaborFila[]; insumos: Insumo[]; insumoInicial?: string }) {
+export function LaboresVista({ labores, insumos, rutas = [], insumoInicial }: { labores: LaborFila[]; insumos: Insumo[]; rutas?: RutaOpcion[]; insumoInicial?: string }) {
   const [filtro, setFiltro] = useState<"todas" | EstadoLabor>("todas");
   const [busqueda, setBusqueda] = useState("");
   const [sel, setSel] = useState<string | null>(null);
@@ -526,7 +556,7 @@ export function LaboresVista({ labores, insumos, insumoInicial }: { labores: Lab
         </div>
       ) : null}
 
-      {(creando || editando) && <LaborDialog key={editando?.id ?? "nueva"} labor={editando} insumos={insumos} insumoInicial={insumoInicial} onCerrar={cerrar} />}
+      {(creando || editando) && <LaborDialog key={editando?.id ?? "nueva"} labor={editando} insumos={insumos} rutas={rutas} insumoInicial={insumoInicial} onCerrar={cerrar} />}
     </div>
   );
 }

@@ -2,12 +2,12 @@
 
 import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, Clock3, Loader2, Pencil, Plus, Route, Search, Trash2, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Clock3, Loader2, MapPin, Pencil, Plus, Route, Search, Trash2, X } from "lucide-react";
 import { aprobarRuta, eliminarRuta, guardarRuta } from "@/app/panel/lecturas/rutas-actions";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { RutaVista } from "@/lib/rutas";
+import { ordenarPorCercania, type ArranqueRuta, type RutaVista } from "@/lib/rutas-comun";
 
 const GRIS = "text-[#5B5970]";
 
@@ -54,7 +54,7 @@ export function useRutaElegida(): string {
 }
 
 /** Crear, ordenar y autorizar las rutas de terreno. */
-export function RutasPanel({ socios, rutas, esAdmin, elegida, onElegir, onCerrar }: { socios: SocioRuta[]; rutas: RutaVista[]; esAdmin: boolean; elegida: string; onElegir: (id: string) => void; onCerrar: () => void }) {
+export function RutasPanel({ socios, rutas, arranques = [], esAdmin, elegida, onElegir, onCerrar }: { socios: SocioRuta[]; rutas: RutaVista[]; arranques?: ArranqueRuta[]; esAdmin: boolean; elegida: string; onElegir: (id: string) => void; onCerrar: () => void }) {
   const [editando, setEditando] = useState<{ id: string | null; nombre: string; ids: string[] } | null>(null);
   const [trabajando, iniciar] = useTransition();
   const porId = useMemo(() => new Map(socios.map((s) => [s.id, s])), [socios]);
@@ -97,6 +97,7 @@ export function RutasPanel({ socios, rutas, esAdmin, elegida, onElegir, onCerrar
         {editando ? (
           <Editor
             socios={socios}
+            arranques={arranques}
             porId={porId}
             inicial={editando}
             esAdmin={esAdmin}
@@ -175,7 +176,7 @@ export function RutasPanel({ socios, rutas, esAdmin, elegida, onElegir, onCerrar
   );
 }
 
-function Editor({ socios, porId, inicial, esAdmin, onVolver }: { socios: SocioRuta[]; porId: Map<string, SocioRuta>; inicial: { id: string | null; nombre: string; ids: string[] }; esAdmin: boolean; onVolver: () => void }) {
+function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }: { socios: SocioRuta[]; arranques: ArranqueRuta[]; porId: Map<string, SocioRuta>; inicial: { id: string | null; nombre: string; ids: string[] }; esAdmin: boolean; onVolver: () => void }) {
   const [nombre, setNombre] = useState(inicial.nombre);
   const [ids, setIds] = useState(() => inicial.ids.filter((id) => porId.has(id)));
   const [busca, setBusca] = useState("");
@@ -194,6 +195,20 @@ function Editor({ socios, porId, inicial, esAdmin, onVolver }: { socios: SocioRu
       return n;
     });
   }
+
+  /** Suma a la ruta todos los socios de un arranque (los que ya están no se repiten). */
+  function agregarArranque(arranqueId: string) {
+    const a = arranques.find((x) => x.id === arranqueId);
+    if (!a) return;
+    const nuevos = a.socioIds.filter((id) => porId.has(id) && !enRuta.has(id));
+    if (nuevos.length === 0) {
+      toast.message("Todos los socios de ese arranque ya están en la ruta.");
+      return;
+    }
+    setIds((l) => [...l, ...nuevos]);
+  }
+
+  const hayUbicacion = arranques.some((a) => a.lat !== null && a.lng !== null);
 
   function guardar() {
     iniciar(async () => {
@@ -237,6 +252,32 @@ function Editor({ socios, porId, inicial, esAdmin, onVolver }: { socios: SocioRu
             </ol>
           )}
         </div>
+
+        {arranques.length > 0 ? (
+          <div>
+            <p className="text-[13px] font-semibold">Agregar un arranque completo</p>
+            <select
+              aria-label="Agregar un arranque completo"
+              value=""
+              onChange={(e) => agregarArranque(e.target.value)}
+              className="mt-1.5 h-11 w-full rounded-xl border border-[#E4E1F0] bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Elige un arranque…</option>
+              {arranques.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.nombre} · {a.socioIds.length} {a.socioIds.length === 1 ? "socio" : "socios"}
+                  {a.lat === null ? " · sin ubicación" : ""}
+                </option>
+              ))}
+            </select>
+            {hayUbicacion && ids.length > 1 ? (
+              <button type="button" onClick={() => setIds((l) => ordenarPorCercania(l, arranques))} className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#2A07A8] hover:underline">
+                <MapPin className="size-3.5" aria-hidden />
+                Ordenar por cercanía
+              </button>
+            ) : null}
+          </div>
+        ) : null}
 
         <div>
           <div className="flex items-center justify-between gap-2">

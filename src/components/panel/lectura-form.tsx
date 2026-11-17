@@ -31,7 +31,7 @@ import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
 import { RutasPanel, guardarRutaElegida, useRutaElegida } from "@/components/panel/rutas-panel";
-import type { RutaVista } from "@/lib/rutas";
+import type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
 import {
   COLA_VACIA,
   encolarLectura,
@@ -374,11 +374,14 @@ export function LecturaForm({
   leidas = [],
   puedeCargarSocios = false,
   rutas = [],
+  arranques = [],
   esAdmin = false,
 }: {
   socios: Socio[];
   /** Las rutas que puede usar quien mira: las aprobadas y las propias por aprobar (el administrador ve todas). */
   rutas?: RutaVista[];
+  /** Los arranques con su ubicación: sirven para armar una ruta por arranque y ordenarla por cercanía. */
+  arranques?: ArranqueRuta[];
   esAdmin?: boolean;
   recientes: LecturaReciente[];
   /** Las lecturas de los últimos meses de todo el comité: de ahí sale cuánto lleva leído de la ruta. */
@@ -702,6 +705,7 @@ export function LecturaForm({
             <RutasPanel
               socios={todosLosSocios}
               rutas={rutas}
+              arranques={arranques}
               esAdmin={esAdmin}
               elegida={rutaActiva?.id ?? ""}
               onElegir={(id) => {

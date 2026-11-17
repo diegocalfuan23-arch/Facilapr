@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { hoyEnChile } from "@/lib/finanzas-comun";
 import { formatoCantidad, unidadCorta, type Insumo } from "@/lib/inventario-comun";
-import { TIPOS_LABOR, type EstadoLabor, type LaborFila } from "@/lib/labores-comun";
+import { TIPOS_LABOR, type EstadoLabor, type LaborFila, type RutaOpcion } from "@/lib/labores-comun";
 import { cn } from "@/lib/utils";
 import { useConfirmar } from "@/components/ui/confirmar";
 
@@ -86,13 +86,14 @@ function Campo({ id, label, opcional, className, children }: { id: string; label
 }
 
 /** Registrar una labor del comité y los materiales del inventario que usa. */
-export function LaborDialog({ labor, insumos, insumoInicial, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; insumoInicial?: string; onCerrar: () => void }) {
+export function LaborDialog({ labor, insumos, rutas = [], insumoInicial, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; rutas?: RutaOpcion[]; insumoInicial?: string; onCerrar: () => void }) {
   const { confirmar, dialogo } = useConfirmar();
   const [resultado, enviar, pendiente] = useActionState<ResultadoLabores | null, FormData>(guardarLabor, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = labor !== null;
   const [titulo, setTitulo] = useState(labor?.titulo ?? "");
   const [estado, setEstado] = useState<EstadoLabor>(labor?.estado ?? "PROGRAMADA");
+  const [tipo, setTipo] = useState(labor?.tipo ?? "MANTENCION");
   const [lineas, setLineas] = useState<Linea[]>(
     labor
       ? labor.materiales.filter((m) => m.insumoId).map((m, i) => ({ clave: i, insumoId: m.insumoId as string, cantidad: String(m.cantidad) }))
@@ -222,7 +223,7 @@ export function LaborDialog({ labor, insumos, insumoInicial, onCerrar }: { labor
 
             <div className="grid gap-4 sm:grid-cols-2">
               <Campo id="lab-tipo" label="Tipo">
-                <select id="lab-tipo" name="tipo" defaultValue={labor?.tipo ?? "MANTENCION"} className={selectClase}>
+                <select id="lab-tipo" name="tipo" value={tipo} onChange={(e) => setTipo(e.target.value)} className={selectClase}>
                   {TIPOS_LABOR.map((t) => (
                     <option key={t.valor} value={t.valor}>
                       {t.texto}
@@ -230,6 +231,18 @@ export function LaborDialog({ labor, insumos, insumoInicial, onCerrar }: { labor
                   ))}
                 </select>
               </Campo>
+              {tipo === "LECTURA" && (
+                <Campo id="lab-ruta" label="Ruta a recorrer" opcional>
+                  <select id="lab-ruta" name="rutaId" defaultValue={labor?.rutaId ?? ""} className={selectClase}>
+                    <option value="">{rutas.length === 0 ? "No hay rutas aprobadas" : "Todos los socios"}</option>
+                    {rutas.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.nombre}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+              )}
               <Campo id="lab-fecha" label="Fecha de inicio">
                 <Input
                   id="lab-fecha"

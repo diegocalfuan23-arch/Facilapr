@@ -1272,6 +1272,8 @@ export const labores = pgTable(
     fechaTermino: date("fechaTermino", { mode: "string" }),
     horaFin: text("horaFin"),
     responsable: text("responsable"),
+    /** Para una labor de toma de lectura: la ruta que se recorre. */
+    rutaId: text("rutaId").references(() => rutas.id, { onDelete: "set null" }),
     /** true si los materiales ya se descontaron del inventario. */
     descontada: boolean("descontada").notNull().default(false),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
