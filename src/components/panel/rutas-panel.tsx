@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
+import { useMemo, useState, useSyncExternalStore, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Check, Clock3, Loader2, MapPin, Pencil, Plus, Route, Search, Trash2, X } from "lucide-react";
@@ -67,6 +67,7 @@ export function RutasPanel({
   onElegir = () => {},
   onCerrar = () => {},
   enPagina = false,
+  extra,
 }: {
   socios: SocioRuta[];
   rutas: RutaVista[];
@@ -76,6 +77,8 @@ export function RutasPanel({
   onElegir?: (id: string) => void;
   onCerrar?: () => void;
   enPagina?: boolean;
+  /** Algo más en cada ruta de la lista (la página Rutas muestra ahí sus labores). */
+  extra?: (r: RutaVista) => ReactNode;
 }) {
   const router = useRouter();
   const [editando, setEditando] = useState<{ id: string | null; nombre: string; ids: string[] } | null>(null);
@@ -203,6 +206,7 @@ export function RutasPanel({
                             ) : null}
                           </div>
                         ) : null}
+                        {extra ? extra(r) : null}
                       </li>
                     );
                   })}

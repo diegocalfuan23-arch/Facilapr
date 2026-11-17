@@ -20,8 +20,11 @@ export const TIPOS_LABOR = [
 
 export const textoTipoLabor = (valor: string) => TIPOS_LABOR.find((t) => t.valor === valor)?.texto ?? "Otra";
 
-/** Una ruta de terreno que se puede elegir para una labor de toma de lectura. */
+/** Una ruta de terreno que se puede elegir para una labor. */
 export type RutaOpcion = { id: string; nombre: string };
+
+/** Una ruta en la que está una labor: sus paradas con esta labor y cuántas ya se hicieron. */
+export type RutaDeLabor = { id: string; nombre: string; paradas: number; hechas: number };
 
 /** Un material de una labor. `insumoId` es null si el material se borró del inventario después. */
 export type MaterialLabor = {
@@ -47,9 +50,8 @@ export type LaborFila = {
   fechaTermino: string | null;
   horaFin: string | null;
   responsable: string | null;
-  /** Toma de lectura: la ruta que se recorre (null si no se eligió o se borró). */
-  rutaId: string | null;
-  rutaNombre: string | null;
+  /** Las rutas en las que está esta labor, con cuántas paradas tiene en cada una y cuántas ya se hicieron. */
+  rutas: RutaDeLabor[];
   /** true si los materiales ya se descontaron del inventario. */
   descontada: boolean;
   /** Su término programado ya pasó y sigue sin estar Hecha (por ejemplo, porque faltó stock). */

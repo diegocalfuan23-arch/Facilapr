@@ -1,9 +1,9 @@
-import { asc, eq } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { arranqueSocios, arranques, rutaParadas, rutas } from "@/lib/db/schema";
-import type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
+import { arranqueSocios, arranques, labores, paradaLabores, rutaParadas, rutas } from "@/lib/db/schema";
+import type { ArranqueRuta, LaborEnRuta, RutaVista } from "@/lib/rutas-comun";
 
-export type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
+export type { ArranqueRuta, LaborEnRuta, RutaVista } from "@/lib/rutas-comun";
 
 /**
  * Las rutas que ve cada usuario: el administrador, todas; los demás, las aprobadas y las propias aún por aprobar.
@@ -45,4 +45,31 @@ export async function arranquesParaRutas(aprId: string): Promise<ArranqueRuta[]>
     console.error("Rutas: no se pudieron leer los arranques:", e);
     return [];
   }
+}
+
+/** Las labores que se hacen en cada ruta (por id de ruta), con cuántas paradas tiene cada una y cuántas se hicieron. */
+export async function laboresPorRuta(aprId: string): Promise<Record<string, LaborEnRuta[]>> {
+  const porRuta: Record<string, LaborEnRuta[]> = {};
+  try {
+    const filas = await db
+      .select({
+        rutaId: rutaParadas.rutaId,
+        id: labores.id,
+        numero: labores.numero,
+        titulo: labores.titulo,
+        estado: labores.estado,
+        paradas: sql<number>`count(*)::int`,
+        hechas: sql<number>`coalesce(sum(case when ${paradaLabores.hecha} then 1 else 0 end), 0)::int`,
+      })
+      .from(paradaLabores)
+      .innerJoin(rutaParadas, eq(rutaParadas.id, paradaLabores.paradaId))
+      .innerJoin(labores, eq(labores.id, paradaLabores.laborId))
+      .where(eq(paradaLabores.aprId, aprId))
+      .groupBy(rutaParadas.rutaId, labores.id, labores.numero, labores.titulo, labores.estado)
+      .orderBy(asc(labores.numero));
+    for (const f of filas) (porRuta[f.rutaId] ??= []).push({ id: f.id, numero: f.numero, titulo: f.titulo, estado: f.estado as LaborEnRuta["estado"], paradas: f.paradas, hechas: f.hechas });
+  } catch (e) {
+    console.error("Rutas: no se pudieron leer sus labores:", e);
+  }
+  return porRuta;
 }

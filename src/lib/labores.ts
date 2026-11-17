@@ -1,7 +1,7 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { laborInsumos, labores, rutas } from "@/lib/db/schema";
-import { claveAhora, claveFin, type EstadoLabor, type LaborFila } from "@/lib/labores-comun";
+import { laborInsumos, labores, paradaLabores, rutaParadas, rutas } from "@/lib/db/schema";
+import { claveAhora, claveFin, type EstadoLabor, type LaborFila, type RutaDeLabor } from "@/lib/labores-comun";
 
 export * from "@/lib/labores-comun";
 
@@ -10,7 +10,7 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
   try {
     const filas = await db.select().from(labores).where(eq(labores.aprId, aprId)).orderBy(desc(labores.fecha), desc(labores.numero)).limit(500);
     const lineas = await db.select().from(laborInsumos).where(eq(laborInsumos.aprId, aprId)).orderBy(asc(laborInsumos.insumoNombre));
-    const nombresRuta = new Map((await db.select({ id: rutas.id, nombre: rutas.nombre }).from(rutas).where(eq(rutas.aprId, aprId))).map((r) => [r.id, r.nombre]));
+    const rutasPorLabor = await rutasDeLabores(aprId);
     return filas.map((f) => ({
       id: f.id,
       numero: f.numero,
@@ -24,8 +24,7 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
       fechaTermino: f.fechaTermino,
       horaFin: f.horaFin,
       responsable: f.responsable,
-      rutaId: f.rutaId && nombresRuta.has(f.rutaId) ? f.rutaId : null,
-      rutaNombre: f.rutaId ? (nombresRuta.get(f.rutaId) ?? null) : null,
+      rutas: rutasPorLabor.get(f.id) ?? [],
       descontada: f.descontada,
       vencida: f.estado !== "HECHA" && (claveFin(f) ?? "9999") <= claveAhora(),
       materiales: lineas
@@ -36,4 +35,29 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
     console.error("Labores: no se pudieron leer:", e);
     return [];
   }
+}
+
+/** En qué rutas está cada labor. Si las tablas de rutas todavía no existen, nada tiene ruta y las labores se ven igual. */
+async function rutasDeLabores(aprId: string): Promise<Map<string, RutaDeLabor[]>> {
+  const porLabor = new Map<string, RutaDeLabor[]>();
+  try {
+    const filas = await db
+      .select({
+        laborId: paradaLabores.laborId,
+        rutaId: rutas.id,
+        nombre: rutas.nombre,
+        paradas: sql<number>`count(*)::int`,
+        hechas: sql<number>`coalesce(sum(case when ${paradaLabores.hecha} then 1 else 0 end), 0)::int`,
+      })
+      .from(paradaLabores)
+      .innerJoin(rutaParadas, eq(rutaParadas.id, paradaLabores.paradaId))
+      .innerJoin(rutas, eq(rutas.id, rutaParadas.rutaId))
+      .where(eq(paradaLabores.aprId, aprId))
+      .groupBy(paradaLabores.laborId, rutas.id, rutas.nombre)
+      .orderBy(asc(rutas.nombre));
+    for (const f of filas) porLabor.set(f.laborId, [...(porLabor.get(f.laborId) ?? []), { id: f.rutaId, nombre: f.nombre, paradas: f.paradas, hechas: f.hechas }]);
+  } catch (e) {
+    console.error("Labores: no se pudieron leer sus rutas:", e);
+  }
+  return porLabor;
 }

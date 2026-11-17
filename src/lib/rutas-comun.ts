@@ -10,6 +10,9 @@ export type RutaVista = {
   socioIds: string[];
 };
 
+/** Una labor dentro de una ruta: en cuántas paradas de la ruta se hace y cuántas ya se hicieron. */
+export type LaborEnRuta = { id: string; numero: number; titulo: string; estado: "PROGRAMADA" | "EN_CURSO" | "HECHA"; paradas: number; hechas: number };
+
 /** Un arranque con los socios que abastece y, si el comité la marcó, su ubicación: sirve para armar y ordenar una ruta. */
 export type ArranqueRuta = { id: string; nombre: string; lat: number | null; lng: number | null; socioIds: string[] };
 

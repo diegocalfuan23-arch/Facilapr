@@ -167,28 +167,35 @@ function Detalle({
             </dt>
             <dd className={cn("mt-0.5 font-medium", !l.lugar && GRIS)}>{l.lugar ?? "Sin lugar"}</dd>
           </div>
-          {l.tipo === "LECTURA" ? (
+          {l.rutas.length > 0 ? (
             <div className="col-span-2">
               <dt className={cn("flex items-center gap-1.5 text-xs", GRIS)}>
                 <Route className="size-3.5" aria-hidden />
-                Ruta
+                Rutas
               </dt>
-              <dd className="mt-1 flex flex-wrap items-center gap-2">
-                <span className={cn("font-medium", !l.rutaNombre && GRIS)}>{l.rutaNombre ?? "Todos los socios"}</span>
-                {!hecha ? (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      guardarRutaElegida(l.rutaId ?? "");
-                      router.push("/panel/lecturas/terreno");
-                    }}
-                    className="h-9 rounded-lg"
-                  >
-                    Tomar lecturas
-                  </Button>
-                ) : null}
+              <dd className="mt-1 space-y-2">
+                {l.rutas.map((r) => (
+                  <div key={r.id} className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium">{r.nombre}</span>
+                    <span className={cn("text-xs tabular-nums", GRIS)}>
+                      {r.hechas} de {r.paradas} {r.paradas === 1 ? "parada" : "paradas"}
+                    </span>
+                    {l.tipo === "LECTURA" && !hecha ? (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          guardarRutaElegida(r.id);
+                          router.push("/panel/lecturas/terreno");
+                        }}
+                        className="h-9 rounded-lg"
+                      >
+                        Tomar lecturas
+                      </Button>
+                    ) : null}
+                  </div>
+                ))}
               </dd>
             </div>
           ) : null}

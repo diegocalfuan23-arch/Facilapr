@@ -1272,8 +1272,6 @@ export const labores = pgTable(
     fechaTermino: date("fechaTermino", { mode: "string" }),
     horaFin: text("horaFin"),
     responsable: text("responsable"),
-    /** Para una labor de toma de lectura: la ruta que se recorre. */
-    rutaId: text("rutaId").references(() => rutas.id, { onDelete: "set null" }),
     /** true si los materiales ya se descontaron del inventario. */
     descontada: boolean("descontada").notNull().default(false),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
@@ -1802,4 +1800,28 @@ export const rutaParadas = pgTable(
     orden: integer("orden").notNull(),
   },
   (table) => [uniqueIndex("RutaParada_rutaId_socioId_key").on(table.rutaId, table.socioId), index("RutaParada_rutaId_idx").on(table.rutaId)]
+);
+
+/**
+ * Una labor en una parada de una ruta: qué se hace en ese socio. Una parada puede tener varias labores y una labor puede
+ * estar en paradas de varias rutas. `hecha` y `nota` son el avance que anota quien recorre la ruta.
+ */
+export const paradaLabores = pgTable(
+  "ParadaLabor",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    paradaId: text("paradaId")
+      .notNull()
+      .references(() => rutaParadas.id, { onDelete: "cascade" }),
+    laborId: text("laborId")
+      .notNull()
+      .references(() => labores.id, { onDelete: "cascade" }),
+    hecha: boolean("hecha").notNull().default(false),
+    hechaAt: timestamp("hechaAt", { precision: 3 }),
+    nota: text("nota"),
+  },
+  (table) => [uniqueIndex("ParadaLabor_paradaId_laborId_key").on(table.paradaId, table.laborId), index("ParadaLabor_laborId_idx").on(table.laborId), index("ParadaLabor_aprId_idx").on(table.aprId)]
 );

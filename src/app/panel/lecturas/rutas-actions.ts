@@ -3,7 +3,9 @@
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { rutaParadas, rutas, socios } from "@/lib/db/schema";
+import { labores, rutaParadas, rutas, socios } from "@/lib/db/schema";
+import { agregarLaborARutas, quitarLaborDeRutas } from "@/lib/rutas-labores";
+import { puede, type Plan } from "@/lib/planes";
 import { requireApr } from "@/lib/apr-session";
 
 export type ResultadoRuta = { ok: true } | { ok: false; error: string };
@@ -12,6 +14,7 @@ function refrescar() {
   revalidatePath("/panel/rutas");
   revalidatePath("/panel/lecturas");
   revalidatePath("/panel/lecturas/terreno");
+  revalidatePath("/panel/labores");
 }
 
 /**
@@ -39,7 +42,18 @@ export async function guardarRuta(id: string | null, nombre: string, socioIds: s
         if (!r) throw new Error("NO_EXISTE");
         if (!esAdmin && (r.creadaPorId !== user.id || r.aprobada)) throw new Error("SIN_PERMISO");
         await tx.update(rutas).set({ nombre: limpio, updatedAt: new Date() }).where(eq(rutas.id, rutaId));
-        await tx.delete(rutaParadas).where(eq(rutaParadas.rutaId, rutaId));
+        // Las paradas que siguen se conservan (con las labores que tienen asignadas): solo se mueve su orden.
+        const actuales = await tx.select({ id: rutaParadas.id, socioId: rutaParadas.socioId, orden: rutaParadas.orden }).from(rutaParadas).where(eq(rutaParadas.rutaId, rutaId));
+        const porSocio = new Map(actuales.map((a) => [a.socioId, a]));
+        const sobran = actuales.filter((a) => !ids.includes(a.socioId)).map((a) => a.id);
+        if (sobran.length) await tx.delete(rutaParadas).where(inArray(rutaParadas.id, sobran));
+        for (const [i, socioId] of ids.entries()) {
+          const a = porSocio.get(socioId);
+          if (a && a.orden !== i) await tx.update(rutaParadas).set({ orden: i }).where(eq(rutaParadas.id, a.id));
+        }
+        const nuevas = ids.flatMap((socioId, i) => (porSocio.has(socioId) ? [] : [{ rutaId: rutaId as string, socioId, orden: i }]));
+        if (nuevas.length) await tx.insert(rutaParadas).values(nuevas);
+        return;
       } else {
         const [nueva] = await tx
           .insert(rutas)
@@ -75,6 +89,40 @@ export async function eliminarRuta(id: string): Promise<ResultadoRuta> {
   if (!r) return { ok: true };
   if (user.rol !== "ADMIN" && (r.creadaPorId !== user.id || r.aprobada)) return { ok: false, error: "No puedes borrar esta ruta." };
   await db.delete(rutas).where(eq(rutas.id, id));
+  refrescar();
+  return { ok: true };
+}
+
+/** Pone una labor que ya existe en todas las paradas de una ruta. Solo el administrador. */
+export async function asignarLaborARuta(laborId: string, rutaId: string): Promise<ResultadoRuta> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo el administrador puede asignar labores." };
+  if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: "Labores está disponible desde el plan Estándar." };
+  const [labor] = await db.select({ id: labores.id }).from(labores).where(and(eq(labores.id, laborId), eq(labores.aprId, apr.id))).limit(1);
+  const [ruta] = await db.select({ id: rutas.id }).from(rutas).where(and(eq(rutas.id, rutaId), eq(rutas.aprId, apr.id), eq(rutas.aprobada, true))).limit(1);
+  if (!labor || !ruta) return { ok: false, error: "La labor o la ruta ya no existe." };
+  try {
+    await db.transaction((tx) => agregarLaborARutas(tx, apr.id, laborId, [rutaId]));
+  } catch (e) {
+    console.error("Rutas: no se pudo asignar la labor:", e);
+    return { ok: false, error: "No pudimos asignar la labor. Inténtalo de nuevo en un momento." };
+  }
+  refrescar();
+  return { ok: true };
+}
+
+/** Saca una labor de una ruta (de todas sus paradas). */
+export async function quitarLaborDeRuta(laborId: string, rutaId: string): Promise<ResultadoRuta> {
+  const { user, apr } = await requireApr();
+  if (user.rol !== "ADMIN") return { ok: false, error: "Solo el administrador puede quitar labores de una ruta." };
+  const [ruta] = await db.select({ id: rutas.id }).from(rutas).where(and(eq(rutas.id, rutaId), eq(rutas.aprId, apr.id))).limit(1);
+  if (!ruta) return { ok: true };
+  try {
+    await db.transaction((tx) => quitarLaborDeRutas(tx, laborId, [rutaId]));
+  } catch (e) {
+    console.error("Rutas: no se pudo quitar la labor:", e);
+    return { ok: false, error: "No pudimos quitar la labor. Inténtalo de nuevo en un momento." };
+  }
   refrescar();
   return { ok: true };
 }

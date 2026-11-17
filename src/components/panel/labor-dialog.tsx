@@ -86,14 +86,15 @@ function Campo({ id, label, opcional, className, children }: { id: string; label
 }
 
 /** Registrar una labor del comité y los materiales del inventario que usa. */
-export function LaborDialog({ labor, insumos, rutas = [], insumoInicial, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; rutas?: RutaOpcion[]; insumoInicial?: string; onCerrar: () => void }) {
+export function LaborDialog({ labor, insumos, rutas = [], rutaInicial, insumoInicial, onCerrar }: { labor: LaborFila | null; insumos: Insumo[]; rutas?: RutaOpcion[]; rutaInicial?: string; insumoInicial?: string; onCerrar: () => void }) {
   const { confirmar, dialogo } = useConfirmar();
   const [resultado, enviar, pendiente] = useActionState<ResultadoLabores | null, FormData>(guardarLabor, null);
   const [borrando, iniciarBorrado] = useTransition();
   const editando = labor !== null;
   const [titulo, setTitulo] = useState(labor?.titulo ?? "");
   const [estado, setEstado] = useState<EstadoLabor>(labor?.estado ?? "PROGRAMADA");
-  const [tipo, setTipo] = useState(labor?.tipo ?? "MANTENCION");
+  const [tipo, setTipo] = useState(labor?.tipo ?? (rutaInicial ? "LECTURA" : "MANTENCION"));
+  const [rutasSel, setRutasSel] = useState<string[]>(() => (labor ? labor.rutas.map((r) => r.id) : rutaInicial ? [rutaInicial] : []));
   const [lineas, setLineas] = useState<Linea[]>(
     labor
       ? labor.materiales.filter((m) => m.insumoId).map((m, i) => ({ clave: i, insumoId: m.insumoId as string, cantidad: String(m.cantidad) }))
@@ -172,6 +173,7 @@ export function LaborDialog({ labor, insumos, rutas = [], insumoInicial, onCerra
         <form action={enviar} className="flex min-h-0 flex-1 flex-col">
           {editando && <input type="hidden" name="id" value={labor.id} />}
           <input type="hidden" name="materiales" value={materiales} />
+          <input type="hidden" name="rutas" value={JSON.stringify(rutasSel)} />
           <input type="hidden" name="estado" value={estado} />
 
           {/* La franja de arriba cambia de color con el estado elegido. */}
@@ -231,18 +233,6 @@ export function LaborDialog({ labor, insumos, rutas = [], insumoInicial, onCerra
                   ))}
                 </select>
               </Campo>
-              {tipo === "LECTURA" && (
-                <Campo id="lab-ruta" label="Ruta a recorrer" opcional>
-                  <select id="lab-ruta" name="rutaId" defaultValue={labor?.rutaId ?? ""} className={selectClase}>
-                    <option value="">{rutas.length === 0 ? "No hay rutas aprobadas" : "Todos los socios"}</option>
-                    {rutas.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.nombre}
-                      </option>
-                    ))}
-                  </select>
-                </Campo>
-              )}
               <Campo id="lab-fecha" label="Fecha de inicio">
                 <Input
                   id="lab-fecha"
@@ -347,6 +337,31 @@ export function LaborDialog({ labor, insumos, rutas = [], insumoInicial, onCerra
                 <Input id="lab-responsable" name="responsable" defaultValue={labor?.responsable ?? ""} placeholder="Nombre de quien la hace" maxLength={120} className={campo} />
               </Campo>
             </div>
+
+            {rutas.length > 0 && (
+              <fieldset>
+                <legend className={cn(etiqueta, "mb-1.5")}>
+                  Rutas <span className="font-normal text-muted-foreground">(opcional)</span>
+                </legend>
+                <div className="flex flex-wrap gap-2">
+                  {rutas.map((r) => {
+                    const activa = rutasSel.includes(r.id);
+                    return (
+                      <button
+                        key={r.id}
+                        type="button"
+                        aria-pressed={activa}
+                        onClick={() => setRutasSel((l) => (activa ? l.filter((x) => x !== r.id) : [...l, r.id]))}
+                        className={cn("min-h-10 rounded-full border px-3.5 text-[0.85rem] font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", activa ? "border-primary bg-primary/10 text-primary" : "border-input text-muted-foreground hover:bg-muted")}
+                      >
+                        {r.nombre}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">La labor se hace en cada parada de las rutas elegidas.</p>
+              </fieldset>
+            )}
 
             <Campo id="lab-desc" label="Detalle" opcional>
               <Textarea id="lab-desc" name="descripcion" defaultValue={labor?.descripcion ?? ""} rows={2} maxLength={1000} className="min-h-[68px] resize-y" />
