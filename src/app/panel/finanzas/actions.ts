@@ -221,7 +221,7 @@ export async function eliminarMovimiento(id: string): Promise<ResultadoFinanzas>
 
   await db.delete(movimientos).where(and(eq(movimientos.id, id), eq(movimientos.aprId, apr.id)));
 
-  revalidatePath("/panel/caja");
+  // Sin revalidatePath: Giros y Caja se actualizan solos con TanStack Query.
   return { ok: true };
 }
 
@@ -479,6 +479,6 @@ export async function crearTraspaso(_prev: ResultadoFinanzas | null, formData: F
     return { ok: false, error: "No pudimos guardar el movimiento. Inténtalo de nuevo en un momento." };
   }
 
-  revalidatePath("/panel/caja");
+  // Sin revalidatePath: Giros y Caja se actualizan solos con TanStack Query, y recargar la página parpadea.
   return { ok: true };
 }
