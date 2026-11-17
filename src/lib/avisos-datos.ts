@@ -8,7 +8,7 @@
 export const INTERVALO_RAPIDO = 10_000;
 
 /** Qué grupo de datos cambió: la pantalla que lo muestra lo vuelve a pedir. */
-export type ClaveDatos = "caja" | "pagos" | "lecturas" | "remuneraciones" | "asistencia" | "activos" | "compras" | "inventario" | "socios" | "boletas";
+export type ClaveDatos = "caja" | "giros" | "pagos" | "lecturas" | "remuneraciones" | "asistencia" | "activos" | "compras" | "inventario" | "socios" | "boletas";
 
 const NOMBRE_CANAL = "facilapr-datos";
 /** El aviso también llega a la propia pestaña: una pantalla abierta aquí se actualiza al guardar en un modal. */

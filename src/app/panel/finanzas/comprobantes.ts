@@ -36,7 +36,7 @@ export async function adjuntarComprobante(movimientoId: string, formData: FormDa
     return { ok: false, error: "No pudimos adjuntar el archivo. Inténtalo de nuevo en un momento." };
   }
 
+  // Caja y Giros se actualizan solos con TanStack Query: recargar la página los haría parpadear.
   revalidatePath("/panel/caja");
-  revalidatePath("/panel/giros");
   return { ok: true };
 }

@@ -3,8 +3,12 @@
 import Link from "next/link";
 import { Fragment, useCallback, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, ArrowDownToLine, ArrowLeftRight, ArrowUpFromLine, Banknote, ChevronLeft, ChevronRight, Landmark, Paperclip, Search, Trash2 } from "lucide-react";
 import { eliminarMovimiento } from "@/app/panel/finanzas/actions";
+import { consultarGiros } from "@/app/panel/giros/consulta-actions";
+import { INTERVALO_RAPIDO, avisarCambio } from "@/lib/avisos-datos";
+import type { DatosGiros } from "@/lib/giros-datos";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useConfirmar } from "@/components/ui/confirmar";
 import { TraspasoDialog } from "@/components/panel/traspaso-dialog";
 import { AccionComprobante } from "@/components/panel/comprobante";
-import { TIPO_DEPOSITO, TIPO_GIRO, type Bolsillos, type TraspasoConSaldo } from "@/lib/finanzas-comun";
+import { TIPO_DEPOSITO, TIPO_GIRO, type TraspasoConSaldo } from "@/lib/finanzas-comun";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const GRIS = "text-[#5B5970]";
@@ -33,28 +37,49 @@ const diasEntre = (desde: string, hasta: string) => Math.round((Date.parse(`${ha
  * Los giros (sacar plata del banco a efectivo) y los depósitos (llevar efectivo al banco): cuánta plata hay
  * hoy en cada lugar y el historial. Ninguno cuenta como ingreso ni egreso en la Caja: la plata solo cambia de lugar.
  */
-export function GirosVista({ bolsillos, haySaldoInicial, traspasos, hoy }: { bolsillos: Bolsillos | null; haySaldoInicial: boolean; traspasos: TraspasoConSaldo[]; hoy: string }) {
+export function GirosVista({ datos }: { datos: DatosGiros }) {
+  const cliente = useQueryClient();
+  // Parte con lo que trajo el servidor y se mantiene al día: cada 10 segundos, al volver a la pestaña y tras cada cambio.
+  const { data } = useQuery({ queryKey: ["giros"], queryFn: () => consultarGiros(), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
+  const { bolsillos, haySaldoInicial, traspasos, hoy } = data;
   const { confirmar, dialogo } = useConfirmar();
   const [creando, setCreando] = useState<typeof TIPO_GIRO | typeof TIPO_DEPOSITO | null>(null);
   const [borrando, iniciar] = useTransition();
-  const cerrar = useCallback(() => setCreando(null), []);
+  /** Después de cualquier cambio, Giros y la Caja (que muestra el mismo efectivo y banco) se vuelven a pedir enseguida. */
+  const volverAPedir = useCallback(() => {
+    void cliente.invalidateQueries({ queryKey: ["giros"] });
+    avisarCambio("caja", "giros");
+  }, [cliente]);
+  const cerrar = useCallback(() => {
+    setCreando(null);
+    volverAPedir();
+  }, [volverAPedir]);
 
   const mesHoy = hoy.slice(0, 7);
-  const [mes, setMes] = useState(() => (traspasos.some((t) => t.fecha.startsWith(mesHoy)) || traspasos.length === 0 ? mesHoy : "todo"));
+  const [mes, setMes] = useState(() => (datos.traspasos.some((t) => t.fecha.startsWith(mesHoy)) || datos.traspasos.length === 0 ? datos.hoy.slice(0, 7) : "todo"));
   const [filtro, setFiltro] = useState<"todos" | typeof TIPO_GIRO | typeof TIPO_DEPOSITO>("todos");
   const [busqueda, setBusqueda] = useState("");
 
   // Los meses con movimientos y el actual, del más reciente al más antiguo.
-  const meses = useMemo(() => [...new Set([mesHoy, ...traspasos.map((t) => t.fecha.slice(0, 7))])].sort().reverse(), [traspasos, mesHoy]);
+  // El mes que se está mirando siempre queda en la lista, aunque ya no le quede ningún movimiento.
+  const meses = useMemo(() => [...new Set([mesHoy, ...(mes === "todo" ? [] : [mes]), ...traspasos.map((t) => t.fecha.slice(0, 7))])].sort().reverse(), [traspasos, mesHoy, mes]);
   const idxMes = meses.indexOf(mes);
 
   async function borrar(t: TraspasoConSaldo) {
     const que = t.tipo === TIPO_GIRO ? "giro" : "depósito";
     if (!(await confirmar({ titulo: `¿Borrar este ${que} de ${clp(t.monto)}?`, descripcion: "La plata vuelve al lugar de donde salió.", boton: "Borrar" }))) return;
+    // La fila desaparece al instante; si el servidor no pudo borrarla, vuelve.
+    const antes = cliente.getQueryData<DatosGiros>(["giros"]);
+    cliente.setQueryData<DatosGiros>(["giros"], (d) => (d ? { ...d, traspasos: d.traspasos.filter((x) => x.id !== t.id) } : d));
     iniciar(async () => {
       const r = await eliminarMovimiento(t.id);
-      if (r.ok) toast.success("Borrado");
-      else toast.error(r.error);
+      if (r.ok) {
+        toast.success("Borrado");
+      } else {
+        toast.error(r.error);
+        if (antes) cliente.setQueryData(["giros"], antes);
+      }
+      volverAPedir();
     });
   }
 
@@ -308,7 +333,7 @@ export function GirosVista({ bolsillos, haySaldoInicial, traspasos, hoy }: { bol
                     <span className={`hidden min-w-0 truncate text-[13px] md:block ${GRIS}`}>{t.registradoPor ? `${t.registradoPor}${t.rol ? ` · ${t.rol}` : ""}` : "—"}</span>
                     <span className="hidden min-w-0 md:block">
                       {t.referencia ? <span className={`block truncate text-[13px] ${GRIS}`}>N° {t.referencia}</span> : null}
-                      <AccionComprobante movimientoId={t.id} tiene={t.comprobante} />
+                      <AccionComprobante movimientoId={t.id} tiene={t.comprobante} onListo={volverAPedir} />
                     </span>
                     <span className={`text-right text-[15px] font-semibold tabular-nums ${t.tipo === TIPO_DEPOSITO ? "text-[#075A3C]" : "text-[#8A4B00]"}`}>
                       {t.tipo === TIPO_DEPOSITO ? "+" : "−"}
