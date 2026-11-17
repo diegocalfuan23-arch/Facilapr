@@ -18,6 +18,7 @@ import {
   PartyPopper,
   RefreshCw,
   RotateCcw,
+  Route,
   Search,
   SkipForward,
   Smartphone,
@@ -29,6 +30,8 @@ import {
 import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
+import { RutasPanel, guardarRutaElegida, useRutaElegida } from "@/components/panel/rutas-panel";
+import type { RutaVista } from "@/lib/rutas";
 import {
   COLA_VACIA,
   encolarLectura,
@@ -366,12 +369,17 @@ function FormularioLectura({
 }
 
 export function LecturaForm({
-  socios,
+  socios: todosLosSocios,
   recientes,
   leidas = [],
   puedeCargarSocios = false,
+  rutas = [],
+  esAdmin = false,
 }: {
   socios: Socio[];
+  /** Las rutas que puede usar quien mira: las aprobadas y las propias por aprobar (el administrador ve todas). */
+  rutas?: RutaVista[];
+  esAdmin?: boolean;
   recientes: LecturaReciente[];
   /** Las lecturas de los últimos meses de todo el comité: de ahí sale cuánto lleva leído de la ruta. */
   leidas?: LecturaDelMes[];
@@ -394,6 +402,16 @@ export function LecturaForm({
   const [rechazadas, setRechazadas] = useState<Rechazada[]>([]);
   const [busquedaLecturas, setBusquedaLecturas] = useState("");
   const [vista, setVista] = useState<"todas" | "local">("todas");
+  const [verRutas, setVerRutas] = useState(false);
+
+  // La ruta que eligió este teléfono: sus socios, en el orden del recorrido. Sin ruta, todos por orden alfabético.
+  const elegidaGuardada = useRutaElegida();
+  const rutaActiva = rutas.find((r) => r.id === elegidaGuardada) ?? null;
+  const socios = useMemo(() => {
+    if (!rutaActiva) return todosLosSocios;
+    const porId = new Map(todosLosSocios.map((s) => [s.id, s]));
+    return rutaActiva.socioIds.flatMap((id) => porId.get(id) ?? []);
+  }, [rutaActiva, todosLosSocios]);
 
   const crudoCola = useSyncExternalStore(suscribirCola, snapshotCola, () => COLA_VACIA);
   const cola = useMemo(() => parsearCola(crudoCola), [crudoCola]);
@@ -648,7 +666,13 @@ export function LecturaForm({
             <div role="progressbar" aria-label="Avance de tu ruta" aria-valuenow={leidosN} aria-valuemin={0} aria-valuemax={socios.length} className="mt-3 h-2 overflow-hidden rounded-full bg-[#EEEBF7]">
               <span className="block h-full rounded-full bg-gradient-to-r from-[#6B46F5] to-[#3A0CE3]" style={{ width: `${leidosN > 0 ? Math.max(pct, 2) : 0}%` }} />
             </div>
-            <div className="relative mt-3 w-fit">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setVerRutas(true)} className="flex h-9 max-w-full items-center gap-1.5 rounded-full bg-[#F4F3F9] px-3 text-xs font-semibold text-[#2A07A8]">
+              <Route className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{rutaActiva ? rutaActiva.nombre : "Todos los socios"}</span>
+              <span className="font-normal text-[#5B5970]">· {rutas.length > 0 ? "Cambiar ruta" : "Rutas"}</span>
+            </button>
+            <div className="relative w-fit">
               <span className="flex h-9 items-center gap-1 rounded-full bg-[#F4F3F9] px-3 text-xs font-semibold text-[#2A07A8]">Cambiar mes</span>
               <input
                 id="terreno-periodo"
@@ -671,7 +695,24 @@ export function LecturaForm({
                 className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
               />
             </div>
+            </div>
           </section>
+
+          {verRutas && (
+            <RutasPanel
+              socios={todosLosSocios}
+              rutas={rutas}
+              esAdmin={esAdmin}
+              elegida={rutaActiva?.id ?? ""}
+              onElegir={(id) => {
+                guardarRutaElegida(id);
+                limpiar();
+                setSaltados([]);
+                setUltimo(null);
+              }}
+              onCerrar={() => setVerRutas(false)}
+            />
+          )}
 
           {ultimo && (
             <p role="status" className="flex items-center gap-2 rounded-xl bg-[#E6F6EF] px-4 py-2 text-[13px] font-semibold text-[#075A3C]">

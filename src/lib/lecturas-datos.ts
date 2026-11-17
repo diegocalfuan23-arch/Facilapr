@@ -1,6 +1,6 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { arranqueSocios, arranques, boletas, lecturas, socios } from "@/lib/db/schema";
+import { arranqueSocios, arranques, boletas, lecturas, rutas, socios } from "@/lib/db/schema";
 import { user as userTable } from "@/lib/db/auth-schema";
 import { formatearRut } from "@/lib/formato";
 import { sociosConAnterior } from "@/lib/terreno";
@@ -12,6 +12,8 @@ export type DatosLecturas = {
   socios: SocioOpcion[];
   /** El nombre del arranque (nodo de la red) de cada socio, para ordenar la ruta. */
   arranquePorSocio: Record<string, string>;
+  /** Rutas que propuso un operador y esperan la autorización del administrador. */
+  rutasPorAprobar: number;
 };
 
 /**
@@ -62,8 +64,15 @@ export async function datosLecturas(aprId: string): Promise<DatosLecturas> {
     console.error("Lecturas: no se pudieron leer los arranques:", e);
   }
 
+  const [{ n: rutasPorAprobar } = { n: 0 }] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(rutas)
+    .where(and(eq(rutas.aprId, aprId), eq(rutas.aprobada, false)))
+    .catch(() => [{ n: 0 }]);
+
   return {
     arranquePorSocio,
+    rutasPorAprobar,
     socios: listaSocios.map((s) => ({
       id: s.id,
       nombre: s.nombre,

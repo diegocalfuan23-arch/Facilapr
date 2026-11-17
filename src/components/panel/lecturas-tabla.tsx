@@ -240,7 +240,7 @@ export function LecturasTabla({ datos }: { datos: DatosLecturas }) {
   const cliente = useQueryClient();
   // Parte con lo que trajo el servidor y se actualiza sola: cada 10 segundos y al volver a la pestaña.
   const { data } = useQuery({ queryKey: ["lecturas"], queryFn: () => consultarLecturas(), initialData: datos, refetchInterval: INTERVALO_RAPIDO });
-  const { lecturas, socios, arranquePorSocio } = data;
+  const { lecturas, socios, arranquePorSocio, rutasPorAprobar } = data;
   /** Después de cualquier cambio (aprobar, rechazar, editar, cargar), la lista se vuelve a pedir enseguida. */
   const volverAPedir = useCallback(() => void cliente.invalidateQueries({ queryKey: ["lecturas"] }), [cliente]);
   const [hoy] = useState(() => new Date());
@@ -379,6 +379,11 @@ export function LecturasTabla({ datos }: { datos: DatosLecturas }) {
           <Link data-tour="lec-terreno" href="/panel/lecturas/terreno" className={cn(buttonVariants({ variant: "outline" }), "h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold")}>
             <MapPinned />
             Modo terreno
+            {rutasPorAprobar > 0 ? (
+              <span className="rounded-full bg-[#FFF3E5] px-2 py-px text-[11px] font-semibold text-[#8F4400]">
+                {rutasPorAprobar} {rutasPorAprobar === 1 ? "ruta por aprobar" : "rutas por aprobar"}
+              </span>
+            ) : null}
           </Link>
           <Button variant="outline" data-tour="lec-archivo" onClick={() => setIniciales(true)} className="h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold">
             <FileUp />

@@ -1,6 +1,7 @@
 import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { lecturas, socios } from "@/lib/db/schema";
+import { rutasDelComite } from "@/lib/rutas";
 import { anterioresDelComite } from "@/lib/lectura-anterior";
 import { aprobadasPorSocio, promedioDe, type LecturaCalculo } from "@/lib/lecturas-calculos";
 
@@ -29,7 +30,7 @@ export async function sociosConAnterior(aprId: string) {
  * operador, o la directiva en modo terreno) ve a todos los arranques y sus
  * propias últimas lecturas.
  */
-export async function datosTerreno(userId: string, aprId: string) {
+export async function datosTerreno(userId: string, aprId: string, rol: string = "OPERADOR") {
   const { listaSocios, anteriorPorSocio } = await sociosConAnterior(aprId);
 
   const propias = await db.query.lecturas.findMany({
@@ -68,7 +69,11 @@ export async function datosTerreno(userId: string, aprId: string) {
     return previas.length ? valor - previas[previas.length - 1].valor : null;
   };
 
+  const rutas = await rutasDelComite(aprId, userId, rol);
+
   return {
+    rutas,
+    esAdmin: rol === "ADMIN",
     leidas: delComite.map((l) => ({ socioId: l.socioId, periodo: l.periodo, estado: l.estado as "PENDIENTE" | "APROBADA" })),
     socios: listaSocios.map((s) => {
       const a = anteriorPorSocio.get(s.id);

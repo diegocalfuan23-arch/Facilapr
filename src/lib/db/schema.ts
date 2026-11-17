@@ -1761,3 +1761,43 @@ export const movimientoAdjuntos = pgTable(
   },
   (table) => [uniqueIndex("MovimientoAdjunto_movimientoId_key").on(table.movimientoId)]
 );
+
+/**
+ * Una ruta de terreno: la lista ordenada de socios que el técnico recorre (hoy, para tomar lecturas).
+ * La crea la directiva (queda aprobada) o el operador (queda por aprobar hasta que el administrador la autorice).
+ */
+export const rutas = pgTable(
+  "Ruta",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    nombre: text("nombre").notNull(),
+    /** LECTURAS por ahora; después cortes, cobranza o mantención. */
+    labor: text("labor").notNull().default("LECTURAS"),
+    /** false: la propuso un operador y espera la autorización del administrador. */
+    aprobada: boolean("aprobada").notNull().default(false),
+    creadaPorId: text("creadaPorId").notNull(),
+    aprobadaPorId: text("aprobadaPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [index("Ruta_aprId_idx").on(table.aprId)]
+);
+
+/** Un socio dentro de una ruta y su lugar en el recorrido. */
+export const rutaParadas = pgTable(
+  "RutaParada",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    rutaId: text("rutaId")
+      .notNull()
+      .references(() => rutas.id, { onDelete: "cascade" }),
+    socioId: text("socioId")
+      .notNull()
+      .references(() => socios.id, { onDelete: "cascade" }),
+    orden: integer("orden").notNull(),
+  },
+  (table) => [uniqueIndex("RutaParada_rutaId_socioId_key").on(table.rutaId, table.socioId), index("RutaParada_rutaId_idx").on(table.rutaId)]
+);

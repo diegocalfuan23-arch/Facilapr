@@ -17,7 +17,7 @@ export default async function TerrenoPage() {
   const { user, apr } = await requireApr();
   return (
     <LecturaForm
-      {...await datosTerreno(user.id, apr.id)}
+      {...await datosTerreno(user.id, apr.id, user.rol ?? "OPERADOR")}
       puedeCargarSocios={user.rol === "ADMIN"}
     />
   );

@@ -15,7 +15,7 @@ export default async function LecturasPage() {
 
   // El operador solo ve la pantalla de cargar lecturas.
   if (user.rol === "OPERADOR") {
-    return <LecturaForm {...await datosTerreno(user.id, apr.id)} />;
+    return <LecturaForm {...await datosTerreno(user.id, apr.id, user.rol ?? "OPERADOR")} />;
   }
 
   return (
