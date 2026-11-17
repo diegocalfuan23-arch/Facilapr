@@ -9,6 +9,7 @@ import { requireApr } from "@/lib/apr-session";
 export type ResultadoRuta = { ok: true } | { ok: false; error: string };
 
 function refrescar() {
+  revalidatePath("/panel/rutas");
   revalidatePath("/panel/lecturas");
   revalidatePath("/panel/lecturas/terreno");
 }

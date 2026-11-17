@@ -4,6 +4,7 @@ import {
   HandCoins,
   PiggyBank,
   Palmtree,
+  Route,
   UsersRound,
   BarChart3,
   ClipboardCheck,
@@ -61,6 +62,7 @@ const gestion: Enlace[] = [
   { href: "/panel/inventario", label: "Inventario", icon: Package },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
+  { href: "/panel/rutas", label: "Rutas", icon: Route },
   { href: "/panel/tecnicos", label: "Equipo", icon: HardHat },
 ];
 
@@ -188,6 +190,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/inventario": "bodega stock materiales cloro repuestos",
   "/panel/lecturas": "medidor consumo medicion",
   "/panel/lecturas/terreno": "celular tecnico ruta",
+  "/panel/rutas": "recorrido recorrer lecturas orden visitar arranques sector tecnico operador aprobar",
   "/panel/tecnicos": "operadores equipo invitar",
   "/panel/personal": "trabajadores empleados ficha operador tesorero recursos humanos rrhh",
   "/panel/remuneraciones": "sueldos liquidaciones honorarios pago bonos descuentos planilla",

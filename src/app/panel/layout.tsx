@@ -3,7 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { ClipboardList, Droplets } from "lucide-react";
 import { and, count, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { ordenes, socios, solicitudesAcceso, solicitudesClave } from "@/lib/db/schema";
+import { ordenes, rutas, socios, solicitudesAcceso, solicitudesClave } from "@/lib/db/schema";
 import { requireApr } from "@/lib/apr-session";
 import { PanelSidebar } from "@/components/panel/panel-sidebar";
 import { BuscadorModulos } from "@/components/panel/buscador-modulos";
@@ -55,6 +55,19 @@ export default async function PanelLayout({
     insignias[esOperador ? "/panel/ordenes" : "/panel/cortes"] = f?.n ?? 0;
   } catch {
     // Sin número en el menú.
+  }
+
+  // Rutas que propuso un operador y esperan la autorización del administrador.
+  if (rol === "ADMIN") {
+    try {
+      const [r] = await db
+        .select({ n: count() })
+        .from(rutas)
+        .where(and(eq(rutas.aprId, apr.id), eq(rutas.aprobada, false)));
+      insignias["/panel/rutas"] = r?.n ?? 0;
+    } catch {
+      // Sin número en el menú.
+    }
   }
 
   // Solicitudes que esperan a la directiva: pedidos de acceso y de clave nueva.

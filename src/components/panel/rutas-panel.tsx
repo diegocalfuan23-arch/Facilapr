@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, useSyncExternalStore, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Check, Clock3, Loader2, MapPin, Pencil, Plus, Route, Search, Trash2, X } from "lucide-react";
 import { aprobarRuta, eliminarRuta, guardarRuta } from "@/app/panel/lecturas/rutas-actions";
@@ -53,8 +54,30 @@ export function useRutaElegida(): string {
   );
 }
 
-/** Crear, ordenar y autorizar las rutas de terreno. */
-export function RutasPanel({ socios, rutas, arranques = [], esAdmin, elegida, onElegir, onCerrar }: { socios: SocioRuta[]; rutas: RutaVista[]; arranques?: ArranqueRuta[]; esAdmin: boolean; elegida: string; onElegir: (id: string) => void; onCerrar: () => void }) {
+/**
+ * Crear, ordenar y autorizar las rutas de terreno. Como diálogo (en la pantalla de lecturas, para elegir la ruta) o,
+ * con `enPagina`, como el contenido de la página Rutas.
+ */
+export function RutasPanel({
+  socios,
+  rutas,
+  arranques = [],
+  esAdmin,
+  elegida = "",
+  onElegir = () => {},
+  onCerrar = () => {},
+  enPagina = false,
+}: {
+  socios: SocioRuta[];
+  rutas: RutaVista[];
+  arranques?: ArranqueRuta[];
+  esAdmin: boolean;
+  elegida?: string;
+  onElegir?: (id: string) => void;
+  onCerrar?: () => void;
+  enPagina?: boolean;
+}) {
+  const router = useRouter();
   const [editando, setEditando] = useState<{ id: string | null; nombre: string; ids: string[] } | null>(null);
   const [trabajando, iniciar] = useTransition();
   const porId = useMemo(() => new Map(socios.map((s) => [s.id, s])), [socios]);
@@ -78,21 +101,29 @@ export function RutasPanel({ socios, rutas, arranques = [], esAdmin, elegida, on
     });
   }
 
-  return (
-    <Dialog open onOpenChange={(v) => !v && onCerrar()}>
-      <DialogContent
-        showCloseButton={false}
-        className="top-auto bottom-0 left-0 flex max-h-[94dvh] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-b-none bg-white p-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[90vh] sm:w-[560px] sm:max-w-[560px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-0"
-      >
-        <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
-          <div className="min-w-0 flex-1">
-            <DialogTitle className="text-lg font-semibold">{editando ? (editando.id ? "Editar ruta" : "Nueva ruta") : "Rutas de terreno"}</DialogTitle>
-            <p className={`mt-0.5 text-[13px] ${GRIS}`}>{editando ? "Los socios en el orden en que se visitan." : esAdmin ? "Las que propone un operador esperan tu aprobación." : "Una ruta nueva la aprueba el administrador."}</p>
-          </div>
-          <DialogClose aria-label="Cerrar" className="flex size-9 items-center justify-center rounded-lg text-[#5B5970] hover:bg-[#F4F3F9]">
-            <X className="size-[18px]" />
-          </DialogClose>
-        </div>
+  const titulo = editando ? (editando.id ? "Editar ruta" : "Nueva ruta") : "Rutas de terreno";
+  const bajada = editando ? "Los socios en el orden en que se visitan." : esAdmin ? "Las que propone un operador esperan tu aprobación." : "Una ruta nueva la aprueba el administrador.";
+
+  const cabecera = enPagina ? (
+    <div className="border-b border-[#F0EEF6] px-6 pt-5 pb-4">
+      <h2 className="text-lg font-semibold">{titulo}</h2>
+      <p className={`mt-0.5 text-[13px] ${GRIS}`}>{bajada}</p>
+    </div>
+  ) : (
+    <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
+      <div className="min-w-0 flex-1">
+        <DialogTitle className="text-lg font-semibold">{titulo}</DialogTitle>
+        <p className={`mt-0.5 text-[13px] ${GRIS}`}>{bajada}</p>
+      </div>
+      <DialogClose aria-label="Cerrar" className="flex size-9 items-center justify-center rounded-lg text-[#5B5970] hover:bg-[#F4F3F9]">
+        <X className="size-[18px]" />
+      </DialogClose>
+    </div>
+  );
+
+  const cuerpo = (
+    <>
+      {cabecera}
 
         {editando ? (
           <Editor
@@ -113,7 +144,7 @@ export function RutasPanel({ socios, rutas, arranques = [], esAdmin, elegida, on
                   {rutas.map((r) => {
                     const puedeTocar = esAdmin || (r.propia && !r.aprobada);
                     return (
-                      <li key={r.id} className={`rounded-xl border p-3 ${elegida === r.id ? "border-[#3A0CE3] bg-[#F4F1FF]" : "border-[#E4E1F0]"}`}>
+                      <li key={r.id} className={`rounded-xl border p-3 ${!enPagina && elegida === r.id ? "border-[#3A0CE3] bg-[#F4F1FF]" : "border-[#E4E1F0]"}`}>
                         <div className="flex items-center gap-2">
                           <span aria-hidden className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#F4F3F9] text-[#2A07A8]">
                             <Route className="size-[18px]" />
@@ -131,9 +162,24 @@ export function RutasPanel({ socios, rutas, arranques = [], esAdmin, elegida, on
                             </p>
                           </div>
                           {r.aprobada || r.propia ? (
-                            <Button type="button" size="sm" variant={elegida === r.id ? "default" : "outline"} onClick={() => onElegir(elegida === r.id ? "" : r.id)} className="h-9 rounded-lg">
-                              {elegida === r.id ? "En uso" : "Usar"}
-                            </Button>
+                            enPagina ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  guardarRutaElegida(r.id);
+                                  router.push("/panel/lecturas/terreno");
+                                }}
+                                className="h-9 rounded-lg"
+                              >
+                                Tomar lecturas
+                              </Button>
+                            ) : (
+                              <Button type="button" size="sm" variant={elegida === r.id ? "default" : "outline"} onClick={() => onElegir(elegida === r.id ? "" : r.id)} className="h-9 rounded-lg">
+                                {elegida === r.id ? "En uso" : "Usar"}
+                              </Button>
+                            )
                           ) : null}
                         </div>
                         {puedeTocar || (esAdmin && !r.aprobada) ? (
@@ -171,6 +217,18 @@ export function RutasPanel({ socios, rutas, arranques = [], esAdmin, elegida, on
             </div>
           </>
         )}
+    </>
+  );
+
+  if (enPagina) return <div className="flex w-full flex-col overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(58,12,227,0.08)]">{cuerpo}</div>;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onCerrar()}>
+      <DialogContent
+        showCloseButton={false}
+        className="top-auto bottom-0 left-0 flex max-h-[94dvh] max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-b-none bg-white p-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-h-[90vh] sm:w-[560px] sm:max-w-[560px] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl sm:p-0"
+      >
+        {cuerpo}
       </DialogContent>
     </Dialog>
   );
