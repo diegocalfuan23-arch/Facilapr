@@ -63,7 +63,18 @@ export function GirosVista({ datos }: { datos: DatosGiros }) {
 
   // Los meses con movimientos y el actual, del más reciente al más antiguo.
   // El mes que se está mirando siempre queda en la lista, aunque ya no le quede ningún movimiento.
-  const meses = useMemo(() => [...new Set([mesHoy, ...(mes === "todo" ? [] : [mes]), ...traspasos.map((t) => t.fecha.slice(0, 7))])].sort().reverse(), [traspasos, mesHoy, mes]);
+  // Es una lista continua (sin saltarse meses vacíos), con al menos el mes anterior al actual.
+  const meses = useMemo(() => {
+    const conDatos = [mesHoy, ...(mes === "todo" ? [] : [mes]), ...traspasos.map((t) => t.fecha.slice(0, 7))].sort();
+    const [a, m] = conDatos[0].split("-").map(Number);
+    const [ah, mh] = mesHoy.split("-").map(Number);
+    let desde = a * 12 + (m - 1);
+    const hasta = ah * 12 + (mh - 1);
+    desde = Math.min(desde, hasta - 1);
+    const lista: string[] = [];
+    for (let i = hasta; i >= desde; i--) lista.push(`${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`);
+    return lista;
+  }, [traspasos, mesHoy, mes]);
   const idxMes = meses.indexOf(mes);
 
   async function borrar(t: TraspasoConSaldo) {
