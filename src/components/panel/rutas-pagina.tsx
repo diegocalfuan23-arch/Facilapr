@@ -53,7 +53,7 @@ export function RutasPagina({
     const labores = laboresPorRuta[r.id] ?? [];
     return (
       <div className="mt-3 border-t border-[#F0EEF6] pt-3">
-        <p className={`text-xs font-semibold tracking-wide uppercase ${GRIS}`}>Labores en esta ruta</p>
+        <p className={`text-xs font-semibold tracking-wide uppercase ${GRIS}`}>Labores en los socios de esta ruta</p>
         {labores.length === 0 ? (
           <p className={`mt-1.5 text-sm ${GRIS}`}>Ninguna todavía.</p>
         ) : (
@@ -106,7 +106,7 @@ function AsignarLabor({ ruta, labores, onCerrar }: { ruta: RutaVista; labores: L
     iniciar(async () => {
       const r = await asignarLaborARuta(laborId, ruta.id);
       if (r.ok) {
-        toast.success("Labor asignada a las paradas de la ruta");
+        toast.success("Labor asignada a los socios de la ruta");
         onCerrar();
       } else toast.error(r.error);
     });
@@ -118,7 +118,7 @@ function AsignarLabor({ ruta, labores, onCerrar }: { ruta: RutaVista; labores: L
         <div className="flex items-start gap-3 border-b border-[#F0EEF6] px-6 pt-5 pb-4">
           <div className="min-w-0 flex-1">
             <DialogTitle className="text-lg font-semibold">Asignar una labor</DialogTitle>
-            <p className={`mt-0.5 text-[13px] ${GRIS}`}>Se hará en cada parada de «{ruta.nombre}».</p>
+            <p className={`mt-0.5 text-[13px] ${GRIS}`}>Se hará en cada socio de «{ruta.nombre}».</p>
           </div>
           <DialogClose aria-label="Cerrar" className="flex size-9 items-center justify-center rounded-lg text-[#5B5970] hover:bg-[#F4F3F9]">
             <X className="size-[18px]" />

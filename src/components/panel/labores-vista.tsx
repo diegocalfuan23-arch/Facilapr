@@ -171,14 +171,14 @@ function Detalle({
             <div className="col-span-2">
               <dt className={cn("flex items-center gap-1.5 text-xs", GRIS)}>
                 <Route className="size-3.5" aria-hidden />
-                Rutas
+                Socios por ruta
               </dt>
               <dd className="mt-1 space-y-2">
                 {l.rutas.map((r) => (
                   <div key={r.id} className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{r.nombre}</span>
                     <span className={cn("text-xs tabular-nums", GRIS)}>
-                      {r.hechas} de {r.paradas} {r.paradas === 1 ? "parada" : "paradas"}
+                      {r.hechas} de {r.paradas} {r.paradas === 1 ? "socio" : "socios"}
                     </span>
                     {l.tipo === "LECTURA" && !hecha ? (
                       <Button

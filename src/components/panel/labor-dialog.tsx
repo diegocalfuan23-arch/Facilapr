@@ -341,7 +341,7 @@ export function LaborDialog({ labor, insumos, rutas = [], rutaInicial, insumoIni
             {rutas.length > 0 && (
               <fieldset>
                 <legend className={cn(etiqueta, "mb-1.5")}>
-                  Rutas <span className="font-normal text-muted-foreground">(opcional)</span>
+                  Hacer en todos los socios de <span className="font-normal text-muted-foreground">(opcional)</span>
                 </legend>
                 <div className="flex flex-wrap gap-2">
                   {rutas.map((r) => {
@@ -359,7 +359,7 @@ export function LaborDialog({ labor, insumos, rutas = [], rutaInicial, insumoIni
                     );
                   })}
                 </div>
-                <p className="mt-1.5 text-xs text-muted-foreground">La labor se hace en cada parada de las rutas elegidas.</p>
+                <p className="mt-1.5 text-xs text-muted-foreground">Se asigna a cada socio de las rutas elegidas.</p>
               </fieldset>
             )}
 
