@@ -56,7 +56,8 @@ export function GirosVista({ datos }: { datos: DatosGiros }) {
   }, [volverAPedir]);
 
   const mesHoy = hoy.slice(0, 7);
-  const [mes, setMes] = useState(() => (datos.traspasos.some((t) => t.fecha.startsWith(mesHoy)) || datos.traspasos.length === 0 ? datos.hoy.slice(0, 7) : "todo"));
+  // Parte en el mes más reciente con movimientos (así las flechas de mes funcionan desde el inicio).
+  const [mes, setMes] = useState(() => datos.traspasos.some((t) => t.fecha.startsWith(mesHoy)) || datos.traspasos.length === 0 ? datos.hoy.slice(0, 7) : datos.traspasos[0].fecha.slice(0, 7));
   const [filtro, setFiltro] = useState<"todos" | typeof TIPO_GIRO | typeof TIPO_DEPOSITO>("todos");
   const [busqueda, setBusqueda] = useState("");
 
