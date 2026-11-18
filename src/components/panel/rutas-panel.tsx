@@ -12,7 +12,7 @@ import { ordenarPorCercania, type ArranqueRuta, type RutaVista } from "@/lib/rut
 
 const GRIS = "text-[#5B5970]";
 
-export type SocioRuta = { id: string; nombre: string; numeroCliente?: string | null; lat?: number | null; lng?: number | null };
+export type SocioRuta = { id: string; nombre: string; numeroCliente?: string | null; lat?: number | null; lng?: number | null; /** Metros de error del GPS al marcarla. */ precision?: number | null };
 
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 

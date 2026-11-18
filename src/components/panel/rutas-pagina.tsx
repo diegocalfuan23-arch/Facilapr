@@ -13,7 +13,7 @@ import { Dialog, DialogClose, DialogContent, DialogTitle } from "@/components/ui
 import { Input } from "@/components/ui/input";
 import type { Insumo } from "@/lib/inventario-comun";
 import { TEXTO_ESTADO_LABOR, textoTipoLabor, type EstadoLabor, type RutaOpcion } from "@/lib/labores-comun";
-import { colorRuta, fechaCorta, medirRuta, textoKm, textoMinutos, type ArranqueRuta, type LaborEnRuta, type RutaVista } from "@/lib/rutas-comun";
+import { colorRuta, fechaCorta, medirRuta, textoKm, textoMinutos, ubicacionPorConfirmar, type ArranqueRuta, type LaborEnRuta, type RutaVista } from "@/lib/rutas-comun";
 
 const GRIS = "text-[#5B5970]";
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
@@ -305,6 +305,7 @@ export function RutasPagina({
                           {r.socioIds.length} {r.socioIds.length === 1 ? "socio" : "socios"}
                           {km > 0 ? ` · ${textoKm(km)} · ${textoMinutos(minutos)}` : ""}
                           {sinUbicacion > 0 ? <span className="font-medium text-[#8A4B00]"> · {sinUbicacion} sin ubicación</span> : null}
+                          {r.socioIds.filter((id) => ubicacionPorConfirmar(porId.get(id))).length > 0 ? <span className="font-medium text-[#8A4B00]"> · {r.socioIds.filter((id) => ubicacionPorConfirmar(porId.get(id))).length} por confirmar</span> : null}
                         </span>
                       </span>
                     </span>
@@ -484,6 +485,7 @@ function Detalle({
   const { km, minutos } = medirRuta(ruta.socioIds, porId);
   const act = conLabores && ruta.aprobada && !ruta.archivada ? laborActual(labores) : null;
   const editable = !ruta.archivada;
+  const dudosas = ruta.socioIds.filter((id) => ubicacionPorConfirmar(porId.get(id))).length;
   const ids = ruta.socioIds;
 
   return (
@@ -563,6 +565,15 @@ function Detalle({
           </div>
         ) : null}
 
+        {dudosas > 0 ? (
+          <p className="mt-3 flex items-start gap-2 rounded-xl bg-[#FFF6E8] p-3 text-[13px] text-[#6B4300]">
+            <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+            <span>
+              {dudosas} {dudosas === 1 ? "ubicación quedó" : "ubicaciones quedaron"} con poca precisión. El técnico las repite con «Volver a marcar» cuando pase por ahí.
+            </span>
+          </p>
+        ) : null}
+
         {ruta.aprobada && !ruta.archivada && conLabores ? (
           <div role="tablist" className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-[#F4F3F9] p-1">
             {(
@@ -605,7 +616,14 @@ function Detalle({
                         <span className="truncate">{s?.nombre ?? "Socio"}</span>
                         {s?.numeroCliente ? <span className={`shrink-0 text-xs font-normal ${GRIS}`}>N° {s.numeroCliente}</span> : null}
                       </p>
-                      {s?.lat != null ? null : (
+                      {s?.lat != null ? (
+                        ubicacionPorConfirmar(s) ? (
+                          <p className="flex items-center gap-1 truncate text-xs font-medium text-[#8A4B00]">
+                            <MapPin className="size-3 shrink-0" aria-hidden />
+                            Por confirmar · error de {s.precision} m
+                          </p>
+                        ) : null
+                      ) : (
                         <p className="flex items-center gap-1 truncate text-xs font-medium text-[#8A4B00]">
                           <MapPinOff className="size-3 shrink-0" aria-hidden />
                           Sin ubicación · se marca en terreno

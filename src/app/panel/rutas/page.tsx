@@ -28,7 +28,7 @@ export default async function RutasPage() {
   return (
     <>
       <RutasPagina
-        socios={listaSocios.map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente, lat: s.lat, lng: s.lng }))}
+        socios={listaSocios.map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente, lat: s.lat, lng: s.lng, precision: s.ubicacionPrecision }))}
         rutas={rutas}
         operadores={operadores}
         arranques={arranques}

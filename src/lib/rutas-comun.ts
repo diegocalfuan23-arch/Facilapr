@@ -1,5 +1,5 @@
 /** Lo de las rutas que también usa el navegador: tipos y el orden por cercanía, sin tocar la base de datos. */
-import { distanciaM } from "@/lib/ubicacion";
+import { PRECISION_BUENA_M, distanciaM } from "@/lib/ubicacion";
 
 /** Una ruta de terreno lista para la pantalla: sus socios ya vienen en el orden del recorrido. */
 export type RutaVista = {
@@ -104,3 +104,6 @@ export function fechaCorta(iso: string): string {
   const [, m, d] = iso.split("-").map(Number);
   return m && d ? `${d} ${MESES[m - 1]}` : iso;
 }
+
+/** La ubicación se marcó con un GPS poco preciso y conviene que el técnico la repita. */
+export const ubicacionPorConfirmar = (s: { lat?: number | null; precision?: number | null } | undefined) => s?.lat != null && s.precision != null && s.precision > PRECISION_BUENA_M;
