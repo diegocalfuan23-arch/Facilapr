@@ -1,7 +1,7 @@
 import { asc, desc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { laborInsumos, labores, paradaLabores, rutaParadas, rutas } from "@/lib/db/schema";
-import { claveAhora, claveFin, type EstadoLabor, type LaborFila, type RutaDeLabor } from "@/lib/labores-comun";
+import { laborInsumos, labores, paradaLabores, rutaParadas, rutas, socios } from "@/lib/db/schema";
+import { claveAhora, claveFin, type EstadoLabor, type LaborFila, type RutaDeLabor, type SocioDeLabor } from "@/lib/labores-comun";
 
 export * from "@/lib/labores-comun";
 
@@ -11,6 +11,7 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
     const filas = await db.select().from(labores).where(eq(labores.aprId, aprId)).orderBy(desc(labores.fecha), desc(labores.numero)).limit(500);
     const lineas = await db.select().from(laborInsumos).where(eq(laborInsumos.aprId, aprId)).orderBy(asc(laborInsumos.insumoNombre));
     const rutasPorLabor = await rutasDeLabores(aprId);
+    const sociosPorLabor = await sociosDeLabores(aprId);
     return filas.map((f) => ({
       id: f.id,
       numero: f.numero,
@@ -25,6 +26,7 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
       horaFin: f.horaFin,
       responsable: f.responsable,
       rutas: rutasPorLabor.get(f.id) ?? [],
+      socios: sociosPorLabor.get(f.id) ?? [],
       descontada: f.descontada,
       vencida: f.estado !== "HECHA" && (claveFin(f) ?? "9999") <= claveAhora(),
       materiales: lineas
@@ -35,6 +37,32 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
     console.error("Labores: no se pudieron leer:", e);
     return [];
   }
+}
+
+/** Los socios donde se hace cada labor (por ruta, en el orden del recorrido) y si ya se hizo en cada uno. */
+async function sociosDeLabores(aprId: string): Promise<Map<string, SocioDeLabor[]>> {
+  const porLabor = new Map<string, SocioDeLabor[]>();
+  try {
+    const filas = await db
+      .select({
+        laborId: paradaLabores.laborId,
+        paradaId: paradaLabores.paradaId,
+        rutaId: rutaParadas.rutaId,
+        socioId: socios.id,
+        nombre: socios.nombre,
+        numeroCliente: socios.numeroCliente,
+        hecha: paradaLabores.hecha,
+      })
+      .from(paradaLabores)
+      .innerJoin(rutaParadas, eq(rutaParadas.id, paradaLabores.paradaId))
+      .innerJoin(socios, eq(socios.id, rutaParadas.socioId))
+      .where(eq(paradaLabores.aprId, aprId))
+      .orderBy(asc(rutaParadas.rutaId), asc(rutaParadas.orden));
+    for (const f of filas) porLabor.set(f.laborId, [...(porLabor.get(f.laborId) ?? []), { paradaId: f.paradaId, rutaId: f.rutaId, socioId: f.socioId, nombre: f.nombre, numeroCliente: f.numeroCliente, hecha: f.hecha }]);
+  } catch (e) {
+    console.error("Labores: no se pudieron leer sus socios:", e);
+  }
+  return porLabor;
 }
 
 /** En qué rutas está cada labor. Si las tablas de rutas todavía no existen, nada tiene ruta y las labores se ven igual. */

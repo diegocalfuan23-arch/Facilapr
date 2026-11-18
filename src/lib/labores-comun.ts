@@ -35,6 +35,9 @@ export type MaterialLabor = {
   costoUnitario: number;
 };
 
+/** Un socio de una ruta donde se hace la labor, con su «hecho». */
+export type SocioDeLabor = { paradaId: string; rutaId: string; socioId: string; nombre: string; numeroCliente: string | null; hecha: boolean };
+
 export type LaborFila = {
   id: string;
   numero: number;
@@ -52,6 +55,8 @@ export type LaborFila = {
   responsable: string | null;
   /** Las rutas en las que está esta labor, con cuántas paradas tiene en cada una y cuántas ya se hicieron. */
   rutas: RutaDeLabor[];
+  /** Los socios de esas rutas donde se hace la labor, en el orden del recorrido. */
+  socios: SocioDeLabor[];
   /** true si los materiales ya se descontaron del inventario. */
   descontada: boolean;
   /** Su término programado ya pasó y sigue sin estar Hecha (por ejemplo, porque faltó stock). */

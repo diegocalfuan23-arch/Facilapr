@@ -143,7 +143,8 @@ export function gruposDelMenu({
       ...(conFinanzas ? [{ titulo: "Bodega", icono: Package, enlaces: soloTesorero }] : []),
     ];
   }
-  if (rol !== "ADMIN") return [{ titulo: "Terreno", icono: Droplets, enlaces: soloOperador }];
+  // Las labores van con el mismo plan que el inventario (Estándar y Grande).
+  if (rol !== "ADMIN") return [{ titulo: "Terreno", icono: Droplets, enlaces: conFinanzas ? [...soloOperador, { href: "/panel/mis-labores", label: "Labores", icon: Hammer }] : soloOperador }];
 
   return [
     {

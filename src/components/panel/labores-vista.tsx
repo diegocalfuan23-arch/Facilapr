@@ -32,6 +32,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { LaborDialog } from "@/components/panel/labor-dialog";
 import { guardarRutaElegida } from "@/components/panel/rutas-panel";
+import { SociosDeLaborEnRuta } from "@/components/panel/socios-labor";
 import { costoMateriales, textoTipoLabor, TEXTO_ESTADO_LABOR, type EstadoLabor, type LaborFila, type MaterialLabor, type RutaOpcion } from "@/lib/labores-comun";
 import { formatoCantidad, unidadCorta, type Insumo } from "@/lib/inventario-comun";
 import { hoyEnChile } from "@/lib/finanzas-comun";
@@ -175,7 +176,8 @@ function Detalle({
               </dt>
               <dd className="mt-1 space-y-2">
                 {l.rutas.map((r) => (
-                  <div key={r.id} className="flex flex-wrap items-center gap-2">
+                  <div key={r.id}>
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{r.nombre}</span>
                     <span className={cn("text-xs tabular-nums", GRIS)}>
                       {r.hechas} de {r.paradas} {r.paradas === 1 ? "socio" : "socios"}
@@ -194,6 +196,8 @@ function Detalle({
                         Tomar lecturas
                       </Button>
                     ) : null}
+                  </div>
+                  <SociosDeLaborEnRuta laborId={l.id} socios={l.socios.filter((s) => s.rutaId === r.id)} bloqueada={hecha} />
                   </div>
                 ))}
               </dd>

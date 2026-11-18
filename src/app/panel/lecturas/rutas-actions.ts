@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { user as userTable } from "@/lib/db/auth-schema";
-import { labores, rutaParadas, rutas, socios } from "@/lib/db/schema";
+import { labores, paradaLabores, rutaParadas, rutas, socios } from "@/lib/db/schema";
 import { agregarLaborARutas, quitarLaborDeRutas } from "@/lib/rutas-labores";
 import { puede, type Plan } from "@/lib/planes";
 import { requireApr } from "@/lib/apr-session";
@@ -142,6 +142,35 @@ export async function quitarLaborDeRuta(laborId: string, rutaId: string): Promis
     console.error("Rutas: no se pudo quitar la labor:", e);
     return { ok: false, error: "No pudimos quitar la labor. Inténtalo de nuevo en un momento." };
   }
+  refrescar();
+  return { ok: true };
+}
+
+/**
+ * Marca (o desmarca) que una labor ya se hizo en un socio de una ruta. Lo puede hacer quien recorre la ruta: el
+ * administrador o el operador. Una labor ya hecha no se toca, y marcar el primer socio de una labor programada la pasa a En curso.
+ */
+export async function marcarSocioDeLabor(laborId: string, paradaId: string, hecha: boolean): Promise<ResultadoRuta> {
+  const { apr } = await requireApr();
+  if (!puede(apr.plan as Plan, "inventario")) return { ok: false, error: "Labores está disponible desde el plan Estándar." };
+  const [fila] = await db
+    .select({ id: paradaLabores.id, estado: labores.estado })
+    .from(paradaLabores)
+    .innerJoin(labores, eq(labores.id, paradaLabores.laborId))
+    .where(and(eq(paradaLabores.aprId, apr.id), eq(paradaLabores.laborId, laborId), eq(paradaLabores.paradaId, paradaId)))
+    .limit(1);
+  if (!fila) return { ok: false, error: "Ese socio ya no está en la labor. Recarga la pantalla." };
+  if (fila.estado === "HECHA") return { ok: false, error: "La labor ya está hecha." };
+  try {
+    await db.transaction(async (tx) => {
+      await tx.update(paradaLabores).set({ hecha, hechaAt: hecha ? new Date() : null }).where(eq(paradaLabores.id, fila.id));
+      if (hecha && fila.estado === "PROGRAMADA") await tx.update(labores).set({ estado: "EN_CURSO", updatedAt: new Date() }).where(eq(labores.id, laborId));
+    });
+  } catch (e) {
+    console.error("Rutas: no se pudo marcar el socio de la labor:", e);
+    return { ok: false, error: "No pudimos guardarlo. Inténtalo de nuevo en un momento." };
+  }
+  revalidatePath("/panel/mis-labores");
   refrescar();
   return { ok: true };
 }
