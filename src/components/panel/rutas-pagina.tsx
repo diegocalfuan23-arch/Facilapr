@@ -436,7 +436,7 @@ export function RutasPagina({
           onCerrar={() => setAsignando(null)}
         />
       ) : null}
-      {nuevaEn ? <LaborDialog key={nuevaEn} labor={null} insumos={insumos} rutas={opciones} rutaInicial={nuevaEn} onCerrar={() => setNuevaEn(null)} /> : null}
+      {nuevaEn ? <LaborDialog key={nuevaEn} labor={null} insumos={insumos} rutas={opciones} responsables={operadores.map((o) => o.nombre)} rutaInicial={nuevaEn} onCerrar={() => setNuevaEn(null)} /> : null}
     </div>
   );
 }

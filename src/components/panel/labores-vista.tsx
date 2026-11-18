@@ -322,7 +322,7 @@ function Detalle({
  * desde abajo). Al pasar una a «Hecha» sus materiales se descuentan del inventario; al sacarla de ahí, que se
  * hace desde el lápiz de edición, vuelven.
  */
-export function LaboresVista({ labores, insumos, rutas = [], insumoInicial }: { labores: LaborFila[]; insumos: Insumo[]; rutas?: RutaOpcion[]; insumoInicial?: string }) {
+export function LaboresVista({ labores, insumos, rutas = [], responsables = [], insumoInicial }: { labores: LaborFila[]; insumos: Insumo[]; rutas?: RutaOpcion[]; responsables?: string[]; insumoInicial?: string }) {
   const [filtro, setFiltro] = useState<"todas" | EstadoLabor>("todas");
   const [busqueda, setBusqueda] = useState("");
   const [sel, setSel] = useState<string | null>(null);
@@ -567,7 +567,7 @@ export function LaboresVista({ labores, insumos, rutas = [], insumoInicial }: { 
         </div>
       ) : null}
 
-      {(creando || editando) && <LaborDialog key={editando?.id ?? "nueva"} labor={editando} insumos={insumos} rutas={rutas} insumoInicial={insumoInicial} onCerrar={cerrar} />}
+      {(creando || editando) && <LaborDialog key={editando?.id ?? "nueva"} labor={editando} insumos={insumos} rutas={rutas} responsables={responsables} insumoInicial={insumoInicial} onCerrar={cerrar} />}
     </div>
   );
 }
