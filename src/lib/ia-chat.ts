@@ -46,6 +46,39 @@ export async function responderConIaSiCorresponde(socioId: string) {
   }
 }
 
+/** Hasta cuántos días atrás se buscan mensajes sin responder al encender la IA: más antiguos ya no tiene sentido contestarlos. */
+const DIAS_PENDIENTES = 3;
+/** Tope de conversaciones que se atienden de una vez al encender la IA. */
+const MAX_PENDIENTES = 15;
+
+/**
+ * Al encender la IA, contesta los mensajes de socios que quedaron sin respuesta (el último de la conversación es del socio,
+ * de los últimos días). Cada conversación pasa por las mismas reglas de siempre: pausa de la directiva, cuota y tokens.
+ * Nunca lanza.
+ */
+export async function responderPendientesDelComite(aprId: string) {
+  try {
+    const desde = new Date(Date.now() - DIAS_PENDIENTES * 24 * 60 * 60_000);
+    const filas = await db
+      .select({ socioId: mensajesSocio.socioId, remitente: mensajesSocio.remitente })
+      .from(mensajesSocio)
+      .innerJoin(socios, eq(socios.id, mensajesSocio.socioId))
+      .where(and(eq(socios.aprId, aprId), gt(mensajesSocio.createdAt, desde)))
+      .orderBy(desc(mensajesSocio.createdAt));
+    // Lo más nuevo primero: el primer mensaje de cada socio es el último de su conversación.
+    const vistos = new Set<string>();
+    const pendientes: string[] = [];
+    for (const f of filas) {
+      if (vistos.has(f.socioId)) continue;
+      vistos.add(f.socioId);
+      if (f.remitente === "SOCIO") pendientes.push(f.socioId);
+    }
+    for (const socioId of pendientes.slice(0, MAX_PENDIENTES)) await responderConIaSiCorresponde(socioId);
+  } catch (e) {
+    console.error("IA del chat (pendientes):", e);
+  }
+}
+
 async function intentar(socioId: string) {
   const socio = await db.query.socios.findFirst({
     where: eq(socios.id, socioId),

@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { aprs } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { cambiarSlug } from "@/lib/slug";
+import { responderPendientesDelComite } from "@/lib/ia-chat";
 import { puede, type Plan } from "@/lib/planes";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
@@ -275,6 +277,9 @@ export async function guardarIaChat(
     .update(aprs)
     .set({ iaChatModo: modo, iaChatInstrucciones: instrucciones, updatedAt: new Date() })
     .where(eq(aprs.id, apr.id));
+
+  // Recién encendida: contesta lo que los socios dejaron sin responder, en segundo plano.
+  if (modo === "SIEMPRE" && apr.iaChatModo !== "SIEMPRE") after(() => responderPendientesDelComite(apr.id));
 
   revalidatePath("/panel/configuracion");
   return { ok: true };
