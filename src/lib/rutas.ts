@@ -57,6 +57,8 @@ export async function laboresPorRuta(aprId: string): Promise<Record<string, Labo
         id: labores.id,
         numero: labores.numero,
         titulo: labores.titulo,
+        tipo: labores.tipo,
+        fecha: labores.fecha,
         estado: labores.estado,
         paradas: sql<number>`count(*)::int`,
         hechas: sql<number>`coalesce(sum(case when ${paradaLabores.hecha} then 1 else 0 end), 0)::int`,
@@ -65,9 +67,9 @@ export async function laboresPorRuta(aprId: string): Promise<Record<string, Labo
       .innerJoin(rutaParadas, eq(rutaParadas.id, paradaLabores.paradaId))
       .innerJoin(labores, eq(labores.id, paradaLabores.laborId))
       .where(eq(paradaLabores.aprId, aprId))
-      .groupBy(rutaParadas.rutaId, labores.id, labores.numero, labores.titulo, labores.estado)
+      .groupBy(rutaParadas.rutaId, labores.id, labores.numero, labores.titulo, labores.tipo, labores.fecha, labores.estado)
       .orderBy(asc(labores.numero));
-    for (const f of filas) (porRuta[f.rutaId] ??= []).push({ id: f.id, numero: f.numero, titulo: f.titulo, estado: f.estado as LaborEnRuta["estado"], paradas: f.paradas, hechas: f.hechas });
+    for (const f of filas) (porRuta[f.rutaId] ??= []).push({ id: f.id, numero: f.numero, titulo: f.titulo, tipo: f.tipo, fecha: f.fecha, estado: f.estado as LaborEnRuta["estado"], paradas: f.paradas, hechas: f.hechas });
   } catch (e) {
     console.error("Rutas: no se pudieron leer sus labores:", e);
   }

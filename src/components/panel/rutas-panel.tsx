@@ -12,7 +12,7 @@ import { ordenarPorCercania, type ArranqueRuta, type RutaVista } from "@/lib/rut
 
 const GRIS = "text-[#5B5970]";
 
-type SocioRuta = { id: string; nombre: string; numeroCliente?: string | null; lat?: number | null; lng?: number | null };
+export type SocioRuta = { id: string; nombre: string; numeroCliente?: string | null; lat?: number | null; lng?: number | null };
 
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -240,7 +240,7 @@ export function RutasPanel({
   );
 }
 
-function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }: { socios: SocioRuta[]; arranques: ArranqueRuta[]; porId: Map<string, SocioRuta>; inicial: { id: string | null; nombre: string; ids: string[] }; esAdmin: boolean; onVolver: () => void }) {
+export function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }: { socios: SocioRuta[]; arranques: ArranqueRuta[]; porId: Map<string, SocioRuta>; inicial: { id: string | null; nombre: string; ids: string[] }; esAdmin: boolean; onVolver: () => void }) {
   const [nombre, setNombre] = useState(inicial.nombre);
   const [ids, setIds] = useState(() => inicial.ids.filter((id) => porId.has(id)));
   const [busca, setBusca] = useState("");

@@ -25,20 +25,16 @@ export default async function RutasPage() {
   ]);
 
   return (
-    <div className="mx-auto w-full max-w-[720px]">
-      <div className="mb-4">
-        <h1 className="text-2xl font-semibold">Rutas</h1>
-        <p className="mt-0.5 text-sm text-[#5B5970]">El recorrido de los socios en terreno. Las usa quien toma las lecturas, también sin señal.</p>
-      </div>
+    <>
       <RutasPagina
         socios={listaSocios.map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente, lat: s.lat, lng: s.lng }))}
         rutas={rutas}
         arranques={arranques}
         laboresPorRuta={porRuta}
-        laboresAsignables={labores.map((l) => ({ id: l.id, numero: l.numero, titulo: l.titulo, estado: l.estado }))}
+        laboresAsignables={labores.map((l) => ({ id: l.id, numero: l.numero, titulo: l.titulo, tipo: l.tipo, fecha: l.fecha, estado: l.estado }))}
         insumos={insumos}
         conLabores={conLabores}
       />
-    </div>
+    </>
   );
 }
