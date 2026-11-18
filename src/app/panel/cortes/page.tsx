@@ -8,7 +8,7 @@ import { acuerdosDelComite, sociosParaRepactar } from "@/lib/repactaciones-datos
 import { CortesPanel } from "@/components/panel/cortes-panel";
 
 export const metadata: Metadata = {
-  title: "Cortes",
+  title: "Órdenes",
 };
 
 export default async function CortesPage() {

@@ -102,7 +102,7 @@ const finanzas: Enlace[] = [
 const atencion: Enlace[] = [
   { href: "/panel/conversaciones", label: "Conversaciones", icon: MessageCircle },
   { href: "/panel/socios/solicitudes", label: "Solicitudes", icon: UserCheck },
-  { href: "/panel/cortes", label: "Cortes", icon: Scissors },
+  { href: "/panel/cortes", label: "Órdenes", icon: Scissors },
   { href: "/panel/configuracion", label: "Configuración", icon: Settings },
   { href: "/panel/ayuda", label: "Ayuda", icon: LifeBuoy },
 ];
@@ -209,7 +209,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/rendiciones": "rendicion cuentas asamblea informe mes trimestre semestre año ingresos egresos compras proveedores pdf excel",
   "/panel/conversaciones": "chat mensajes socios ia",
   "/panel/socios/solicitudes": "pedidos acceso clave",
-  "/panel/cortes": "morosidad corte suspension reposicion",
+  "/panel/cortes": "ordenes cortes morosidad corte suspension reposicion reparacion",
   "/panel/configuracion": "tarifas datos comite logo whatsapp ajustes",
   "/panel/ayuda": "guias soporte tutorial como",
   "/panel/plan": "suscripcion pago plan tarjeta",

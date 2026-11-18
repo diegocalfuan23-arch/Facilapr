@@ -109,7 +109,7 @@ export const RECORRIDOS: Recorrido[] = [
       },
       {
         selector: enMenu("/panel/cortes"),
-        titulo: "Cortes",
+        titulo: "Órdenes",
         texto:
           "Los socios morosos, el aviso antes de cortar, los cortes y reposiciones con foto, los reclamos y pedidos de los socios, y los acuerdos de pago en cuotas.",
       },

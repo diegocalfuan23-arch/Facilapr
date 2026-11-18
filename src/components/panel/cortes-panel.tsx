@@ -172,7 +172,7 @@ export function CortesPanel({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-[1.35rem] font-semibold tracking-tight">Cortes</h1>
+          <h1 className="text-[1.35rem] font-semibold tracking-tight">Órdenes</h1>
           <p className="mt-0.5 text-[0.9rem] text-muted-foreground">
             Cortes por morosidad, reposiciones y reparaciones, con foto de respaldo.
           </p>
