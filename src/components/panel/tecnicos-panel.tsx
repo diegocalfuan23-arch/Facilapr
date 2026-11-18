@@ -20,7 +20,7 @@ const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 
 const ROL: Record<RolEquipo, { nombre: string; icono: LucideIcon; tono: string; chip: string; donde: string; puede: string[] }> = {
   TESORERO: { nombre: "Tesorero", icono: Wallet, tono: "bg-[#E6F6EF] text-[#0A7A52]", chip: "bg-[#E6F6EF] text-[#075A3C]", donde: "Panel web", puede: ["Pagos, caja y giros", "Compras, rendiciones y reportes", "Bodega e inventario"] },
-  OPERADOR: { nombre: "Operador", icono: Wrench, tono: "bg-[#ECE8FD] text-[#3A0CE3]", chip: "bg-[#ECE8FD] text-[#2A07A8]", donde: "App en terreno", puede: ["Lecturas en terreno", "Rutas y ubicación de socios", "Órdenes de trabajo"] },
+  OPERADOR: { nombre: "Operador", icono: Wrench, tono: "bg-[#ECE8FD] text-[#3A0CE3]", chip: "bg-[#ECE8FD] text-[#2A07A8]", donde: "App en terreno", puede: ["Lecturas en terreno", "Rutas y ubicación de socios", "Cortes, reposiciones y reparaciones"] },
 };
 
 const fechaCorta = new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short", timeZone: "America/Santiago" });
