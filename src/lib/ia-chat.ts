@@ -79,6 +79,42 @@ export async function responderPendientesDelComite(aprId: string) {
   }
 }
 
+/**
+ * Por qué la IA no respondió (o no va a responder todavía) al último mensaje de un socio, en palabras para la directiva.
+ * Null si la IA contestaría con normalidad o si el último mensaje no espera respuesta. No llama al modelo.
+ */
+export async function motivoIaCallada(socioId: string): Promise<string | null> {
+  const socio = await db.query.socios.findFirst({ where: eq(socios.id, socioId), with: { apr: true } });
+  if (!socio) return null;
+  const apr = socio.apr;
+  if (!puede(apr.plan as Plan, "iaChat") || apr.iaChatModo !== "SIEMPRE") return null;
+
+  const ultimos = await db.query.mensajesSocio.findMany({
+    where: eq(mensajesSocio.socioId, socioId),
+    orderBy: [desc(mensajesSocio.createdAt)],
+    limit: 1,
+    columns: { remitente: true },
+  });
+  if (ultimos.length === 0 || ultimos[0].remitente !== "SOCIO") return null;
+
+  if (socio.iaPausada) return "La IA está pausada en esta conversación. Cámbiala a «IA» para que responda.";
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return "Faltan las claves del proveedor de IA en el servidor.";
+
+  const ultimaDirectiva = await db.query.mensajesSocio.findFirst({
+    where: and(eq(mensajesSocio.socioId, socioId), eq(mensajesSocio.remitente, "DIRECTIVA")),
+    orderBy: [desc(mensajesSocio.createdAt)],
+    columns: { createdAt: true },
+  });
+  if (ultimaDirectiva) {
+    const faltan = Math.ceil((ultimaDirectiva.createdAt.getTime() + PAUSA_MINUTOS * 60_000 - Date.now()) / 60_000);
+    if (faltan > 0) return `Escribiste hace poco en esta conversación: la IA espera ${faltan} ${faltan === 1 ? "minuto" : "minutos"} antes de responder sola.`;
+  }
+
+  const uso = await usoIaChat(apr.id, apr.plan as Plan);
+  if (uso.disponible <= 0) return "Se acabaron los tokens de IA del mes. Responde tú o compra un pack.";
+  return null;
+}
+
 /** Deja en el registro del servidor por qué la IA no respondió: así se ve en los logs qué la detuvo. */
 const callar = (socioId: string, motivo: string) => console.log(`IA del chat: no responde (socio ${socioId}): ${motivo}`);
 

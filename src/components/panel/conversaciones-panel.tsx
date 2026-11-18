@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bot, Check, CheckCheck, ChevronDown, CreditCard, Hand, Info, Loader2, MessageCircle, MoreVertical, Paperclip, Pencil, Phone, Search, SendHorizontal, Sparkles, Trash2, X, Zap } from "lucide-react";
-import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones } from "@/app/panel/conversaciones/actions";
+import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones, consultarMotivoIa } from "@/app/panel/conversaciones/actions";
 import { fichaDelSocio, type FichaSocio } from "@/app/panel/conversaciones/ficha-actions";
 import { escucharChat, escucharComite } from "@/lib/chat/cliente";
 import type { MensajeChat } from "@/lib/chat-socio";
@@ -422,6 +422,26 @@ function ChatConSocio({
   });
   const { otroEscribe, alEscribirElOtro, conectar, alTeclear, alDejarDeEscribir } = useEscribiendo();
 
+  // Si el último mensaje es del socio y la IA no lo contesta a los pocos segundos, se avisa por qué.
+  const ultimoDelSocio = mensajes.at(-1)?.remitente === "SOCIO" ? mensajes.at(-1)?.id : undefined;
+  const [motivoIa, setMotivoIa] = useState<{ id: string; texto: string } | null>(null);
+  useEffect(() => {
+    if (!iaActiva || !ultimoDelSocio) return;
+    let vigente = true;
+    const espera = window.setTimeout(() => {
+      void consultarMotivoIa(socioId)
+        .then((texto) => {
+          if (vigente) setMotivoIa({ id: ultimoDelSocio, texto: texto ?? "" });
+        })
+        .catch(() => undefined);
+    }, 12_000);
+    return () => {
+      vigente = false;
+      window.clearTimeout(espera);
+    };
+  }, [iaActiva, iaPausada, ultimoDelSocio, socioId]);
+  const avisoIa = ultimoDelSocio && motivoIa?.id === ultimoDelSocio && motivoIa.texto ? motivoIa.texto : null;
+
   // Lo que la ficha pide poner en la caja de escribir (por ejemplo, el enlace de pago).
   const [insertarVisto, setInsertarVisto] = useState(insertar?.n ?? 0);
   if (insertar && insertar.n !== insertarVisto) {
@@ -714,6 +734,12 @@ function ChatConSocio({
       </div>
 
       <div className="border-t border-[#F0EEF6] bg-white px-3 py-3 sm:px-5">
+        {avisoIa && (
+          <div className="mb-2.5 flex items-start gap-2 rounded-xl bg-[#FFF6E8] px-3 py-2 text-[13px] text-[#6B4300]">
+            <Sparkles className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+            <span>{avisoIa}</span>
+          </div>
+        )}
         {editando && (
           <div className="mb-2.5 flex items-center gap-2 rounded-xl bg-[#F4F3F9] px-3 py-2 text-[13px] text-[#3F3C55]">
             <Pencil className="size-3.5 shrink-0" aria-hidden />

@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { enviarMensajeChat, type MensajeChat } from "@/lib/chat-socio";
 import { puede, type Plan } from "@/lib/planes";
 import { listarConversaciones } from "@/lib/conversaciones";
+import { motivoIaCallada } from "@/lib/ia-chat";
 import type { ConversacionResumen } from "@/lib/conversaciones-comun";
 
 const mensajeSchema = z.string().trim().min(1).max(1000);
@@ -128,6 +129,14 @@ export async function pausarIaConversacion(socioId: string, pausada: boolean) {
     .returning({ id: socios.id });
 
   return r.length > 0;
+}
+
+/** Por qué la IA no respondió al último mensaje de un socio (null si no hay nada que avisar). */
+export async function consultarMotivoIa(socioId: string): Promise<string | null> {
+  const { apr } = await requireAdmin();
+  const socio = await db.query.socios.findFirst({ where: and(eq(socios.id, socioId), eq(socios.aprId, apr.id)), columns: { id: true } });
+  if (!socio) return null;
+  return motivoIaCallada(socioId);
 }
 
 /** La lista de conversaciones, para que la pantalla la vuelva a pedir sola (la usa TanStack Query). */
