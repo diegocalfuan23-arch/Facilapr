@@ -1787,6 +1787,10 @@ export const rutas = pgTable(
     aprobada: boolean("aprobada").notNull().default(false),
     creadaPorId: text("creadaPorId").notNull(),
     aprobadaPorId: text("aprobadaPorId"),
+    /** El operador que suele recorrerla (opcional). Solo informa: cualquier operador puede usarla. */
+    operadorId: text("operadorId"),
+    /** Una ruta archivada no se ofrece en terreno ni en Labores, pero se puede restaurar. */
+    archivada: boolean("archivada").notNull().default(false),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
   },

@@ -240,8 +240,26 @@ export function RutasPanel({
   );
 }
 
-export function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }: { socios: SocioRuta[]; arranques: ArranqueRuta[]; porId: Map<string, SocioRuta>; inicial: { id: string | null; nombre: string; ids: string[] }; esAdmin: boolean; onVolver: () => void }) {
+export function Editor({
+  socios,
+  arranques,
+  porId,
+  inicial,
+  esAdmin,
+  operadores,
+  onVolver,
+}: {
+  socios: SocioRuta[];
+  arranques: ArranqueRuta[];
+  porId: Map<string, SocioRuta>;
+  inicial: { id: string | null; nombre: string; ids: string[]; operadorId?: string | null };
+  esAdmin: boolean;
+  /** Los operadores entre los que el administrador elige el habitual. Sin lista, no se muestra el campo. */
+  operadores?: { id: string; nombre: string }[];
+  onVolver: () => void;
+}) {
   const [nombre, setNombre] = useState(inicial.nombre);
+  const [operadorId, setOperadorId] = useState(inicial.operadorId ?? "");
   const [ids, setIds] = useState(() => inicial.ids.filter((id) => porId.has(id)));
   const [busca, setBusca] = useState("");
   const [guardando, iniciar] = useTransition();
@@ -276,7 +294,7 @@ export function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }:
 
   function guardar() {
     iniciar(async () => {
-      const r = await guardarRuta(inicial.id, nombre, ids);
+      const r = await guardarRuta(inicial.id, nombre, ids, operadores ? operadorId || null : undefined);
       if (r.ok) {
         toast.success(inicial.id ? "Ruta guardada" : esAdmin ? "Ruta creada" : "Ruta propuesta: queda por aprobar");
         onVolver();
@@ -291,6 +309,22 @@ export function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }:
           <span className="text-[13px] font-semibold">Nombre</span>
           <Input value={nombre} onChange={(e) => setNombre(e.target.value)} autoComplete="off" maxLength={60} placeholder="Ej.: Sector alto" className="mt-1.5 h-11 rounded-xl border-[#E4E1F0] shadow-none" />
         </label>
+
+        {operadores && operadores.length > 0 ? (
+          <label className="block">
+            <span className="text-[13px] font-semibold">
+              Operador habitual <span className={`font-normal ${GRIS}`}>(opcional)</span>
+            </span>
+            <select value={operadorId} onChange={(e) => setOperadorId(e.target.value)} className="mt-1.5 h-11 w-full rounded-xl border border-[#E4E1F0] bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <option value="">Sin operador fijo</option>
+              {operadores.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.nombre}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
 
         <div>
           <p className="text-[13px] font-semibold">En la ruta ({ids.length})</p>

@@ -1,5 +1,6 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { user as userTable } from "@/lib/db/auth-schema";
 import { arranqueSocios, arranques, labores, paradaLabores, rutaParadas, rutas } from "@/lib/db/schema";
 import type { ArranqueRuta, LaborEnRuta, RutaVista } from "@/lib/rutas-comun";
 
@@ -9,10 +10,10 @@ export type { ArranqueRuta, LaborEnRuta, RutaVista } from "@/lib/rutas-comun";
  * Las rutas que ve cada usuario: el administrador, todas; los demás, las aprobadas y las propias aún por aprobar.
  * Si la tabla todavía no existe devuelve vacío: la pantalla sigue con la ruta de siempre.
  */
-export async function rutasDelComite(aprId: string, userId: string, rol: string): Promise<RutaVista[]> {
+export async function rutasDelComite(aprId: string, userId: string, rol: string, incluirArchivadas = false): Promise<RutaVista[]> {
   try {
     const filas = await db.select().from(rutas).where(eq(rutas.aprId, aprId)).orderBy(asc(rutas.nombre));
-    const visibles = filas.filter((r) => rol === "ADMIN" || r.aprobada || r.creadaPorId === userId);
+    const visibles = filas.filter((r) => (incluirArchivadas || !r.archivada) && (rol === "ADMIN" || r.aprobada || r.creadaPorId === userId));
     if (visibles.length === 0) return [];
     const paradas = await db
       .select({ rutaId: rutaParadas.rutaId, socioId: rutaParadas.socioId, orden: rutaParadas.orden })
@@ -22,9 +23,31 @@ export async function rutasDelComite(aprId: string, userId: string, rol: string)
       .orderBy(asc(rutaParadas.orden));
     const porRuta = new Map<string, string[]>();
     for (const p of paradas) porRuta.set(p.rutaId, [...(porRuta.get(p.rutaId) ?? []), p.socioId]);
-    return visibles.map((r) => ({ id: r.id, nombre: r.nombre, aprobada: r.aprobada, propia: r.creadaPorId === userId, socioIds: porRuta.get(r.id) ?? [] }));
+    const operadores = new Map((await operadoresDelComite(aprId)).map((o) => [o.id, o.nombre]));
+    return visibles.map((r) => ({
+      id: r.id,
+      nombre: r.nombre,
+      aprobada: r.aprobada,
+      propia: r.creadaPorId === userId,
+      socioIds: porRuta.get(r.id) ?? [],
+      operadorId: r.operadorId,
+      operadorNombre: r.operadorId ? (operadores.get(r.operadorId) ?? null) : null,
+      archivada: r.archivada,
+      creada: r.createdAt.toISOString().slice(0, 10),
+    }));
   } catch (e) {
     console.error("Rutas: no se pudieron leer:", e);
+    return [];
+  }
+}
+
+/** Los operadores del comité, para elegir quién suele recorrer una ruta. */
+export async function operadoresDelComite(aprId: string): Promise<{ id: string; nombre: string }[]> {
+  try {
+    const filas = await db.select({ id: userTable.id, nombre: userTable.name }).from(userTable).where(and(eq(userTable.aprId, aprId), eq(userTable.rol, "OPERADOR"))).orderBy(asc(userTable.name));
+    return filas.map((f) => ({ id: f.id, nombre: f.nombre ?? "Operador" }));
+  } catch (e) {
+    console.error("Rutas: no se pudieron leer los operadores:", e);
     return [];
   }
 }

@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { ArrowDown, ArrowUp, Check, ChevronRight, ClipboardList, Clock, Copy, Gauge, MapPin, MapPinOff, Navigation, Pencil, Plus, Route, Search, Trash2, Users, X, Loader2 } from "lucide-react";
-import { aprobarRuta, asignarLaborARuta, eliminarRuta, guardarRuta, quitarLaborDeRuta } from "@/app/panel/lecturas/rutas-actions";
+import { Archive, ArrowDown, ArrowUp, Check, ChevronRight, ClipboardList, Clock, Copy, Gauge, MapPin, MapPinOff, Navigation, Pencil, Plus, RotateCcw, Route, Search, Trash2, Users, X, Loader2 } from "lucide-react";
+import { aprobarRuta, archivarRuta, asignarLaborARuta, eliminarRuta, guardarRuta, quitarLaborDeRuta } from "@/app/panel/lecturas/rutas-actions";
 import { Editor, guardarRutaElegida, type SocioRuta } from "@/components/panel/rutas-panel";
 import { LaborDialog } from "@/components/panel/labor-dialog";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,9 @@ const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 type LaborAsignable = { id: string; numero: number; titulo: string; tipo: string; fecha: string; estado: EstadoLabor };
-type Pestana = "activas" | "porAprobar";
+type Pestana = "activas" | "porAprobar" | "archivadas";
+
+const iniciales = (n: string) => n.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
 
 const IconoLabor = ({ tipo, className }: { tipo: string; className?: string }) => (tipo === "LECTURA" ? <Gauge className={className} aria-hidden /> : <ClipboardList className={className} aria-hidden />);
 
@@ -116,9 +118,12 @@ export function RutasPagina({
   laboresAsignables,
   insumos,
   conLabores,
+  operadores,
 }: {
   socios: SocioRuta[];
   rutas: RutaVista[];
+  /** Los operadores del comité, para elegir el habitual de cada ruta. */
+  operadores: { id: string; nombre: string }[];
   arranques: ArranqueRuta[];
   laboresPorRuta: Record<string, LaborEnRuta[]>;
   laboresAsignables: LaborAsignable[];
@@ -131,16 +136,17 @@ export function RutasPagina({
   const [q, setQ] = useState("");
   const [selId, setSelId] = useState<string | null>(null);
   const [hoja, setHoja] = useState(false);
-  const [editando, setEditando] = useState<{ id: string | null; nombre: string; ids: string[] } | null>(null);
+  const [editando, setEditando] = useState<{ id: string | null; nombre: string; ids: string[]; operadorId?: string | null } | null>(null);
   const [agregando, setAgregando] = useState<RutaVista | null>(null);
   const [asignando, setAsignando] = useState<RutaVista | null>(null);
   const [nuevaEn, setNuevaEn] = useState<string | null>(null);
   const [trabajando, iniciar] = useTransition();
 
   const porId = useMemo(() => new Map(socios.map((s) => [s.id, s])), [socios]);
-  const opciones: RutaOpcion[] = rutas.filter((r) => r.aprobada).map((r) => ({ id: r.id, nombre: r.nombre }));
-  const activas = rutas.filter((r) => r.aprobada);
+  const opciones: RutaOpcion[] = rutas.filter((r) => r.aprobada && !r.archivada).map((r) => ({ id: r.id, nombre: r.nombre }));
+  const activas = rutas.filter((r) => r.aprobada && !r.archivada);
   const porAprobar = rutas.filter((r) => !r.aprobada);
+  const archivadas = rutas.filter((r) => r.archivada);
 
   // Resumen
   const cubiertos = new Set(activas.flatMap((r) => r.socioIds.filter((id) => porId.has(id))));
@@ -154,7 +160,7 @@ export function RutasPagina({
   const sinLabor = activas.filter((r) => !(laboresPorRuta[r.id] ?? []).some((l) => l.estado !== "HECHA")).length;
 
   const buscado = sinTildes(q.trim());
-  const lista = (pestana === "activas" ? activas : porAprobar).filter((r) => !buscado || sinTildes(r.nombre).includes(buscado));
+  const lista = (pestana === "activas" ? activas : pestana === "porAprobar" ? porAprobar : archivadas).filter((r) => !buscado || sinTildes(r.nombre).includes(buscado));
   const sel = lista.find((r) => r.id === selId) ?? lista[0] ?? null;
 
   function abrir(r: RutaVista) {
@@ -189,6 +195,18 @@ export function RutasPagina({
       if (res.ok) {
         setHoja(false);
         toast.success("Ruta borrada");
+      } else toast.error(res.error);
+    });
+  }
+
+  function archivar(r: RutaVista, archivar: boolean) {
+    iniciar(async () => {
+      const res = await archivarRuta(r.id, archivar);
+      if (res.ok) {
+        setHoja(false);
+        setPestana(archivar ? "archivadas" : "activas");
+        setSelId(r.id);
+        toast.success(archivar ? `«${r.nombre}» archivada` : `«${r.nombre}» restaurada`);
       } else toast.error(res.error);
     });
   }
@@ -231,8 +249,10 @@ export function RutasPagina({
       }}
       onEditar={() => {
         setHoja(false);
-        setEditando({ id: r.id, nombre: r.nombre, ids: r.socioIds });
+        setEditando({ id: r.id, nombre: r.nombre, ids: r.socioIds, operadorId: r.operadorId });
       }}
+      onArchivar={() => archivar(r, true)}
+      onRestaurar={() => archivar(r, false)}
       onDuplicar={() => duplicar(r)}
       onBorrar={() => borrar(r)}
       onAprobar={() => aprobar(r)}
@@ -296,11 +316,12 @@ export function RutasPagina({
       <div className="mt-4 grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_420px]">
         <div className={`min-w-0 overflow-hidden rounded-2xl bg-white ${SOMBRA}`}>
           <div className="flex flex-col gap-3 border-b border-[#F0EEF6] p-4 sm:flex-row sm:items-center sm:px-5">
-            <div role="tablist" className="grid grid-cols-2 gap-1 rounded-lg bg-[#F4F3F9] p-1 sm:w-[280px]">
+            <div role="tablist" className="grid grid-cols-3 gap-1 rounded-lg bg-[#F4F3F9] p-1 sm:w-[380px]">
               {(
                 [
                   ["activas", "Activas", activas.length],
                   ["porAprobar", "Por aprobar", porAprobar.length],
+                  ["archivadas", "Archivadas", archivadas.length],
                 ] as const
               ).map(([k, t, n]) => (
                 <button key={k} role="tab" aria-selected={pestana === k} onClick={() => setPestana(k)} className={`flex h-8 items-center justify-center gap-1.5 rounded-md text-[13px] font-semibold ${pestana === k ? "bg-white text-[#2A07A8] shadow-sm" : GRIS}`}>
@@ -309,15 +330,16 @@ export function RutasPagina({
                 </button>
               ))}
             </div>
-            <div className="relative sm:ml-auto sm:w-[220px]">
+            <div className="relative sm:ml-auto sm:w-[200px]">
               <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8B89A0]" />
               <Input aria-label="Buscar ruta" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar ruta" className="h-10 rounded-lg border-[#E4E1F0] pl-9 shadow-none" />
             </div>
           </div>
 
-          <div className={`hidden grid-cols-[minmax(0,1fr)_200px_20px] gap-4 border-b border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2.5 text-xs font-medium md:grid ${GRIS}`}>
+          <div className={`hidden grid-cols-[minmax(0,1fr)_140px_190px_20px] gap-4 border-b border-[#F3F1F8] bg-[#FAFAFD] px-5 py-2.5 text-xs font-medium md:grid ${GRIS}`}>
             <span>Ruta</span>
-            <span>{pestana === "activas" ? "Labor actual" : "Propuesta"}</span>
+            <span>Operador habitual</span>
+            <span>{pestana === "activas" ? "Labor actual" : pestana === "porAprobar" ? "Propuesta" : "Creada"}</span>
             <span />
           </div>
 
@@ -329,7 +351,7 @@ export function RutasPagina({
               const activo = sel?.id === r.id;
               return (
                 <li key={r.id}>
-                  <button onClick={() => abrir(r)} aria-current={activo ? "true" : undefined} className={`relative grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3.5 text-left md:grid-cols-[minmax(0,1fr)_200px_20px] md:px-5 ${activo ? "bg-[#F7F5FF]" : "hover:bg-[#FAFAFD]"}`}>
+                  <button onClick={() => abrir(r)} aria-current={activo ? "true" : undefined} className={`relative grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-2 px-4 py-3.5 text-left md:grid-cols-[minmax(0,1fr)_140px_190px_20px] md:px-5 ${activo ? "bg-[#F7F5FF]" : "hover:bg-[#FAFAFD]"}`}>
                     {activo ? <span aria-hidden className="absolute inset-y-2 left-0 hidden w-[3px] rounded-r-full bg-[#3A0CE3] lg:block" /> : null}
                     <span className="flex min-w-0 items-center gap-3">
                       <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-xl" style={{ background: `${color}14`, color }}>
@@ -343,6 +365,16 @@ export function RutasPagina({
                           {sinUbicacion > 0 ? <span className="font-medium text-[#8A4B00]"> · {sinUbicacion} sin ubicación</span> : null}
                         </span>
                       </span>
+                    </span>
+                    <span className="hidden min-w-0 items-center gap-2 md:flex">
+                      {r.operadorNombre ? (
+                        <>
+                          <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-[#ECE8FD] text-[11px] font-bold text-[#2A07A8]">{iniciales(r.operadorNombre)}</span>
+                          <span className="truncate text-[13px]">{r.operadorNombre.split(" ")[0]}</span>
+                        </>
+                      ) : (
+                        <span className={`text-[13px] ${GRIS}`}>—</span>
+                      )}
                     </span>
                     <span className="min-w-0 text-right md:text-left">
                       {pestana === "activas" ? (
@@ -366,8 +398,10 @@ export function RutasPagina({
                         ) : (
                           <span className={`text-[13px] ${GRIS}`}>{conLabores ? "Sin labor" : "—"}</span>
                         )
-                      ) : (
+                      ) : pestana === "porAprobar" ? (
                         <span className="rounded-full bg-[#FFF3E0] px-2 py-0.5 text-[12px] font-semibold text-[#8A4B00]">Por aprobar</span>
+                      ) : (
+                        <span className={`text-[13px] ${GRIS}`}>{fechaCorta(r.creada)}</span>
                       )}
                     </span>
                     <ChevronRight className="hidden size-4 text-[#A19FB2] md:block" aria-hidden />
@@ -380,7 +414,7 @@ export function RutasPagina({
                 <span className="mx-auto flex size-12 items-center justify-center rounded-2xl bg-[#ECE8FD] text-[#3A0CE3]">
                   <Route className="size-6" aria-hidden />
                 </span>
-                <p className="mt-3 text-sm font-semibold">{q ? "Ninguna ruta coincide" : pestana === "porAprobar" ? "No hay rutas por aprobar" : "Aún no hay rutas"}</p>
+                <p className="mt-3 text-sm font-semibold">{q ? "Ninguna ruta coincide" : pestana === "porAprobar" ? "No hay rutas por aprobar" : pestana === "archivadas" ? "No hay rutas archivadas" : "Aún no hay rutas"}</p>
                 <p className={`mx-auto mt-1 max-w-[340px] text-xs ${GRIS}`}>Crea un recorrido con los socios de un sector. Sin ruta, se recorren todos por orden alfabético.</p>
                 {pestana === "activas" && !q ? (
                   <Button onClick={() => setEditando({ id: null, nombre: "", ids: [] })} className="mt-4 h-10 rounded-lg font-semibold">
@@ -427,7 +461,7 @@ export function RutasPagina({
                 <X className="size-[18px]" />
               </DialogClose>
             </div>
-            <Editor socios={socios} arranques={arranques} porId={porId} inicial={editando} esAdmin onVolver={() => setEditando(null)} />
+            <Editor socios={socios} arranques={arranques} porId={porId} inicial={editando} esAdmin operadores={operadores} onVolver={() => setEditando(null)} />
           </DialogContent>
         </Dialog>
       ) : null}
@@ -475,6 +509,8 @@ function Detalle({
   onMover,
   onAgregar,
   onEditar,
+  onArchivar,
+  onRestaurar,
   onDuplicar,
   onBorrar,
   onAprobar,
@@ -492,6 +528,8 @@ function Detalle({
   onMover: (ids: string[]) => void;
   onAgregar: () => void;
   onEditar: () => void;
+  onArchivar: () => void;
+  onRestaurar: () => void;
   onDuplicar: () => void;
   onBorrar: () => void;
   onAprobar: () => void;
@@ -502,7 +540,8 @@ function Detalle({
   const [ver, setVer] = useState<"recorrido" | "labores">("recorrido");
   const color = colorRuta(ruta.id);
   const { km, minutos } = medirRuta(ruta.socioIds, porId);
-  const act = conLabores && ruta.aprobada ? laborActual(labores) : null;
+  const act = conLabores && ruta.aprobada && !ruta.archivada ? laborActual(labores) : null;
+  const editable = !ruta.archivada;
   const ids = ruta.socioIds;
 
   return (
@@ -513,7 +552,7 @@ function Detalle({
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="truncate text-[18px] leading-tight font-semibold">{ruta.nombre}</h2>
-          <p className={`mt-0.5 text-[13px] ${GRIS}`}>{ruta.aprobada ? "Lista para usar" : "Propuesta desde terreno"}</p>
+          <p className={`mt-0.5 text-[13px] ${GRIS}`}>{ruta.archivada ? "Archivada" : !ruta.aprobada ? "Propuesta desde terreno" : ruta.operadorNombre ? `Operador habitual: ${ruta.operadorNombre}` : "Sin operador habitual"}</p>
         </div>
         {enHoja ? (
           <Button type="button" variant="ghost" size="icon" aria-label="Cerrar" onClick={onCerrar} className="size-9 text-[#5B5970]">
@@ -582,7 +621,7 @@ function Detalle({
           </div>
         ) : null}
 
-        {ruta.aprobada && conLabores ? (
+        {ruta.aprobada && !ruta.archivada && conLabores ? (
           <div role="tablist" className="mt-4 grid grid-cols-2 gap-1 rounded-lg bg-[#F4F3F9] p-1">
             {(
               [
@@ -599,12 +638,12 @@ function Detalle({
           <p className="mt-4 text-[13px] font-semibold">Recorrido ({ids.length})</p>
         )}
 
-        {ver === "recorrido" || !ruta.aprobada || !conLabores ? (
+        {ver === "recorrido" || !ruta.aprobada || ruta.archivada || !conLabores ? (
           <>
-            <button type="button" onClick={onAgregar} disabled={trabajando} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#C9BCFB] text-[13px] font-semibold text-[#2A07A8] hover:bg-[#FAF8FF] disabled:opacity-50">
+            {editable ? <button type="button" onClick={onAgregar} disabled={trabajando} className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#C9BCFB] text-[13px] font-semibold text-[#2A07A8] hover:bg-[#FAF8FF] disabled:opacity-50">
               <Plus className="size-4" aria-hidden />
               Agregar socio
-            </button>
+            </button> : null}
             <ol className="mt-3">
               {ids.map((id, i) => {
                 const s = porId.get(id);
@@ -631,7 +670,7 @@ function Detalle({
                         </p>
                       )}
                     </div>
-                    <span className="flex shrink-0 items-start opacity-100 lg:opacity-0 lg:group-focus-within/p:opacity-100 lg:group-hover/p:opacity-100">
+                    {editable ? <span className="flex shrink-0 items-start opacity-100 lg:opacity-0 lg:group-focus-within/p:opacity-100 lg:group-hover/p:opacity-100">
                       <button type="button" aria-label={`Subir a ${s?.nombre ?? "socio"}`} disabled={i === 0 || trabajando} onClick={() => mover(-1)} className="flex size-7 items-center justify-center rounded-md text-[#5B5970] hover:bg-[#F4F3F9] disabled:opacity-30">
                         <ArrowUp className="size-3.5" />
                       </button>
@@ -641,7 +680,7 @@ function Detalle({
                       <button type="button" aria-label={`Quitar a ${s?.nombre ?? "socio"}`} disabled={ids.length === 1 || trabajando} onClick={() => onMover(ids.filter((x) => x !== id))} className="flex size-7 items-center justify-center rounded-md text-[#5B5970] hover:bg-[#FDF3F3] hover:text-[#A32020] disabled:opacity-30">
                         <X className="size-3.5" />
                       </button>
-                    </span>
+                    </span> : null}
                   </li>
                 );
               })}
@@ -687,13 +726,24 @@ function Detalle({
       </div>
 
       <div className="flex items-center gap-2 border-t border-[#F0EEF6] bg-[#FAFAFD] px-5 py-3">
-        {ruta.aprobada ? (
+        {ruta.archivada ? (
+          <>
+            <Button type="button" variant="outline" onClick={onBorrar} disabled={trabajando} className="h-10 rounded-lg border-[#F3D1D1] bg-white font-semibold text-[#A32020] hover:bg-[#FDF3F3]">
+              <Trash2 className="size-4" />
+              Eliminar
+            </Button>
+            <Button type="button" onClick={onRestaurar} disabled={trabajando} className="ml-auto h-10 rounded-lg px-4 font-semibold">
+              <RotateCcw className="size-4" />
+              Restaurar
+            </Button>
+          </>
+        ) : ruta.aprobada ? (
           <>
             <Button type="button" variant="ghost" size="icon" aria-label="Duplicar ruta" title="Duplicar" disabled={trabajando} onClick={onDuplicar} className="size-10 shrink-0 rounded-lg text-[#46435C]">
               <Copy className="size-4" />
             </Button>
-            <Button type="button" variant="ghost" size="icon" aria-label="Borrar ruta" title="Borrar" disabled={trabajando} onClick={onBorrar} className="size-10 shrink-0 rounded-lg text-[#A32020]">
-              <Trash2 className="size-4" />
+            <Button type="button" variant="ghost" size="icon" aria-label="Archivar ruta" title="Archivar" disabled={trabajando} onClick={onArchivar} className="size-10 shrink-0 rounded-lg text-[#46435C]">
+              <Archive className="size-4" />
             </Button>
             <Button type="button" variant="outline" onClick={onEditar} disabled={trabajando} className="ml-auto h-10 rounded-lg border-[#E4E1F0] bg-white font-semibold">
               <Pencil className="size-4" />

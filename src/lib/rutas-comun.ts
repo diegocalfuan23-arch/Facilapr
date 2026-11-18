@@ -9,6 +9,12 @@ export type RutaVista = {
   /** La creó quien mira la pantalla. */
   propia: boolean;
   socioIds: string[];
+  /** El operador que suele recorrerla, si el administrador lo eligió. */
+  operadorId: string | null;
+  operadorNombre: string | null;
+  archivada: boolean;
+  /** Cuándo se creó (AAAA-MM-DD). */
+  creada: string;
 };
 
 /** Una labor dentro de una ruta: en cuántas paradas de la ruta se hace y cuántas ya se hicieron. */
