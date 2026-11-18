@@ -31,6 +31,8 @@ import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
 import { RutasPanel, guardarRutaElegida, useRutaElegida } from "@/components/panel/rutas-panel";
+import { UbicacionSocioCampo, type UbicacionSocio } from "@/components/panel/ubicacion-socio";
+import { enviarUbicacionesPendientes } from "@/lib/ubicaciones-offline";
 import type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
 import {
   COLA_VACIA,
@@ -59,6 +61,8 @@ type Socio = OpcionSocio & {
   anterior: { valor: number; periodo: string; origen: "LECTURA" | "BOLETA" } | null;
   /** Su consumo típico (m³ por mes), si tiene lecturas aprobadas con las que calcularlo. */
   promedio?: number | null;
+  /** Dónde queda su casa, si alguien la marcó con el GPS. */
+  ubicacion?: UbicacionSocio | null;
 };
 
 type LecturaReciente = {
@@ -407,6 +411,14 @@ export function LecturaForm({
   const [vista, setVista] = useState<"todas" | "local">("todas");
   const [verRutas, setVerRutas] = useState(false);
 
+  // Las ubicaciones marcadas sin señal se envían solas al abrir la pantalla y cuando vuelve la conexión.
+  useEffect(() => {
+    const enviar = () => void enviarUbicacionesPendientes();
+    enviar();
+    window.addEventListener("online", enviar);
+    return () => window.removeEventListener("online", enviar);
+  }, []);
+
   // La ruta que eligió este teléfono: sus socios, en el orden del recorrido. Sin ruta, todos por orden alfabético.
   const elegidaGuardada = useRutaElegida();
   const rutaActiva = rutas.find((r) => r.id === elegidaGuardada) ?? null;
@@ -703,7 +715,7 @@ export function LecturaForm({
 
           {verRutas && (
             <RutasPanel
-              socios={todosLosSocios}
+              socios={todosLosSocios.map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente, lat: s.ubicacion?.lat ?? null, lng: s.ubicacion?.lng ?? null }))}
               rutas={rutas}
               arranques={arranques}
               esAdmin={esAdmin}
@@ -762,6 +774,7 @@ export function LecturaForm({
                   <Search className="size-5" />
                 </Button>
               </div>
+              <UbicacionSocioCampo key={actual.id} socioId={actual.id} nombre={actual.nombre} ubicacion={actual.ubicacion ?? null} />
 
               {enNavegador ? (
                 <FormularioLectura

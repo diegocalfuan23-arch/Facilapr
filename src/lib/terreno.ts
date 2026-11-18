@@ -14,7 +14,7 @@ export async function sociosConAnterior(aprId: string) {
   const listaSocios = await db.query.socios.findMany({
     where: eq(socios.aprId, aprId),
     orderBy: [asc(socios.nombre)],
-    columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true },
+    columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true, lat: true, lng: true, ubicacionPrecision: true },
   });
 
   // La misma base que usa el servidor al aprobar: la última lectura aprobada o, si
@@ -84,6 +84,7 @@ export async function datosTerreno(userId: string, aprId: string, rol: string = 
         rut: s.rut,
         numeroCliente: s.numeroCliente,
         tipo: s.tipo,
+        ubicacion: s.lat !== null && s.lng !== null ? { lat: s.lat, lng: s.lng, precision: s.ubicacionPrecision } : null,
         anterior: a ? { valor: a.valor, periodo: a.periodo, origen: a.origen } : null,
         promedio: promedioDe(s.id, aprobadasMap),
       };

@@ -12,7 +12,7 @@ import { ordenarPorCercania, type ArranqueRuta, type RutaVista } from "@/lib/rut
 
 const GRIS = "text-[#5B5970]";
 
-type SocioRuta = { id: string; nombre: string; numeroCliente?: string | null };
+type SocioRuta = { id: string; nombre: string; numeroCliente?: string | null; lat?: number | null; lng?: number | null };
 
 const sinTildes = (t: string) => t.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
@@ -84,6 +84,7 @@ export function RutasPanel({
   const [editando, setEditando] = useState<{ id: string | null; nombre: string; ids: string[] } | null>(null);
   const [trabajando, iniciar] = useTransition();
   const porId = useMemo(() => new Map(socios.map((s) => [s.id, s])), [socios]);
+  const sinUbicacion = (r: RutaVista) => r.socioIds.filter((id) => porId.get(id)?.lat == null).length;
 
   function aprobar(r: RutaVista) {
     iniciar(async () => {
@@ -156,6 +157,7 @@ export function RutasPanel({
                             <p className="truncate text-sm font-semibold">{r.nombre}</p>
                             <p className={`flex items-center gap-1.5 text-xs ${GRIS}`}>
                               {r.socioIds.length} {r.socioIds.length === 1 ? "socio" : "socios"}
+                              {sinUbicacion(r) > 0 ? <span className="text-[#8F4400]">· {sinUbicacion(r)} sin ubicación</span> : null}
                               {!r.aprobada ? (
                                 <span className="inline-flex items-center gap-1 rounded-md bg-[#FFF3E5] px-1.5 py-px text-[11px] font-semibold text-[#8F4400]">
                                   <Clock3 className="size-3" aria-hidden />
@@ -270,7 +272,7 @@ function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }: { soci
     setIds((l) => [...l, ...nuevos]);
   }
 
-  const hayUbicacion = arranques.some((a) => a.lat !== null && a.lng !== null);
+  const hayUbicacion = arranques.some((a) => a.lat !== null && a.lng !== null) || socios.some((s) => s.lat != null);
 
   function guardar() {
     iniciar(async () => {
@@ -333,7 +335,7 @@ function Editor({ socios, arranques, porId, inicial, esAdmin, onVolver }: { soci
               ))}
             </select>
             {hayUbicacion && ids.length > 1 ? (
-              <button type="button" onClick={() => setIds((l) => ordenarPorCercania(l, arranques))} className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#2A07A8] hover:underline">
+              <button type="button" onClick={() => setIds((l) => ordenarPorCercania(l, arranques, socios))} className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-[#2A07A8] hover:underline">
                 <MapPin className="size-3.5" aria-hidden />
                 Ordenar por cercanía
               </button>

@@ -31,7 +31,7 @@ export default async function RutasPage() {
         <p className="mt-0.5 text-sm text-[#5B5970]">El recorrido de los socios en terreno. Las usa quien toma las lecturas, también sin señal.</p>
       </div>
       <RutasPagina
-        socios={listaSocios.map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente }))}
+        socios={listaSocios.map((s) => ({ id: s.id, nombre: s.nombre, numeroCliente: s.numeroCliente, lat: s.lat, lng: s.lng }))}
         rutas={rutas}
         arranques={arranques}
         laboresPorRuta={porRuta}

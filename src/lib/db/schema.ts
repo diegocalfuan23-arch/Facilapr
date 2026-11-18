@@ -213,6 +213,13 @@ export const socios = pgTable(
      * Lectura). Null hasta que se aprueba su SolicitudAcceso.
      */
     userId: text("userId"),
+    /** Dónde queda el socio: el punto donde se paró quien lo marcó, con el GPS del teléfono. Null si nadie lo ha marcado. */
+    lat: doublePrecision("lat"),
+    lng: doublePrecision("lng"),
+    /** Metros de error del GPS al marcar: más de ~20 m se considera «por confirmar». */
+    ubicacionPrecision: integer("ubicacionPrecision"),
+    ubicacionPorId: text("ubicacionPorId"),
+    ubicacionAt: timestamp("ubicacionAt", { precision: 3 }),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
     updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
   },

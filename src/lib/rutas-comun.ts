@@ -17,45 +17,44 @@ export type LaborEnRuta = { id: string; numero: number; titulo: string; estado: 
 export type ArranqueRuta = { id: string; nombre: string; lat: number | null; lng: number | null; socioIds: string[] };
 
 /**
- * Ordena los socios por cercanía: parte del primero y va siempre al arranque más cercano que falta. Es una aproximación
- * (en línea recta, no por caminos). Los socios cuyo arranque no tiene ubicación quedan al final, en su orden.
+ * Ordena los socios por cercanía: parte del primero y va siempre al más cercano que falta. Usa la ubicación marcada de cada
+ * socio y, si no tiene, la de su arranque. Es una aproximación en línea recta, no por caminos. Los que no tienen ninguna
+ * ubicación quedan al final, en su orden.
  */
-export function ordenarPorCercania(ids: string[], arranques: ArranqueRuta[]): string[] {
-  const posDe = new Map<string, { lat: number; lng: number; arranque: string }>();
+export function ordenarPorCercania(ids: string[], arranques: ArranqueRuta[], socios: { id: string; lat?: number | null; lng?: number | null }[] = []): string[] {
+  const posDe = new Map<string, { lat: number; lng: number }>();
   for (const a of arranques) {
     if (a.lat === null || a.lng === null) continue;
-    for (const s of a.socioIds) posDe.set(s, { lat: a.lat, lng: a.lng, arranque: a.id });
+    for (const s of a.socioIds) posDe.set(s, { lat: a.lat, lng: a.lng });
   }
+  // La ubicación marcada del socio manda sobre la de su arranque.
+  for (const s of socios) if (s.lat != null && s.lng != null) posDe.set(s.id, { lat: s.lat, lng: s.lng });
+
   const conPos = ids.filter((id) => posDe.has(id));
   const sinPos = ids.filter((id) => !posDe.has(id));
   if (conPos.length <= 1) return ids;
-  // Se avanza arranque por arranque, para que los socios de un mismo arranque queden juntos.
-  const grupos = new Map<string, string[]>();
-  for (const id of conPos) {
-    const g = posDe.get(id)!.arranque;
-    grupos.set(g, [...(grupos.get(g) ?? []), id]);
-  }
-  const lugar = (g: string) => posDe.get(grupos.get(g)![0])!;
-  const faltan = new Set(grupos.keys());
-  let actual = posDe.get(conPos[0])!.arranque;
-  const orden: string[] = [];
+
+  // Un grado de longitud mide menos que uno de latitud (Chile, ~38°S): se corrige para no equivocar al vecino.
+  const dist = (a: string, b: string) => {
+    const pa = posDe.get(a)!;
+    const pb = posDe.get(b)!;
+    return (pa.lat - pb.lat) ** 2 + ((pa.lng - pb.lng) * 0.79) ** 2;
+  };
+  const faltan = new Set(conPos.slice(1));
+  const orden = [conPos[0]];
   while (faltan.size > 0) {
-    faltan.delete(actual);
-    orden.push(...(grupos.get(actual) ?? []));
-    if (faltan.size === 0) break;
-    const a = lugar(actual);
+    const ultimo = orden[orden.length - 1];
     let mejor = "";
     let dMin = Infinity;
-    for (const g of faltan) {
-      const b = lugar(g);
-      // Un grado de longitud mide menos que uno de latitud a esta latitud (Chile, ~38°S): se corrige para no equivocar al vecino.
-      const d = (a.lat - b.lat) ** 2 + ((a.lng - b.lng) * 0.79) ** 2;
+    for (const id of faltan) {
+      const d = dist(ultimo, id);
       if (d < dMin) {
         dMin = d;
-        mejor = g;
+        mejor = id;
       }
     }
-    actual = mejor;
+    faltan.delete(mejor);
+    orden.push(mejor);
   }
   return [...orden, ...sinPos];
 }

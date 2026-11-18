@@ -26,7 +26,7 @@ export function RutasPagina({
   insumos,
   conLabores,
 }: {
-  socios: { id: string; nombre: string; numeroCliente?: string | null }[];
+  socios: { id: string; nombre: string; numeroCliente?: string | null; lat?: number | null; lng?: number | null }[];
   rutas: RutaVista[];
   arranques: ArranqueRuta[];
   laboresPorRuta: Record<string, LaborEnRuta[]>;
