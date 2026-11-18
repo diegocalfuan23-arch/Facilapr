@@ -48,6 +48,9 @@ export async function enviarMensajeSocio(
 export async function marcarLeidoSocio(slug: string) {
   const { socio } = await requireSocio(slug);
 
+  // Si su último mensaje sigue sin respuesta (por ejemplo, la directiva se fue y ya pasó su pausa), la IA lo retoma al abrir el chat.
+  after(() => responderConIaSiCorresponde(socio.id));
+
   await db
     .update(mensajesSocio)
     .set({ leidoPorSocio: true })

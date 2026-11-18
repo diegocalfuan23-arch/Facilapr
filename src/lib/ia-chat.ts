@@ -79,6 +79,9 @@ export async function responderPendientesDelComite(aprId: string) {
   }
 }
 
+/** Deja en el registro del servidor por qué la IA no respondió: así se ve en los logs qué la detuvo. */
+const callar = (socioId: string, motivo: string) => console.log(`IA del chat: no responde (socio ${socioId}): ${motivo}`);
+
 async function intentar(socioId: string) {
   const socio = await db.query.socios.findFirst({
     where: eq(socios.id, socioId),
@@ -87,11 +90,12 @@ async function intentar(socioId: string) {
   if (!socio) return;
 
   // La directiva pausó la IA en esta conversación: responde solo una persona.
-  if (socio.iaPausada) return;
+  if (socio.iaPausada) return callar(socioId, "la IA está pausada en esta conversación");
 
   const apr = socio.apr;
-  if (!puede(apr.plan as Plan, "iaChat") || apr.iaChatModo !== "SIEMPRE") return;
-  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return;
+  if (!puede(apr.plan as Plan, "iaChat")) return callar(socioId, "el plan no incluye la IA del chat");
+  if (apr.iaChatModo !== "SIEMPRE") return callar(socioId, `el modo de la IA es ${apr.iaChatModo}, no SIEMPRE`);
+  if (!process.env.ANTHROPIC_API_KEY && !process.env.OPENAI_API_KEY) return callar(socioId, "faltan las claves del proveedor de IA en el servidor");
 
   const recientes = await db.query.mensajesSocio.findMany({
     where: eq(mensajesSocio.socioId, socioId),
@@ -100,7 +104,7 @@ async function intentar(socioId: string) {
     columns: { id: true, remitente: true, contenido: true },
   });
   // Solo se responde a un mensaje del socio, y una sola vez.
-  if (recientes.length === 0 || recientes[0].remitente !== "SOCIO") return;
+  if (recientes.length === 0 || recientes[0].remitente !== "SOCIO") return callar(socioId, "el último mensaje no es del socio");
   const respondidoA = recientes[0].id;
 
   // Si una persona de la directiva escribió hace poco, ella lleva la conversación.
@@ -113,11 +117,11 @@ async function intentar(socioId: string) {
     ),
     columns: { id: true },
   });
-  if (humano) return;
+  if (humano) return callar(socioId, `la directiva escribió hace menos de ${PAUSA_MINUTOS} minutos`);
 
   // Sin tokens (cuota del mes y packs agotados) la IA calla y responde la directiva.
   const uso = await usoIaChat(apr.id, apr.plan as Plan);
-  if (uso.disponible <= 0) return;
+  if (uso.disponible <= 0) return callar(socioId, "se acabaron los tokens de IA del mes");
 
   // Las boletas de todos los arranques de la persona.
   const cuentas = await cuentasDelSocio(socio);
@@ -193,10 +197,10 @@ async function intentar(socioId: string) {
     origen: "chat-ia",
   });
   // Si ningún proveedor respondió, mejor callar que mandar un texto genérico.
-  if (proveedor === "enlatada") return;
+  if (proveedor === "enlatada") return callar(socioId, "ningún proveedor de IA respondió (error de la clave, cuota o conexión)");
 
   let texto = (await new Response(stream).text()).trim();
-  if (!texto) return;
+  if (!texto) return callar(socioId, "el modelo devolvió una respuesta vacía");
 
   let requiereHumano = false;
   if (texto.startsWith(MARCA_HUMANO)) {
