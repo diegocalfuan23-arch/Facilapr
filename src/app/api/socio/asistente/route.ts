@@ -70,6 +70,10 @@ function construirPrompt(datos: {
 Háblale en español chileno, cercano y directo, en dos o tres frases.`
   );
 
+  // El nombre del comité va como dato, no solo en la presentación: si no, la regla de «solo los datos de arriba» lo deja sin responder.
+  partes.push(`Datos del comité:
+Nombre del comité: ${datos.nombreApr}`);
+
   const comun = {
     fichas: datos.fichas,
     servicio: datos.servicio,

@@ -266,6 +266,7 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
   );
 
   const datosComite = [
+    `Nombre del comité: ${d.comite.nombre}`,
     d.comite.infoPago && `Cómo y dónde pagar: ${d.comite.infoPago}`,
     d.comite.telefono && `Teléfono del comité: ${d.comite.telefono}`,
     d.comite.horario && `Horario de atención: ${d.comite.horario}`,
