@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Archive, ArrowDown, ArrowUp, Check, ChevronRight, ClipboardList, Clock, Copy, Gauge, MapPin, MapPinOff, Navigation, Pencil, Plus, RotateCcw, Route, Search, Trash2, Users, X, Loader2 } from "lucide-react";
 import { aprobarRuta, archivarRuta, asignarLaborARuta, eliminarRuta, guardarRuta, quitarLaborDeRuta } from "@/app/panel/lecturas/rutas-actions";
+import { CroquisRuta } from "@/components/panel/croquis-ruta";
 import { Editor, guardarRutaElegida, type SocioRuta } from "@/components/panel/rutas-panel";
 import { LaborDialog } from "@/components/panel/labor-dialog";
 import { Button } from "@/components/ui/button";
@@ -42,72 +43,13 @@ function Avance({ hechos, total, color }: { hechos: number; total: number; color
   );
 }
 
-/** El recorrido dibujado con las ubicaciones marcadas: puntos numerados en el orden de visita, sin mapa de fondo. */
+/** El recorrido de la ruta dibujado con las ubicaciones marcadas de sus socios. */
 function Croquis({ ruta, porId }: { ruta: RutaVista; porId: Map<string, SocioRuta> }) {
-  const color = colorRuta(ruta.id);
   const puntos = ruta.socioIds.flatMap((id, i) => {
     const s = porId.get(id);
     return s?.lat != null && s.lng != null ? [{ n: i + 1, lat: s.lat, lng: s.lng }] : [];
   });
-  const faltan = ruta.socioIds.length - puntos.length;
-  if (puntos.length === 0) {
-    return (
-      <div className="flex h-[170px] flex-col items-center justify-center gap-1 rounded-xl bg-[#F3F4FA] px-6 text-center ring-1 ring-[#ECEAF4]">
-        <MapPinOff className="size-5 text-[#8A4B00]" aria-hidden />
-        <p className="text-[13px] font-semibold">Aún no hay ubicaciones</p>
-        <p className={`text-xs ${GRIS}`}>El técnico las marca con «Marcar aquí» al visitar a cada socio.</p>
-      </div>
-    );
-  }
-  // Un grado de longitud mide menos que uno de latitud (~38°S): se corrige para que el dibujo no quede estirado.
-  const xs = puntos.map((p) => p.lng * 0.79);
-  const ys = puntos.map((p) => -p.lat);
-  const minX = Math.min(...xs);
-  const minY = Math.min(...ys);
-  const ancho = Math.max(Math.max(...xs) - minX, 1e-5);
-  const alto = Math.max(Math.max(...ys) - minY, 1e-5);
-  const W = 340;
-  const H = 150;
-  const k = Math.min((W - 40) / ancho, (H - 40) / alto);
-  const ox = (W - ancho * k) / 2;
-  const oy = (H - alto * k) / 2;
-  const pos = puntos.map((p, i) => ({ ...p, x: ox + (xs[i] - minX) * k, y: oy + (ys[i] - minY) * k }));
-  const camino = pos.map((p, i) => `${i ? "L" : "M"}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
-  return (
-    <div className="overflow-hidden rounded-xl bg-[#F3F4FA] ring-1 ring-[#ECEAF4]">
-      <svg viewBox={`0 0 ${W} ${H}`} className="block h-[170px] w-full" role="img" aria-label={`Croquis de ${ruta.nombre}: ${puntos.length} socios con ubicación, en orden de visita`}>
-        <defs>
-          <pattern id="grilla-ruta" width="16" height="16" patternUnits="userSpaceOnUse">
-            <path d="M16 0H0V16" fill="none" stroke="#E3E4F0" strokeWidth="0.6" />
-          </pattern>
-        </defs>
-        <rect width={W} height={H} fill="url(#grilla-ruta)" />
-        <path d={camino} fill="none" stroke={color} strokeWidth="2" strokeDasharray="5 4" strokeLinejoin="round" strokeLinecap="round" opacity="0.85" />
-        {pos.map((p) => (
-          <g key={p.n}>
-            <circle cx={p.x} cy={p.y} r="8" fill={color} />
-            <text x={p.x} y={p.y + 3} textAnchor="middle" fontSize="8" fontWeight="700" fill="#fff">
-              {p.n}
-            </text>
-          </g>
-        ))}
-      </svg>
-      <div className="flex items-center gap-3 border-t border-[#ECEAF4] bg-white px-3 py-1.5 text-[11px] text-[#46435C]">
-        <span className="flex items-center gap-1">
-          <span className="size-2.5 rounded-full" style={{ background: color }} />
-          Socio, en orden de visita
-        </span>
-        {faltan > 0 ? (
-          <span className="ml-auto flex items-center gap-1 font-medium text-[#8A4B00]">
-            <MapPinOff className="size-3" aria-hidden />
-            {faltan} sin ubicación
-          </span>
-        ) : (
-          <span className="ml-auto text-[#8F8CA3]">Según GPS</span>
-        )}
-      </div>
-    </div>
-  );
+  return <CroquisRuta nombre={ruta.nombre} color={colorRuta(ruta.id)} puntos={puntos} faltan={ruta.socioIds.length - puntos.length} />;
 }
 
 export function RutasPagina({

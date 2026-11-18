@@ -32,6 +32,7 @@ import { registrarLectura } from "@/app/panel/lecturas/actions";
 import { InstalarApp } from "@/components/socio/instalar-app";
 import { AvatarSocio } from "@/components/panel/avatar-socio";
 import { RutasPanel, guardarRutaElegida, useRutaElegida } from "@/components/panel/rutas-panel";
+import { CroquisRuta } from "@/components/panel/croquis-ruta";
 import { UbicacionSocioCampo, type UbicacionSocio } from "@/components/panel/ubicacion-socio";
 import { enviarUbicacionesPendientes } from "@/lib/ubicaciones-offline";
 import type { ArranqueRuta, RutaVista } from "@/lib/rutas-comun";
@@ -996,6 +997,17 @@ export function LecturaForm({
               <Button variant="ghost" onClick={() => setVerCompleta(false)} className="h-11 rounded-xl px-3 font-semibold">
                 Cerrar
               </Button>
+            </div>
+            <div className="px-4 pt-3">
+              <CroquisRuta
+                nombre={rutaActiva ? rutaActiva.nombre : "Todos los socios"}
+                color="#3A0CE3"
+                seguirme
+                puntos={socios.flatMap((s, i) =>
+                  s.ubicacion ? [{ n: i + 1, lat: s.ubicacion.lat, lng: s.ubicacion.lng, estado: estadoPorClave.has(clave(s.id, periodo)) ? ("hecho" as const) : s.id === actual?.id ? ("actual" as const) : ("pendiente" as const) }] : []
+                )}
+                faltan={socios.filter((s) => !s.ubicacion).length}
+              />
             </div>
             <ol className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
               {socios.map((s, i) => {
