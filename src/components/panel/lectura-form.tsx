@@ -13,6 +13,7 @@ import {
   CloudUpload,
   CornerDownLeft,
   Droplets,
+  ListChecks,
   Loader2,
   MessageSquarePlus,
   PartyPopper,
@@ -402,6 +403,8 @@ export function LecturaForm({
   const [saltados, setSaltados] = useState<string[]>([]);
   const [formKey, setFormKey] = useState(0);
   const [buscando, setBuscando] = useState(false);
+  const [verCompleta, setVerCompleta] = useState(false);
+  const filaActual = useRef<HTMLLIElement | null>(null);
   const [busca, setBusca] = useState("");
   // Lo que se cargó en esta sesión: cuenta de inmediato en la ruta, sin esperar a recargar.
   const [marcados, setMarcados] = useState<string[]>([]);
@@ -410,6 +413,10 @@ export function LecturaForm({
   const [busquedaLecturas, setBusquedaLecturas] = useState("");
   const [vista, setVista] = useState<"todas" | "local">("todas");
   const [verRutas, setVerRutas] = useState(false);
+
+  useEffect(() => {
+    if (verCompleta) filaActual.current?.scrollIntoView({ block: "center" });
+  }, [verCompleta]);
 
   // Las ubicaciones marcadas sin señal se envían solas al abrir la pantalla y cuando vuelve la conexión.
   useEffect(() => {
@@ -686,6 +693,10 @@ export function LecturaForm({
               <Route className="size-3.5 shrink-0" aria-hidden />
               <span className="truncate">{rutaActiva ? rutaActiva.nombre : "Todos los socios"}</span>
               <span className="font-normal text-[#5B5970]">· {rutas.length > 0 ? "Cambiar ruta" : "Rutas"}</span>
+            </button>
+            <button type="button" onClick={() => setVerCompleta(true)} className="flex h-9 items-center gap-1.5 rounded-full bg-[#F4F3F9] px-3 text-xs font-semibold text-[#2A07A8]">
+              <ListChecks className="size-3.5 shrink-0" aria-hidden />
+              Ver la ruta
             </button>
             <div className="relative w-fit">
               <span className="flex h-9 items-center gap-1 rounded-full bg-[#F4F3F9] px-3 text-xs font-semibold text-[#2A07A8]">Cambiar mes</span>
@@ -967,6 +978,63 @@ export function LecturaForm({
               {encontrados.length === 0 && <li className={cn("px-3 py-8 text-center text-sm", GRIS)}>{busca.trim() ? "Ningún socio pendiente coincide." : "No quedan socios pendientes."}</li>}
               {encontrados.length > 80 && <li className={cn("px-3 py-3 text-center text-xs", GRIS)}>Se muestran los primeros 80. Escribe para acotar.</li>}
             </ul>
+          </div>
+        </div>
+      )}
+
+      {verCompleta && (
+        <div className="fixed inset-0 z-50">
+          <button type="button" aria-label="Cerrar la ruta" onClick={() => setVerCompleta(false)} className="absolute inset-0 bg-[#15132B]/35" />
+          <div role="dialog" aria-modal="true" aria-label="La ruta completa" className="absolute inset-x-0 bottom-0 flex max-h-[85vh] flex-col rounded-t-2xl bg-white sm:inset-x-auto sm:top-24 sm:bottom-auto sm:left-1/2 sm:w-[460px] sm:-translate-x-1/2 sm:rounded-2xl">
+            <div className="flex items-center gap-2 border-b border-[#F0EEF6] p-4">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[15px] font-semibold">{rutaActiva ? rutaActiva.nombre : "Todos los socios"}</p>
+                <p className={cn("text-xs", GRIS)}>
+                  {leidosN} de {socios.length} · {nombreMes(periodo)}
+                </p>
+              </div>
+              <Button variant="ghost" onClick={() => setVerCompleta(false)} className="h-11 rounded-xl px-3 font-semibold">
+                Cerrar
+              </Button>
+            </div>
+            <ol className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
+              {socios.map((s, i) => {
+                const estado = estadoPorClave.get(clave(s.id, periodo));
+                const esActual = s.id === actual?.id;
+                return (
+                  <li key={s.id} ref={esActual ? filaActual : undefined}>
+                    <button
+                      type="button"
+                      disabled={Boolean(estado)}
+                      onClick={() => {
+                        irA(s.id);
+                        setVerCompleta(false);
+                      }}
+                      className={cn("flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none", esActual ? "bg-[#F4F1FF]" : "enabled:hover:bg-[#F8F7FC]")}
+                    >
+                      <span className={cn("w-6 shrink-0 text-center text-xs tabular-nums", GRIS)}>{i + 1}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className={cn("block truncate text-sm font-semibold", estado && "font-medium text-[#8B89A0]")}>{s.nombre}</span>
+                        <span className={cn("block text-xs", GRIS)}>
+                          {s.numeroCliente ? `N° ${s.numeroCliente}` : "Sin número"}
+                          {porRepetirMap.has(s.id) ? " · por repetir" : ""}
+                        </span>
+                      </span>
+                      {estado ? (
+                        <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-[#075A3C]">
+                          <CheckCircle2 className="size-4" aria-hidden />
+                          {estado === "APROBADA" ? "Hecho" : "Tomada"}
+                        </span>
+                      ) : esActual ? (
+                        <span className="shrink-0 text-xs font-semibold text-[#2A07A8]">Aquí vas</span>
+                      ) : (
+                        <ChevronRight className="size-4 shrink-0 text-[#B4B2C4]" aria-hidden />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
           </div>
         </div>
       )}
