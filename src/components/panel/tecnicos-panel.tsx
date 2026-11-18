@@ -128,7 +128,8 @@ export function TecnicosPanel({
       </div>
 
       <div className="mt-6 grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div data-tour="tec-tabla" className={`min-w-0 overflow-hidden rounded-2xl bg-white ${SOMBRA}`}>
+        <div className="min-w-0 space-y-5">
+        <div data-tour="tec-tabla" className={`overflow-hidden rounded-2xl bg-white ${SOMBRA}`}>
           <div className="flex flex-col gap-2.5 border-b border-[#F0EEF6] p-4 sm:flex-row sm:items-center sm:px-5">
             <div role="tablist" aria-label="Filtrar" className="flex gap-1 rounded-lg bg-[#F4F3F9] p-1 sm:w-[430px]">
               {tabs.map(([k, t]) => (
@@ -222,7 +223,37 @@ export function TecnicosPanel({
           ) : null}
         </div>
 
-        <aside aria-label="Invitaciones y roles" className="space-y-5 lg:sticky lg:top-4">
+        <section className={`rounded-2xl bg-white p-4 sm:p-5 ${SOMBRA}`}>
+          <p className="flex items-center gap-2 text-[14px] font-semibold">
+            <ShieldCheck className="size-4 text-[#3A0CE3]" aria-hidden />
+            Roles y accesos
+          </p>
+          <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+            {(["TESORERO", "OPERADOR"] as const)
+              .filter((k) => k === "OPERADOR" || puedeTesorero)
+              .map((k) => {
+                const r = ROL[k];
+                const I = r.icono;
+                return (
+                  <li key={k} className="flex gap-3 rounded-xl p-3 ring-1 ring-[#F0EEF6]">
+                    <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", r.tono)}>
+                      <I className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14px] font-semibold">
+                        {r.nombre} <span className={`text-xs font-normal ${GRIS}`}>· {r.donde}</span>
+                      </p>
+                      <p className={`mt-0.5 text-xs leading-relaxed ${GRIS}`}>{r.puede.join(" · ")}</p>
+                    </div>
+                  </li>
+                );
+              })}
+          </ul>
+          <p className={`mt-3 text-xs ${GRIS}`}>Desactivar a alguien le quita el acceso al instante. Su historial se mantiene.</p>
+        </section>
+        </div>
+
+        <aside aria-label="Invitaciones" className="space-y-5 lg:sticky lg:top-4">
           <section data-tour="tec-invitaciones" aria-labelledby="inv-titulo">
             <div className="mb-2.5 flex items-baseline justify-between px-1">
               <h2 id="inv-titulo" className="flex items-center gap-2 text-[15px] font-semibold">
@@ -246,34 +277,6 @@ export function TecnicosPanel({
             </div>
           </section>
 
-          <section className={`rounded-2xl bg-white p-4 ${SOMBRA}`}>
-            <p className="flex items-center gap-2 text-[14px] font-semibold">
-              <ShieldCheck className="size-4 text-[#3A0CE3]" aria-hidden />
-              Roles y accesos
-            </p>
-            <ul className="mt-3 divide-y divide-[#F3F1F8]">
-              {(["TESORERO", "OPERADOR"] as const)
-                .filter((k) => k === "OPERADOR" || puedeTesorero)
-                .map((k) => {
-                  const r = ROL[k];
-                  const I = r.icono;
-                  return (
-                    <li key={k} className="flex gap-3 py-3 first:pt-1">
-                      <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", r.tono)}>
-                        <I className="size-4" />
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-[14px] font-semibold">
-                          {r.nombre} <span className={`text-xs font-normal ${GRIS}`}>· {r.donde}</span>
-                        </p>
-                        <p className={`mt-0.5 text-xs leading-relaxed ${GRIS}`}>{r.puede.join(" · ")}</p>
-                      </div>
-                    </li>
-                  );
-                })}
-            </ul>
-            <p className={`mt-1 rounded-lg bg-[#F7F6FB] px-3 py-2 text-xs ${GRIS}`}>Desactivar a alguien le quita el acceso al instante. Su historial se mantiene.</p>
-          </section>
         </aside>
       </div>
 
