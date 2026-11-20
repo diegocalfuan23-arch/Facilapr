@@ -351,12 +351,18 @@ function Burbuja({ m, primero, acciones }: { m: MensajeChat; primero: boolean; a
           >
             <p className="break-words whitespace-pre-line">{m.contenido}</p>
             <span className={cn("mt-0.5 flex items-center justify-end gap-1 text-[10.5px]", mio && !ia ? "text-white/70" : "text-[#8A8799]")}>
+              {m.canal === "WHATSAPP" ? "WhatsApp · " : ""}
               {m.editado ? "editado · " : ""}
               {HORA.format(f)}
               {m.remitente === "DIRECTIVA" ? m.leido ? <CheckCheck className="size-3.5" aria-label="Leído" /> : <Check className="size-3.5" aria-label="Enviado" /> : null}
             </span>
           </div>
         </div>
+        {m.entrega ? (
+          <span className="mt-1 max-w-full px-1 text-[11px] font-medium text-[#A32020]">
+            {m.entrega === "FUERA_DE_VENTANA" ? "No salió por WhatsApp: pasaron más de 24 h desde su último mensaje." : "No se pudo entregar por WhatsApp."}
+          </span>
+        ) : null}
       </div>
     </li>
   );
@@ -532,6 +538,8 @@ function ChatConSocio({
       if (r.ok) {
         setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
         actividad.current();
+        if (r.mensaje.entrega === "FUERA_DE_VENTANA") toast.warning("No salió por WhatsApp: pasaron más de 24 h desde su último mensaje.");
+        else if (r.mensaje.entrega === "FALLIDA") toast.warning("No se pudo entregar por WhatsApp.");
       }
     });
   }

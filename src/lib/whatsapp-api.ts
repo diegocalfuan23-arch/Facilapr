@@ -37,6 +37,28 @@ export function telefonoParaWhatsapp(telefono: string) {
 type Resultado = { ok: true; id: string } | { ok: false; error: string };
 
 /**
+ * Envía un texto libre. Meta solo lo permite dentro de las 24 horas siguientes al último mensaje de esa persona
+ * (la «ventana de atención»); pasado ese plazo hay que usar una plantilla.
+ */
+export async function enviarTexto(
+  telefono: string,
+  texto: string,
+  credenciales: { phoneNumberId: string; token: string }
+): Promise<Resultado> {
+  const para = telefonoParaWhatsapp(telefono);
+  if (!para) return { ok: false, error: "El teléfono no es un celular chileno válido." };
+  const version = variable("WHATSAPP_API_VERSION") || "v21.0";
+  const respuesta = await fetch(`https://graph.facebook.com/${version}/${credenciales.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${credenciales.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: para, type: "text", text: { body: texto, preview_url: false } }),
+  });
+  const datos = (await respuesta.json().catch(() => null)) as { messages?: { id: string }[]; error?: { message?: string } } | null;
+  if (!respuesta.ok || !datos?.messages?.[0]) return { ok: false, error: datos?.error?.message ?? `WhatsApp respondió ${respuesta.status}.` };
+  return { ok: true, id: datos.messages[0].id };
+}
+
+/**
  * Envía una plantilla aprobada. `parametros` son los valores de {{1}}, {{2}}… del cuerpo;
  * `sufijoBoton` es lo que va al final de la dirección del botón dinámico (si la plantilla lo tiene).
  * `credenciales` es el número y el acceso del comité, si conectó el suyo; sin ellas sale por el número de Facilapr.

@@ -1123,11 +1123,18 @@ export const mensajesSocio = pgTable(
     requiereHumano: boolean("requiereHumano").notNull().default(false),
     /** Cuándo la directiva corrigió el texto; null si nunca se editó. */
     editadoAt: timestamp("editadoAt", { precision: 3 }),
+    /** Por dónde llegó o salió: el chat del portal o el WhatsApp del comité. */
+    canal: text("canal").$type<"PORTAL" | "WHATSAPP">().notNull().default("PORTAL"),
+    /** El id del mensaje en WhatsApp: evita guardar dos veces el mismo aviso y enlaza los estados (entregado, leído). */
+    metaId: text("metaId"),
+    /** Solo en lo que salió por WhatsApp: FALLIDA (Meta no lo entregó) o FUERA_DE_VENTANA (pasaron más de 24 h del último mensaje del socio). */
+    entrega: text("entrega").$type<"FALLIDA" | "FUERA_DE_VENTANA">(),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [
     index("MensajeSocio_socioId_idx").on(table.socioId),
     index("MensajeSocio_createdAt_idx").on(table.createdAt),
+    uniqueIndex("MensajeSocio_metaId_key").on(table.metaId),
   ]
 );
 

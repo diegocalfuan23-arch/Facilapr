@@ -1,5 +1,8 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
+import { after } from "next/server";
 import { actualizarEstadoMensaje } from "@/lib/whatsapp-mensajes";
+import { registrarEstadoDeChat, registrarMensajesEntrantes } from "@/lib/whatsapp-entrada";
+import { responderConIaSiCorresponde } from "@/lib/ia-chat";
 
 /**
  * Aviso de WhatsApp (Meta): mensajes entrantes y estado de los enviados
@@ -9,8 +12,8 @@ import { actualizarEstadoMensaje } from "@/lib/whatsapp-mensajes";
  *  - WHATSAPP_VERIFY_TOKEN: texto largo al azar; se escribe igual en Meta al registrar el webhook.
  *  - WHATSAPP_APP_SECRET: la clave secreta de la app (Configuración de la app → Básica); firma cada aviso.
  *
- * Guarda el estado de cada mensaje enviado (ver whatsapp-mensajes.ts). Los mensajes
- * que escriben los socios todavía no se guardan.
+ * Guarda el estado de cada mensaje enviado (ver whatsapp-mensajes.ts) y los mensajes que escriben los socios, que
+ * quedan en su conversación del chat (ver whatsapp-entrada.ts); si la IA está encendida, les responde.
  */
 
 /** Meta pregunta una vez, al registrar el webhook, si somos nosotros. */
@@ -50,7 +53,10 @@ async function registrarEstados(cuerpo: string) {
         for (const e of cambio.value?.statuses ?? []) {
           const motivo = e.errors?.map((x) => `${x.code} ${x.title}`).join("; ");
           console.info(`WhatsApp estado ${e.status}: ${e.id}${motivo ? ` (${motivo})` : ""}`);
-          if (e.id && e.status) await actualizarEstadoMensaje(e.id, e.status, motivo);
+          if (e.id && e.status) {
+            await actualizarEstadoMensaje(e.id, e.status, motivo);
+            await registrarEstadoDeChat(e.id, e.status);
+          }
         }
       }
     }
@@ -66,5 +72,8 @@ export async function POST(req: Request) {
     return new Response("firma inválida", { status: 401 });
   }
   await registrarEstados(cuerpo);
+  const socios = await registrarMensajesEntrantes(cuerpo);
+  // La IA contesta después de responderle a Meta: no lo hace esperar.
+  if (socios.length > 0) after(async () => { for (const id of socios) await responderConIaSiCorresponde(id); });
   return new Response("ok");
 }
