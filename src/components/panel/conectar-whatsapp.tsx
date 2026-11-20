@@ -9,7 +9,7 @@ import {
   desconectarWhatsapp,
 } from "@/app/panel/configuracion/whatsapp-conexion-actions";
 import { Button } from "@/components/ui/button";
-import { META_APP_ID, META_CONFIG_ID } from "@/lib/meta-ids";
+import { COEXISTENCIA_HABILITADA, META_APP_ID, META_CONFIG_ID } from "@/lib/meta-ids";
 
 /**
  * Conectar el WhatsApp del comité con el registro insertado (Embedded Signup) de
@@ -206,7 +206,9 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
         <p className="mt-0.5 text-[0.8rem] text-muted-foreground">
           {conectada
             ? `Tus mensajes salen desde ${conexion?.numeroMostrado ?? "tu número"}${conexion?.nombreVerificado ? ` (${conexion.nombreVerificado})` : ""}. Meta cobra los mensajes directo a tu cuenta.`
-            : "Conecta el WhatsApp de tu comité para que los mensajes salgan desde tu propio número. Si ya usas la app WhatsApp Business en tu celular, puedes conectar ese mismo número y seguir usándola. Meta cobra los mensajes directo a tu cuenta, sin pasar por Facilapr."}
+            : COEXISTENCIA_HABILITADA
+              ? "Conecta el WhatsApp de tu comité para que los mensajes salgan desde tu propio número. Si ya usas la app WhatsApp Business en tu celular, puedes conectar ese mismo número y seguir usándola. Meta cobra los mensajes directo a tu cuenta, sin pasar por Facilapr."
+              : "Conecta un número de WhatsApp para tu comité, que no esté en WhatsApp ni en WhatsApp Business. Los mensajes salen desde ese número. Meta cobra los mensajes directo a tu cuenta, sin pasar por Facilapr."}
         </p>
         {conexion?.estado === "ERROR" && (
           <p className="mt-0.5 text-[0.8rem] text-destructive">
@@ -225,9 +227,11 @@ export function ConectarWhatsapp({ conexion }: { conexion: ConexionWhatsapp | nu
             {trabajando && <Loader2 className="animate-spin" />}
             {conexion ? "Reintentar" : "Conectar mi WhatsApp"}
           </Button>
-          <Button type="button" variant="outline" size="sm" onClick={() => conectar(true)} disabled={trabajando}>
-            Ya uso WhatsApp Business
-          </Button>
+          {COEXISTENCIA_HABILITADA && (
+            <Button type="button" variant="outline" size="sm" onClick={() => conectar(true)} disabled={trabajando}>
+              Ya uso WhatsApp Business
+            </Button>
+          )}
         </div>
       )}
     </div>
