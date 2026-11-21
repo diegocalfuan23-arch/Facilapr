@@ -43,6 +43,7 @@ import { SituacionSocioDialog } from "@/components/panel/situacion-socio-dialog"
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
 import { LaborDialog } from "@/components/panel/labor-dialog";
+import { CamposLaborReparacion, datosDeLaborReparacion, laborReparacionInicial } from "@/components/panel/labor-reparacion-campos";
 import type { Insumo } from "@/lib/inventario-comun";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 import { useConfirmar } from "@/components/ui/confirmar";
@@ -741,6 +742,7 @@ export function CortesPanel({
           tipos={["CORTE", "REPOSICION", "REPARACION"] satisfies TipoCampo[]}
           titulo="Nueva orden"
           descripcion="El operador la recibe en su app."
+          laborDe={conLabores ? { insumos, responsables } : undefined}
           onCerrar={() => setCreando(false)}
         />
       )}
@@ -795,7 +797,7 @@ export function CortesPanel({
 
       {dialogo}
 
-      {resolviendo && <ResolverDialog orden={resolviendo.orden} aprobar={resolviendo.aprobar} onCerrar={() => setResolviendo(null)} />}
+      {resolviendo && <ResolverDialog orden={resolviendo.orden} aprobar={resolviendo.aprobar} laborDe={conLabores ? { insumos, responsables } : undefined} onCerrar={() => setResolviendo(null)} />}
 
       {ejecutando && (
         <EvidenciaDialog
@@ -872,13 +874,17 @@ function AvisoCorteDialog({
 function ResolverDialog({
   orden,
   aprobar,
+  laborDe,
   onCerrar,
 }: {
   orden: OrdenFila;
   aprobar: boolean;
+  /** Al aprobar una reparación se piden además los datos de su labor. */
+  laborDe?: { insumos: Insumo[]; responsables: string[] };
   onCerrar: () => void;
 }) {
   const [respuesta, setRespuesta] = useState("");
+  const [labor, setLabor] = useState(laborReparacionInicial);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   // Solo para bajas: lo que debe hoy el arranque, y si la directiva ya lo vio.
@@ -954,6 +960,7 @@ function ResolverDialog({
               />
             </div>
           )}
+          {aprobar && orden.tipo === "REPARACION" && laborDe ? <CamposLaborReparacion valor={labor} onCambio={setLabor} insumos={laborDe.insumos} responsables={laborDe.responsables} /> : null}
           {conDeuda && (
             <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3.5 py-3 text-[0.84rem]">
               <input
@@ -983,7 +990,7 @@ function ResolverDialog({
             onClick={() =>
               iniciar(async () => {
                 setError(null);
-                const r = await resolverSolicitud(orden.id, aprobar, respuesta, confirmaDeuda);
+                const r = await resolverSolicitud(orden.id, aprobar, respuesta, confirmaDeuda, aprobar && orden.tipo === "REPARACION" && laborDe ? datosDeLaborReparacion(labor) : undefined);
                 if (r.ok) {
                   toast.success(aprobar ? "Listo" : "Solicitud rechazada");
                   onCerrar();

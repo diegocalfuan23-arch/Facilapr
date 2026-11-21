@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { avisosCorte, boletas, evidenciasOrden, ordenes, pagos, socios } from "@/lib/db/schema";
 import { requireAdmin, requireApr } from "@/lib/apr-session";
 import { MAX_FOTO_BASE64 } from "@/lib/ordenes";
-import { crearLaborDeReparacion } from "@/lib/labor-orden";
+import { crearLaborDeReparacion, limpiarDatosLabor } from "@/lib/labor-orden";
 import type { Plan } from "@/lib/planes";
 
 export type ResultadoOrden = { ok: true } | { ok: false; error: string };
@@ -101,7 +101,9 @@ export async function ordenarCorte(socioId: string, detalle?: string): Promise<R
 export async function solicitarOrden(
   socioId: string,
   tipo: "REPOSICION" | "REPARACION",
-  detalle?: string
+  detalle?: string,
+  /** Solo en una reparación que pide la directiva: responsable, fecha y materiales de su labor. */
+  laborDatos?: unknown
 ): Promise<ResultadoOrden> {
   const { user, apr } = await requireApr();
   if (tipo !== "REPOSICION" && tipo !== "REPARACION") {
@@ -128,7 +130,7 @@ export async function solicitarOrden(
     solicitadaPorId: user.id,
   }).returning({ id: ordenes.id });
   // Una reparación que la directiva pide va directo a terreno: se crea su labor.
-  if (esDirectiva && tipo === "REPARACION") await crearLaborDeReparacion(apr.id, apr.plan as Plan, creada.id);
+  if (esDirectiva && tipo === "REPARACION") await crearLaborDeReparacion(apr.id, apr.plan as Plan, creada.id, limpiarDatosLabor(laborDatos));
   refrescar();
   return { ok: true };
 }
@@ -153,7 +155,9 @@ export async function resolverSolicitud(
   aprobar: boolean,
   respuesta?: string,
   /** La directiva sabe que el arranque tiene deuda y igual lo da de baja. */
-  confirmaDeuda = false
+  confirmaDeuda = false,
+  /** Solo al aprobar una reparación: responsable, fecha y materiales de su labor. */
+  laborDatos?: unknown
 ): Promise<ResultadoOrden> {
   const { user, apr } = await requireApr();
   if (user.rol !== "ADMIN") return { ok: false, error: "Solo la directiva puede resolver solicitudes." };
@@ -189,7 +193,7 @@ export async function resolverSolicitud(
     .where(eq(ordenes.id, ordenId));
 
   // Una reparación aprobada pasa a terreno: se crea su labor.
-  if (aTerreno && orden.tipo === "REPARACION") await crearLaborDeReparacion(apr.id, apr.plan as Plan, ordenId);
+  if (aTerreno && orden.tipo === "REPARACION") await crearLaborDeReparacion(apr.id, apr.plan as Plan, ordenId, limpiarDatosLabor(laborDatos));
 
   // La baja aprobada deja el arranque inactivo; la reanudación aprobada lo vuelve a activar.
   if (aprobar && (orden.tipo === "BAJA" || orden.tipo === "REANUDACION")) {

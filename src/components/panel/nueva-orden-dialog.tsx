@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
+import { CamposLaborReparacion, datosDeLaborReparacion, laborReparacionInicial } from "@/components/panel/labor-reparacion-campos";
+import type { Insumo } from "@/lib/inventario-comun";
 import { iniciales } from "@/lib/formato";
 import { TIPOS_ORDEN, type TipoCampo } from "@/lib/ordenes";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,7 @@ export function NuevaOrdenDialog({
   descripcion,
   socioFijo,
   detalleBase,
+  laborDe,
   onCerrar,
 }: {
   socios: OpcionSocio[];
@@ -43,11 +46,14 @@ export function NuevaOrdenDialog({
   socioFijo?: { id: string; nombre: string; direccion: string | null; deuda: number | null };
   /** Un texto que va siempre en el detalle de la orden (por ejemplo, la deuda y los días de atraso). */
   detalleBase?: string;
+  /** Si viene, una reparación pide además los datos de su labor (la directiva, en planes con Labores). */
+  laborDe?: { insumos: Insumo[]; responsables: string[] };
   onCerrar: () => void;
 }) {
   const [socioId, setSocioId] = useState<string | null>(socioFijo?.id ?? null);
   const [tipo, setTipo] = useState<TipoCampo>(tipos[0]);
   const [nota, setNota] = useState("");
+  const [labor, setLabor] = useState(laborReparacionInicial);
   const [error, setError] = useState<string | null>(null);
   const [pendiente, iniciar] = useTransition();
   const T = TIPO[tipo];
@@ -115,6 +121,8 @@ export function NuevaOrdenDialog({
             <Input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={250} placeholder={T.ejemplo} className="h-11 rounded-xl border-[#E4E1F0] shadow-none" />
           </label>
 
+          {laborDe && tipo === "REPARACION" ? <CamposLaborReparacion valor={labor} onCambio={setLabor} insumos={laborDe.insumos} responsables={laborDe.responsables} /> : null}
+
           <p className={cn("flex items-center gap-2 text-xs", GRIS)}>
             <Camera className="size-3.5 shrink-0" aria-hidden />
             El operador debe dejar una foto al terminar.
@@ -140,7 +148,7 @@ export function NuevaOrdenDialog({
                 if (!socioId) return;
                 setError(null);
                 const detalle = [detalleBase, nota.trim()].filter(Boolean).join(" ").slice(0, 300);
-                const r = tipo === "CORTE" ? await ordenarCorte(socioId, detalle) : await solicitarOrden(socioId, tipo, detalle);
+                const r = tipo === "CORTE" ? await ordenarCorte(socioId, detalle) : await solicitarOrden(socioId, tipo, detalle, laborDe && tipo === "REPARACION" ? datosDeLaborReparacion(labor) : undefined);
                 if (r.ok) {
                   toast.success("Orden creada");
                   onCerrar();
