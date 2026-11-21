@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/apr-session";
+import { puede, type Plan } from "@/lib/planes";
 import { conectarComite, conexionDeComitesActiva, desconectarComite } from "@/lib/whatsapp-conexion";
 
 export type ResultadoConectar = { ok: true; numero: string | null; avisos: string[] } | { ok: false; error: string };
@@ -20,6 +21,8 @@ export async function conectarWhatsapp(datos: {
 }): Promise<ResultadoConectar> {
   const { apr } = await requireAdmin();
   if (!conexionDeComitesActiva()) return { ok: false, error: "La conexión de WhatsApp todavía no está disponible." };
+
+  if (!puede(apr.plan as Plan, "chat")) return { ok: false, error: "Conectar tu número está disponible desde el plan Estándar." };
 
   const code = String(datos.code ?? "").trim();
   const wabaId = String(datos.wabaId ?? "").trim();

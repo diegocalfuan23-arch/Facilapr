@@ -26,6 +26,8 @@ export default async function ConfiguracionPage() {
     .select({ n: count() })
     .from(userTable)
     .where(and(eq(userTable.aprId, apr.id), eq(userTable.rol, "OPERADOR")));
+  // Conectar el número propio va con el chat: desde Estándar. Quien ya lo tenía conectado lo conserva.
+  const conexion = conexionDeComitesActiva() ? await conexionDelComite(apr.id) : null;
   const finito = (n: number) => (Number.isFinite(n) ? n : null);
 
   return (
@@ -78,8 +80,8 @@ export default async function ConfiguracionPage() {
         whatsappDisponible: envioAutomaticoActivo(),
         cupoWhatsapp: envioAutomaticoActivo() ? await cupoWhatsapp(apr.id, apr.plan as Plan) : null,
         whatsappComprobanteAuto: apr.whatsappComprobanteAuto,
-        conexionWhatsappDisponible: conexionDeComitesActiva(),
-        conexionWhatsapp: conexionDeComitesActiva() ? await conexionDelComite(apr.id) : null,
+        conexionWhatsappDisponible: conexionDeComitesActiva() && (puede(plan, "chat") || conexion !== null),
+        conexionWhatsapp: conexion,
       }}
       />
     </>
