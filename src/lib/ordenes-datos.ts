@@ -30,6 +30,8 @@ export type MorosoFila = {
   direccion: string | null;
   telefono: string | null;
   deuda: number;
+  /** Cuántas boletas vencidas tiene. */
+  boletas: number;
   /** Días que lleva vencida su boleta más antigua. */
   diasVencida: number;
   /** Si tiene un acuerdo de pago activo y va atrasado: cuánto debería llevar pagado y no lleva. */
@@ -144,6 +146,7 @@ export async function morososParaCorte(
       direccion: socios.direccion,
       telefono: socios.telefono,
       deuda: sql<number>`sum(${boletas.montoTotal} - ${boletas.montoPagado})::int`,
+      cantidad: sql<number>`count(*)::int`,
       masAntigua: sql<Date>`min(${boletas.fechaVencimiento})`,
     })
     .from(boletas)
@@ -168,6 +171,7 @@ export async function morososParaCorte(
       direccion: f.direccion,
       telefono: f.telefono,
       deuda: f.deuda,
+      boletas: f.cantidad,
       diasVencida: Math.max(0, Math.floor((ahora - new Date(f.masAntigua).getTime()) / 86_400_000)),
       acuerdoAtrasado: acuerdosAtrasados.get(f.socioId) ?? null,
       diasDesdeAviso: (() => {
@@ -178,6 +182,19 @@ export async function morososParaCorte(
       })(),
     }))
     .sort((a, b) => b.diasVencida - a.diasVencida);
+}
+
+/** Lo que debe hoy cada arranque de la lista (0 si no debe nada): sirve para saber qué cortados ya pagaron. */
+export async function deudaDeSocios(socioIds: string[]): Promise<Record<string, number>> {
+  const salida: Record<string, number> = Object.fromEntries(socioIds.map((id) => [id, 0]));
+  if (socioIds.length === 0) return salida;
+  const filas = await db
+    .select({ socioId: boletas.socioId, deuda: sql<number>`sum(${boletas.montoTotal} - ${boletas.montoPagado})::int` })
+    .from(boletas)
+    .where(and(inArray(boletas.socioId, socioIds), ne(boletas.estado, "ANULADA"), lt(boletas.montoPagado, boletas.montoTotal)))
+    .groupBy(boletas.socioId);
+  for (const f of filas) salida[f.socioId] = f.deuda;
+  return salida;
 }
 
 /** Las solicitudes y órdenes de un grupo de arranques (las cuentas de un mismo socio), de la más nueva a la más antigua. */

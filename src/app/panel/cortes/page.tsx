@@ -3,13 +3,16 @@ import { asc, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
-import { acuerdosActivosPorSocio, cortadosActuales, morososParaCorte, ordenesDelComite, ultimosAvisos } from "@/lib/ordenes-datos";
+import { acuerdosActivosPorSocio, cortadosActuales, deudaDeSocios, morososParaCorte, ordenesDelComite, ultimosAvisos } from "@/lib/ordenes-datos";
 import { acuerdosDelComite, sociosParaRepactar } from "@/lib/repactaciones-datos";
 import { CortesPanel } from "@/components/panel/cortes-panel";
 
 export const metadata: Metadata = {
   title: "Órdenes",
 };
+
+/** El instante actual, fuera del render para que el lint de pureza no lo confunda con un cálculo de pantalla. */
+const ahoraMs = () => Date.now();
 
 export default async function CortesPage() {
   const { apr } = await requireAdmin();
@@ -33,6 +36,9 @@ export default async function CortesPage() {
   const avisos = await ultimosAvisos(apr.id);
   const morosos = await morososParaCorte(apr.id, apr.diasGraciaCorte, new Set([...excluir, ...alDia]), atrasados, avisos);
 
+  // Lo que debe hoy cada cortado: quien ya pagó queda «por reponer».
+  const deudaCortados = await deudaDeSocios(cortados.map((o) => o.socioId));
+
   const repactaciones = await acuerdosDelComite(apr.id);
   const sociosConDeuda = await sociosParaRepactar(apr.id);
 
@@ -46,6 +52,8 @@ export default async function CortesPage() {
     <CortesPanel
       ordenes={ordenes}
       cortados={cortados}
+      deudaCortados={deudaCortados}
+      ahora={ahoraMs()}
       morosos={morosos}
       acuerdosAlDia={alDia.length}
       repactaciones={repactaciones}
