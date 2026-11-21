@@ -1270,6 +1270,8 @@ export const labores = pgTable(
     aprId: text("aprId")
       .notNull()
       .references(() => aprs.id, { onDelete: "cascade" }),
+    /** La orden de reparación de la que nació esta labor: al terminarla, esa orden queda dada de alta. */
+    ordenId: text("ordenId"),
     /** Correlativo por comité: L-1, L-2… */
     numero: integer("numero").notNull(),
     titulo: text("titulo").notNull(),

@@ -42,6 +42,8 @@ import {
 import { SituacionSocioDialog } from "@/components/panel/situacion-socio-dialog";
 import { EvidenciaDialog } from "@/components/panel/evidencia-dialog";
 import { NuevaOrdenDialog } from "@/components/panel/nueva-orden-dialog";
+import { LaborDialog } from "@/components/panel/labor-dialog";
+import type { Insumo } from "@/lib/inventario-comun";
 import type { OpcionSocio } from "@/components/panel/socio-buscador";
 import { useConfirmar } from "@/components/ui/confirmar";
 import {
@@ -124,12 +126,19 @@ export function CortesPanel({
   ahora,
   morosos,
   acuerdosAlDia,
+  conLabores,
+  insumos,
+  responsables,
   repactaciones,
   sociosConDeuda,
   socios,
   diasGracia,
   comite,
 }: {
+  /** El plan incluye Labores: una reparación aprobada puede convertirse en labor. */
+  conLabores: boolean;
+  insumos: Insumo[];
+  responsables: string[];
   /** Los acuerdos de pago con socios morosos, y con quién se puede hacer uno nuevo. */
   repactaciones: RepactacionFila[];
   sociosConDeuda: SocioConDeuda[];
@@ -156,6 +165,7 @@ export function CortesPanel({
   const [ordenPara, setOrdenPara] = useState<{ caso: Caso; tipo: TipoCampo } | null>(null);
   const [ejecutando, setEjecutando] = useState<OrdenFila | null>(null);
   const [viendo, setViendo] = useState<OrdenFila | null>(null);
+  const [laborDe, setLaborDe] = useState<OrdenFila | null>(null);
   const [resolviendo, setResolviendo] = useState<{ orden: OrdenFila; aprobar: boolean } | null>(null);
   const [pendiente, iniciar] = useTransition();
 
@@ -178,6 +188,7 @@ export function CortesPanel({
     const T = TIPOS_ORDEN[o.tipo].texto;
     const origen = o.origen === "SOCIO" ? "pedida por el socio" : o.origen === "TECNICO" ? "pedida por el operador" : "ordenada";
     const ev: Evento[] = [{ fecha: desde(o.creada), texto: `${T} ${origen}`, icono: ICONO_TIPO[o.tipo]?.icono ?? FileText }];
+    if (o.laborNumero) ev.push({ fecha: "", texto: `Labor L-${o.laborNumero} creada para esta reparación`, icono: Hammer });
     if (o.ejecutada) {
       ev.push({
         fecha: desde(o.ejecutada),
@@ -321,7 +332,15 @@ export function CortesPanel({
         ]
       ) : (
         [
-          <Button key="evidencia" onClick={() => setEjecutando(o)} className={base}>
+          ...(o.tipo === "REPARACION" && conLabores && !o.laborId
+            ? [
+                <Button key="labor" onClick={() => setLaborDe(o)} className={base}>
+                  <Hammer className="size-4" />
+                  Crear labor
+                </Button>,
+              ]
+            : []),
+          <Button key="evidencia" variant={o.tipo === "REPARACION" && conLabores && !o.laborId ? "outline" : "default"} onClick={() => setEjecutando(o)} className={o.tipo === "REPARACION" && conLabores && !o.laborId ? contorno : base}>
             <Camera className="size-4" />
             Subir evidencia
           </Button>,
@@ -412,7 +431,7 @@ export function CortesPanel({
       return (
         <span className="flex flex-col items-start gap-1">
           <Chip clase={o.estado === "POR_CONFIRMAR" ? "bg-[#E6F6EF] text-[#075A3C]" : "bg-[#E2F2FC] text-[#0A5F91]"}>{o.estado === "POR_CONFIRMAR" ? "Por dar de alta" : "Por hacer"}</Chip>
-          <span className={cn("text-[11px]", GRIS)}>{o.ejecutada ? `Foto ${desde(o.ejecutada)}` : `Pedida ${desde(o.creada)}`}</span>
+          <span className={cn("text-[11px]", GRIS)}>{o.laborNumero ? `Labor L-${o.laborNumero}` : o.ejecutada ? `Foto ${desde(o.ejecutada)}` : `Pedida ${desde(o.creada)}`}</span>
         </span>
       );
     if (c.tab === "reponer")
@@ -754,6 +773,21 @@ export function CortesPanel({
             ejecutar(() => registrarAvisoCorte(m.socioId), "Aviso anotado");
             setAvisando(null);
           }}
+        />
+      )}
+
+      {laborDe && (
+        <LaborDialog
+          labor={null}
+          insumos={insumos}
+          responsables={responsables}
+          ordenInicial={{
+            id: laborDe.id,
+            titulo: `Reparación · ${laborDe.socioNombre}`,
+            lugar: laborDe.socioDireccion,
+            descripcion: laborDe.detalle,
+          }}
+          onCerrar={() => setLaborDe(null)}
         />
       )}
 

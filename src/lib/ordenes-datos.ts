@@ -21,6 +21,9 @@ export type OrdenFila = {
   ejecutada: string | null;
   nota: string | null;
   tieneFoto: boolean;
+  /** La labor creada para esta orden (reparaciones), si la hay. */
+  laborId: string | null;
+  laborNumero: number | null;
 };
 
 export type MorosoFila = {
@@ -88,6 +91,8 @@ export async function ordenesDelComite(aprId: string, estados?: EstadoOrden[]): 
       ejecutada: ordenes.ejecutadaAt,
       nota: ordenes.notaEjecucion,
       tieneFoto: sql<boolean>`exists (select 1 from "EvidenciaOrden" e where e."ordenId" = ${ordenes.id})`,
+      laborId: sql<string | null>`(select l."id" from "Labor" l where l."ordenId" = ${ordenes.id} limit 1)`,
+      laborNumero: sql<number | null>`(select l."numero" from "Labor" l where l."ordenId" = ${ordenes.id} limit 1)`,
     })
     .from(ordenes)
     .innerJoin(socios, eq(ordenes.socioId, socios.id))
@@ -230,6 +235,8 @@ export async function ordenesDeSocios(socioIds: string[]): Promise<(OrdenFila & 
     creada: f.creada.toISOString(),
     ejecutada: f.ejecutada ? f.ejecutada.toISOString() : null,
     tieneFoto: false,
+    laborId: null,
+    laborNumero: null,
     // En reclamos y bajas, la nota es la respuesta de la directiva.
     respuesta: f.nota,
   }));

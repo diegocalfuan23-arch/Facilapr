@@ -57,6 +57,8 @@ export type LaborFila = {
   rutas: RutaDeLabor[];
   /** Los socios de esas rutas donde se hace la labor, en el orden del recorrido. */
   socios: SocioDeLabor[];
+  /** El socio de la orden de reparación de la que nació la labor, si nació de una. */
+  ordenSocio: string | null;
   /** true si los materiales ya se descontaron del inventario. */
   descontada: boolean;
   /** Su término programado ya pasó y sigue sin estar Hecha (por ejemplo, porque faltó stock). */

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { insumos, laborInsumos, labores } from "@/lib/db/schema";
+import { insumos, laborInsumos, labores, ordenes } from "@/lib/db/schema";
+import { cerrarOrdenDeLabor, reabrirOrdenDeLabor } from "@/lib/labor-orden";
 import { ErrorRutaLabor, sincronizarRutasDeLabor } from "@/lib/rutas-labores";
 import { requireAdmin } from "@/lib/apr-session";
 import { mensajeError } from "@/lib/db-errores";
@@ -97,10 +98,20 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
   }
   const horaFin = d.estado === "HECHA" ? null : d.fechaTermino ? d.horaFin : null;
   const id = String(formData.get("id") ?? "");
+  // Si la labor nace de una orden de reparación, se enlaza con ella (solo al crearla).
+  const ordenElegida = !id ? aTexto(formData.get("ordenId")) : null;
   const ctx = { aprId: apr.id, userId: user.id };
 
   try {
     const r = await db.transaction(async (tx) => {
+      if (ordenElegida) {
+        const [o] = await tx
+          .select({ id: ordenes.id })
+          .from(ordenes)
+          .where(and(eq(ordenes.id, ordenElegida), eq(ordenes.aprId, apr.id), eq(ordenes.tipo, "REPARACION"), eq(ordenes.estado, "EN_TRAMITE")))
+          .limit(1);
+        if (!o) throw new ErrorLabor("Esa orden ya no está en trámite.");
+      }
       // Los materiales tienen que ser de este comité.
       const ids = [...porMaterial.keys()];
       const delInventario = ids.length
@@ -136,7 +147,7 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
         await tx.update(labores).set(valores).where(and(eq(labores.id, id), eq(labores.aprId, apr.id)));
         await tx.delete(laborInsumos).where(eq(laborInsumos.laborId, id));
       } else {
-        const [creada] = await tx.insert(labores).values({ ...valores, aprId: apr.id, numero }).returning({ id: labores.id });
+        const [creada] = await tx.insert(labores).values({ ...valores, aprId: apr.id, numero, ordenId: ordenElegida }).returning({ id: labores.id });
         laborId = creada.id;
       }
 
@@ -157,6 +168,9 @@ export async function guardarLabor(_prev: ResultadoLabores | null, formData: For
       if (d.estado === "HECHA") {
         await descontarStock(tx, ctx, { id: laborId, numero });
         await tx.update(labores).set({ descontada: true }).where(eq(labores.id, laborId));
+        await cerrarOrdenDeLabor(tx, ctx, laborId);
+      } else if (eraDescontada) {
+        await reabrirOrdenDeLabor(tx, ctx, laborId);
       }
       if (rutasElegidas) await sincronizarRutasDeLabor(tx, apr.id, laborId, rutasElegidas);
       return { ok: true as const };
@@ -197,9 +211,11 @@ export async function cambiarEstadoLabor(id: string, estado: "PROGRAMADA" | "EN_
       let descontada = actual.descontada;
       if (estado === "HECHA" && !descontada) {
         await descontarStock(tx, ctx, { id, numero: actual.numero });
+        await cerrarOrdenDeLabor(tx, ctx, id);
         descontada = true;
       } else if (estado !== "HECHA" && descontada) {
         await devolverStock(tx, ctx, { id, numero: actual.numero });
+        await reabrirOrdenDeLabor(tx, ctx, id);
         descontada = false;
       }
 

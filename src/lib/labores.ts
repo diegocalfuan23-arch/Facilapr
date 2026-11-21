@@ -1,6 +1,6 @@
-import { asc, desc, eq, sql } from "drizzle-orm";
+import { asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { laborInsumos, labores, paradaLabores, rutaParadas, rutas, socios } from "@/lib/db/schema";
+import { laborInsumos, labores, ordenes, paradaLabores, rutaParadas, rutas, socios } from "@/lib/db/schema";
 import { claveAhora, claveFin, type EstadoLabor, type LaborFila, type RutaDeLabor, type SocioDeLabor } from "@/lib/labores-comun";
 
 export * from "@/lib/labores-comun";
@@ -12,6 +12,10 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
     const lineas = await db.select().from(laborInsumos).where(eq(laborInsumos.aprId, aprId)).orderBy(asc(laborInsumos.insumoNombre));
     const rutasPorLabor = await rutasDeLabores(aprId);
     const sociosPorLabor = await sociosDeLabores(aprId);
+    const idsOrden = filas.flatMap((f) => (f.ordenId ? [f.ordenId] : []));
+    const sociosDeOrden = new Map(
+      idsOrden.length ? (await db.select({ id: ordenes.id, socio: socios.nombre }).from(ordenes).innerJoin(socios, eq(socios.id, ordenes.socioId)).where(inArray(ordenes.id, idsOrden))).map((o) => [o.id, o.socio] as const) : []
+    );
     return filas.map((f) => ({
       id: f.id,
       numero: f.numero,
@@ -27,6 +31,7 @@ export async function listarLabores(aprId: string): Promise<LaborFila[]> {
       responsable: f.responsable,
       rutas: rutasPorLabor.get(f.id) ?? [],
       socios: sociosPorLabor.get(f.id) ?? [],
+      ordenSocio: f.ordenId ? (sociosDeOrden.get(f.ordenId) ?? null) : null,
       descontada: f.descontada,
       vencida: f.estado !== "HECHA" && (claveFin(f) ?? "9999") <= claveAhora(),
       materiales: lineas

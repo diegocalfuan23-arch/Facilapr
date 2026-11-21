@@ -137,6 +137,7 @@ export function LaborDialog({
   responsables = [],
   rutaInicial,
   insumoInicial,
+  ordenInicial,
   onCerrar,
 }: {
   labor: LaborFila | null;
@@ -146,15 +147,17 @@ export function LaborDialog({
   responsables?: string[];
   rutaInicial?: string;
   insumoInicial?: string;
+  /** La orden de reparación de la que nace la labor: el formulario parte lleno y la labor queda enlazada a ella. */
+  ordenInicial?: { id: string; titulo: string; lugar: string | null; descripcion: string | null };
   onCerrar: () => void;
 }) {
   const [resultado, enviar, pendiente] = useActionState<ResultadoLabores | null, FormData>(guardarLabor, null);
   const [borrando, iniciarBorrado] = useTransition();
   const [confirmaBorrar, setConfirmaBorrar] = useState(false);
   const editando = labor !== null;
-  const [titulo, setTitulo] = useState(labor?.titulo ?? "");
+  const [titulo, setTitulo] = useState(labor?.titulo ?? ordenInicial?.titulo ?? "");
   const [estado, setEstado] = useState<EstadoLabor>(labor?.estado ?? "PROGRAMADA");
-  const [tipo, setTipo] = useState(labor?.tipo ?? (rutaInicial ? "LECTURA" : "MANTENCION"));
+  const [tipo, setTipo] = useState(labor?.tipo ?? (ordenInicial ? "REPARACION" : rutaInicial ? "LECTURA" : "MANTENCION"));
   const [rutasSel, setRutasSel] = useState<string[]>(() => (labor ? labor.rutas.map((r) => r.id) : rutaInicial ? [rutaInicial] : []));
   const [responsable, setResponsable] = useState(labor?.responsable ?? "");
   const [lineas, setLineas] = useState<Linea[]>(
@@ -260,6 +263,7 @@ export function LaborDialog({
       >
         <form action={enviar} className="flex min-h-0 flex-1 flex-col">
           {editando && <input type="hidden" name="id" value={labor.id} />}
+          {ordenInicial && <input type="hidden" name="ordenId" value={ordenInicial.id} />}
           <input type="hidden" name="materiales" value={materiales} />
           <input type="hidden" name="rutas" value={JSON.stringify(rutasSel)} />
           <input type="hidden" name="estado" value={estado} />
@@ -311,7 +315,7 @@ export function LaborDialog({
                 </select>
               </Fila>
               <Fila id="lab-desc" label="Detalle" opcional>
-                <textarea id="lab-desc" name="descripcion" defaultValue={labor?.descripcion ?? ""} rows={2} maxLength={1000} placeholder="Instrucciones para quien la hace" className="w-full resize-none rounded-xl border border-[#E4E1F0] bg-white px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" />
+                <textarea id="lab-desc" name="descripcion" defaultValue={labor?.descripcion ?? ordenInicial?.descripcion ?? ""} rows={2} maxLength={1000} placeholder="Instrucciones para quien la hace" className="w-full resize-none rounded-xl border border-[#E4E1F0] bg-white px-3 py-2.5 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring" />
               </Fila>
             </section>
 
@@ -477,7 +481,7 @@ export function LaborDialog({
               <Fila id="lab-lugar" label="Lugar" opcional>
                 <div className="relative">
                   <MapPin className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-[#8F8CA3]" aria-hidden />
-                  <Input id="lab-lugar" name="lugar" defaultValue={labor?.lugar ?? ""} placeholder="Sector, caseta o pozo" maxLength={160} className={cn(CAMPO, "pl-9")} />
+                  <Input id="lab-lugar" name="lugar" defaultValue={labor?.lugar ?? ordenInicial?.lugar ?? ""} placeholder="Sector, caseta o pozo" maxLength={160} className={cn(CAMPO, "pl-9")} />
                 </div>
               </Fila>
               <Fila id="lab-responsable" label="Responsable" opcional>

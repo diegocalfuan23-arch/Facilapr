@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { labores } from "@/lib/db/schema";
 import { ErrorLabor, descontarStock } from "@/lib/labores-stock";
+import { cerrarOrdenDeLabor } from "@/lib/labor-orden";
 import { ahoraEnChile, claveAhora, claveFin, claveInicio } from "@/lib/labores-comun";
 
 /**
@@ -29,6 +30,7 @@ export async function avanzarLaboresVencidas(aprId: string): Promise<void> {
         try {
           await db.transaction(async (tx) => {
             await descontarStock(tx, { aprId, userId: null, auto: true }, { id: l.id, numero: l.numero });
+            await cerrarOrdenDeLabor(tx, { aprId, userId: null, auto: true }, l.id);
             await tx.update(labores).set({ estado: "HECHA", descontada: true, fechaTermino: l.fechaTermino ?? ahoraEnChile().fecha, horaFin: null, updatedAt: new Date() }).where(eq(labores.id, l.id));
           });
           continue;

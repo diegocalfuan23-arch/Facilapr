@@ -5,6 +5,9 @@ import { socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { acuerdosActivosPorSocio, cortadosActuales, deudaDeSocios, morososParaCorte, ordenesDelComite, ultimosAvisos } from "@/lib/ordenes-datos";
 import { acuerdosDelComite, sociosParaRepactar } from "@/lib/repactaciones-datos";
+import { puede, type Plan } from "@/lib/planes";
+import { listarInsumos } from "@/lib/inventario";
+import { operadoresDelComite } from "@/lib/rutas";
 import { CortesPanel } from "@/components/panel/cortes-panel";
 
 export const metadata: Metadata = {
@@ -42,6 +45,10 @@ export default async function CortesPage() {
   const repactaciones = await acuerdosDelComite(apr.id);
   const sociosConDeuda = await sociosParaRepactar(apr.id);
 
+  // Una reparación aprobada puede convertirse en labor (con fecha, responsable y materiales) desde el plan que incluye Labores.
+  const conLabores = puede(apr.plan as Plan, "inventario");
+  const [insumos, operadores] = conLabores ? await Promise.all([listarInsumos(apr.id), operadoresDelComite(apr.id)]) : [[], []];
+
   const padron = await db.query.socios.findMany({
     where: eq(socios.aprId, apr.id),
     orderBy: [asc(socios.nombre)],
@@ -56,6 +63,9 @@ export default async function CortesPage() {
       ahora={ahoraMs()}
       morosos={morosos}
       acuerdosAlDia={alDia.length}
+      conLabores={conLabores}
+      insumos={insumos}
+      responsables={operadores.map((o) => o.nombre)}
       repactaciones={repactaciones}
       sociosConDeuda={sociosConDeuda}
       socios={padron}

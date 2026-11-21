@@ -168,6 +168,18 @@ function Detalle({
             </dt>
             <dd className={cn("mt-0.5 font-medium", !l.lugar && GRIS)}>{l.lugar ?? "Sin lugar"}</dd>
           </div>
+          {l.ordenSocio ? (
+            <div className="col-span-2">
+              <dt className={cn("flex items-center gap-1.5 text-xs", GRIS)}>
+                <ClipboardList className="size-3.5" aria-hidden />
+                Viene de una orden
+              </dt>
+              <dd className="mt-0.5 font-medium">
+                Reparación de {l.ordenSocio}
+                <span className={cn("block text-xs font-normal", GRIS)}>Al terminar esta labor, la orden queda dada de alta.</span>
+              </dd>
+            </div>
+          ) : null}
           {l.rutas.length > 0 ? (
             <div className="col-span-2">
               <dt className={cn("flex items-center gap-1.5 text-xs", GRIS)}>
