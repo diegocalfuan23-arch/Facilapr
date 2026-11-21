@@ -8,7 +8,9 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Copy,
   Gauge,
+  MessageCircle,
   Loader2,
   ReceiptText,
   Scissors,
@@ -35,7 +37,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { UsoComite, type DatosUso } from "@/components/panel/uso-comite";
-import { AjustesComite } from "@/components/panel/ajustes-comite";
+import { AjusteBuscador, AjustesWhatsapp } from "@/components/panel/ajustes-comite";
 import { LogoComite } from "@/components/panel/logo-comite";
 import type { ConexionWhatsapp } from "@/components/panel/conectar-whatsapp";
 import type { CupoWhatsapp } from "@/lib/whatsapp-cupo-comun";
@@ -96,32 +98,52 @@ export type DatosConfiguracion = {
   conexionWhatsapp: ConexionWhatsapp | null;
 };
 
+const GRIS = "text-[#5B5970]";
+const CAMPO = "h-11 rounded-xl border-[#E4E1F0] bg-white shadow-none";
+const SELECT = "h-11 w-full rounded-xl border border-[#E4E1F0] bg-white px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
+const REGIONES = ["Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", "Valparaíso", "Metropolitana", "O'Higgins", "Maule", "Ñuble", "Biobío", "La Araucanía", "Los Ríos", "Los Lagos", "Aysén", "Magallanes"];
+
+/** La tarjeta de una sección: ícono y título arriba, sus bloques abajo. */
+function Tarjeta({ icono: Icono, titulo, children }: { icono: typeof Building2; titulo: string; children: React.ReactNode }) {
+  return (
+    <div className="min-w-0 overflow-hidden rounded-2xl bg-white shadow-[0_8px_24px_rgba(58,12,227,0.08)]">
+      <div className="flex items-center gap-3 border-b border-[#F0EEF6] px-5 py-4 sm:px-7">
+        <span aria-hidden className="flex size-9 items-center justify-center rounded-xl bg-[#ECE8FD] text-[#3A0CE3]">
+          <Icono className="size-[18px]" />
+        </span>
+        <h2 className="text-[17px] font-semibold">{titulo}</h2>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Un tema dentro de la tarjeta: el título a la izquierda y sus campos a la derecha. */
+function Fila({ titulo, sub, ancla, children }: { titulo: string; sub?: string; ancla?: string; children: React.ReactNode }) {
+  return (
+    <section data-tour={ancla} className="grid gap-4 border-t border-[#F0EEF6] px-5 py-6 first:border-t-0 sm:px-7 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8">
+      <div>
+        <h3 className="text-[15px] font-semibold">{titulo}</h3>
+        {sub ? <p className={cn("mt-1 text-[13px] leading-relaxed", GRIS)}>{sub}</p> : null}
+      </div>
+      <div className="flex min-w-0 flex-col gap-4">{children}</div>
+    </section>
+  );
+}
+
 /**
- * Cada bloque guarda por separado. Un solo formulario gigante obliga a
+ * Cada formulario guarda por separado. Un solo formulario gigante obliga a
  * revisar todo para cambiar un dato, y un error en cualquier campo bloquea
  * el resto.
  */
-function Bloque({
-  titulo,
-  descripcion,
+function Formulario({
   accion,
-  ancla,
   children,
 }: {
-  /** Ancla para el recorrido guiado (data-tour). */
-  ancla?: string;
-  titulo: string;
-  descripcion: string;
-  accion: (
-    prev: ResultadoAccion | null,
-    formData: FormData,
-  ) => Promise<ResultadoAccion>;
+  accion: (prev: ResultadoAccion | null, formData: FormData) => Promise<ResultadoAccion>;
   children: React.ReactNode;
 }) {
-  const [estado, enviar, pendiente] = useActionState<
-    ResultadoAccion | null,
-    FormData
-  >(accion, null);
+  const [estado, enviar, pendiente] = useActionState<ResultadoAccion | null, FormData>(accion, null);
 
   // Cada guardado avisa con un toast, además del texto junto al botón.
   useEffect(() => {
@@ -131,37 +153,26 @@ function Bloque({
   }, [estado]);
 
   return (
-    <section
-      data-tour={ancla}
-      className="rounded-xl border border-border bg-card p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <h2 className="text-[1.05rem] font-semibold">{titulo}</h2>
-      <p className="mt-0.5 text-[0.87rem] text-muted-foreground">
-        {descripcion}
-      </p>
-
-      <form action={enviar} className="mt-5 flex flex-col gap-4">
-        {children}
-
-        {estado && !estado.ok && (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-[0.88rem] text-destructive">
-            {estado.error}
-          </p>
+    <form action={enviar}>
+      {children}
+      {estado && !estado.ok && (
+        <p className="mx-5 mb-4 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-[0.88rem] text-destructive sm:mx-7">
+          {estado.error}
+        </p>
+      )}
+      <div className="flex items-center gap-3 border-t border-[#F0EEF6] bg-[#FAFAFD] px-5 py-4 sm:px-7">
+        <Button type="submit" disabled={pendiente} className="h-11 rounded-xl px-5 font-semibold">
+          {pendiente && <Loader2 className="animate-spin" />}
+          Guardar
+        </Button>
+        {estado?.ok && (
+          <span className="flex items-center gap-1.5 text-[0.88rem] text-forest">
+            <Check className="size-4" />
+            Guardado
+          </span>
         )}
-
-        <div className="flex items-center gap-3 border-t border-border pt-4">
-          <Button type="submit" disabled={pendiente}>
-            {pendiente && <Loader2 className="animate-spin" />}
-            Guardar
-          </Button>
-          {estado?.ok && (
-            <span className="flex items-center gap-1.5 text-[0.88rem] text-forest">
-              <Check className="size-4" />
-              Guardado
-            </span>
-          )}
-        </div>
-      </form>
-    </section>
+      </div>
+    </form>
   );
 }
 
@@ -178,10 +189,10 @@ function Campo({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className="text-[13px] font-semibold">{label}</Label>
       {children}
       {ayuda && (
-        <p className="hidden text-[0.8rem] text-muted-foreground sm:block">
+        <p className="hidden text-xs text-[#5B5970] sm:block">
           {ayuda}
         </p>
       )}
@@ -191,6 +202,7 @@ function Campo({
 
 type Seccion =
   | "comite"
+  | "whatsapp"
   | "uso"
   | "facturacion"
   | "medidores"
@@ -204,14 +216,16 @@ const SECCIONES: {
   /** Qué hay adentro: se muestra en la lista del celular. */
   resumen: string;
   icono: typeof Building2;
+  grupo: "General" | "Cobro" | "Cuenta";
 }[] = [
-  { id: "comite", label: "Comité", resumen: "Tus datos y tu enlace", icono: Building2 },
-  { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText },
-  { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge },
-  { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors },
-  { id: "uso", label: "Uso y consumo", resumen: "Socios, operadores y tokens de IA", icono: BarChart3 },
-  { id: "iaChat", label: "Asistente de chat", resumen: "Respuestas automáticas con IA", icono: Sparkles },
-  { id: "datos", label: "Datos y privacidad", resumen: "Respaldo y borrado de datos", icono: ShieldCheck },
+  { id: "comite", label: "Comité", resumen: "Tus datos y tu enlace", icono: Building2, grupo: "General" },
+  { id: "whatsapp", label: "WhatsApp", resumen: "Número y mensajes automáticos", icono: MessageCircle, grupo: "General" },
+  { id: "iaChat", label: "Asistente de chat", resumen: "Respuestas automáticas con IA", icono: Sparkles, grupo: "General" },
+  { id: "facturacion", label: "Facturación", resumen: "Tarifas, vencimiento y cómo pagar", icono: ReceiptText, grupo: "Cobro" },
+  { id: "medidores", label: "Medidores", resumen: "Frecuencia de lectura y alertas", icono: Gauge, grupo: "Cobro" },
+  { id: "cortes", label: "Cortes", resumen: "Días de gracia y aviso de corte", icono: Scissors, grupo: "Cobro" },
+  { id: "uso", label: "Uso y consumo", resumen: "Socios, operadores y tokens de IA", icono: BarChart3, grupo: "Cuenta" },
+  { id: "datos", label: "Datos y privacidad", resumen: "Respaldo y borrado de datos", icono: ShieldCheck, grupo: "Cuenta" },
 ];
 
 export function ConfiguracionForm({
@@ -235,7 +249,13 @@ export function ConfiguracionForm({
   }
 
   // El asistente de chat solo existe en los planes que incluyen la IA: en los demás ni se nombra.
-  const secciones = SECCIONES.filter((x) => x.id !== "iaChat" || datos.iaChatDisponible);
+  const secciones = SECCIONES.filter(
+    (x) =>
+      (x.id !== "iaChat" || datos.iaChatDisponible) &&
+      (x.id !== "whatsapp" || datos.conexionWhatsappDisponible || datos.whatsappDisponible)
+  );
+  const grupos = ["General", "Cobro", "Cuenta"] as const;
+  const [copiado, setCopiado] = useState(false);
   const actual = secciones.find((x) => x.id === seccion);
 
   return (
@@ -257,41 +277,43 @@ export function ConfiguracionForm({
           aria-label="Secciones de configuración"
           data-tour="cfg-nav"
           className={cn(
-            "shrink-0 flex-col gap-2 lg:flex lg:w-56 lg:gap-1",
+            "shrink-0 flex-col gap-2 lg:sticky lg:top-4 lg:flex lg:w-56 lg:gap-4",
             vistaMovil === "lista" ? "flex" : "hidden"
           )}
         >
-          {secciones.map(({ id, label, resumen, icono: Icono }) => (
-            <button
-              key={id}
-              type="button"
-              data-tour={`cfg-${id}`}
-              onClick={() => abrirSeccion(id)}
-              aria-current={seccion === id ? "page" : undefined}
-              className={cn(
-                // Celular: fila con borde, ícono, nombre, resumen y flecha.
-                "flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-colors",
-                // Pantallas grandes: pestaña lateral compacta.
-                "lg:gap-2.5 lg:rounded-lg lg:border-0 lg:bg-transparent lg:px-3 lg:py-2.5",
-                seccion === id
-                  ? "lg:bg-primary lg:text-primary-foreground"
-                  : "lg:text-muted-foreground lg:hover:bg-muted lg:hover:text-foreground"
-              )}
-            >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-auto lg:bg-transparent lg:text-inherit">
-                <Icono className="size-4.5 lg:size-4" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[0.95rem] font-medium lg:text-[0.9rem]">
-                  {label}
-                </span>
-                <span className="block text-[0.78rem] text-muted-foreground lg:hidden">
-                  {resumen}
-                </span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-muted-foreground lg:hidden" />
-            </button>
-          ))}
+          {grupos.map((g) => {
+            const items = secciones.filter((x) => x.grupo === g);
+            return (
+              <div key={g} className="flex flex-col gap-2 lg:gap-1">
+                <p className="hidden px-3 pt-2 text-[11px] font-semibold uppercase tracking-wider text-[#8F8CA3] lg:block">{g}</p>
+                {items.map(({ id, label, resumen, icono: Icono }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    data-tour={`cfg-${id}`}
+                    onClick={() => abrirSeccion(id)}
+                    aria-current={seccion === id ? "page" : undefined}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 text-left transition-colors",
+                      "lg:h-10 lg:gap-2.5 lg:border-0 lg:bg-transparent lg:px-3 lg:py-0",
+                      seccion === id
+                        ? "lg:bg-white lg:font-semibold lg:text-[#2A07A8] lg:shadow-sm lg:ring-1 lg:ring-[#E4DEFA]"
+                        : "lg:text-[#46435C] lg:hover:bg-white/60"
+                    )}
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary lg:size-auto lg:bg-transparent lg:text-inherit">
+                      <Icono className="size-4.5 lg:size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[0.95rem] font-medium lg:text-[14px]">{label}</span>
+                      <span className="block text-[0.78rem] text-muted-foreground lg:hidden">{resumen}</span>
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted-foreground lg:hidden" />
+                  </button>
+                ))}
+              </div>
+            );
+          })}
         </nav>
 
         {/* min-w-0 evita que un campo ancho empuje el menú fuera de la vista. */}
@@ -317,165 +339,144 @@ export function ConfiguracionForm({
       {seccion === "uso" && <UsoComite uso={uso} />}
 
       {seccion === "comite" && (
-        <Bloque
-          titulo="Datos del comité"
-          ancla="cfg-datos"
-          descripcion="Aparecen en las boletas."
-          accion={guardarComite}
-        >
-          <LogoComite logoUrl={datos.logoUrl} />
+        <Tarjeta icono={Building2} titulo="Comité">
+          <Formulario accion={guardarComite}>
+            <Fila titulo="Identidad" sub="Aparece en boletas, comprobantes y en el portal de socios." ancla="cfg-datos">
+              <LogoComite logoUrl={datos.logoUrl} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo id="nombre" label="Nombre del comité">
+                  <Input id="nombre" name="nombre" defaultValue={datos.nombre} required className={CAMPO} />
+                </Campo>
+                <Campo id="rut" label="RUT">
+                  <Input id="rut" name="rut" defaultValue={datos.rut} required className={`${CAMPO} tabular-nums`} />
+                </Campo>
+                <div className="sm:col-span-2">
+                  <Campo id="razonSocial" label="Razón social" ayuda="El nombre legal, si es distinto del de uso diario.">
+                    <Input id="razonSocial" name="razonSocial" defaultValue={datos.razonSocial ?? ""} className={CAMPO} />
+                  </Campo>
+                </div>
+              </div>
+            </Fila>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Campo id="nombre" label="Nombre del comité">
-              <Input
-                id="nombre"
-                name="nombre"
-                defaultValue={datos.nombre}
-                required
-              />
-            </Campo>
-            <Campo
-              id="razonSocial"
-              label="Razón social"
-              ayuda="El nombre legal, si es distinto del de uso diario."
-            >
-              <Input
-                id="razonSocial"
-                name="razonSocial"
-                defaultValue={datos.razonSocial ?? ""}
-              />
-            </Campo>
-            <Campo id="rut" label="RUT">
-              <Input id="rut" name="rut" defaultValue={datos.rut} required />
-            </Campo>
-            <Campo id="telefono" label="Teléfono">
-              <Input
-                id="telefono"
-                name="telefono"
-                defaultValue={datos.telefono ?? ""}
-                placeholder="+56 9 1234 5678"
-              />
-            </Campo>
-            <Campo id="comuna" label="Comuna">
-              <Input
-                id="comuna"
-                name="comuna"
-                defaultValue={datos.comuna}
-                required
-              />
-            </Campo>
-            <Campo id="region" label="Región">
-              <Input
-                id="region"
-                name="region"
-                defaultValue={datos.region ?? ""}
-              />
-            </Campo>
-            <Campo id="direccion" label="Dirección">
-              <Input
-                id="direccion"
-                name="direccion"
-                defaultValue={datos.direccion ?? ""}
-              />
-            </Campo>
-            <Campo id="email" label="Correo">
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                defaultValue={datos.email ?? ""}
-              />
-            </Campo>
-            <Campo
-              id="sitioWeb"
-              label="Sitio web"
-              ayuda="Solo si tu comité ya tiene su propia página, fuera de Facilapr."
-            >
-              <Input
-                id="sitioWeb"
-                name="sitioWeb"
-                defaultValue={datos.sitioWeb ?? ""}
-                placeholder="https://…"
-              />
-            </Campo>
-            <div className="sm:col-span-2">
-              <Campo
-                id="horarioAtencion"
-                label="Horario de atención"
-                ayuda="Lo usa la IA del chat cuando un socio pregunta cuándo atienden."
-              >
-                <Textarea
-                  id="horarioAtencion"
-                  name="horarioAtencion"
-                  rows={2}
-                  maxLength={300}
-                  defaultValue={datos.horarioAtencion ?? ""}
-                  placeholder={"Lunes a viernes, 9:00 a 14:00"}
-                />
-              </Campo>
-            </div>
+            <Fila titulo="Contacto y ubicación" sub="Para que los socios sepan cómo y cuándo encontrarlos.">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Campo id="telefono" label="Teléfono">
+                  <Input id="telefono" name="telefono" defaultValue={datos.telefono ?? ""} placeholder="+56 9 1234 5678" className={CAMPO} />
+                </Campo>
+                <Campo id="email" label="Correo">
+                  <Input id="email" name="email" type="email" defaultValue={datos.email ?? ""} className={CAMPO} />
+                </Campo>
+                <div className="sm:col-span-2">
+                  <Campo id="direccion" label="Dirección">
+                    <Input id="direccion" name="direccion" defaultValue={datos.direccion ?? ""} className={CAMPO} />
+                  </Campo>
+                </div>
+                <Campo id="comuna" label="Comuna">
+                  <Input id="comuna" name="comuna" defaultValue={datos.comuna} required className={CAMPO} />
+                </Campo>
+                <Campo id="region" label="Región">
+                  <select id="region" name="region" defaultValue={datos.region ?? ""} className={SELECT}>
+                    <option value="">Sin región</option>
+                    {datos.region && !REGIONES.includes(datos.region) && <option value={datos.region}>{datos.region}</option>}
+                    {REGIONES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+                <div className="sm:col-span-2">
+                  <Campo id="horarioAtencion" label="Horario de atención" ayuda="Lo usa la IA del chat cuando un socio pregunta cuándo atienden.">
+                    <Textarea
+                      id="horarioAtencion"
+                      name="horarioAtencion"
+                      rows={2}
+                      maxLength={300}
+                      defaultValue={datos.horarioAtencion ?? ""}
+                      placeholder={"Lunes a viernes, 9:00 a 14:00"}
+                      className="rounded-xl border-[#E4E1F0] shadow-none"
+                    />
+                  </Campo>
+                </div>
+                <div className="sm:col-span-2">
+                  <Campo id="sitioWeb" label="Sitio web propio · opcional" ayuda="Solo si tu comité ya tiene su propia página, fuera de Facilapr.">
+                    <Input id="sitioWeb" name="sitioWeb" defaultValue={datos.sitioWeb ?? ""} placeholder="https://…" className={CAMPO} />
+                  </Campo>
+                </div>
+              </div>
+            </Fila>
+          </Formulario>
+
+          <div className="border-t border-[#F0EEF6]">
+            <Formulario accion={guardarDireccion}>
+              <Fila titulo="Portal de socios" sub="Dónde entran tus socios a ver y pagar sus boletas." ancla="cfg-enlace">
+                <Campo
+                  id="slug"
+                  label="Enlace del portal"
+                  ayuda="Minúsculas, números y guiones. Si lo cambias, los enlaces anteriores dejan de funcionar: avísale a tus socios."
+                >
+                  <div className="flex h-11 items-center overflow-hidden rounded-xl border border-[#E4E1F0] bg-white focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
+                    <span className={cn("flex h-full shrink-0 items-center border-r border-[#E4E1F0] bg-[#F7F6FB] px-3 text-sm", GRIS)}>facilapr.cl/</span>
+                    <input
+                      id="slug"
+                      name="slug"
+                      defaultValue={datos.slug ?? ""}
+                      placeholder="mi-comite"
+                      maxLength={40}
+                      required
+                      autoComplete="off"
+                      className="h-full min-w-0 flex-1 bg-transparent px-3 font-mono text-sm outline-none"
+                    />
+                    <span className={cn("hidden shrink-0 pr-3 text-sm sm:block", GRIS)}>/cuenta</span>
+                  </div>
+                </Campo>
+                {datos.slug && (
+                  <div className="flex items-center gap-2 rounded-xl bg-[#F7F5FF] px-3.5 py-2.5">
+                    <span className="min-w-0 flex-1 truncate font-mono text-[13px]">facilapr.cl/{datos.slug}/cuenta/entrar</span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      onClick={() => {
+                        try {
+                          void navigator.clipboard?.writeText(`https://facilapr.cl/${datos.slug}/cuenta/entrar`);
+                        } catch {
+                          /* sin portapapeles */
+                        }
+                        setCopiado(true);
+                        setTimeout(() => setCopiado(false), 1500);
+                      }}
+                      className="h-8 shrink-0 rounded-md px-2.5 text-[13px] font-semibold text-[#2A07A8]"
+                    >
+                      {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
+                      {copiado ? "Copiado" : "Copiar"}
+                    </Button>
+                  </div>
+                )}
+                <AjusteBuscador apareceEnBuscador={datos.apareceEnBuscador} tieneSlug={Boolean(datos.slug)} />
+              </Fila>
+            </Formulario>
           </div>
-
-          <AjustesComite
-            apareceEnBuscador={datos.apareceEnBuscador}
-            tieneSlug={Boolean(datos.slug)}
-            whatsappDisponible={datos.whatsappDisponible}
-            cupo={datos.cupoWhatsapp}
-            comprobanteAuto={datos.whatsappComprobanteAuto}
-            conexionDisponible={datos.conexionWhatsappDisponible}
-            conexion={datos.conexionWhatsapp}
-          />
-        </Bloque>
+        </Tarjeta>
       )}
 
-      {seccion === "comite" && (
-        <Bloque
-          titulo="Tu enlace en Facilapr"
-          ancla="cfg-enlace"
-          descripcion="El nombre que va en el enlace de tu portal de socios dentro de Facilapr. No es tu domicilio ni tu página web."
-          accion={guardarDireccion}
-        >
-          <Campo
-            id="slug"
-            label="Nombre del enlace"
-            ayuda="Letras minúsculas, números y guiones. Si la cambias, los enlaces anteriores dejan de funcionar: avísale a tus socios."
-          >
-            <div className="flex items-center overflow-hidden rounded-lg border border-input focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50">
-              <span className="shrink-0 bg-muted/60 px-3 py-2 text-[0.85rem] text-muted-foreground">
-                facilapr.cl/
-              </span>
-              <input
-                id="slug"
-                name="slug"
-                defaultValue={datos.slug ?? ""}
-                placeholder="mi-comite"
-                maxLength={40}
-                required
-                autoComplete="off"
-                className="h-9 min-w-0 flex-1 bg-transparent px-2 font-mono text-sm outline-none"
-              />
-              <span className="shrink-0 pr-3 text-[0.85rem] text-muted-foreground">
-                /cuenta
-              </span>
-            </div>
-          </Campo>
-          {datos.slug && (
-            <p className="text-[0.82rem] text-muted-foreground">
-              Tu portal de socios hoy:{" "}
-              <span className="font-mono text-foreground">
-                facilapr.cl/{datos.slug}/cuenta/entrar
-              </span>
-            </p>
-          )}
-        </Bloque>
+      {seccion === "whatsapp" && (
+        <Tarjeta icono={MessageCircle} titulo="WhatsApp">
+          <Fila titulo="Número del comité" sub="Los socios reciben comprobantes, boletas y avisos desde el número del comité. Meta cobra los mensajes a tu cuenta.">
+            <AjustesWhatsapp
+              whatsappDisponible={datos.whatsappDisponible}
+              cupo={datos.cupoWhatsapp}
+              comprobanteAuto={datos.whatsappComprobanteAuto}
+              conexionDisponible={datos.conexionWhatsappDisponible}
+              conexion={datos.conexionWhatsapp}
+            />
+          </Fila>
+        </Tarjeta>
       )}
 
       {seccion === "facturacion" && (
-        <Bloque
-          titulo="Facturación"
-          descripcion="Cuánto se cobra, cuándo se emiten las boletas y cuándo vencen."
-          accion={guardarFacturacion}
-        >
+        <Tarjeta icono={ReceiptText} titulo="Facturación">
+<Formulario accion={guardarFacturacion}>
+<Fila titulo="Cobro y boletas" sub="Cuánto se cobra, cuándo se emiten las boletas y cuándo vencen.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo
               id="tarifaCargoFijo"
@@ -618,22 +619,22 @@ export function ConfiguracionForm({
               defaultValue={datos.infoPago ?? ""}
             />
           </Campo>
-        </Bloque>
+        </Fila>
+</Formulario>
+</Tarjeta>
       )}
 
       {seccion === "medidores" && (
-        <Bloque
-          titulo="Medidores y lecturas"
-          descripcion="Cada cuánto se toman las lecturas y cuándo avisar de un consumo raro."
-          accion={guardarMedidores}
-        >
+        <Tarjeta icono={Gauge} titulo="Medidores">
+<Formulario accion={guardarMedidores}>
+<Fila titulo="Lecturas y alertas" sub="Cada cuánto se toman las lecturas y cuándo avisar de un consumo raro.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo id="frecuenciaLectura" label="Frecuencia de lectura">
               <select
                 id="frecuenciaLectura"
                 name="frecuenciaLectura"
                 defaultValue={datos.frecuenciaLectura}
-                className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className={SELECT}
               >
                 <option value="MENSUAL">Mensual</option>
                 <option value="BIMENSUAL">Cada dos meses</option>
@@ -673,15 +674,15 @@ export function ConfiguracionForm({
           {datos.requiereFotoLectura && (
             <input type="hidden" name="requiereFotoLectura" value="on" />
           )}
-        </Bloque>
+        </Fila>
+</Formulario>
+</Tarjeta>
       )}
 
       {seccion === "cortes" && (
-        <Bloque
-          titulo="Cortes por morosidad"
-          descripcion="Cuánto se espera después del vencimiento y cuántos días se le dan al socio, desde que se le avisa, antes de cortar."
-          accion={guardarCortes}
-        >
+        <Tarjeta icono={Scissors} titulo="Cortes">
+<Formulario accion={guardarCortes}>
+<Fila titulo="Cortes por morosidad" sub="Días de espera tras el vencimiento y plazo desde el aviso.">
           <div className="grid gap-4 sm:grid-cols-3">
             <Campo
               id="diasGraciaCorte"
@@ -720,15 +721,15 @@ export function ConfiguracionForm({
               />
             </Campo>
           </div>
-        </Bloque>
+        </Fila>
+</Formulario>
+</Tarjeta>
       )}
 
       {seccion === "iaChat" && datos.iaChatDisponible && (
-          <Bloque
-            titulo="Asistente de IA en el chat"
-            descripcion="Responde a tus socios en segundos y te pasa la conversación cuando hace falta."
-            accion={guardarIaChat}
-          >
+          <Tarjeta icono={Sparkles} titulo="Asistente de chat">
+<Formulario accion={guardarIaChat}>
+<Fila titulo="Asistente de IA" sub="Responde a tus socios en segundos y te pasa la conversación cuando hace falta.">
             <Campo
               id="iaChatModo"
               label="Cuándo responde"
@@ -738,7 +739,7 @@ export function ConfiguracionForm({
                 id="iaChatModo"
                 name="iaChatModo"
                 defaultValue={datos.iaChatModo === "SIEMPRE" ? "SIEMPRE" : "APAGADO"}
-                className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                className={SELECT}
               >
                 <option value="APAGADO">Apagado: solo responde la directiva</option>
                 <option value="SIEMPRE">Siempre responde primero</option>
@@ -765,7 +766,9 @@ export function ConfiguracionForm({
               <li>• Si es un reclamo, un corte o no sabe, marca la conversación como «Necesita respuesta humana».</li>
               <li>• Si escribes tú en una conversación, la IA se pausa 10 minutos ahí y luego vuelve a responder.</li>
             </ul>
-          </Bloque>
+          </Fila>
+</Formulario>
+</Tarjeta>
         )}
 
       {seccion === "datos" && (

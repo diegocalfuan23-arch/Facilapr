@@ -53,18 +53,30 @@ function Interruptor({
   );
 }
 
-/** Las preferencias del comité que se prenden y apagan: van juntas, bajo los datos del comité. */
-export function AjustesComite({
-  apareceEnBuscador,
-  tieneSlug,
+/** Aparecer en el buscador público: vive en el bloque del portal de socios. */
+export function AjusteBuscador({ apareceEnBuscador, tieneSlug }: { apareceEnBuscador: boolean; tieneSlug: boolean }) {
+  return (
+    <div className="rounded-xl p-3.5 ring-1 ring-[#ECEAF4]">
+      <Interruptor
+        titulo="Aparecer en el buscador de comités"
+        ayuda="Tus socios te encuentran por nombre o comuna en facilapr.cl/socios. Solo se muestran el nombre y la comuna."
+        nota={!tieneSlug && !apareceEnBuscador ? "Para activarlo, primero define el enlace de tu portal." : undefined}
+        inicial={apareceEnBuscador}
+        deshabilitado={!tieneSlug && !apareceEnBuscador}
+        guardar={cambiarApareceEnBuscador}
+      />
+    </div>
+  );
+}
+
+/** Conexión de WhatsApp, cupo de mensajes y comprobante automático. */
+export function AjustesWhatsapp({
   whatsappDisponible,
   cupo,
   comprobanteAuto,
   conexionDisponible,
   conexion,
 }: {
-  apareceEnBuscador: boolean;
-  tieneSlug: boolean;
   /** El envío por la API de WhatsApp está activo en el servidor. */
   whatsappDisponible: boolean;
   cupo: CupoWhatsapp | null;
@@ -74,25 +86,22 @@ export function AjustesComite({
   conexion: ConexionWhatsapp | null;
 }) {
   return (
-    <div className="flex flex-col gap-4 border-t border-border pt-4">
-      <Interruptor
-        titulo="Aparecer en el buscador de socios"
-        ayuda="Tus socios te encuentran por nombre o comuna en facilapr.cl/socios y entran a su cuenta desde ahí. Solo se muestra el nombre y la comuna."
-        nota={!tieneSlug && !apareceEnBuscador ? "Para activarlo, tu comité necesita su dirección propia (Configuración)." : undefined}
-        inicial={apareceEnBuscador}
-        deshabilitado={!tieneSlug && !apareceEnBuscador}
-        guardar={cambiarApareceEnBuscador}
-      />
+    <>
+      {conexionDisponible && <ConectarWhatsapp conexion={conexion} />}
       {whatsappDisponible && cupo && <CupoWhatsappInfo cupo={cupo} />}
       {whatsappDisponible && (
-        <Interruptor
-          titulo="Comprobante automático por WhatsApp"
-          ayuda="Al registrar el pago de una boleta, el socio recibe su comprobante sin que tengas que enviarlo. Solo le llega a quienes marcaste que aceptan WhatsApp (en Socios) y tienen teléfono."
-          inicial={comprobanteAuto}
-          guardar={cambiarComprobanteAuto}
-        />
+        <div className="rounded-xl p-3.5 ring-1 ring-[#ECEAF4]">
+          <Interruptor
+            titulo="Comprobante automático"
+            ayuda="Al registrar un pago, el socio recibe su comprobante. Solo a quienes aceptan WhatsApp (en Socios) y tienen teléfono."
+            inicial={comprobanteAuto}
+            guardar={cambiarComprobanteAuto}
+          />
+        </div>
       )}
-      {conexionDisponible && <ConectarWhatsapp conexion={conexion} />}
-    </div>
+      {!conexionDisponible && !whatsappDisponible && (
+        <p className="text-[13px] text-[#5B5970]">WhatsApp todavía no está disponible.</p>
+      )}
+    </>
   );
 }
