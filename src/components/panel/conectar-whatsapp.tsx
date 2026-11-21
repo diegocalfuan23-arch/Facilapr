@@ -24,8 +24,6 @@ const VERSION_SDK = "v26.0";
 /** Valores que Meta documenta para conectar un número que ya está en la app WhatsApp Business (coexistencia). */
 const EXTRAS_COEXISTENCIA = {
   setup: {},
-  // Los mismos valores que trae el enlace de registro que genera el panel de Meta para esta app.
-  version: "v4",
   featureType: "whatsapp_business_app_onboarding",
   sessionInfoVersion: "3",
 };
