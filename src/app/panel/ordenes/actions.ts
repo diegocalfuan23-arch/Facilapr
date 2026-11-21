@@ -6,6 +6,8 @@ import { db } from "@/lib/db";
 import { avisosCorte, boletas, evidenciasOrden, ordenes, pagos, socios } from "@/lib/db/schema";
 import { requireAdmin, requireApr } from "@/lib/apr-session";
 import { MAX_FOTO_BASE64 } from "@/lib/ordenes";
+import { crearLaborDeReparacion } from "@/lib/labor-orden";
+import type { Plan } from "@/lib/planes";
 
 export type ResultadoOrden = { ok: true } | { ok: false; error: string };
 
@@ -116,7 +118,7 @@ export async function solicitarOrden(
   if (abierta) return { ok: false, error: "Ya hay una solicitud igual en curso para ese socio." };
 
   const esDirectiva = user.rol === "ADMIN";
-  await db.insert(ordenes).values({
+  const [creada] = await db.insert(ordenes).values({
     aprId: apr.id,
     socioId,
     tipo,
@@ -124,7 +126,9 @@ export async function solicitarOrden(
     origen: esDirectiva ? "COMITE" : "TECNICO",
     detalle: detalle?.trim().slice(0, 300) || null,
     solicitadaPorId: user.id,
-  });
+  }).returning({ id: ordenes.id });
+  // Una reparación que la directiva pide va directo a terreno: se crea su labor.
+  if (esDirectiva && tipo === "REPARACION") await crearLaborDeReparacion(apr.id, apr.plan as Plan, creada.id);
   refrescar();
   return { ok: true };
 }
@@ -183,6 +187,9 @@ export async function resolverSolicitud(
       updatedAt: new Date(),
     })
     .where(eq(ordenes.id, ordenId));
+
+  // Una reparación aprobada pasa a terreno: se crea su labor.
+  if (aTerreno && orden.tipo === "REPARACION") await crearLaborDeReparacion(apr.id, apr.plan as Plan, ordenId);
 
   // La baja aprobada deja el arranque inactivo; la reanudación aprobada lo vuelve a activar.
   if (aprobar && (orden.tipo === "BAJA" || orden.tipo === "REANUDACION")) {
