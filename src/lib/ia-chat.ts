@@ -11,6 +11,7 @@ import { cortadosActuales, ordenesDeSocios } from "@/lib/ordenes-datos";
 import { ESTADOS_ORDEN, TIPOS_ORDEN } from "@/lib/ordenes";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { puede, type Plan } from "@/lib/planes";
+import { momentoParaPrompt } from "@/lib/ia-momento";
 import { inArray } from "drizzle-orm";
 
 /**
@@ -337,6 +338,7 @@ export function construirPrompt(d: {
 
 Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
   );
+  partes.push(momentoParaPrompt());
 
   const datosComite = [
     `Nombre del comité: ${d.comite.nombre}`,

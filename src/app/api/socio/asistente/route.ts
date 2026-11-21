@@ -9,6 +9,7 @@ import { responder } from "@/lib/ia";
 import { cuentasDelSocio } from "@/lib/socio-session";
 import { saldo, formatearPeriodo } from "@/lib/boletas";
 import { puede, type Plan } from "@/lib/planes";
+import { momentoParaPrompt } from "@/lib/ia-momento";
 import {
   contextoServicioSocio,
   seccionesServicio,
@@ -69,6 +70,7 @@ function construirPrompt(datos: {
 
 Háblale en español chileno, cercano y directo, en dos o tres frases.`
   );
+  partes.push(momentoParaPrompt());
 
   // El nombre del comité va como dato, no solo en la presentación: si no, la regla de «solo los datos de arriba» lo deja sin responder.
   partes.push(`Datos del comité:
