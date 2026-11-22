@@ -73,7 +73,6 @@ export const PLANES_COMERCIALES: {
       "IA del chat con más capacidad: 10 millones de tokens al mes (unas 5.000 respuestas) y packs adicionales",
       "Varios administradores con roles",
       { texto: "Conciliación de pagos con la cartola del banco", pronto: true },
-      { texto: "Múltiples sedes o comités", pronto: true },
       "Soporte prioritario",
       "Acompañamiento en la puesta en marcha",
     ],
