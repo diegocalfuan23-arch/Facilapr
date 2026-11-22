@@ -105,7 +105,7 @@ export function PlanesComparados({ planActual }: { planActual: Plan | null }) {
                 <div className="mb-4" />
               ) : (
                 <p className="mb-4 text-[0.78rem] text-muted-foreground">
-                  + IVA{aMedida && " · según tus socios y sedes"}
+                  + IVA{aMedida && " · según tus socios"}
                   {anual && (
                     <>
                       {" · "}
