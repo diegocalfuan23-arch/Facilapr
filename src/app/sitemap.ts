@@ -38,6 +38,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 1,
     },
     {
+      url: `${SITE_URL}/beneficios`,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
       url: `${SITE_URL}/registro`,
       changeFrequency: "monthly",
       priority: 0.8,
