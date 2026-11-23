@@ -24,6 +24,7 @@ import {
   Clock,
   Coins,
   FileText,
+  History,
   Loader2,
   MessageCircle,
   MoreHorizontal,
@@ -38,6 +39,7 @@ import {
 import {
   anularBoleta,
   eliminarBoleta,
+  agregarDeudaAnterior,
   guardarBoleta,
   enviarBoletaPorWhatsApp,
   importarBoletas,
@@ -261,6 +263,7 @@ export function BoletasTabla({
   const [periodo, setPeriodo] = useState("todos");
   const [pagina, setPagina] = useState(1);
   const [creando, setCreando] = useState(false);
+  const [conDeuda, setConDeuda] = useState(false);
   const [editando, setEditando] = useState<BoletaFila | null>(null);
   const [cobrando, setCobrando] = useState<BoletaFila | null>(null);
   const [porEliminar, setPorEliminar] = useState<BoletaFila | null>(null);
@@ -521,6 +524,10 @@ export function BoletasTabla({
           <Button variant="outline" data-tour="bol-importar" onClick={() => setImportando(true)}>
             <Upload />
             Importar CSV
+          </Button>
+          <Button variant="outline" onClick={() => setConDeuda(true)} disabled={socios.length === 0}>
+            <History />
+            Deuda anterior
           </Button>
           <Button
             data-tour="bol-nueva"
@@ -860,6 +867,8 @@ export function BoletasTabla({
 
       <ImportarDialog abierto={importando} onAbiertoChange={setImportando} />
 
+      <DeudaAnteriorDialog abierto={conDeuda} onAbiertoChange={setConDeuda} socios={socios} />
+
       <EnviarWhatsAppDialog
         abierto={paraEnviar !== null}
         onAbiertoChange={(v) => !v && setParaEnviar(null)}
@@ -912,6 +921,71 @@ export function BoletasTabla({
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+/** Registrar lo que un socio debe de un mes anterior: socio, mes, monto y, si se quiere, el vencimiento. */
+function DeudaAnteriorDialog({
+  abierto,
+  onAbiertoChange,
+  socios,
+}: {
+  abierto: boolean;
+  onAbiertoChange: (v: boolean) => void;
+  socios: SocioOpcion[];
+}) {
+  const cliente = useQueryClient();
+  const [estado, accion, pendiente] = useActionState<ResultadoAccion | null, FormData>(async (prev, formData) => {
+    const r = await agregarDeudaAnterior(prev, formData);
+    if (r.ok) {
+      toast.success("Deuda registrada");
+      onAbiertoChange(false);
+      void cliente.invalidateQueries({ queryKey: ["boletas"] });
+    }
+    return r;
+  }, null);
+
+  return (
+    <Dialog open={abierto} onOpenChange={onAbiertoChange}>
+      <DialogContent className="sm:max-w-[460px]">
+        <DialogHeader>
+          <DialogTitle>Deuda anterior</DialogTitle>
+          <DialogDescription>Lo que un socio debe de un mes anterior.</DialogDescription>
+        </DialogHeader>
+
+        <form action={accion} className="flex flex-col gap-4">
+          <SocioBuscador socios={socios} />
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="deudaPeriodo">Mes de la deuda</Label>
+              <Input id="deudaPeriodo" name="periodo" type="month" required />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="deudaMonto">Cuánto debe ($)</Label>
+              <Input id="deudaMonto" name="montoTotal" inputMode="numeric" placeholder="15000" required />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="deudaVence">Venció el · opcional</Label>
+            <Input id="deudaVence" name="fechaVencimiento" type="date" />
+          </div>
+
+          {estado && !estado.ok && <p className="text-[0.88rem] text-destructive">{estado.error}</p>}
+
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="ghost" onClick={() => onAbiertoChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={pendiente}>
+              {pendiente && <Loader2 className="animate-spin" />}
+              Registrar deuda
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 

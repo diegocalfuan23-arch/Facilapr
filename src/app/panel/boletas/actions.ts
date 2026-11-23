@@ -256,6 +256,56 @@ export async function guardarBoleta(
   return { ok: true };
 }
 
+/**
+ * Una deuda de un mes anterior, sin lecturas ni tarifas: el socio, el mes, lo que debe y, si se quiere, cuándo venció.
+ * Crea la misma boleta que «Nueva boleta», pero con solo lo necesario. Si no se indica el vencimiento, es el
+ * último día de ese mes, así que una deuda vieja queda vencida.
+ */
+export async function agregarDeudaAnterior(
+  _prev: ResultadoAccion | null,
+  formData: FormData
+): Promise<ResultadoAccion> {
+  const { apr } = await requireAdmin();
+
+  const socioId = String(formData.get("socioId") ?? "").trim();
+  if (!socioId) return { ok: false, error: "Elige un socio." };
+  if (!(await socioDelApr(socioId, apr.id))) return { ok: false, error: "Ese socio no pertenece a tu comité." };
+
+  const periodo = normalizarPeriodo(String(formData.get("periodo") ?? ""));
+  if (!periodo) return { ok: false, error: "Elige el mes de la deuda." };
+
+  const monto = aEntero(formData.get("montoTotal"));
+  if (monto === null || monto <= 0) return { ok: false, error: "Escribe cuánto debe." };
+  if (monto > 100_000_000) return { ok: false, error: "Ese monto es demasiado alto. Revísalo." };
+
+  const [anio, mes] = periodo.split("-").map(Number);
+  const emision = new Date(Date.UTC(anio, mes - 1, 1, 12));
+  const ultimoDia = new Date(Date.UTC(anio, mes, 0, 12));
+  const vence = aFecha(formData.get("fechaVencimiento")) ?? ultimoDia;
+  if (vence < emision) return { ok: false, error: "El vencimiento no puede ser anterior al mes de la deuda." };
+
+  try {
+    await db.insert(boletas).values({
+      socioId,
+      periodo,
+      montoTotal: monto,
+      montoPagado: 0,
+      fechaEmision: emision,
+      fechaVencimiento: vence,
+      observacion: "Deuda anterior",
+      estado: estadoQueCorresponde(monto, 0, vence, "PENDIENTE"),
+    });
+  } catch (e) {
+    if (esDuplicadoDePeriodo(e)) {
+      return { ok: false, error: "Ese socio ya tiene una boleta de ese mes. Edítala desde la lista." };
+    }
+    throw e;
+  }
+
+  revalidatePath("/panel");
+  return { ok: true };
+}
+
 /** Pago dentro del comité del usuario; null si no existe o es de otro comité. */
 async function pagoDelComite(aprId: string, pagoId: string) {
   const [fila] = await db
