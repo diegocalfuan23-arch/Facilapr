@@ -798,6 +798,13 @@ export async function importarBoletas(
     return { ok: false, error: "El archivo es demasiado grande (máximo 2 MB)." };
   }
 
+  // Si la directiva elige el mes en la pantalla, vale para todas las filas: el archivo no necesita la columna.
+  const mesElegido = String(formData.get("periodo") ?? "").trim();
+  const periodoElegido = mesElegido ? normalizarPeriodo(mesElegido) : null;
+  if (mesElegido && !periodoElegido) {
+    return { ok: false, error: "El mes no es válido. Elígelo de la lista o escríbelo así: 2026-08." };
+  }
+
   // CSV o Excel (.xlsx): desde aquí todo trabaja sobre filas de texto.
   const tabla = await leerTabla(archivo);
   if (!tabla.ok) return { ok: false, error: tabla.error };
@@ -829,11 +836,11 @@ export async function importarBoletas(
   const iFechaPago = col("fechapago", "fecha pago", "fecha de pago");
   const iMedioPago = col("mediopago", "medio pago", "medio de pago", "medio");
 
-  if ((iRut < 0 && iNumero < 0) || iPeriodo < 0) {
+  if ((iRut < 0 && iNumero < 0) || (iPeriodo < 0 && !periodoElegido)) {
     return {
       ok: false,
       error:
-        "El archivo debe tener al menos las columnas: periodo y rut (o numeroCliente, si hay socios con varios arranques).",
+        "El archivo debe tener al menos las columnas rut (o numeroCliente, si hay socios con varios arranques) y periodo. Si no trae el mes, elígelo en la pantalla.",
     };
   }
 
@@ -897,7 +904,7 @@ export async function importarBoletas(
       }
     }
 
-    const periodo = normalizarPeriodo(campos[iPeriodo] ?? "");
+    const periodo = periodoElegido ?? normalizarPeriodo(campos[iPeriodo] ?? "");
     if (!periodo) {
       omitidas.push({ linea: nLinea, motivo: `Período inválido: ${campos[iPeriodo] ?? "vacío"}` });
       continue;

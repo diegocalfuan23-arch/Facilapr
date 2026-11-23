@@ -1458,8 +1458,9 @@ function ImportarDialog({
           <div className="rounded-lg border border-border/60 bg-muted/40 p-4 text-[0.85rem]">
             <p className="font-medium">Columnas del archivo</p>
             <p className="mt-1.5 text-muted-foreground">
-              Obligatorias: <code className="font-mono">rut</code>,{" "}
-              <code className="font-mono">periodo</code>
+              Obligatoria: <code className="font-mono">rut</code> (o{" "}
+              <code className="font-mono">numeroCliente</code>) y{" "}
+              <code className="font-mono">periodo</code>, salvo que elijas el mes abajo.
             </p>
             <p className="mt-1 text-muted-foreground">
               Opcionales: <code className="font-mono">monto</code>,{" "}
@@ -1476,6 +1477,12 @@ function ImportarDialog({
               Reimportar el mismo período actualiza las boletas en vez de
               duplicarlas, y no borra los pagos ya registrados.
             </p>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="mesImportar">Mes de las boletas · opcional</Label>
+            <Input id="mesImportar" name="periodo" type="month" placeholder="2026-08" />
+            <p className="text-xs text-muted-foreground">Si lo eliges, vale para todas las filas y el archivo no necesita la columna periodo.</p>
           </div>
 
           <div className="flex flex-col gap-1.5">
