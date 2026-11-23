@@ -3,11 +3,11 @@ import type { Plan } from "@/lib/planes";
 /**
  * Cuántos mensajes automáticos de WhatsApp (por la API de Meta, desde el número de Facilapr)
  * incluye cada plan al mes. Meta cobra cerca de $17,66 por mensaje de utilidad en Chile
- * (tarifa vigente desde el 1 de octubre de 2026): 100 ≈ $1.800, 300 ≈ $5.300, 1.000 ≈ $17.700.
+ * (tarifa vigente desde el 1 de octubre de 2026): 150 ≈ $2.650, 300 ≈ $5.300, 1.000 ≈ $17.700.
  * Cuando se acaban, el envío cae al manual con wa.me. Para cambiar un tope basta con editar este número.
  */
 export const MENSAJES_WHATSAPP_POR_PLAN: Record<Plan, number> = {
-  BASICO: 100,
+  BASICO: 150,
   ESTANDAR: 300,
   PREMIUM: 1000,
 };
