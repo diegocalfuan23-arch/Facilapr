@@ -267,12 +267,7 @@ function FormularioLectura({
       </div>
 
       {/* Sin lectura anterior: puede ser el punto de partida del medidor. La directiva la aprueba sin cobrar nada. */}
-      {!anterior && !cambio && (
-        <label className="mt-3 flex cursor-pointer items-center gap-2.5 text-sm font-medium">
-          <input type="checkbox" name="comoInicial" defaultChecked className="size-4 shrink-0 accent-primary" />
-          Lectura inicial
-        </label>
-      )}
+      {!anterior && !cambio && <input type="hidden" name="comoInicial" value="on" />}
 
       {bloqueado ? (
         <p role="alert" className="mt-2 flex items-start gap-1.5 text-[13px] leading-snug text-[#A32020]">
