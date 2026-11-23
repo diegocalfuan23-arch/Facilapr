@@ -1,8 +1,9 @@
-import { and, asc, eq, inArray, ne, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, sql, type SQL } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { aprs, boletas, socios } from "@/lib/db/schema";
 import { puede, type Plan } from "@/lib/planes";
 import { qrComoImagen } from "@/lib/qr";
+import { formatearPeriodo, saldo } from "@/lib/boletas";
 
 /**
  * Todo lo que necesita imprimir un recibo, ya resuelto. El recibo es el
@@ -44,12 +45,32 @@ export type ReciboDatos = {
    * tenga cámara. Solo en comités con chat (Estándar y Grande) y con dirección propia.
    */
   portal: { url: string; corta: string; qr: string } | null;
+  /** Lo que el socio aún debe de meses anteriores a este, del más antiguo al más reciente. */
+  deudaAnterior: { periodo: string; monto: number }[];
 };
+
+/** Hasta cuántos meses atrasados se listan uno por uno; si son más, se muestran juntos en una sola línea. */
+const MAX_MESES_LISTADOS = 3;
+
+/**
+ * La deuda de meses anteriores lista para imprimir: una línea por mes (o una sola si son muchos) y el total
+ * a pagar, que suma lo que falta de esta boleta. Sin deuda anterior devuelve null y el recibo queda como siempre.
+ */
+export function resumenDeudaAnterior(r: Pick<ReciboDatos, "deudaAnterior" | "montoTotal" | "montoPagado" | "estado">) {
+  if (r.deudaAnterior.length === 0 || r.estado === "ANULADA") return null;
+  const suma = r.deudaAnterior.reduce((s, d) => s + d.monto, 0);
+  const lineas =
+    r.deudaAnterior.length <= MAX_MESES_LISTADOS
+      ? r.deudaAnterior.map((d) => ({ etiqueta: formatearPeriodo(d.periodo), monto: d.monto }))
+      : [{ etiqueta: `Meses anteriores (${r.deudaAnterior.length})`, monto: suma }];
+  return { lineas, suma, totalAPagar: suma + saldo(r.montoTotal, r.montoPagado) };
+}
 
 async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
   const filas = await db
     .select({
       id: boletas.id,
+      socioId: boletas.socioId,
       periodo: boletas.periodo,
       fechaEmision: boletas.fechaEmision,
       fechaVencimiento: boletas.fechaVencimiento,
@@ -82,6 +103,16 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
     .innerJoin(aprs, eq(socios.aprId, aprs.id))
     .where(condicion)
     .orderBy(asc(socios.nombre));
+
+  // Lo que cada socio debe de otros meses: una consulta para todos los recibos.
+  const idsSocio = [...new Set(filas.map((f) => f.socioId))];
+  const pendientes = idsSocio.length
+    ? await db
+        .select({ socioId: boletas.socioId, periodo: boletas.periodo, montoTotal: boletas.montoTotal, montoPagado: boletas.montoPagado })
+        .from(boletas)
+        .where(and(inArray(boletas.socioId, idsSocio), ne(boletas.estado, "ANULADA"), sql`${boletas.montoTotal} > ${boletas.montoPagado}`))
+        .orderBy(asc(boletas.periodo))
+    : [];
 
   const dominio = process.env.NEXT_PUBLIC_DOMINIO_RAIZ ?? "facilapr.cl";
   const portales = new Map<string, ReciboDatos["portal"]>();
@@ -125,6 +156,9 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
     montoPagado: f.montoPagado,
     estado: f.estado,
     portal: f.comiteSlug ? (portales.get(f.comiteSlug) ?? null) : null,
+    deudaAnterior: pendientes
+      .filter((p) => p.socioId === f.socioId && p.periodo < f.periodo)
+      .map((p) => ({ periodo: p.periodo, monto: saldo(p.montoTotal, p.montoPagado) })),
   }));
 }
 

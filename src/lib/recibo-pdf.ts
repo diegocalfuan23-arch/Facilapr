@@ -8,7 +8,7 @@ import {
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 import { bytesDeLogo } from "@/lib/logo";
-import type { ReciboDatos } from "@/lib/recibo";
+import { resumenDeudaAnterior, type ReciboDatos } from "@/lib/recibo";
 
 /**
  * Recibo de agua en PDF (A5). Es el comprobante de cobro del comité, no un
@@ -233,6 +233,14 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
     fila("Pagado", dinero(r.montoPagado));
     const porPagar = saldo(r.montoTotal, r.montoPagado);
     if (porPagar > 0) fila("Por pagar", dinero(porPagar), true);
+  }
+
+  // ---- Deuda de meses anteriores: se suma para que el socio sepa cuánto debe en total.
+  const anterior = resumenDeudaAnterior(r);
+  if (anterior) {
+    y -= 4;
+    for (const l of anterior.lineas) fila(`Deuda ${l.etiqueta}`, dinero(l.monto));
+    fila("TOTAL A PAGAR", dinero(anterior.totalAPagar), true);
   }
 
   // ---- Estado.

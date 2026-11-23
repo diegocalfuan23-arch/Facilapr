@@ -1,6 +1,6 @@
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
-import type { ReciboDatos } from "@/lib/recibo";
+import { resumenDeudaAnterior, type ReciboDatos } from "@/lib/recibo";
 
 const clp = new Intl.NumberFormat("es-CL", {
   style: "currency",
@@ -34,6 +34,7 @@ export function Recibo({ r }: { r: ReciboDatos }) {
     r.cargoFijo !== null &&
     r.valorM3 !== null;
   const porPagar = saldo(r.montoTotal, r.montoPagado);
+  const anterior = resumenDeudaAnterior(r);
 
   return (
     <article className="break-inside-avoid rounded-md border border-neutral-400 bg-white p-5 text-[0.82rem] leading-snug text-neutral-900 print:rounded-none print:border-neutral-700">
@@ -149,6 +150,19 @@ export function Recibo({ r }: { r: ReciboDatos }) {
               <tr className="font-semibold">
                 <td className="py-0.5">Saldo por pagar</td>
                 <td className="py-0.5 text-right">{clp.format(porPagar)}</td>
+              </tr>
+            )}
+            {anterior &&
+              anterior.lineas.map((l) => (
+                <tr key={l.etiqueta}>
+                  <td className="py-0.5">Deuda {l.etiqueta}</td>
+                  <td className="py-0.5 text-right">{clp.format(l.monto)}</td>
+                </tr>
+              ))}
+            {anterior && (
+              <tr className="border-t border-neutral-400 text-[0.95rem] font-bold">
+                <td className="pt-1.5">Total a pagar</td>
+                <td className="pt-1.5 text-right">{clp.format(anterior.totalAPagar)}</td>
               </tr>
             )}
           </tbody>
