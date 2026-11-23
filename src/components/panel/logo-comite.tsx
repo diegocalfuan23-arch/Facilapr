@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { LOGO_MAX_BYTES } from "@/lib/logo";
 
 /** Lados a los que se intenta achicar: el primero que quede liviano se usa. */
-const LADOS = [320, 220, 150];
+const LADOS = [320, 220, 150, 120, 96];
 
 /**
  * Achica la imagen en el navegador a un PNG chico (conserva la transparencia).
