@@ -50,6 +50,30 @@ export function seguro(fuente: PDFFont, texto: string) {
 }
 
 /**
+ * El nombre del comité para el encabezado: lo achica (de `tamMax` a 12 pt) hasta que cabe en `ancho` pt sin
+ * pisar el título de la derecha y, si ni así cabe, lo parte en dos líneas (la segunda con «…» si se pasa).
+ */
+export function nombreEnEncabezado(fuente: PDFFont, nombre: string, tamMax: number, ancho: number) {
+  const limpio = seguro(fuente, nombre).trim();
+  const mide = (t: string, tam: number) => fuente.widthOfTextAtSize(t, tam);
+  for (let tam = tamMax; tam >= 12; tam--) {
+    if (mide(limpio, tam) <= ancho) return { tam, lineas: [limpio] };
+  }
+  const tam = Math.min(tamMax, 12);
+  const palabras = limpio.split(" ");
+  let primera = "";
+  let i = 0;
+  while (i < palabras.length && mide(primera ? `${primera} ${palabras[i]}` : palabras[i], tam) <= ancho) {
+    primera = primera ? `${primera} ${palabras[i]}` : palabras[i];
+    i++;
+  }
+  if (!primera) return { tam, lineas: [limpio] };
+  let resto = palabras.slice(i).join(" ");
+  while (resto.length > 1 && mide(resto, tam) > ancho) resto = `${resto.slice(0, -2).trimEnd()}…`;
+  return { tam, lineas: resto ? [primera, resto] : [primera] };
+}
+
+/**
  * Dibuja el logo del comité en la esquina del encabezado, dentro de un cuadrado de
  * `lado` pt y sin deformarlo. Devuelve cuánto hay que correr el texto a su derecha
  * (0 si no hay logo, o si la imagen está dañada: un logo malo no debe romper el recibo).
@@ -139,9 +163,14 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
   // ---- Encabezado: comité a la izquierda, datos del recibo a la derecha.
   const derechaX = ancho - margen;
   const izq = margen + (await dibujarLogo(pdf, page, r.comite.logo, margen, y + 11, 44));
-  texto(r.comite.nombre, izq, 15, { fuente: negrita });
+  const nombre = nombreEnEncabezado(negrita, r.comite.nombre, 15, derechaX - negrita.widthOfTextAtSize("RECIBO DE AGUA", 11) - 12 - izq);
+  texto(nombre.lineas[0], izq, nombre.tam, { fuente: negrita });
   texto("RECIBO DE AGUA", derechaX, 11, { fuente: negrita, derecha: true });
   y -= 15;
+  for (const l of nombre.lineas.slice(1)) {
+    texto(l, izq, nombre.tam, { fuente: negrita });
+    y -= 15;
+  }
 
   const subtitulos = [
     r.comite.razonSocial,

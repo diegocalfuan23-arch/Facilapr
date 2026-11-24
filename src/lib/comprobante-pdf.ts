@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 import { textoConcepto, textoMedioPago } from "@/lib/pagos";
-import { dibujarLogo, seguro } from "@/lib/recibo-pdf";
+import { dibujarLogo, nombreEnEncabezado, seguro } from "@/lib/recibo-pdf";
 import type { ComprobanteDatos } from "@/lib/comprobante";
 
 /**
@@ -74,9 +74,14 @@ export async function generarComprobantePdf(c: ComprobanteDatos): Promise<Uint8A
 
   // ---- Encabezado.
   const izq = margen + (await dibujarLogo(pdf, page, c.comite.logo, margen, y + 11, 44));
-  texto(c.comite.nombre, izq, 15, { fuente: negrita });
+  const nombre = nombreEnEncabezado(negrita, c.comite.nombre, 15, derechaX - negrita.widthOfTextAtSize("COMPROBANTE DE PAGO", 11) - 12 - izq);
+  texto(nombre.lineas[0], izq, nombre.tam, { fuente: negrita });
   texto("COMPROBANTE DE PAGO", derechaX, 11, { fuente: negrita, derecha: true });
   y -= 15;
+  for (const l of nombre.lineas.slice(1)) {
+    texto(l, izq, nombre.tam, { fuente: negrita });
+    y -= 15;
+  }
   const subtitulos = [
     c.comite.razonSocial,
     [c.comite.rut ? `RUT ${formatearRut(c.comite.rut)}` : null, c.comite.telefono]
