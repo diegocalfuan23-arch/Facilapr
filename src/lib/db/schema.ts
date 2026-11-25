@@ -1874,3 +1874,58 @@ export const paradaLabores = pgTable(
   },
   (table) => [uniqueIndex("ParadaLabor_paradaId_laborId_key").on(table.paradaId, table.laborId), index("ParadaLabor_laborId_idx").on(table.laborId), index("ParadaLabor_aprId_idx").on(table.aprId)]
 );
+
+/**
+ * Un comité como emisor de boletas electrónicas. El certificado y su clave van cifrados (ver lib/sii/seguridad)
+ * y nunca se envían al navegador.
+ */
+export const siiConfigs = pgTable(
+  "SiiConfig",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    rutEmisor: text("rutEmisor"),
+    razonSocial: text("razonSocial"),
+    giro: text("giro"),
+    direccion: text("direccion"),
+    comuna: text("comuna"),
+    /** 39 afecta o 41 exenta. */
+    tipoBoleta: integer("tipoBoleta"),
+    resolucionNumero: integer("resolucionNumero"),
+    resolucionFecha: text("resolucionFecha"),
+    certificado: text("certificado"),
+    certificadoClave: text("certificadoClave"),
+    certificadoNombre: text("certificadoNombre"),
+    /** El dueño del certificado y cuándo autorizó que Facilapr lo use. */
+    representanteNombre: text("representanteNombre"),
+    representanteRut: text("representanteRut"),
+    autorizadoAt: timestamp("autorizadoAt", { precision: 3 }),
+    autorizadoPorId: text("autorizadoPorId"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("SiiConfig_aprId_key").on(table.aprId)]
+);
+
+/** Un tramo de folios (CAF) que el SII le entregó a un comité. El archivo va cifrado: trae una llave privada. */
+export const siiFolios = pgTable(
+  "SiiFolios",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    tipo: integer("tipo").notNull(),
+    desde: integer("desde").notNull(),
+    hasta: integer("hasta").notNull(),
+    /** El próximo folio por usar; mayor que `hasta` cuando se agotó. */
+    siguiente: integer("siguiente").notNull(),
+    fechaAutorizacion: text("fechaAutorizacion").notNull(),
+    caf: text("caf").notNull(),
+    archivoNombre: text("archivoNombre"),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("SiiFolios_apr_tipo_desde_key").on(table.aprId, table.tipo, table.desde)]
+);
