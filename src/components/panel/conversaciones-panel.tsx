@@ -14,6 +14,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { INTERVALO_RAPIDO } from "@/lib/avisos-datos";
 import type { ConversacionResumen } from "@/lib/conversaciones-comun";
+import { enlaceWhatsApp } from "@/lib/whatsapp";
 import { cn } from "@/lib/utils";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -99,7 +100,16 @@ function textoLinkPago(c: ConversacionResumen, f: FichaSocio | null | undefined)
   return f?.portal ? `Hola ${p}, puedes ver y pagar ${saldo} en línea desde tu cuenta: ${f.portal}` : `Hola ${p}, ${c.deuda > 0 ? `tu saldo es de ${clp(c.deuda)}` : "estás al día"}. ¿Te enviamos los datos para pagar?`;
 }
 
-export function ConversacionesPanel({ conversaciones: iniciales, ia }: { conversaciones: ConversacionResumen[]; ia: IaChatAjustes }) {
+export function ConversacionesPanel({
+  conversaciones: iniciales,
+  contactos,
+  ia,
+}: {
+  conversaciones: ConversacionResumen[];
+  /** Socios con WhatsApp para escribirles; vacío si el comité no ha conectado su número. */
+  contactos: ConversacionResumen[];
+  ia: IaChatAjustes;
+}) {
   const cliente = useQueryClient();
   // Parte con lo que trajo el servidor y se actualiza sola: cada pocos segundos y al volver a la pestaña.
   const { data: conversaciones } = useQuery({ queryKey: ["conversaciones"], queryFn: () => consultarConversaciones(), initialData: iniciales, refetchInterval: INTERVALO_RAPIDO / 2 });
@@ -152,7 +162,11 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
     return () => window.removeEventListener("keydown", alTeclear);
   }, [fichaAbierta]);
 
-  if (conversaciones.length === 0) {
+  // Primero las conversaciones; después, los socios con WhatsApp que aún no tienen mensajes.
+  const conMensajes = new Set(conversaciones.map((c) => c.socioId));
+  const todas = [...conversaciones, ...contactos.filter((c) => !conMensajes.has(c.socioId))];
+
+  if (todas.length === 0) {
     return (
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -168,12 +182,12 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
   const q = busqueda.trim().toLowerCase();
   const sinLeer = conversaciones.filter((c) => noLeidosDe(c) > 0).length;
   const paraTi = conversaciones.filter((c) => c.necesitaHumano || !conIa(c.socioId)).length;
-  const lista = conversaciones.filter((c) => {
+  const lista = todas.filter((c) => {
     if (filtro === "leer" && !(noLeidosDe(c) > 0)) return false;
-    if (filtro === "atencion" && !(c.necesitaHumano || !conIa(c.socioId))) return false;
+    if (filtro === "atencion" && !(conMensajes.has(c.socioId) && (c.necesitaHumano || !conIa(c.socioId)))) return false;
     return !q || `${c.nombre} ${c.numeroCliente ?? ""} ${c.rut ?? ""}`.toLowerCase().includes(q);
   });
-  const socio = conversaciones.find((c) => c.socioId === seleccionado);
+  const socio = todas.find((c) => c.socioId === seleccionado);
 
   // El botón de información: en pantalla ancha muestra u oculta la ficha del costado; en las angostas la abre como hoja.
   const alternarFicha = () => {
@@ -216,7 +230,7 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
             <div role="tablist" aria-label="Filtro" className="grid grid-cols-3 gap-1 rounded-lg bg-[#F4F3F9] p-1">
               {(
                 [
-                  ["todas", "Todas", conversaciones.length],
+                  ["todas", "Todas", todas.length],
                   ["leer", "Sin leer", sinLeer],
                   ["atencion", "Para ti", paraTi],
                 ] as const
@@ -242,14 +256,14 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
                     aria-current={activo ? "true" : undefined}
                     className={cn("flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors", activo ? "bg-[#F1EEFD]" : "hover:bg-[#F8F7FC]")}
                   >
-                    <Avatar nombre={c.nombre} id={c.socioId} ia={conIa(c.socioId)} />
+                    <Avatar nombre={c.nombre} id={c.socioId} ia={conMensajes.has(c.socioId) && conIa(c.socioId)} />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-baseline gap-2">
                         <span className={cn("min-w-0 flex-1 truncate text-sm", noLeidos ? "font-bold" : "font-semibold")}>{c.nombre}</span>
                         {c.ultimaFecha && <span className={cn("shrink-0 text-[11px]", noLeidos ? "font-semibold text-[#3A0CE3]" : GRIS)}>{cuando(new Date(c.ultimaFecha))}</span>}
                       </span>
                       <span className="mt-0.5 flex items-center gap-2">
-                        <span className={cn("min-w-0 flex-1 truncate text-[13px]", noLeidos ? "text-[#15132B]" : GRIS)}>{c.ultimoMensaje}</span>
+                        <span className={cn("min-w-0 flex-1 truncate text-[13px]", noLeidos ? "text-[#15132B]" : GRIS)}>{c.ultimoMensaje || c.telefono}</span>
                         {noLeidos > 0 && <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-[#3A0CE3] text-[11px] font-bold text-white">{noLeidos}</span>}
                       </span>
                       {c.necesitaHumano && (
@@ -284,7 +298,7 @@ export function ConversacionesPanel({ conversaciones: iniciales, ia }: { convers
               insertar={insertar}
             />
           ) : (
-            <div className="flex flex-1 items-center justify-center text-[0.9rem] text-muted-foreground">Elige una conversación</div>
+            <div className="flex flex-1 items-center justify-center px-4 text-center text-[0.9rem] text-muted-foreground">Selecciona un socio para enviar un mensaje</div>
           )}
         </section>
 
@@ -514,9 +528,19 @@ function ChatConSocio({
     el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
   }, [entrada]);
 
+  const sinChat = !socio.ultimoMensaje && mensajes.length === 0;
+
   function enviar() {
     const texto = entrada.trim();
     if (!texto || enviando) return;
+    // A quien nunca ha escrito, Meta no deja enviarle texto libre desde la API: se abre WhatsApp con el mensaje.
+    if (sinChat && !editando) {
+      if (!socio.telefono) return;
+      window.open(enlaceWhatsApp(socio.telefono, texto), "_blank", "noopener,noreferrer");
+      setEntrada("");
+      alDejarDeEscribir();
+      return;
+    }
     setEntrada("");
     alDejarDeEscribir();
     if (editando) {
@@ -757,6 +781,7 @@ function ChatConSocio({
             </button>
           </div>
         )}
+        {sinChat && <p className={cn("mb-2 text-xs", GRIS)}>El mensaje se abre en WhatsApp.</p>}
         <form
           onSubmit={(e) => {
             e.preventDefault();

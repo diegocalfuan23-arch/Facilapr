@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/apr-session";
 import { ConversacionesPanel } from "@/components/panel/conversaciones-panel";
 import { ConsultasProvider } from "@/components/panel/consultas-provider";
-import { listarConversaciones } from "@/lib/conversaciones";
+import { listarContactosWhatsapp, listarConversaciones } from "@/lib/conversaciones";
+import { credencialesDelComite } from "@/lib/whatsapp-conexion";
 import { usoIaChat } from "@/lib/ia-chat-cuota";
 import { puede, NOMBRE_PLAN, planMinimoPara, type Plan } from "@/lib/planes";
 import { MessageCircle } from "lucide-react";
@@ -39,6 +40,8 @@ export default async function ConversacionesPage() {
   }
 
   const conversaciones = await listarConversaciones(apr.id);
+  // Con su WhatsApp conectado, el comité puede elegir a cualquier socio con teléfono, aunque nunca haya escrito.
+  const contactos = (await credencialesDelComite(apr.id)) ? await listarContactosWhatsapp(apr.id) : [];
 
   return (
     <ConsultasProvider>
@@ -52,6 +55,7 @@ export default async function ConversacionesPage() {
           : null,
       }}
       conversaciones={conversaciones}
+      contactos={contactos}
     />
     </ConsultasProvider>
   );

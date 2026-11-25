@@ -1,6 +1,50 @@
-import { sql } from "drizzle-orm";
+import { and, asc, eq, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
+import { boletas, socios } from "@/lib/db/schema";
+import { telefonoValidoParaWhatsApp } from "@/lib/whatsapp";
 import type { ConversacionResumen } from "@/lib/conversaciones-comun";
+
+/**
+ * Los socios con un teléfono que sirve para WhatsApp, por nombre, con la forma de una conversación sin mensajes:
+ * así se puede elegir a cualquiera para escribirle.
+ */
+export async function listarContactosWhatsapp(aprId: string): Promise<ConversacionResumen[]> {
+  const [todos, pendientes] = await Promise.all([
+    db.query.socios.findMany({
+      where: eq(socios.aprId, aprId),
+      columns: { id: true, nombre: true, rut: true, numeroCliente: true, tipo: true, telefono: true, iaPausada: true, activo: true },
+      orderBy: [asc(socios.nombre)],
+    }),
+    db
+      .select({ socioId: boletas.socioId, deuda: sql<number>`sum(${boletas.montoTotal} - ${boletas.montoPagado})::int` })
+      .from(boletas)
+      .innerJoin(socios, eq(socios.id, boletas.socioId))
+      .where(and(eq(socios.aprId, aprId), ne(boletas.estado, "ANULADA"), sql`${boletas.montoPagado} < ${boletas.montoTotal}`))
+      .groupBy(boletas.socioId),
+  ]);
+
+  // Una persona con varios arranques comparte el RUT: debe la suma de todos.
+  const deudaDe = new Map(pendientes.map((p) => [p.socioId, p.deuda]));
+  const porPersona = new Map<string, number>();
+  for (const s of todos) porPersona.set(s.rut ?? s.id, (porPersona.get(s.rut ?? s.id) ?? 0) + (deudaDe.get(s.id) ?? 0));
+
+  return todos
+    .filter((s) => s.activo && telefonoValidoParaWhatsApp(s.telefono))
+    .map((s) => ({
+      socioId: s.id,
+      nombre: s.nombre,
+      ultimoMensaje: "",
+      ultimaFecha: null,
+      sinLeer: 0,
+      necesitaHumano: false,
+      rut: s.rut,
+      numeroCliente: s.numeroCliente,
+      tipo: s.tipo,
+      telefono: s.telefono,
+      deuda: porPersona.get(s.rut ?? s.id) ?? 0,
+      iaPausada: s.iaPausada,
+    }));
+}
 
 /** Las conversaciones del comité: primero las que esperan a una persona; después, las más recientes. */
 export async function listarConversaciones(aprId: string): Promise<ConversacionResumen[]> {
