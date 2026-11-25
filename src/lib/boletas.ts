@@ -11,8 +11,17 @@ export type Tarifas = {
   valorM3: number | null;
 };
 
-/** El subsidio municipal al agua de un arranque: qué porcentaje se rebaja y hasta cuántos m³ del mes. */
-export type ReglaSubsidio = { porcentaje: number; topeM3: number };
+/**
+ * El subsidio de un arranque: un porcentaje de la boleta (o solo hasta cierto consumo, si tiene tope) o un
+ * monto fijo en pesos.
+ */
+export type ReglaSubsidio = {
+  tipo: "PORCENTAJE" | "MONTO";
+  /** El porcentaje (1 a 100) o los pesos, según el tipo. */
+  valor: number;
+  /** Solo con porcentaje: hasta cuántos m³ del mes cubre; null = sobre el total. */
+  topeM3: number | null;
+};
 
 /** La regla que rige en un mes («AAAA-MM»); null si no hay subsidio o está fuera de su vigencia. */
 export function subsidioVigente(
@@ -20,13 +29,22 @@ export function subsidioVigente(
   periodo: string
 ): ReglaSubsidio | null {
   if (!s || periodo < s.desde || (s.hasta && periodo > s.hasta)) return null;
-  return { porcentaje: s.porcentaje, topeM3: s.topeM3 };
+  return { tipo: s.tipo, valor: s.valor, topeM3: s.topeM3 };
 }
 
-/** Lo que paga la municipalidad: el porcentaje del cargo fijo más el consumo hasta el tope. */
+/** «50% del total», «50% hasta 15 m³» o «$5.000». */
+export function textoSubsidio(r: ReglaSubsidio) {
+  if (r.tipo === "MONTO") return `$${r.valor.toLocaleString("es-CL")}`;
+  return r.topeM3 === null ? `${r.valor}% del total` : `${r.valor}% hasta ${r.topeM3} m³`;
+}
+
+/** Lo que se descuenta de la boleta y se le cobra a la municipalidad. Nunca más que la boleta. */
 export function montoDeSubsidio(cargoFijo: number, valorM3: number, consumoM3: number, regla: ReglaSubsidio | null) {
   if (!regla) return 0;
-  return Math.round(((cargoFijo + Math.min(consumoM3, regla.topeM3) * valorM3) * regla.porcentaje) / 100);
+  const total = cargoFijo + consumoM3 * valorM3;
+  if (regla.tipo === "MONTO") return Math.min(regla.valor, total);
+  const base = regla.topeM3 === null ? total : cargoFijo + Math.min(consumoM3, regla.topeM3) * valorM3;
+  return Math.min(Math.round((base * regla.valor) / 100), total);
 }
 
 export type CalculoBoleta = {

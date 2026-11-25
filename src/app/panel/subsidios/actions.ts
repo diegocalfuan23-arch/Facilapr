@@ -10,7 +10,7 @@ import { subsidiosDelApr } from "@/lib/subsidios";
 
 export type ResultadoSubsidio = { ok: true } | { ok: false; error: string };
 
-const entero = (v: FormDataEntryValue | null) => {
+const entero = (v: FormDataEntryValue | string | null) => {
   const t = String(v ?? "").trim();
   return /^\d+$/.test(t) ? Number(t) : null;
 };
@@ -25,10 +25,15 @@ export async function guardarSubsidio(_prev: ResultadoSubsidio | null, formData:
     : null;
   if (!socio) return { ok: false, error: "Elige un socio." };
 
-  const porcentaje = entero(formData.get("porcentaje"));
-  if (porcentaje === null || porcentaje < 1 || porcentaje > 100) return { ok: false, error: "El porcentaje va de 1 a 100." };
-  const topeM3 = entero(formData.get("topeM3"));
-  if (topeM3 === null || topeM3 < 1 || topeM3 > 100) return { ok: false, error: "El tope va de 1 a 100 m³." };
+  const tipo = formData.get("tipo") === "MONTO" ? ("MONTO" as const) : ("PORCENTAJE" as const);
+  // En pesos se acepta escrito con puntos o con $: «5.000».
+  const valor = entero(String(formData.get("valor") ?? "").replace(/[$.\s%]/g, ""));
+  if (tipo === "PORCENTAJE" && (valor === null || valor < 1 || valor > 100)) return { ok: false, error: "El porcentaje va de 1 a 100." };
+  if (valor === null || valor < 1 || valor > 10_000_000) return { ok: false, error: "Escribe el monto del descuento." };
+
+  const textoTope = tipo === "PORCENTAJE" ? String(formData.get("topeM3") ?? "").trim() : "";
+  const topeM3 = textoTope ? entero(textoTope) : null;
+  if (textoTope && (topeM3 === null || topeM3 < 1 || topeM3 > 100)) return { ok: false, error: "El tope va de 1 a 100 m³." };
 
   const desde = normalizarPeriodo(String(formData.get("desde") ?? ""));
   if (!desde) return { ok: false, error: "Elige desde qué mes rige." };
@@ -38,7 +43,7 @@ export async function guardarSubsidio(_prev: ResultadoSubsidio | null, formData:
   if (hasta && hasta < desde) return { ok: false, error: "El término no puede ser anterior al inicio." };
 
   const decreto = String(formData.get("decreto") ?? "").trim().slice(0, 60) || null;
-  const valores = { porcentaje, topeM3, desde, hasta, decreto, updatedAt: new Date() };
+  const valores = { tipo, valor, topeM3, desde, hasta, decreto, updatedAt: new Date() };
 
   await db
     .insert(subsidios)

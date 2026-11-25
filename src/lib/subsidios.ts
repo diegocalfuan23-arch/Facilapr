@@ -14,7 +14,8 @@ export async function subsidiosDelApr(aprId: string) {
   const filas = await db
     .select({
       socioId: subsidios.socioId,
-      porcentaje: subsidios.porcentaje,
+      tipo: subsidios.tipo,
+      valor: subsidios.valor,
       topeM3: subsidios.topeM3,
       desde: subsidios.desde,
       hasta: subsidios.hasta,

@@ -249,8 +249,8 @@ export const sociosRelations = relations(socios, ({ many, one }) => ({
 }));
 
 /**
- * El subsidio municipal al agua potable de un arranque (Ley 18.778): qué porcentaje cubre, hasta cuántos m³
- * y entre qué meses. Uno por arranque.
+ * El subsidio al agua potable de un arranque (Ley 18.778): un porcentaje o un monto fijo, y entre qué meses
+ * rige. Uno por arranque.
  */
 export const subsidios = pgTable(
   "Subsidio",
@@ -259,8 +259,11 @@ export const subsidios = pgTable(
     socioId: text("socioId")
       .notNull()
       .references(() => socios.id, { onDelete: "cascade" }),
-    porcentaje: integer("porcentaje").notNull(),
-    topeM3: integer("topeM3").notNull().default(15),
+    tipo: text("tipo").$type<"PORCENTAJE" | "MONTO">().notNull().default("PORCENTAJE"),
+    /** El porcentaje o los pesos, según el tipo. */
+    valor: integer("valor").notNull(),
+    /** Solo con porcentaje: hasta cuántos m³ cubre; null = sobre el total. */
+    topeM3: integer("topeM3"),
     /** Mes «AAAA-MM» desde el que rige. */
     desde: text("desde").notNull(),
     /** Último mes en que rige; null = sin término anotado. */

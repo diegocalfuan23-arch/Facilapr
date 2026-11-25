@@ -10,17 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { SocioBuscador, type OpcionSocio } from "@/components/panel/socio-buscador";
-import { formatearPeriodo } from "@/lib/boletas";
+import { formatearPeriodo, textoSubsidio, type ReglaSubsidio } from "@/lib/boletas";
 import { formatearRut } from "@/lib/formato";
 
-export type Beneficiario = {
+export type Beneficiario = ReglaSubsidio & {
   id: string;
   socioId: string;
   nombre: string;
   rut: string | null;
   numeroCliente: string | null;
-  porcentaje: number;
-  topeM3: number;
   desde: string;
   hasta: string | null;
   decreto: string | null;
@@ -58,15 +56,14 @@ export function SubsidiosVista({
   const total = conSubsidio.reduce((s, b) => s + b.boleta!.montoSubsidio, 0);
 
   function descargar() {
-    const cabecera = ["N°", "Nombre", "RUT", "Decreto", "Mes", "Porcentaje", "Tope m3", "Consumo m3", "Valor boleta", "Subsidio", "Paga el socio"];
+    const cabecera = ["N°", "Nombre", "RUT", "Decreto", "Mes", "Descuento", "Consumo m3", "Valor boleta", "Subsidio", "Paga el socio"];
     const filas = conSubsidio.map((b) => [
       b.numeroCliente,
       b.nombre,
       b.rut ? formatearRut(b.rut) : "",
       b.decreto,
       periodo,
-      b.porcentaje,
-      b.topeM3,
+      textoSubsidio(b),
       b.boleta!.consumoM3,
       b.boleta!.montoTotal + b.boleta!.montoSubsidio,
       b.boleta!.montoSubsidio,
@@ -148,9 +145,7 @@ export function SubsidiosVista({
                       </p>
                     )}
                   </td>
-                  <td className="p-4 tabular-nums">
-                    {b.porcentaje}% hasta {b.topeM3} m³
-                  </td>
+                  <td className="p-4 tabular-nums">{textoSubsidio(b)}</td>
                   <td className="p-4">
                     {formatearPeriodo(b.desde)}
                     {b.hasta ? ` a ${formatearPeriodo(b.hasta)}` : ""}
@@ -257,6 +252,7 @@ function SubsidioDialog({
   periodo: string;
   onCerrar: () => void;
 }) {
+  const [tipo, setTipo] = useState<ReglaSubsidio["tipo"]>(beneficiario?.tipo ?? "PORCENTAJE");
   const [estado, accion, pendiente] = useActionState<ResultadoSubsidio | null, FormData>(async (prev, formData) => {
     const r = await guardarSubsidio(prev, formData);
     if (r.ok) {
@@ -271,7 +267,7 @@ function SubsidioDialog({
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[460px]">
         <DialogHeader>
           <DialogTitle>{beneficiario ? "Editar subsidio" : "Agregar beneficiario"}</DialogTitle>
-          <DialogDescription>{beneficiario ? beneficiario.nombre : "Los datos salen del decreto municipal."}</DialogDescription>
+          <DialogDescription>{beneficiario ? beneficiario.nombre : "El descuento que tiene en su boleta."}</DialogDescription>
         </DialogHeader>
 
         <form action={accion} className="flex flex-col gap-4">
@@ -279,13 +275,36 @@ function SubsidioDialog({
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <Label htmlFor="porcentaje">Porcentaje</Label>
-              <Input id="porcentaje" name="porcentaje" inputMode="numeric" defaultValue={beneficiario?.porcentaje ?? ""} placeholder="50" required />
+              <Label htmlFor="tipo">Tipo de descuento</Label>
+              <select
+                id="tipo"
+                name="tipo"
+                value={tipo}
+                onChange={(e) => setTipo(e.target.value as ReglaSubsidio["tipo"])}
+                className="h-9 rounded-md border border-input bg-background px-2 text-sm"
+              >
+                <option value="PORCENTAJE">Porcentaje</option>
+                <option value="MONTO">Monto en pesos</option>
+              </select>
             </div>
             <div className="flex flex-col gap-1">
-              <Label htmlFor="topeM3">Tope (m³)</Label>
-              <Input id="topeM3" name="topeM3" inputMode="numeric" defaultValue={beneficiario?.topeM3 ?? 15} required />
+              <Label htmlFor="valor">{tipo === "MONTO" ? "Monto ($)" : "Porcentaje (%)"}</Label>
+              <Input
+                key={tipo}
+                id="valor"
+                name="valor"
+                inputMode="numeric"
+                defaultValue={beneficiario?.tipo === tipo ? beneficiario.valor : ""}
+                placeholder={tipo === "MONTO" ? "5000" : "50"}
+                required
+              />
             </div>
+            {tipo === "PORCENTAJE" && (
+              <div className="flex flex-col gap-1 sm:col-span-2">
+                <Label htmlFor="topeM3">Tope en m³ · opcional</Label>
+                <Input id="topeM3" name="topeM3" inputMode="numeric" defaultValue={beneficiario?.topeM3 ?? ""} placeholder="Sobre el total" />
+              </div>
+            )}
             <div className="flex flex-col gap-1">
               <Label htmlFor="desde">Desde</Label>
               <Input id="desde" name="desde" type="month" defaultValue={beneficiario?.desde ?? periodo} required />
