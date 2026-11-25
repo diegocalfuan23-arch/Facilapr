@@ -74,6 +74,10 @@ function filasExcel(d: DatosRendicion, c: ContenidoRendicion): (string | number)
   if (c.cobranza) {
     f.push(["COBRANZA"], ["Boletas emitidas", d.cobranza.boletas], ["Monto emitido", d.cobranza.emitido], ["Monto pagado", d.cobranza.pagado], ["Deuda de socios, a hoy", d.cobranza.deudaTotal], []);
   }
+  if (c.subsidios && d.subsidios) {
+    f.push(["SUBSIDIOS", "Boletas", "Monto"], ...d.subsidios.meses.map((m) => [mayuscula(nombreMes(m.mes)), m.boletas, m.monto]));
+    f.push(["Por cobrar a la municipalidad", "", d.subsidios.total], ["Recibido y anotado en la Caja", "", d.subsidios.recibido], []);
+  }
   return f;
 }
 
@@ -231,9 +235,10 @@ export function RendicionesVista({ inicial, hoy, seccionesIniciales }: { inicial
   const d = data ?? inicial;
   const hayExtras = Boolean(inicial.activos || inicial.labores || inicial.incidentes);
   const hayInventario = Boolean(inicial.inventario);
+  const haySubsidios = Boolean(inicial.subsidios);
 
   // Lo que el plan no incluye no se ofrece como sección.
-  const disponibles = SECCIONES_RENDICION.filter((s) => s.id !== "todo" && (s.id !== "inventario" || hayInventario) && (s.id !== "patrimonio" || hayExtras));
+  const disponibles = SECCIONES_RENDICION.filter((s) => s.id !== "todo" && (s.id !== "inventario" || hayInventario) && (s.id !== "subsidios" || haySubsidios) && (s.id !== "patrimonio" || hayExtras));
   const marcadas = incluidas.filter((s) => disponibles.some((x) => x.id === s));
   const contenido = contenidoDeSecciones(marcadas);
   const todo = disponibles.every((s) => marcadas.includes(s.id));
@@ -286,7 +291,7 @@ export function RendicionesVista({ inicial, hoy, seccionesIniciales }: { inicial
   const fallasConDatos = Boolean(d.incidentes && d.incidentes.resueltos + d.incidentes.abiertos > 0);
   const patrimonioConDatos = activosConDatos || laboresConDatos || fallasConDatos;
   const comprasConDatos = d.compras.detalle.length > 0;
-  const sinDatos = (id: SeccionRendicion) => (id === "inventario" && !invConDatos) || (id === "patrimonio" && !patrimonioConDatos) || (id === "compras" && !comprasConDatos);
+  const sinDatos = (id: SeccionRendicion) => (id === "inventario" && !invConDatos) || (id === "patrimonio" && !patrimonioConDatos) || (id === "compras" && !comprasConDatos) || (id === "subsidios" && !d.subsidios?.meses.length && !d.subsidios?.recibido);
   const excluidas = disponibles.filter((s) => !marcadas.includes(s.id));
 
   const filasCaja = [
@@ -638,6 +643,35 @@ export function RendicionesVista({ inicial, hoy, seccionesIniciales }: { inicial
           </Card>
         ) : null}
         {ver("inventario") && !invConDatos ? <Vacio icono={Boxes} titulo="Sin movimientos de inventario" texto="No hubo entradas ni salidas de materiales en el período." /> : null}
+
+        {/* Subsidios */}
+        {ver("subsidios") && d.subsidios ? (
+          <Card className={`rounded-2xl border-0 p-5 sm:p-6 ${SOMBRA}`}>
+            <Encabezado
+              titulo="Subsidios"
+              sub={d.subsidios.socios > 0 ? `${d.subsidios.socios} ${d.subsidios.socios === 1 ? "socio" : "socios"} con subsidio en el período` : "Sin boletas con subsidio en el período"}
+              accion={<Enlace href="/panel/subsidios">Ver subsidios</Enlace>}
+            />
+            <dl className="mt-4 flex flex-col gap-2 text-sm">
+              {d.subsidios.meses.map((m) => (
+                <div key={m.mes} className="flex justify-between gap-4">
+                  <dt className={GRIS}>
+                    {mayuscula(nombreMes(m.mes))} · {m.boletas} {m.boletas === 1 ? "boleta" : "boletas"}
+                  </dt>
+                  <dd className="tabular-nums">{clp(m.monto)}</dd>
+                </div>
+              ))}
+              <div className="flex justify-between gap-4 border-t border-[#F0EEF6] pt-2">
+                <dt className="font-semibold">Por cobrar a la municipalidad</dt>
+                <dd className="font-semibold tabular-nums">{clp(d.subsidios.total)}</dd>
+              </div>
+              <div className="flex justify-between gap-4">
+                <dt className={GRIS}>Recibido y anotado en la Caja</dt>
+                <dd className="font-semibold text-[#075A3C] tabular-nums">{clp(d.subsidios.recibido)}</dd>
+              </div>
+            </dl>
+          </Card>
+        ) : null}
 
         {/* Patrimonio y trabajos */}
         {ver("patrimonio") && patrimonioConDatos ? (

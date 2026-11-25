@@ -1,6 +1,6 @@
 import { and, asc, eq, gte, inArray, lt, ne, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { boletas, compras, comprasItems, incidentes, insumos, labores, movimientoAdjuntos, movimientos, movimientosStock, proveedores, socios } from "@/lib/db/schema";
+import { boletas, compras, comprasItems, incidentes, insumos, labores, movimientoAdjuntos, movimientos, movimientosStock, proveedores, socios, subsidios } from "@/lib/db/schema";
 import { ingresosEgresosPorDia, resumenRango, type ResumenAnual } from "@/lib/reportes";
 import { bolsillosAl, listarCategoriasMovimiento } from "@/lib/finanzas";
 import { diaVecino, nombreMes, textoCategoria } from "@/lib/finanzas-comun";
@@ -44,6 +44,16 @@ export type InventarioRendido = {
 /** Un tramo de una semana de un mes: lo que entró y salió. Null si ese tramo aún no empieza. */
 export type SemanaRendida = { etiqueta: string; detalle: string; ingresos: number | null; egresos: number | null };
 
+/** Los subsidios del período: lo que se descontó a los socios y lo que se anotó como recibido. */
+export type SubsidiosRendidos = {
+  meses: { mes: string; boletas: number; monto: number }[];
+  /** Lo descontado en las boletas del período: se le cobra a la municipalidad. */
+  total: number;
+  socios: number;
+  /** Ingresos de la Caja anotados como «Subsidio o aporte del Estado» en el período. */
+  recibido: number;
+};
+
 export type DatosRendicion = {
   periodo: PeriodoRendicion;
   /** «2.º trimestre 2026», «Año 2026», «Marzo 2026». */
@@ -69,6 +79,8 @@ export type DatosRendicion = {
   /** Null si el plan no incluye Inventario. */
   inventario: InventarioRendido | null;
   cobranza: { boletas: number; emitido: number; pagado: number; sociosConDeuda: number; deudaTotal: number };
+  /** Null si el comité no usa subsidios. */
+  subsidios: SubsidiosRendidos | null;
   activos: { n: number; valorTotal: number; comprados: number; costoComprados: number } | null;
   labores: { hechas: number; programadas: number } | null;
   incidentes: { resueltos: number; abiertos: number } | null;
@@ -214,6 +226,45 @@ async function inventarioDelPeriodo(aprId: string, desde: string, topeDatos: str
   };
 }
 
+/** Lo subsidiado en las boletas de los meses del período. Null si no hay beneficiarios ni nada subsidiado. */
+async function subsidiosDelPeriodo(aprId: string, mesInicio: string, mesTope: string, desde: string, tope: string): Promise<SubsidiosRendidos | null> {
+  const delPeriodo = and(
+    eq(socios.aprId, aprId),
+    ne(boletas.estado, "ANULADA"),
+    sql`${boletas.montoSubsidio} > 0`,
+    sql`${boletas.periodo} >= ${mesInicio}`,
+    sql`${boletas.periodo} < ${mesTope}`
+  );
+  const [meses, [cuantos], [ingresos], [beneficiarios]] = await Promise.all([
+    db
+      .select({ mes: boletas.periodo, boletas: sql<number>`count(*)::int`, monto: sql<number>`coalesce(sum(${boletas.montoSubsidio}), 0)::int` })
+      .from(boletas)
+      .innerJoin(socios, eq(boletas.socioId, socios.id))
+      .where(delPeriodo)
+      .groupBy(boletas.periodo)
+      .orderBy(asc(boletas.periodo)),
+    db
+      .select({ n: sql<number>`count(distinct ${boletas.socioId})::int` })
+      .from(boletas)
+      .innerJoin(socios, eq(boletas.socioId, socios.id))
+      .where(delPeriodo),
+    db
+      .select({ total: sql<number>`coalesce(sum(${movimientos.monto}), 0)::int` })
+      .from(movimientos)
+      .where(
+        and(eq(movimientos.aprId, aprId), eq(movimientos.tipo, "INGRESO"), eq(movimientos.categoria, "SUBSIDIO"), sql`${movimientos.fecha} >= ${desde}`, sql`${movimientos.fecha} < ${tope}`)
+      ),
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(subsidios)
+      .innerJoin(socios, eq(subsidios.socioId, socios.id))
+      .where(eq(socios.aprId, aprId)),
+  ]);
+
+  if (meses.length === 0 && (beneficiarios?.n ?? 0) === 0) return null;
+  return { meses, total: meses.reduce((s, m) => s + m.monto, 0), socios: cuantos?.n ?? 0, recibido: ingresos?.total ?? 0 };
+}
+
 /** Junta lo que ya está registrado en la app en una sola mirada para rendir cuentas de un período a la asamblea. */
 export async function datosRendicion(
   aprId: string,
@@ -319,6 +370,8 @@ export async function datosRendicion(
     incidentesDatos = i;
   }
 
+  const subsidiosRendidos = await subsidiosDelPeriodo(aprId, mesInicio, mesTope, desde, topeDatos).catch(() => null);
+
   return {
     periodo,
     etiqueta,
@@ -336,6 +389,7 @@ export async function datosRendicion(
     compras: comprasRendidas,
     inventario: inventarioRendido,
     cobranza: { boletas: emitidas?.n ?? 0, emitido: emitidas?.emitido ?? 0, pagado: emitidas?.pagado ?? 0, sociosConDeuda: deuda?.socios ?? 0, deudaTotal: deuda?.total ?? 0 },
+    subsidios: subsidiosRendidos,
     activos,
     labores: laboresDatos,
     incidentes: incidentesDatos,

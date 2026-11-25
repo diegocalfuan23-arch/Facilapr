@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
     datos,
     hoy,
     // Lo que el plan no incluye no se anuncia en el encabezado.
-    { ...contenido, inventario: contenido.inventario && Boolean(datos.inventario), extras: contenido.extras && Boolean(datos.activos || datos.labores || datos.incidentes) }
+    { ...contenido, inventario: contenido.inventario && Boolean(datos.inventario), subsidios: contenido.subsidios && Boolean(datos.subsidios), extras: contenido.extras && Boolean(datos.activos || datos.labores || datos.incidentes) }
   );
 
   const nombre = `Rendicion-${datos.etiqueta.replace(/\./g, "").replace(/\s+/g, "-")}`;

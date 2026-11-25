@@ -5,6 +5,7 @@ import type { ComiteFicha } from "@/lib/activo-pdf";
 import type { DatosRendicion } from "@/lib/rendicion";
 import { descripcionContenido, type ContenidoRendicion } from "@/lib/rendicion-periodo";
 import { formatoCantidad, unidadCorta } from "@/lib/inventario-comun";
+import { formatearPeriodo } from "@/lib/boletas";
 
 /**
  * La rendición de cuentas de un período (mes, trimestre, semestre o año) en PDF (A4), para presentarla a la asamblea:
@@ -256,6 +257,18 @@ export async function generarRendicionPdf(comite: ComiteFicha, d: DatosRendicion
       fila("Monto pagado de lo emitido", `${dinero(c.pagado)}${c.emitido > 0 ? `  (${Math.round((c.pagado / c.emitido) * 100)}%)` : ""}`);
     }
     fila("Deuda pendiente de los socios, a hoy", c.deudaTotal > 0 ? `${dinero(c.deudaTotal)}  (${c.sociosConDeuda} ${c.sociosConDeuda === 1 ? "socio" : "socios"})` : "Sin deuda");
+    y -= 14;
+  }
+
+  // ---- Subsidios.
+  if (contenido.subsidios && d.subsidios) {
+    seccion("SUBSIDIOS AL AGUA POTABLE");
+    if (d.subsidios.meses.length === 0) vacio("No hay boletas con subsidio en el período.");
+    else {
+      for (const m of d.subsidios.meses) fila(`${formatearPeriodo(m.mes)}  (${m.boletas} ${m.boletas === 1 ? "boleta" : "boletas"})`, dinero(m.monto));
+      fila(`Por cobrar a la municipalidad (${d.subsidios.socios} ${d.subsidios.socios === 1 ? "socio" : "socios"})`, dinero(d.subsidios.total), { negrita: true });
+    }
+    fila("Recibido y anotado en la Caja como subsidio o aporte del Estado", dinero(d.subsidios.recibido));
     y -= 14;
   }
 

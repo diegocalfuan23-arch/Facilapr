@@ -55,12 +55,14 @@ export type GrupoMenu = {
   enlaces: Enlace[];
 };
 
+/** Subsidios (todos los planes): vive en Finanzas; sin ese grupo, en Gestión. */
+const subsidiosEnlace: Enlace = { href: "/panel/subsidios", label: "Subsidios", icon: HandHeart };
+
 const gestion: Enlace[] = [
   { href: "/panel", label: "Resumen", icon: LayoutDashboard },
   { href: "/panel/socios", label: "Socios", icon: Users },
   { href: "/panel/boletas", label: "Boletas", icon: ReceiptText },
   { href: "/panel/pagos", label: "Pagos", icon: Wallet },
-  { href: "/panel/subsidios", label: "Subsidios", icon: HandHeart },
   { href: "/panel/inventario", label: "Inventario", icon: Package },
   { href: "/panel/lecturas", label: "Lecturas", icon: Droplets },
   { href: "/panel/lecturas/terreno", label: "Modo terreno", icon: Smartphone },
@@ -155,11 +157,12 @@ export function gruposDelMenu({
       // Con Finanzas (Estándar y Grande), Pagos se muda a su grupo; sin Finanzas, Inventario no se ofrece: va con el mismo plan.
       enlaces: [
         ...gestion.filter((e) => (conFinanzas ? e.href !== "/panel/pagos" : e.href !== "/panel/inventario")),
+        ...(conFinanzas ? [] : [subsidiosEnlace]),
         // Las labores usan el inventario: con Inventario pero sin el grupo Operación, viven en Gestión.
         ...(conFinanzas && !conOperacion ? [laboresEnlace] : []),
       ],
     },
-    ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: conOperacion ? finanzas : [...finanzas, activosEnlace] }] : []),
+    ...(conFinanzas ? [{ titulo: "Finanzas", icono: Landmark, enlaces: conOperacion ? [...finanzas, subsidiosEnlace] : [...finanzas, subsidiosEnlace, activosEnlace] }] : []),
     ...(conRrhh ? [{ titulo: "RR.HH.", icono: UsersRound, enlaces: rrhh }] : []),
     ...(conOperacion ? [{ titulo: "Operación", icono: Wrench, enlaces: operacion }] : []),
     {

@@ -18,12 +18,14 @@ export type ContenidoRendicion = {
   /** Material que entró y salió de la bodega, y el que está bajo. */
   inventario: boolean;
   cobranza: boolean;
+  /** Lo descontado a los socios que se le cobra a la municipalidad. */
+  subsidios: boolean;
   saldos: boolean;
   /** Patrimonio, labores e incidentes, según lo que incluya el plan. */
   extras: boolean;
 };
 
-export const CONTENIDO_TODO: ContenidoRendicion = { ingresos: true, egresos: true, compras: true, inventario: true, cobranza: true, saldos: true, extras: true };
+export const CONTENIDO_TODO: ContenidoRendicion = { ingresos: true, egresos: true, compras: true, inventario: true, cobranza: true, subsidios: true, saldos: true, extras: true };
 
 export const TIPOS_PERIODO: { valor: TipoPeriodo; texto: string }[] = [
   { valor: "mes", texto: "Mes" },
@@ -115,6 +117,7 @@ export function contenidoDeParametro(c: string | undefined | null): ContenidoRen
     compras: pedidos.has("compras"),
     inventario: pedidos.has("inventario"),
     cobranza: pedidos.has("cobranza"),
+    subsidios: pedidos.has("subsidios"),
     saldos: pedidos.has("saldos"),
     extras: pedidos.has("extras"),
   };
@@ -127,7 +130,7 @@ export function contenidoAParametro(c: ContenidoRendicion) {
 
 /** «Ingresos y egresos», «Solo egresos»…: para el encabezado del PDF. */
 export function descripcionContenido(c: ContenidoRendicion) {
-  const partes = [c.ingresos && "ingresos", c.egresos && "egresos", c.compras && "compras", c.inventario && "inventario", c.cobranza && "cobranza", c.saldos && "saldos"].filter(Boolean) as string[];
+  const partes = [c.ingresos && "ingresos", c.egresos && "egresos", c.compras && "compras", c.inventario && "inventario", c.cobranza && "cobranza", c.subsidios && "subsidios", c.saldos && "saldos"].filter(Boolean) as string[];
   if (c.extras) partes.push("patrimonio y trabajos");
   if (partes.length === 0) return "";
   const texto = partes.length === 1 ? partes[0] : `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
@@ -135,7 +138,7 @@ export function descripcionContenido(c: ContenidoRendicion) {
 }
 
 /** Lo que se ve en la pantalla a la vez: todo el informe o una sola sección. El PDF y el Excel llevan lo mismo que se ve. */
-export type SeccionRendicion = "todo" | "saldos" | "ingresos" | "egresos" | "compras" | "cobranza" | "inventario" | "patrimonio";
+export type SeccionRendicion = "todo" | "saldos" | "ingresos" | "egresos" | "compras" | "cobranza" | "subsidios" | "inventario" | "patrimonio";
 
 export const SECCIONES_RENDICION: { id: SeccionRendicion; nombre: string }[] = [
   { id: "todo", nombre: "Todo" },
@@ -144,6 +147,7 @@ export const SECCIONES_RENDICION: { id: SeccionRendicion; nombre: string }[] = [
   { id: "egresos", nombre: "Egresos" },
   { id: "compras", nombre: "Compras" },
   { id: "cobranza", nombre: "Cobranza" },
+  { id: "subsidios", nombre: "Subsidios" },
   { id: "inventario", nombre: "Inventario" },
   { id: "patrimonio", nombre: "Patrimonio y trabajos" },
 ];
@@ -161,13 +165,14 @@ export function contenidoDeSeccion(s: SeccionRendicion): ContenidoRendicion {
     compras: s === "compras",
     inventario: s === "inventario",
     cobranza: s === "cobranza",
+    subsidios: s === "subsidios",
     saldos: s === "saldos",
     extras: s === "patrimonio",
   };
 }
 
 /** Lo que viene marcado al abrir la pantalla: lo que casi todos los comités tienen. Inventario y patrimonio se marcan a mano. */
-export const SECCIONES_DEFECTO: SeccionRendicion[] = ["saldos", "ingresos", "egresos", "compras", "cobranza"];
+export const SECCIONES_DEFECTO: SeccionRendicion[] = ["saldos", "ingresos", "egresos", "compras", "cobranza", "subsidios"];
 
 const CLAVE_DE_SECCION: Record<Exclude<SeccionRendicion, "todo">, keyof ContenidoRendicion> = {
   saldos: "saldos",
@@ -175,13 +180,14 @@ const CLAVE_DE_SECCION: Record<Exclude<SeccionRendicion, "todo">, keyof Contenid
   egresos: "egresos",
   compras: "compras",
   cobranza: "cobranza",
+  subsidios: "subsidios",
   inventario: "inventario",
   patrimonio: "extras",
 };
 
 /** Las partes del PDF y del Excel que corresponden a las secciones marcadas. «Saldos» lleva el cuadro de caja completo. */
 export function contenidoDeSecciones(marcadas: SeccionRendicion[]): ContenidoRendicion {
-  const c = { ingresos: false, egresos: false, compras: false, inventario: false, cobranza: false, saldos: false, extras: false };
+  const c = { ingresos: false, egresos: false, compras: false, inventario: false, cobranza: false, subsidios: false, saldos: false, extras: false };
   for (const s of marcadas) if (s !== "todo") c[CLAVE_DE_SECCION[s]] = true;
   return c;
 }

@@ -1,12 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNotNull, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { boletas, socios, subsidios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
-import { estadoQueCorresponde, montoDeSubsidio, normalizarPeriodo, subsidioVigente, type EstadoBoleta } from "@/lib/boletas";
-import { subsidiosDelApr } from "@/lib/subsidios";
+import { estadoQueCorresponde, normalizarPeriodo, type EstadoBoleta } from "@/lib/boletas";
+import { boletasPorAplicar } from "@/lib/subsidios";
+import { sumarMeses } from "@/lib/subsidios-comun";
 
 export type ResultadoSubsidio = { ok: true } | { ok: false; error: string };
 
@@ -69,6 +70,23 @@ export async function quitarSubsidio(id: string): Promise<ResultadoSubsidio> {
   return { ok: true };
 }
 
+/** Corre doce meses el término de un subsidio. */
+export async function renovarSubsidio(id: string): Promise<ResultadoSubsidio> {
+  const { apr } = await requireAdmin();
+  const [fila] = await db
+    .select({ id: subsidios.id, hasta: subsidios.hasta })
+    .from(subsidios)
+    .innerJoin(socios, eq(socios.id, subsidios.socioId))
+    .where(and(eq(subsidios.id, id), eq(socios.aprId, apr.id)))
+    .limit(1);
+  if (!fila) return { ok: false, error: "No encontramos ese subsidio." };
+  if (!fila.hasta) return { ok: false, error: "Ese subsidio no tiene fecha de término." };
+
+  await db.update(subsidios).set({ hasta: sumarMeses(fila.hasta, 12), updatedAt: new Date() }).where(eq(subsidios.id, fila.id));
+  revalidatePath("/panel/subsidios");
+  return { ok: true };
+}
+
 /**
  * Pone al día las boletas de un mes que ya existían: les aplica (o les quita) el subsidio. Solo toca las que
  * se calcularon con lecturas, no tienen pagos y cuyo subsidio cambia.
@@ -78,46 +96,15 @@ export async function aplicarSubsidios(periodoPedido: string): Promise<{ ok: tru
   const periodo = normalizarPeriodo(periodoPedido);
   if (!periodo) return { ok: false, error: "El mes no es válido." };
 
-  const porSocio = await subsidiosDelApr(apr.id);
-  const filas = await db
-    .select({
-      id: boletas.id,
-      socioId: boletas.socioId,
-      cargoFijo: boletas.cargoFijo,
-      valorM3: boletas.valorM3,
-      consumoM3: boletas.consumoM3,
-      montoSubsidio: boletas.montoSubsidio,
-      estado: boletas.estado,
-      vence: boletas.fechaVencimiento,
-    })
-    .from(boletas)
-    .innerJoin(socios, eq(socios.id, boletas.socioId))
-    .where(
-      and(
-        eq(socios.aprId, apr.id),
-        eq(boletas.periodo, periodo),
-        eq(boletas.montoPagado, 0),
-        ne(boletas.estado, "ANULADA"),
-        isNotNull(boletas.cargoFijo),
-        isNotNull(boletas.valorM3),
-        isNotNull(boletas.consumoM3)
-      )
-    );
-
-  let cambiadas = 0;
+  const filas = await boletasPorAplicar(apr.id, periodo);
   for (const b of filas) {
-    const regla = subsidioVigente(porSocio.get(b.socioId), periodo);
-    const montoSubsidio = montoDeSubsidio(b.cargoFijo!, b.valorM3!, b.consumoM3!, regla);
-    if (montoSubsidio === b.montoSubsidio) continue;
-    const montoTotal = b.cargoFijo! + b.consumoM3! * b.valorM3! - montoSubsidio;
     await db
       .update(boletas)
-      .set({ montoSubsidio, montoTotal, estado: estadoQueCorresponde(montoTotal, 0, b.vence, b.estado as EstadoBoleta), updatedAt: new Date() })
+      .set({ montoSubsidio: b.montoSubsidio, montoTotal: b.montoTotal, estado: estadoQueCorresponde(b.montoTotal, 0, b.vence, b.estado as EstadoBoleta), updatedAt: new Date() })
       // Si entre medio se registró un pago, esa boleta no se toca.
       .where(and(eq(boletas.id, b.id), eq(boletas.montoPagado, 0)));
-    cambiadas++;
   }
 
   revalidatePath("/panel");
-  return { ok: true, cambiadas };
+  return { ok: true, cambiadas: filas.length };
 }
