@@ -252,6 +252,7 @@ export async function generarReciboPdf(r: ReciboDatos): Promise<Uint8Array> {
       dinero(r.consumoM3 * r.valorM3)
     );
   }
+  if (r.montoSubsidio > 0) fila("Subsidio municipal", `- ${dinero(r.montoSubsidio)}`);
 
   y -= 2;
   linea();

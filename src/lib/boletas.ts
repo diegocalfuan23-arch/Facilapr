@@ -11,9 +11,30 @@ export type Tarifas = {
   valorM3: number | null;
 };
 
+/** El subsidio municipal al agua de un arranque: qué porcentaje se rebaja y hasta cuántos m³ del mes. */
+export type ReglaSubsidio = { porcentaje: number; topeM3: number };
+
+/** La regla que rige en un mes («AAAA-MM»); null si no hay subsidio o está fuera de su vigencia. */
+export function subsidioVigente(
+  s: (ReglaSubsidio & { desde: string; hasta: string | null }) | null | undefined,
+  periodo: string
+): ReglaSubsidio | null {
+  if (!s || periodo < s.desde || (s.hasta && periodo > s.hasta)) return null;
+  return { porcentaje: s.porcentaje, topeM3: s.topeM3 };
+}
+
+/** Lo que paga la municipalidad: el porcentaje del cargo fijo más el consumo hasta el tope. */
+export function montoDeSubsidio(cargoFijo: number, valorM3: number, consumoM3: number, regla: ReglaSubsidio | null) {
+  if (!regla) return 0;
+  return Math.round(((cargoFijo + Math.min(consumoM3, regla.topeM3) * valorM3) * regla.porcentaje) / 100);
+}
+
 export type CalculoBoleta = {
   consumoM3: number;
+  /** Lo que paga el socio: ya con el subsidio descontado. */
   montoTotal: number;
+  /** Lo que se le cobra a la municipalidad; 0 sin subsidio. */
+  montoSubsidio: number;
   cargoFijo: number;
   valorM3: number;
 };
@@ -31,7 +52,8 @@ export function calcularDesdeLecturas(
    * el consumo del mes suma dos tramos: lo que le faltó al viejo hasta su lectura final + lo del nuevo.
    * Sin la lectura final del viejo solo se cuenta el tramo del nuevo.
    */
-  cambioMedidor?: { lecturaFinalAnterior: number | null } | null
+  cambioMedidor?: { lecturaFinalAnterior: number | null } | null,
+  subsidio: ReglaSubsidio | null = null
 ): CalculoBoleta | { error: string } | null {
   if (lecturaAnterior === null || lecturaActual === null) return null;
   const finalViejo = cambioMedidor?.lecturaFinalAnterior ?? null;
@@ -60,11 +82,14 @@ export function calcularDesdeLecturas(
     ? (finalViejo !== null ? finalViejo - lecturaAnterior : 0) + lecturaActual
     : lecturaActual - lecturaAnterior;
 
+  const montoSubsidio = montoDeSubsidio(tarifas.cargoFijo, tarifas.valorM3, consumoM3, subsidio);
+
   return {
     consumoM3,
     cargoFijo: tarifas.cargoFijo,
     valorM3: tarifas.valorM3,
-    montoTotal: tarifas.cargoFijo + consumoM3 * tarifas.valorM3,
+    montoSubsidio,
+    montoTotal: tarifas.cargoFijo + consumoM3 * tarifas.valorM3 - montoSubsidio,
   };
 }
 

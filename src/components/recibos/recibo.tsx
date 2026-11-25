@@ -136,6 +136,12 @@ export function Recibo({ r }: { r: ReciboDatos }) {
                 </tr>
               </>
             )}
+            {r.montoSubsidio > 0 && (
+              <tr>
+                <td className="py-0.5">Subsidio municipal</td>
+                <td className="py-0.5 text-right">- {clp.format(r.montoSubsidio)}</td>
+              </tr>
+            )}
             <tr className="border-t border-neutral-400 text-[0.95rem] font-bold">
               <td className="pt-1.5">Total</td>
               <td className="pt-1.5 text-right">{clp.format(r.montoTotal)}</td>

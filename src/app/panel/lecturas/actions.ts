@@ -18,6 +18,7 @@ import {
   type EstadoBoleta,
 } from "@/lib/boletas";
 import { usoDeSocio } from "@/lib/tarifas";
+import { subsidioDe } from "@/lib/subsidios";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
 
@@ -216,7 +217,8 @@ async function aprobarNucleo(
     lecturaAnterior,
     actual.valor,
     tarifasPara(apr, await usoDeSocio(actual.socioId)),
-    actual.medidorCambiado ? { lecturaFinalAnterior: actual.lecturaFinalAnterior } : null
+    actual.medidorCambiado ? { lecturaFinalAnterior: actual.lecturaFinalAnterior } : null,
+    await subsidioDe(actual.socioId, actual.periodo)
   );
 
   if (calculo && "error" in calculo) {
@@ -252,6 +254,7 @@ async function aprobarNucleo(
         consumoM3: calculo.consumoM3,
         cargoFijo: calculo.cargoFijo,
         valorM3: calculo.valorM3,
+        montoSubsidio: calculo.montoSubsidio,
         montoTotal: calculo.montoTotal,
         estado: estadoQueCorresponde(
           calculo.montoTotal,
@@ -276,6 +279,7 @@ async function aprobarNucleo(
       consumoM3: calculo.consumoM3,
       cargoFijo: calculo.cargoFijo,
       valorM3: calculo.valorM3,
+      montoSubsidio: calculo.montoSubsidio,
     });
   }
 
@@ -494,7 +498,8 @@ export async function editarLectura(
       anterior ?? 0,
       valor,
       tarifasPara(apr, await usoDeSocio(l.socioId)),
-      l.medidorCambiado ? { lecturaFinalAnterior: l.lecturaFinalAnterior } : null
+      l.medidorCambiado ? { lecturaFinalAnterior: l.lecturaFinalAnterior } : null,
+      await subsidioDe(l.socioId, l.periodo)
     );
     if (calculo && "error" in calculo) return { ok: false, error: calculo.error };
     if (!calculo) {
@@ -517,6 +522,7 @@ export async function editarLectura(
           consumoM3: calculo.consumoM3,
           cargoFijo: calculo.cargoFijo,
           valorM3: calculo.valorM3,
+          montoSubsidio: calculo.montoSubsidio,
           montoTotal: calculo.montoTotal,
           estado: estadoQueCorresponde(
             calculo.montoTotal,

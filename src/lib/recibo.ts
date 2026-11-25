@@ -37,6 +37,8 @@ export type ReciboDatos = {
   consumoM3: number | null;
   cargoFijo: number | null;
   valorM3: number | null;
+  /** Lo que paga la municipalidad; el total ya lo trae descontado. */
+  montoSubsidio: number;
   montoTotal: number;
   montoPagado: number;
   estado: "PENDIENTE" | "PAGADA" | "VENCIDA" | "ANULADA";
@@ -79,6 +81,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
       consumoM3: boletas.consumoM3,
       cargoFijo: boletas.cargoFijo,
       valorM3: boletas.valorM3,
+      montoSubsidio: boletas.montoSubsidio,
       montoTotal: boletas.montoTotal,
       montoPagado: boletas.montoPagado,
       estado: boletas.estado,
@@ -152,6 +155,7 @@ async function consultar(condicion: SQL | undefined): Promise<ReciboDatos[]> {
     consumoM3: f.consumoM3,
     cargoFijo: f.cargoFijo,
     valorM3: f.valorM3,
+    montoSubsidio: f.montoSubsidio,
     montoTotal: f.montoTotal,
     montoPagado: f.montoPagado,
     estado: f.estado,

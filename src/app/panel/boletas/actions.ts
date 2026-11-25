@@ -22,6 +22,7 @@ import { leerTabla } from "@/lib/tabla";
 import {
   aMonto,
   calcularDesdeLecturas,
+  subsidioVigente,
   tarifasPara,
   estadoQueCorresponde,
   normalizarPeriodo,
@@ -29,6 +30,7 @@ import {
 } from "@/lib/boletas";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
 import { usoDeSocio } from "@/lib/tarifas";
+import { subsidioDe, subsidiosDelApr } from "@/lib/subsidios";
 
 export type ResultadoAccion = { ok: true } | { ok: false; error: string };
 
@@ -177,7 +179,7 @@ export async function guardarBoleta(
   const hayTarifas = tarifasSocio.cargoFijo !== null && tarifasSocio.valorM3 !== null;
   const calculo =
     conLecturas && hayTarifas
-      ? calcularDesdeLecturas(datos.lecturaAnterior, datos.lecturaActual, tarifasSocio)
+      ? calcularDesdeLecturas(datos.lecturaAnterior, datos.lecturaActual, tarifasSocio, null, await subsidioDe(datos.socioId, periodo))
       : null;
 
   if (calculo && "error" in calculo) {
@@ -205,6 +207,8 @@ export async function guardarBoleta(
     consumoM3: calculo ? calculo.consumoM3 : consumoDirecto,
     cargoFijo: calculo ? calculo.cargoFijo : null,
     valorM3: calculo ? calculo.valorM3 : null,
+    // Un monto escrito a mano no lleva subsidio descontado por Facilapr.
+    montoSubsidio: calculo ? calculo.montoSubsidio : 0,
     observacion: datos.observacion ?? null,
     updatedAt: new Date(),
   };
@@ -850,6 +854,7 @@ export async function importarBoletas(
     columns: { id: true, rut: true, tipo: true, numeroCliente: true, uso: true },
   });
   const usoPorId = new Map(delComite.map((s) => [s.id, s.uso]));
+  const subsidiosPorSocio = await subsidiosDelApr(apr.id);
   const porRut = new Map<string, string[]>();
   const porNumero = new Map<string, string>(); // "SOCIO|3" → id
   for (const s of delComite) {
@@ -922,7 +927,13 @@ export async function importarBoletas(
     const lecAnt = iLecAnt >= 0 ? aMonto(campos[iLecAnt] ?? "") : null;
     const lecAct = iLecAct >= 0 ? aMonto(campos[iLecAct] ?? "") : null;
 
-    const calculo = calcularDesdeLecturas(lecAnt, lecAct, tarifasPara(apr, usoPorId.get(socioId)));
+    const calculo = calcularDesdeLecturas(
+      lecAnt,
+      lecAct,
+      tarifasPara(apr, usoPorId.get(socioId)),
+      null,
+      subsidioVigente(subsidiosPorSocio.get(socioId), periodo)
+    );
 
     if (calculo && "error" in calculo) {
       omitidas.push({ linea: nLinea, motivo: calculo.error });
@@ -979,6 +990,7 @@ export async function importarBoletas(
       consumoM3: calculo ? calculo.consumoM3 : null,
       cargoFijo: calculo ? calculo.cargoFijo : null,
       valorM3: calculo ? calculo.valorM3 : null,
+      montoSubsidio: calculo ? calculo.montoSubsidio : 0,
     });
   }
 
@@ -1023,6 +1035,7 @@ export async function importarBoletas(
         consumoM3: sql`excluded."consumoM3"`,
         cargoFijo: sql`excluded."cargoFijo"`,
         valorM3: sql`excluded."valorM3"`,
+        montoSubsidio: sql`excluded."montoSubsidio"`,
         updatedAt: new Date(),
       },
     });
