@@ -321,6 +321,22 @@ export const boletas = pgTable(
   ]
 );
 
+/** Lo que marcó el macromedidor del comité en un mes: el agua producida (para los antecedentes tarifarios). */
+export const produccionAgua = pgTable(
+  "ProduccionAgua",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    /** «AAAA-MM». */
+    periodo: text("periodo").notNull(),
+    m3: integer("m3").notNull(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [uniqueIndex("ProduccionAgua_apr_periodo_key").on(table.aprId, table.periodo)]
+);
+
 /**
  * Cada pago o abono que el comité registra. Lo normal es sobre una boleta
  * (Boleta.montoPagado es la suma de esos pagos: se recalcula cada vez que se

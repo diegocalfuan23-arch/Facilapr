@@ -13,6 +13,7 @@ import {
   ClipboardList,
   CreditCard,
   Droplets,
+  Gauge,
   Hammer,
   HandHeart,
   HardHat,
@@ -101,6 +102,7 @@ const finanzas: Enlace[] = [
   { href: "/panel/compras", label: "Compras", icon: ShoppingCart },
   { href: "/panel/reportes", label: "Reportes", icon: BarChart3 },
   { href: "/panel/rendiciones", label: "Rendiciones", icon: ClipboardCheck },
+  { href: "/panel/tarifa", label: "Datos tarifarios", icon: Gauge },
 ];
 
 const atencion: Enlace[] = [
@@ -209,6 +211,7 @@ export const PALABRAS_CLAVE: Record<string, string> = {
   "/panel/incidentes": "fallas fuga rotura corte bomba turbiedad averias reparacion emergencia",
   "/panel/arranques": "conexiones red abastece socios sector ubicacion",
   "/panel/activos": "bienes equipos bomba estanque terreno vehiculo depreciacion patrimonio inventario fijo",
+  "/panel/tarifa": "tarifa tarifaria superintendencia siss subdireccion informe regulatorio macromedidor produccion agua no facturada perdidas",
   "/panel/caja": "plata dinero efectivo ingresos egresos saldo gastos",
   "/panel/compras": "proveedores facturas comprar gastos",
   "/panel/reportes": "informe año resumen estadisticas",
