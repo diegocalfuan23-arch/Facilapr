@@ -59,6 +59,57 @@ export async function enviarTexto(
 }
 
 /**
+ * Envía un archivo, que Meta descarga desde su dirección pública. Rige la misma ventana de 24 horas que en un texto.
+ * Las fotos, los audios y los videos van como tales; lo demás, como documento.
+ */
+export async function enviarArchivo(
+  telefono: string,
+  archivo: { url: string; nombre: string; tipo: string },
+  texto: string | undefined,
+  credenciales: { phoneNumberId: string; token: string }
+): Promise<Resultado> {
+  const para = telefonoParaWhatsapp(telefono);
+  if (!para) return { ok: false, error: "El teléfono no es un celular chileno válido." };
+  const clase = /^image\/(jpeg|png)$/.test(archivo.tipo) ? "image" : archivo.tipo.startsWith("audio/") ? "audio" : archivo.tipo.startsWith("video/") ? "video" : "document";
+  const contenido = {
+    link: archivo.url,
+    // Un audio no admite texto.
+    ...(texto && clase !== "audio" ? { caption: texto } : {}),
+    ...(clase === "document" ? { filename: archivo.nombre } : {}),
+  };
+  const version = variable("WHATSAPP_API_VERSION") || "v21.0";
+  const respuesta = await fetch(`https://graph.facebook.com/${version}/${credenciales.phoneNumberId}/messages`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${credenciales.token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ messaging_product: "whatsapp", to: para, type: clase, [clase]: contenido }),
+  });
+  const datos = (await respuesta.json().catch(() => null)) as { messages?: { id: string }[]; error?: { message?: string } } | null;
+  if (!respuesta.ok || !datos?.messages?.[0]) return { ok: false, error: datos?.error?.message ?? `WhatsApp respondió ${respuesta.status}.` };
+  return { ok: true, id: datos.messages[0].id };
+}
+
+/** Lo más grande que se baja de WhatsApp. */
+const MAX_DESCARGA = 16 * 1024 * 1024;
+
+/** Baja un archivo que alguien mandó al número del comité. Null si no se pudo o pesa demasiado. Nunca lanza. */
+export async function descargarArchivoDeMeta(mediaId: string, credenciales: { token: string }): Promise<{ bytes: Buffer; tipo: string } | null> {
+  try {
+    const version = variable("WHATSAPP_API_VERSION") || "v21.0";
+    const headers = { Authorization: `Bearer ${credenciales.token}` };
+    const ficha = await fetch(`https://graph.facebook.com/${version}/${encodeURIComponent(mediaId)}`, { headers, signal: AbortSignal.timeout(8000) });
+    const datos = (await ficha.json().catch(() => null)) as { url?: string; mime_type?: string; file_size?: number } | null;
+    if (!ficha.ok || !datos?.url?.startsWith("https://") || (datos.file_size ?? 0) > MAX_DESCARGA) return null;
+    const archivo = await fetch(datos.url, { headers, signal: AbortSignal.timeout(15000) });
+    if (!archivo.ok) return null;
+    const bytes = Buffer.from(await archivo.arrayBuffer());
+    return bytes.length > 0 && bytes.length <= MAX_DESCARGA ? { bytes, tipo: datos.mime_type ?? "" } : null;
+  } catch (e) {
+    console.error("WhatsApp: no se pudo descargar un archivo:", e instanceof Error ? e.message : "error");
+    return null;
+  }
+}
+
+/**
  * Envía una plantilla aprobada. `parametros` son los valores de {{1}}, {{2}}… del cuerpo;
  * `sufijoBoton` es lo que va al final de la dirección del botón dinámico (si la plantilla lo tiene).
  * `credenciales` es el número y el acceso del comité, si conectó el suyo; sin ellas sale por el número de Facilapr.

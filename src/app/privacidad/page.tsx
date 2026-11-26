@@ -189,6 +189,13 @@ export default function PrivacidadPage() {
                     </td>
                     <td className="py-2.5">Estados Unidos</td>
                   </tr>
+                  <tr className="border-b border-border/60">
+                    <td className="py-2.5 pr-4">UploadThing</td>
+                    <td className="py-2.5 pr-4">
+                      Guardar los archivos que se envían en el chat
+                    </td>
+                    <td className="py-2.5">Estados Unidos</td>
+                  </tr>
                   <tr>
                     <td className="py-2.5 pr-4">Anthropic y OpenAI</td>
                     <td className="py-2.5 pr-4">

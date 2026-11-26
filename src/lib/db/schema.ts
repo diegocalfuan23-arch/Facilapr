@@ -1174,6 +1174,11 @@ export const mensajesSocio = pgTable(
     metaId: text("metaId"),
     /** Solo en lo que salió por WhatsApp: FALLIDA (Meta no lo entregó) o FUERA_DE_VENTANA (pasaron más de 24 h del último mensaje del socio). */
     entrega: text("entrega").$type<"FALLIDA" | "FUERA_DE_VENTANA">(),
+    /** El archivo del mensaje: «ut:<clave>», «recibo:<boletaId>» o «comprobante:<pagoId>» (ver lib/adjuntos). */
+    adjuntoClave: text("adjuntoClave"),
+    adjuntoNombre: text("adjuntoNombre"),
+    adjuntoTipo: text("adjuntoTipo"),
+    adjuntoTamano: integer("adjuntoTamano"),
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [

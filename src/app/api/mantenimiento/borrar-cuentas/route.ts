@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { aprs, boletas, invitaciones, lecturas, socios } from "@/lib/db/schema";
 import { user } from "@/lib/db/auth-schema";
 import { DIAS_HASTA_BORRADO } from "@/lib/retencion";
+import { borrarArchivos, clavesDeSocios } from "@/lib/adjuntos";
 
 /**
  * Elimina las cuentas cuyo cierre se solicitó hace más de 90 días, que es lo
@@ -59,7 +60,9 @@ async function ejecutar(request: Request) {
     await db.delete(invitaciones).where(eq(invitaciones.aprId, apr.id));
     // Las solicitudes de acceso de sus socios caen en cascada al borrar
     // socios: SolicitudAcceso.socioId tiene onDelete: "cascade".
+    const archivos = await clavesDeSocios(idsSocios);
     await db.delete(socios).where(eq(socios.aprId, apr.id));
+    await borrarArchivos(archivos);
 
     // Las cuentas de acceso del comité: sin ellas nadie podría entrar a un
     // APR que ya no existe, y quedarían huérfanas.
