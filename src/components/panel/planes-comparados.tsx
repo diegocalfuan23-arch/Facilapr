@@ -174,6 +174,8 @@ export function PlanesComparados({ planActual }: { planActual: Plan | null }) {
         })}
       </div>
 
+      <p className="text-center text-[0.8rem] text-muted-foreground">Se aplican límites al uso de la IA.</p>
+
       {pagando && (
         <PagarPlanDialog plan={pagando} periodo={anual ? "ANUAL" : "MENSUAL"} onCerrar={() => setPagando(null)} />
       )}

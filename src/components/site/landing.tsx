@@ -524,7 +524,7 @@ export function Landing() {
                 </article>
               ))}
             </div>
-            <p className={`mt-4 text-sm ${GRIS}`}>Pesos aproximados, según la UF del mes.</p>
+            <p className={`mt-4 text-sm ${GRIS}`}>Pesos aproximados, según la UF del mes. Se aplican límites al uso de la IA.</p>
           </div>
         </section>
 
