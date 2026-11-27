@@ -232,15 +232,17 @@ export function ConfiguracionForm({
   datos,
   resumenDatos,
   uso,
+  abrirFacturacion = false,
 }: {
   datos: DatosConfiguracion;
   resumenDatos: ResumenDatos;
   uso: DatosUso;
+  abrirFacturacion?: boolean;
 }) {
-  const [seccion, setSeccion] = useState<Seccion>("comite");
+  const [seccion, setSeccion] = useState<Seccion>(abrirFacturacion ? "facturacion" : "comite");
   // Solo celular: primero la lista de temas y, al tocar uno, su contenido. En
   // pantallas grandes se ven siempre las dos cosas (menú a un lado).
-  const [vistaMovil, setVistaMovil] = useState<"lista" | "detalle">("lista");
+  const [vistaMovil, setVistaMovil] = useState<"lista" | "detalle">(abrirFacturacion ? "detalle" : "lista");
 
   function abrirSeccion(id: Seccion) {
     setSeccion(id);

@@ -8,8 +8,10 @@ import { guardarProduccion } from "@/app/panel/tarifa/actions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { TarifaResumen, type TarifaVigente } from "@/components/panel/tarifa-resumen";
+import type { DatosTarifa } from "@/lib/tarifa";
 import { formatearPeriodo } from "@/lib/boletas";
-import { metros, noFacturada, porcentaje, totalesDeAgua, type MesTarifa } from "@/lib/tarifa-comun";
+import { metros, noFacturada, porcentaje, totalesDeAgua } from "@/lib/tarifa-comun";
 import { cn } from "@/lib/utils";
 
 const SOMBRA = "shadow-[0_8px_24px_rgba(58,12,227,0.08)]";
@@ -25,15 +27,20 @@ const enNumero = (v: string) => {
 export function TarifaVista({
   anio,
   limites,
-  meses,
-  resultado,
+  datos,
+  tarifa,
+  puedeCambiarTarifa,
 }: {
   anio: number;
   limites: { desde: number; hasta: number };
-  meses: MesTarifa[];
-  resultado: number;
+  datos: Pick<DatosTarifa, "meses" | "consumo" | "ingresos" | "egresos" | "totalIngresos" | "totalEgresos">;
+  tarifa: TarifaVigente;
+  puedeCambiarTarifa: boolean;
 }) {
   const router = useRouter();
+  const { meses } = datos;
+  const resultado = datos.totalIngresos - datos.totalEgresos;
+  const [pestana, setPestana] = useState<"resumen" | "produccion">("resumen");
   const [cambios, setCambios] = useState<Record<string, string>>({});
   const [pendiente, iniciar] = useTransition();
 
@@ -99,7 +106,30 @@ export function TarifaVista({
         ))}
       </Card>
 
-      <Card className={cn("gap-0 overflow-hidden rounded-2xl border-0 p-0", SOMBRA)}>
+      <div role="tablist" className="flex w-full gap-1 rounded-xl bg-[#F0EEF6] p-1 sm:w-fit">
+        {(
+          [
+            ["resumen", "Resumen"],
+            ["produccion", "Agua producida"],
+          ] as const
+        ).map(([id, texto]) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={pestana === id}
+            onClick={() => setPestana(id)}
+            className={cn("h-8 flex-1 rounded-lg px-4 text-sm font-medium sm:flex-none", pestana === id ? "bg-white shadow-sm" : GRIS)}
+          >
+            {texto}
+          </button>
+        ))}
+      </div>
+
+      {/* El gráfico usa lo que se está escribiendo, aunque aún no se guarde. */}
+      {pestana === "resumen" && <TarifaResumen datos={{ ...datos, meses: filas }} tarifa={tarifa} puedeCambiar={puedeCambiarTarifa} />}
+
+      <Card className={cn("gap-0 overflow-hidden rounded-2xl border-0 p-0", SOMBRA, pestana !== "produccion" && "hidden")}>
         <form onSubmit={guardar}>
           <div className={cn(FILA, "border-b border-[#F0EEF6] py-2 text-xs font-semibold", GRIS)}>
             <span>Mes</span>

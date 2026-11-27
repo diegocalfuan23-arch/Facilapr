@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 export default async function TarifaPage({ searchParams }: { searchParams: Promise<{ anio?: string }> }) {
-  const { apr } = await requireFinanzas();
+  const { apr, user } = await requireFinanzas();
   const plan = apr.plan as Plan;
   if (!puede(plan, "finanzas")) redirect("/panel");
 
@@ -26,8 +26,15 @@ export default async function TarifaPage({ searchParams }: { searchParams: Promi
       key={anio}
       anio={anio}
       limites={aniosDisponibles(hoy)}
-      meses={datos.meses}
-      resultado={datos.totalIngresos - datos.totalEgresos}
+      datos={datos}
+      tarifa={{
+        cargoFijo: apr.tarifaCargoFijo,
+        valorM3: apr.tarifaMetroCubico,
+        cargoFijoComercial: apr.tarifaCargoFijoComercial,
+        valorM3Comercial: apr.tarifaMetroCubicoComercial,
+      }}
+      // La configuración es solo del administrador.
+      puedeCambiarTarifa={user.rol === "ADMIN"}
     />
   );
 }

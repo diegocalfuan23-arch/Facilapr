@@ -16,7 +16,8 @@ export const metadata: Metadata = {
   title: "Configuración",
 };
 
-export default async function ConfiguracionPage() {
+export default async function ConfiguracionPage({ searchParams }: { searchParams: Promise<{ seccion?: string }> }) {
+  const { seccion } = await searchParams;
   const { apr } = await requireAdmin();
   const resumen = await resumenDatos();
   const plan = apr.plan as Plan;
@@ -33,6 +34,8 @@ export default async function ConfiguracionPage() {
   return (
     <>
       <ConfiguracionForm
+      // Otras pantallas pueden abrir directo la facturación.
+      abrirFacturacion={seccion === "facturacion"}
       resumenDatos={resumen}
       uso={{
         nombrePlan: NOMBRE_PLAN[plan],
