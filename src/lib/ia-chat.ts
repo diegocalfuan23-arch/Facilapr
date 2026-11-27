@@ -12,6 +12,8 @@ import { ESTADOS_ORDEN, TIPOS_ORDEN } from "@/lib/ordenes";
 import { formatearPeriodo, saldo } from "@/lib/boletas";
 import { puede, type Plan } from "@/lib/planes";
 import { momentoParaPrompt } from "@/lib/ia-momento";
+import { textoDeAdjunto } from "@/lib/adjuntos-comun";
+import { MAXIMO_DOCUMENTOS, separarDocumentos, type DocumentoIa } from "@/lib/ia-documentos";
 import { inArray } from "drizzle-orm";
 
 /**
@@ -178,6 +180,7 @@ async function intentar(socioId: string) {
   const pagosRecientes = listaBoletas.length
     ? await db
         .select({
+          id: pagos.id,
           boletaId: pagos.boletaId,
           monto: pagos.monto,
           fecha: pagos.fecha,
@@ -198,7 +201,30 @@ async function intentar(socioId: string) {
   });
   const nombreDe = new Map(ctx.nombres);
 
+  // Los PDF que la IA puede adjuntar: solo boletas y comprobantes de esta misma persona.
+  const deArranque = (nombre: string) => (cuentas.length > 1 ? ` [${nombre}]` : "");
+  const documentos: DocumentoIa[] = [
+    ...listaBoletas
+      .filter((b) => b.estado !== "ANULADA")
+      .map((b, i) => ({
+        codigo: `B${i + 1}`,
+        descripcion: `Boleta de ${formatearPeriodo(b.periodo)}${deArranque(b.socio.nombre)}`,
+        nombre: `Boleta ${formatearPeriodo(b.periodo)}.pdf`,
+        clave: `recibo:${b.id}`,
+      })),
+    ...pagosRecientes.map((p, i) => {
+      const periodo = formatearPeriodo((p.boletaId && periodoDe.get(p.boletaId)) || "");
+      return {
+        codigo: `C${i + 1}`,
+        descripcion: `Comprobante del pago de ${clp.format(p.monto)} del ${fecha.format(p.fecha)}, boleta de ${periodo}`,
+        nombre: `Comprobante ${periodo}.pdf`,
+        clave: `comprobante:${p.id}`,
+      };
+    }),
+  ];
+
   const system = construirPrompt({
+    documentos,
     comite: {
       nombre: apr.nombre,
       infoPago: apr.infoPago,
@@ -239,6 +265,10 @@ async function intentar(socioId: string) {
   let texto = (await new Response(stream).text()).trim();
   if (!texto) return callar(socioId, "el modelo devolvió una respuesta vacía");
 
+  const separado = separarDocumentos(texto, documentos);
+  texto = separado.texto;
+  const adjuntar = separado.documentos;
+
   let requiereHumano = false;
   if (texto.startsWith(MARCA_HUMANO)) {
     requiereHumano = true;
@@ -246,6 +276,7 @@ async function intentar(socioId: string) {
       texto.slice(MARCA_HUMANO.length).trim() ||
       "Le avisé a la directiva para que te responda personalmente.";
   }
+  if (!texto) texto = adjuntar.length > 0 ? "Aquí va lo que pediste." : "Le avisé a la directiva para que te responda personalmente.";
 
   // Se envía bajo un candado por conversación: si el socio manda dos mensajes
   // seguidos se disparan dos respuestas a la vez, y sin esto recibiría las dos.
@@ -272,6 +303,15 @@ async function intentar(socioId: string) {
       contenido: texto,
       requiereHumano,
     });
+    for (const d of adjuntar) {
+      await enviarMensajeChat({
+        socioId,
+        remitente: "IA",
+        autorId: null,
+        contenido: textoDeAdjunto(d.nombre),
+        archivo: { clave: d.clave, nombre: d.nombre, tipo: "application/pdf", tamano: null },
+      });
+    }
   });
 }
 
@@ -330,6 +370,8 @@ export function construirPrompt(d: {
     fechaVencimiento: Date;
     consumoM3: number | null;
   }[];
+  /** Los PDF que se pueden adjuntar a la respuesta. */
+  documentos?: DocumentoIa[];
 }) {
   const partes: string[] = [];
 
@@ -381,6 +423,12 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
     partes.push(`Sus boletas (las más recientes primero):\n${lista.join("\n")}`);
   }
 
+  if (d.documentos?.length) {
+    partes.push(
+      `Documentos en PDF que puedes adjuntar (código: qué es):\n${d.documentos.map((x) => `- ${x.codigo}: ${x.descripcion}`).join("\n")}`
+    );
+  }
+
   if (d.comite.instrucciones?.trim()) {
     partes.push(
       `Instrucciones del comité (síguelas mientras no contradigan las reglas de abajo):\n${d.comite.instrucciones.trim()}`
@@ -396,6 +444,8 @@ Háblale en español chileno, cercano y directo, en dos a cuatro frases.`
 - Para pedir una reposición, una reparación, hacer un reclamo, dar de baja el servicio o reanudarlo, dile que lo haga desde la sección «Solicitudes» de su cuenta en línea: tú no puedes crear solicitudes. Si pregunta cómo va una, dile el estado que ves arriba.
 - Si es una fuga o falta de agua ahora mismo, un cambio de datos personales, una queja fuerte o una persona pide hablar con alguien, o no puedes resolverlo con los datos de arriba, empieza tu respuesta con ${MARCA_HUMANO} y a continuación escribe un mensaje breve diciendo que avisarás a la directiva para que lo atienda personalmente.
 - Si la pregunta se resuelve con los datos de arriba, respóndela directamente sin la marca.
+- Si pide su boleta, su recibo o un comprobante de pago, adjúntalo: escribe al final de tu respuesta [DOC:código] (por ejemplo [DOC:B1]), con un código de la lista de documentos, hasta ${MAXIMO_DOCUMENTOS}. Si no dice cuál, adjunta el más reciente. Nunca escribas enlaces, nombres de archivo ni el símbolo 📎, y no digas que adjuntas algo si no pones el código.
+- No puedes ver los archivos ni escuchar los audios que mande el socio: en ese caso empieza con ${MARCA_HUMANO} y dile que avisarás a la directiva para que lo revise.
 - Escribe en texto plano, como en un mensaje de WhatsApp: sin asteriscos, sin negritas y sin listas con símbolos.`);
 
   return partes.join("\n\n");

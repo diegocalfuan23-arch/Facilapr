@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { boletas, lecturas, socios } from "@/lib/db/schema";
 import { requireAdmin } from "@/lib/apr-session";
 import { cuentaDeSocio } from "@/lib/socios-acceso";
+import { borrarArchivos, clavesDeSocios } from "@/lib/adjuntos";
 import { huellaDeClave, urlRestablecerClave } from "@/lib/invitacion-socio";
 import { normalizarRut, normalizarTelefono } from "@/lib/formato";
 import { codigoPg, mensajeError, restriccionPg, textoErrorPg } from "@/lib/db-errores";
@@ -181,10 +182,13 @@ export async function alternarActivo(
 export async function eliminarSocio(socioId: string): Promise<ResultadoAccion> {
   const { apr } = await requireAdmin();
 
+  const archivos = await clavesDeSocios([socioId]);
   // El filtro por aprId impide borrar un socio de otro comité.
-  await db
+  const borrado = await db
     .delete(socios)
-    .where(and(eq(socios.id, socioId), eq(socios.aprId, apr.id)));
+    .where(and(eq(socios.id, socioId), eq(socios.aprId, apr.id)))
+    .returning({ id: socios.id });
+  if (borrado.length > 0) await borrarArchivos(archivos);
 
   revalidatePath("/panel/socios");
   return { ok: true };
@@ -257,9 +261,11 @@ export async function eliminarSociosSinMovimientos(
     .map((s) => s.id);
 
   if (borrables.length > 0) {
+    const archivos = await clavesDeSocios(borrables);
     await db
       .delete(socios)
       .where(and(eq(socios.aprId, apr.id), inArray(socios.id, borrables)));
+    await borrarArchivos(archivos);
   }
 
   revalidatePath("/panel/socios");

@@ -9,6 +9,8 @@ import { enviarMensajeChat, type MensajeChat } from "@/lib/chat-socio";
 import { puede, type Plan } from "@/lib/planes";
 import { listarConversaciones } from "@/lib/conversaciones";
 import { motivoIaCallada } from "@/lib/ia-chat";
+import { borrarArchivo, subirArchivoDelChat } from "@/lib/adjuntos";
+import { textoDeAdjunto } from "@/lib/adjuntos-comun";
 import type { ConversacionResumen } from "@/lib/conversaciones-comun";
 
 const mensajeSchema = z.string().trim().min(1).max(1000);
@@ -50,6 +52,41 @@ export async function enviarMensajeDirectiva(
   return { ok: true, mensaje };
 }
 
+/** Un archivo (con o sin texto) de la directiva a un socio. Campos: socioId, archivo, texto. */
+export async function enviarAdjuntoDirectiva(formData: FormData): Promise<ResultadoEnvioChat> {
+  const { user, apr } = await requireAdmin();
+  if (!puede(apr.plan as Plan, "chat")) {
+    return { ok: false, error: "El chat en tiempo real es del plan Estándar o superior." };
+  }
+
+  const socioId = String(formData.get("socioId") ?? "");
+  const socio = await db.query.socios.findFirst({
+    where: and(eq(socios.id, socioId), eq(socios.aprId, apr.id)),
+    columns: { id: true },
+  });
+  if (!socio) return { ok: false, error: "Ese socio no pertenece a tu comité." };
+
+  const archivo = formData.get("archivo");
+  if (!(archivo instanceof File)) return { ok: false, error: "Elige un archivo." };
+  const texto = String(formData.get("texto") ?? "").trim().slice(0, 1000);
+
+  const subido = await subirArchivoDelChat(archivo);
+  if (!subido.ok) return subido;
+  try {
+    const mensaje = await enviarMensajeChat({
+      socioId: socio.id,
+      remitente: "DIRECTIVA",
+      autorId: user.id,
+      contenido: texto || textoDeAdjunto(subido.archivo.nombre),
+      archivo: subido.archivo,
+    });
+    return { ok: true, mensaje };
+  } catch (e) {
+    await borrarArchivo(subido.archivo.clave);
+    throw e;
+  }
+}
+
 /** Marca como leídos, del lado de la directiva, todos los mensajes de un socio. */
 export async function marcarLeidoDirectiva(socioId: string) {
   const { apr } = await requireAdmin();
@@ -75,7 +112,7 @@ export async function marcarLeidoDirectiva(socioId: string) {
 async function mensajePropio(mensajeId: string) {
   const { user, apr } = await requireAdmin();
   const [fila] = await db
-    .select({ id: mensajesSocio.id, socioId: mensajesSocio.socioId })
+    .select({ id: mensajesSocio.id, socioId: mensajesSocio.socioId, adjuntoClave: mensajesSocio.adjuntoClave })
     .from(mensajesSocio)
     .innerJoin(socios, eq(socios.id, mensajesSocio.socioId))
     .where(
@@ -114,6 +151,7 @@ export async function eliminarMensajeDirectiva(
   if (!fila) return { ok: false, error: "Solo puedes eliminar tus propios mensajes." };
 
   await db.delete(mensajesSocio).where(eq(mensajesSocio.id, fila.id));
+  await borrarArchivo(fila.adjuntoClave);
   return { ok: true };
 }
 

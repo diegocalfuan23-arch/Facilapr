@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Bot, Check, CheckCheck, ChevronDown, CreditCard, Hand, Info, Loader2, MessageCircle, MoreVertical, Paperclip, Pencil, Phone, Search, SendHorizontal, Sparkles, Trash2, X, Zap } from "lucide-react";
-import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones, consultarMotivoIa } from "@/app/panel/conversaciones/actions";
+import { editarMensajeDirectiva, eliminarMensajeDirectiva, enviarAdjuntoDirectiva, enviarMensajeDirectiva, marcarLeidoDirectiva, pausarIaConversacion, consultarConversaciones, consultarMotivoIa } from "@/app/panel/conversaciones/actions";
 import { fichaDelSocio, type FichaSocio } from "@/app/panel/conversaciones/ficha-actions";
 import { escucharChat, escucharComite } from "@/lib/chat/cliente";
 import type { MensajeChat } from "@/lib/chat-socio";
@@ -22,6 +22,8 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { IndicadorEscribiendo } from "@/components/chat/burbuja";
+import { AdjuntoMensaje, ArchivoPorEnviar, archivoElegido, textoDelMensaje } from "@/components/chat/adjunto";
+import { ADJUNTO_ACEPTA } from "@/lib/adjuntos-comun";
 import { IaChatDialog, estadoIa, type IaChatAjustes } from "@/components/panel/ia-chat-dialog";
 import { useEscribiendo } from "@/components/chat/use-escribiendo";
 
@@ -363,7 +365,8 @@ function Burbuja({ m, primero, acciones }: { m: MensajeChat; primero: boolean; a
               mio ? (ia ? "rounded-tr-md bg-[#EFEBFF] text-[#15132B]" : "rounded-tr-md bg-[#3A0CE3] text-white") : "rounded-tl-md bg-white text-[#15132B] shadow-[0_1px_2px_rgba(21,19,43,0.06)]"
             )}
           >
-            <p className="break-words whitespace-pre-line">{m.contenido}</p>
+            {m.adjunto && <AdjuntoMensaje adjunto={m.adjunto} oscuro={mio && !ia} />}
+            {textoDelMensaje(m) && <p className="break-words whitespace-pre-line">{textoDelMensaje(m)}</p>}
             <span className={cn("mt-0.5 flex items-center justify-end gap-1 text-[10.5px]", mio && !ia ? "text-white/70" : "text-[#8A8799]")}>
               {m.canal === "WHATSAPP" ? "WhatsApp · " : ""}
               {m.editado ? "editado · " : ""}
@@ -433,7 +436,9 @@ function ChatConSocio({
   const [enviando, iniciarEnvio] = useTransition();
   const [editando, setEditando] = useState<MensajeChat | null>(null);
   const [eliminando, setEliminando] = useState<MensajeChat | null>(null);
+  const [archivo, setArchivo] = useState<File | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const campoArchivo = useRef<HTMLInputElement>(null);
   const cajaRef = useRef<HTMLTextAreaElement>(null);
   // Se guarda en una referencia para que cambiar la función no vuelva a abrir la conexión en vivo.
   const actividad = useRef(onActividad);
@@ -532,7 +537,30 @@ function ChatConSocio({
 
   function enviar() {
     const texto = entrada.trim();
-    if (!texto || enviando) return;
+    const adjunto = editando ? null : archivo;
+    if ((!texto && !adjunto) || enviando) return;
+    if (adjunto) {
+      alDejarDeEscribir();
+      iniciarEnvio(async () => {
+        const datos = new FormData();
+        datos.set("socioId", socioId);
+        datos.set("archivo", adjunto);
+        datos.set("texto", texto);
+        // Si falla, el archivo y el texto quedan puestos para reintentar.
+        const r = await enviarAdjuntoDirectiva(datos).catch(() => ({ ok: false as const, error: "No se pudo enviar el archivo." }));
+        if (!r.ok) {
+          toast.error(r.error);
+          return;
+        }
+        setArchivo(null);
+        setEntrada("");
+        setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
+        actividad.current();
+        if (r.mensaje.entrega === "FUERA_DE_VENTANA") toast.warning("No salió por WhatsApp: pasaron más de 24 h desde su último mensaje.");
+        else if (r.mensaje.entrega === "FALLIDA") toast.warning("No se pudo entregar por WhatsApp.");
+      });
+      return;
+    }
     // A quien nunca ha escrito, Meta no deja enviarle texto libre desde la API: se abre WhatsApp con el mensaje.
     if (sinChat && !editando) {
       if (!socio.telefono) return;
@@ -782,6 +810,11 @@ function ChatConSocio({
           </div>
         )}
         {sinChat && <p className={cn("mb-2 text-xs", GRIS)}>El mensaje se abre en WhatsApp.</p>}
+        {archivo && !editando && (
+          <div className="mb-2">
+            <ArchivoPorEnviar archivo={archivo} onQuitar={() => setArchivo(null)} />
+          </div>
+        )}
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -797,7 +830,17 @@ function ChatConSocio({
             </button>
           ) : null}
           <div className="flex items-end gap-1 p-1.5">
-            <Button type="button" variant="ghost" size="icon" aria-label="Adjuntar" title="Adjuntar" onClick={() => toast.info("Adjuntar archivos todavía no está disponible en el chat.")} className="size-9 shrink-0 rounded-lg text-[#5B5970]">
+            <input
+              ref={campoArchivo}
+              type="file"
+              accept={ADJUNTO_ACEPTA}
+              hidden
+              onChange={(e) => {
+                const elegido = archivoElegido(e.currentTarget);
+                if (elegido) setArchivo(elegido);
+              }}
+            />
+            <Button type="button" variant="ghost" size="icon" aria-label="Adjuntar" title="Adjuntar" disabled={sinChat || !!editando || enviando} onClick={() => campoArchivo.current?.click()} className="size-9 shrink-0 rounded-lg text-[#5B5970]">
               <Paperclip className="size-4" />
             </Button>
             <Button type="button" variant="ghost" size="icon" aria-label="Enviar link de pago" title="Link de pago" onClick={() => poner(textoLinkPago(socio, ficha))} className="size-9 shrink-0 rounded-lg text-[#5B5970]">
@@ -839,8 +882,8 @@ function ChatConSocio({
               placeholder={editando ? "Corrige tu mensaje" : `Escribe a ${p}…`}
               className="block max-h-40 min-h-9 flex-1 resize-none overflow-y-auto bg-transparent px-2 py-2 text-sm [overflow-wrap:anywhere] outline-none placeholder:text-[#9A98AB]"
             />
-            <Button type="submit" size="icon" aria-label="Enviar" disabled={enviando || !entrada.trim()} className="size-9 shrink-0 rounded-lg">
-              <SendHorizontal className="size-4" />
+            <Button type="submit" size="icon" aria-label="Enviar" disabled={enviando || (!entrada.trim() && (!archivo || !!editando))} className="size-9 shrink-0 rounded-lg">
+              {enviando && archivo ? <Loader2 className="size-4 animate-spin" /> : <SendHorizontal className="size-4" />}
             </Button>
           </div>
         </form>

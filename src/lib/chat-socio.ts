@@ -3,6 +3,8 @@ import { entregarPorWhatsappSiCorresponde } from "@/lib/whatsapp-salida";
 import { db } from "@/lib/db";
 import { mensajesSocio, socios } from "@/lib/db/schema";
 import { publicarActividadComite, publicarMensajeEnVivo } from "@/lib/chat/tiempo-real";
+import { adjuntoDeFila, type ArchivoGuardado } from "@/lib/adjuntos";
+import type { Adjunto } from "@/lib/adjuntos-comun";
 
 export type MensajeChat = {
   id: string;
@@ -19,6 +21,8 @@ export type MensajeChat = {
   canal?: "PORTAL" | "WHATSAPP";
   /** Solo en lo que salió por WhatsApp y no llegó: FALLIDA o FUERA_DE_VENTANA (pasaron 24 h). */
   entrega?: "FALLIDA" | "FUERA_DE_VENTANA" | null;
+  /** El archivo del mensaje, si tiene. */
+  adjunto?: Adjunto | null;
 };
 
 export async function historialChat(socioId: string): Promise<MensajeChat[]> {
@@ -37,11 +41,16 @@ export async function historialChat(socioId: string): Promise<MensajeChat[]> {
       editadoAt: true,
       canal: true,
       entrega: true,
+      adjuntoClave: true,
+      adjuntoNombre: true,
+      adjuntoTipo: true,
+      adjuntoTamano: true,
     },
   });
 
-  return filas.map(({ leidoPorSocio, leidoPorDirectiva, editadoAt, ...m }) => ({
+  return filas.map(({ leidoPorSocio, leidoPorDirectiva, editadoAt, adjuntoClave, adjuntoNombre, adjuntoTipo, adjuntoTamano, ...m }) => ({
     ...m,
+    adjunto: adjuntoDeFila({ id: m.id, adjuntoClave, adjuntoNombre, adjuntoTipo, adjuntoTamano }),
     editado: editadoAt !== null,
     // Lo que escribió el socio lo lee la directiva, y al revés.
     leido: m.remitente === "SOCIO" ? leidoPorDirectiva : leidoPorSocio,
@@ -61,6 +70,7 @@ export async function enviarMensajeChat({
   requiereHumano = false,
   canal = "PORTAL",
   metaId,
+  archivo,
 }: {
   socioId: string;
   remitente: "SOCIO" | "DIRECTIVA" | "IA";
@@ -70,6 +80,8 @@ export async function enviarMensajeChat({
   /** Solo para lo que llega por WhatsApp. Lo que escribe la directiva o la IA sale por donde escribió el socio. */
   canal?: "PORTAL" | "WHATSAPP";
   metaId?: string;
+  /** El archivo que va con el mensaje; ya guardado (o un documento que genera Facilapr). */
+  archivo?: ArchivoGuardado;
 }): Promise<MensajeChat> {
   const [mensaje] = await db
     .insert(mensajesSocio)
@@ -85,6 +97,10 @@ export async function enviarMensajeChat({
       requiereHumano,
       canal,
       metaId,
+      adjuntoClave: archivo?.clave,
+      adjuntoNombre: archivo?.nombre,
+      adjuntoTipo: archivo?.tipo,
+      adjuntoTamano: archivo?.tamano,
     })
     .returning({
       id: mensajesSocio.id,
@@ -94,11 +110,15 @@ export async function enviarMensajeChat({
       requiereHumano: mensajesSocio.requiereHumano,
     });
 
+  const adjunto = archivo
+    ? adjuntoDeFila({ id: mensaje.id, adjuntoClave: archivo.clave, adjuntoNombre: archivo.nombre, adjuntoTipo: archivo.tipo, adjuntoTamano: archivo.tamano })
+    : null;
+
   // Si el socio escribió por WhatsApp, la respuesta de la directiva o de la IA también sale por WhatsApp.
   let entrega: "FALLIDA" | "FUERA_DE_VENTANA" | null = null;
   let canalFinal: "PORTAL" | "WHATSAPP" = canal;
   if (remitente !== "SOCIO") {
-    const r = await entregarPorWhatsappSiCorresponde(socioId, contenido);
+    const r = await entregarPorWhatsappSiCorresponde(socioId, contenido, adjunto);
     entrega = r.entrega;
     if (r.metaId || r.entrega) {
       canalFinal = "WHATSAPP";
@@ -113,11 +133,11 @@ export async function enviarMensajeChat({
   // También se avisa a la sala del comité, para que la lista de Conversaciones de la directiva se ponga al día sola.
   try {
     const [socio] = await db.select({ aprId: socios.aprId }).from(socios).where(eq(socios.id, socioId)).limit(1);
-    const resultados = await Promise.allSettled([publicarMensajeEnVivo(socioId, { ...mensaje, canal: canalFinal, entrega }), socio ? publicarActividadComite(socio.aprId, socioId) : Promise.resolve()]);
+    const resultados = await Promise.allSettled([publicarMensajeEnVivo(socioId, { ...mensaje, canal: canalFinal, entrega, adjunto }), socio ? publicarActividadComite(socio.aprId, socioId) : Promise.resolve()]);
     for (const r of resultados) if (r.status === "rejected") console.error("No se pudo publicar el mensaje en tiempo real:", r.reason);
   } catch (error) {
     console.error("No se pudo publicar el mensaje en tiempo real:", error);
   }
 
-  return { ...mensaje, leido: false, editado: false, canal: canalFinal, entrega };
+  return { ...mensaje, leido: false, editado: false, canal: canalFinal, entrega, adjunto };
 }

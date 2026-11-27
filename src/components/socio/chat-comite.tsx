@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Droplets, Loader2, MessageCircle, SendHorizontal, Sparkles, X } from "lucide-react";
+import { Droplets, Loader2, MessageCircle, Paperclip, SendHorizontal, Sparkles, X } from "lucide-react";
+import { toast } from "sonner";
 import {
+  enviarAdjuntoSocio,
   enviarMensajeSocio,
   marcarLeidoSocio,
 } from "@/app/socio/[slug]/chat-actions";
@@ -12,6 +14,8 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { IndicadorEscribiendo } from "@/components/chat/burbuja";
 import { useEscribiendo } from "@/components/chat/use-escribiendo";
+import { AdjuntoMensaje, ArchivoPorEnviar, archivoElegido, textoDelMensaje } from "@/components/chat/adjunto";
+import { ADJUNTO_ACEPTA } from "@/lib/adjuntos-comun";
 
 /**
  * Chat directo con la directiva del comité — canal separado del asistente
@@ -45,7 +49,9 @@ export function ChatComite({
   const [entrada, setEntrada] = useState("");
   const [enviando, iniciarEnvio] = useTransition();
   const [sinLeer, setSinLeer] = useState(0);
+  const [archivo, setArchivo] = useState<File | null>(null);
   const finRef = useRef<HTMLDivElement>(null);
+  const campoArchivo = useRef<HTMLInputElement>(null);
   const abiertoRef = useRef(abierto);
   const {
     otroEscribe,
@@ -124,7 +130,26 @@ export function ChatComite({
 
   function enviar(atajo?: string) {
     const texto = (atajo ?? entrada).trim();
-    if (!texto || enviando) return;
+    // Un atajo se envía solo, sin el archivo que esté puesto.
+    const adjunto = atajo ? null : archivo;
+    if ((!texto && !adjunto) || enviando) return;
+    if (adjunto) {
+      alDejarDeEscribir();
+      iniciarEnvio(async () => {
+        const datos = new FormData();
+        datos.set("archivo", adjunto);
+        datos.set("texto", texto);
+        const r = await enviarAdjuntoSocio(slug, datos).catch(() => ({ ok: false as const, error: "No se pudo enviar el archivo." }));
+        if (!r.ok) {
+          toast.error(r.error);
+          return;
+        }
+        setArchivo(null);
+        setEntrada("");
+        setMensajes((prev) => agregarSinRepetir(prev, r.mensaje));
+      });
+      return;
+    }
     setEntrada("");
     alDejarDeEscribir();
     iniciarEnvio(async () => {
@@ -194,7 +219,8 @@ export function ChatComite({
                               )}
                             </p>
                           )}
-                          <p className="break-words whitespace-pre-line">{m.contenido}</p>
+                          {m.adjunto && <AdjuntoMensaje adjunto={m.adjunto} oscuro={mio} />}
+                          {textoDelMensaje(m) && <p className="break-words whitespace-pre-line">{textoDelMensaje(m)}</p>}
                           <p className={cn("mt-0.5 text-right text-[10.5px]", mio ? "text-white/70" : "text-[#8A8799]")}>
                             {m.editado ? "editado · " : ""}
                             {new Date(m.createdAt).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: "America/Santiago" })}
@@ -223,6 +249,11 @@ export function ChatComite({
             <div ref={finRef} />
           </div>
 
+          {archivo && (
+            <div className="shrink-0 border-t border-[#F0EEF6] bg-white px-3 pt-3">
+              <ArchivoPorEnviar archivo={archivo} onQuitar={() => setArchivo(null)} />
+            </div>
+          )}
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -230,6 +261,19 @@ export function ChatComite({
             }}
             className="flex shrink-0 items-center gap-2 border-t border-[#F0EEF6] bg-white p-3"
           >
+            <input
+              ref={campoArchivo}
+              type="file"
+              accept={ADJUNTO_ACEPTA}
+              hidden
+              onChange={(e) => {
+                const elegido = archivoElegido(e.currentTarget);
+                if (elegido) setArchivo(elegido);
+              }}
+            />
+            <Button type="button" variant="ghost" size="icon" aria-label="Adjuntar" disabled={enviando} onClick={() => campoArchivo.current?.click()} className="size-11 shrink-0 rounded-xl text-[#5B5970]">
+              <Paperclip className="size-[18px]" />
+            </Button>
             <input
               aria-label="Tu mensaje"
               value={entrada}
@@ -242,8 +286,8 @@ export function ChatComite({
               placeholder="Escribe tu consulta…"
               className="h-11 min-w-0 flex-1 rounded-xl border border-[#E4E1F0] bg-[#FAFAFD] px-3.5 text-sm outline-none placeholder:text-[#9A98AB] focus:border-[#C4B7FA] focus:bg-white focus:ring-4 focus:ring-[#ECE8FD]"
             />
-            <Button type="submit" size="icon" aria-label="Enviar" disabled={enviando || !entrada.trim()} className="size-11 shrink-0 rounded-xl">
-              <SendHorizontal className="size-[18px]" />
+            <Button type="submit" size="icon" aria-label="Enviar" disabled={enviando || (!entrada.trim() && !archivo)} className="size-11 shrink-0 rounded-xl">
+              {enviando && archivo ? <Loader2 className="size-[18px] animate-spin" /> : <SendHorizontal className="size-[18px]" />}
             </Button>
           </form>
         </div>
