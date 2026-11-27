@@ -41,6 +41,7 @@ import {
   eliminarSociosSinMovimientos,
 } from "@/app/panel/socios/actions";
 import { SocioDialog, siguientesNumeros, type SocioEditable } from "./socio-dialog";
+import { FichaSocioDialog } from "./ficha-socio";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -233,6 +234,7 @@ export function SociosTabla({
   const [invitando, setInvitando] = useState(false);
   const [creando, setCreando] = useState(false);
   const [editando, setEditando] = useState<SocioFila | null>(null);
+  const [ficha, setFicha] = useState<SocioFila | null>(null);
   const [porEliminar, setPorEliminar] = useState<SocioFila | null>(null);
   const [restableciendo, setRestableciendo] = useState<SocioFila | null>(null);
   const [pendiente, startTransition] = useTransition();
@@ -358,6 +360,10 @@ export function SociosTabla({
             }
           />
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setFicha(socio)}>
+              <UserRound />
+              Ver ficha
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setEditando(socio)}>
               <Pencil />
               Editar
@@ -894,9 +900,13 @@ export function SociosTabla({
                             {iniciales(socio.nombre)}
                           </span>
                           <div className="min-w-0">
-                            <div className="truncate font-medium">
+                            <button
+                              type="button"
+                              onClick={() => setFicha(socio)}
+                              className="block max-w-full cursor-pointer truncate text-left font-medium hover:underline"
+                            >
                               {socio.nombre}
-                            </div>
+                            </button>
                             {(socio.numeroCliente || socio.tipo === "USUARIO" || socio.uso === "COMERCIAL") && (
                               <div className="text-[0.78rem] tabular-nums text-muted-foreground">
                                 {[
@@ -979,7 +989,13 @@ export function SociosTabla({
                     <div className="min-w-0 flex-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate font-medium">{socio.nombre}</div>
+                          <button
+                            type="button"
+                            onClick={() => setFicha(socio)}
+                            className="block max-w-full truncate text-left font-medium hover:underline"
+                          >
+                            {socio.nombre}
+                          </button>
                           <div className="truncate text-[0.78rem] tabular-nums text-muted-foreground">
                             {[
                               socio.rut ? formatearRut(socio.rut) : null,
@@ -1078,6 +1094,8 @@ export function SociosTabla({
       />
 
       {/* Con la clave, cada vez que se abre el formulario parte de cero y sugiere el N.º que corresponde en ese momento. */}
+      {ficha && <FichaSocioDialog socio={ficha} onCerrar={() => setFicha(null)} />}
+
       <SocioDialog key={creando ? "nuevo" : "cerrado"} abierto={creando} onAbiertoChange={setCreando} siguientes={siguientesNumeros(socios)} />
 
       {editando && (
