@@ -91,7 +91,13 @@ export function SiiVista({
 
   return (
     <div className="flex max-w-[720px] flex-col gap-4">
-      <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Boletas SII</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Boletas SII</h1>
+        <Button variant="outline" nativeButton={false} render={<a href="/panel/sii/prueba" target="_blank" rel="noopener" />}>
+          <FileText />
+          Boleta de prueba
+        </Button>
+      </div>
       {!listo && <p className="rounded-xl bg-[#FFF3E0] p-4 text-sm text-[#8A4B00]">Falta configurar el cifrado en el servidor.</p>}
 
       <Card className={cn("gap-4 rounded-2xl border-0 p-6", SOMBRA)}>

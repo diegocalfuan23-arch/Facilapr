@@ -1,5 +1,5 @@
 import bwipjs from "bwip-js/node";
-import { PDFDocument, rgb, StandardFonts, type PDFFont } from "pdf-lib";
+import { degrees, PDFDocument, rgb, StandardFonts, type PDFFont } from "pdf-lib";
 import { totales, type DatosBoleta, type Emisor } from "@/lib/sii/dte/boleta";
 import { rutSii, texto } from "@/lib/sii/dte/xml";
 
@@ -30,7 +30,18 @@ export function codigoDelTimbre(timbre: string): Promise<Buffer> {
 
 export async function boletaPdf(
   boleta: DatosBoleta,
-  { emisor, timbre, resolucion }: { emisor: Emisor; timbre: string; resolucion: { fecha: string; numero: number } }
+  {
+    emisor,
+    timbre,
+    resolucion,
+    prueba,
+  }: {
+    emisor: Emisor;
+    timbre: string;
+    resolucion: { fecha: string; numero: number };
+    /** Si es una muestra: la cruza con «PRUEBA SIN VALOR» y anota este texto abajo. */
+    prueba?: string;
+  }
 ) {
   const pdf = await PDFDocument.create();
   // Media carta apaisada.
@@ -140,6 +151,12 @@ export async function boletaPdf(
   const centrado = (t: string, yy: number) => escribir(t, izq + (w - normal.widthOfTextAtSize(t, 7)) / 2, yy, 7);
   centrado("Timbre Electrónico SII", base - 12);
   centrado(`Res. ${resolucion.numero} de ${resolucion.fecha.slice(0, 4)} - Verifique documento: www.sii.cl`, base - 21);
+
+  if (prueba !== undefined) {
+    // Sobre el detalle y lejos del timbre, para que el código se pueda seguir leyendo.
+    pagina.drawText("PRUEBA SIN VALOR", { x: 120, y: 150, size: 46, font: negrita, color: rgb(0.85, 0.1, 0.1), opacity: 0.22, rotate: degrees(18) });
+    escribir(prueba, der, 12, 7.5, { color: GRIS, derecha: true, maximo: der - izq - w - 16 });
+  }
 
   return pdf.save();
 }
