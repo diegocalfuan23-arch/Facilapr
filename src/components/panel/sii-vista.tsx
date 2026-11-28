@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { startTransition, useActionState, useState, useTransition, type FormEvent } from "react";
 import { Check, FileText, Loader2, ShieldCheck, Trash2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { guardarCertificado, guardarEmisor, quitarCertificado, quitarFolios, subirFolios, type ResultadoSii } from "@/app/panel/sii/actions";
@@ -45,6 +45,13 @@ function useGuardar(accion: (p: ResultadoSii | null, f: FormData) => Promise<Res
     return r;
   }, null);
 }
+
+/** Envía sin vaciar el formulario: con `action`, React lo devuelve a sus valores iniciales aunque el guardado falle. */
+const sinVaciar = (accion: (f: FormData) => void) => (e: FormEvent<HTMLFormElement>) => {
+  e.preventDefault();
+  const datos = new FormData(e.currentTarget);
+  startTransition(() => accion(datos));
+};
 
 function Titulo({ texto, hecho }: { texto: string; hecho: boolean }) {
   return (
@@ -102,7 +109,7 @@ export function SiiVista({
 
       <Card className={cn("gap-4 rounded-2xl border-0 p-6", SOMBRA)}>
         <Titulo texto="Datos del emisor" hecho={conEmisor} />
-        <form action={accionEmisor} className="flex flex-col gap-4">
+        <form onSubmit={sinVaciar(accionEmisor)} className="flex flex-col gap-4">
           <div className="grid gap-4 sm:grid-cols-2">
             {campo("rutEmisor", "RUT del comité", emisor?.rutEmisor ? formatearRut(emisor.rutEmisor) : comite.rut ? formatearRut(comite.rut) : "")}
             {campo("razonSocial", "Razón social", emisor?.razonSocial ?? comite.razonSocial ?? comite.nombre, { maxLength: 100 })}
@@ -155,7 +162,7 @@ export function SiiVista({
             </Button>
           </div>
         ) : (
-          <form action={accionCert} className="flex flex-col gap-4">
+          <form onSubmit={sinVaciar(accionCert)} className="flex flex-col gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1">
                 <Label htmlFor="representanteNombre">Dueño del certificado</Label>
