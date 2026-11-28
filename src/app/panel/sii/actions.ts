@@ -8,6 +8,7 @@ import { requireAdmin } from "@/lib/apr-session";
 import { normalizarRut, rutValido } from "@/lib/formato";
 import { cifradoListo, cifrarSii, revisarCertificado, siiHabilitado } from "@/lib/sii/seguridad";
 import { leerCaf, nombreTipoBoleta, TIPOS_BOLETA } from "@/lib/sii/folios";
+import { emitirPeriodo, type ResultadoEmision } from "@/lib/sii/emision";
 
 export type ResultadoSii = { ok: true } | { ok: false; error: string };
 
@@ -109,6 +110,16 @@ export async function quitarCertificado(): Promise<ResultadoSii> {
     autorizadoPorId: null,
   });
   return { ok: true };
+}
+
+/** Numera, firma y guarda las boletas de un mes que aún no tienen documento. No las envía. */
+export async function emitirBoletas(periodo: string): Promise<ResultadoEmision> {
+  const c = await comite();
+  if (!c.ok) return c;
+  if (!/^\d{4}-\d{2}$/.test(periodo)) return { ok: false, error: "El mes no es válido." };
+  const resultado = await emitirPeriodo(c.apr.id, periodo);
+  revalidatePath("/panel/sii");
+  return resultado;
 }
 
 /** Carga un tramo de folios (CAF) del comité. */

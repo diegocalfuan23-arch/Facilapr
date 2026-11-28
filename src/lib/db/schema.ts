@@ -7,6 +7,7 @@ import {
   doublePrecision,
   timestamp,
   date,
+  jsonb,
   uniqueIndex,
   index,
 } from "drizzle-orm/pg-core";
@@ -1949,4 +1950,39 @@ export const siiFolios = pgTable(
     createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
   },
   (table) => [uniqueIndex("SiiFolios_apr_tipo_desde_key").on(table.aprId, table.tipo, table.desde)]
+);
+
+/**
+ * Una boleta electrónica ya numerada y firmada. Cada fila gastó un folio: no se borra aunque se borre la boleta del
+ * comité. `datos` es la foto de lo que se firmó, para volver a imprimirla igual.
+ */
+export const siiDocumentos = pgTable(
+  "SiiDocumento",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    aprId: text("aprId")
+      .notNull()
+      .references(() => aprs.id, { onDelete: "cascade" }),
+    boletaId: text("boletaId").references(() => boletas.id, { onDelete: "set null" }),
+    tipo: integer("tipo").notNull(),
+    folio: integer("folio").notNull(),
+    /** FIRMADA (lista para enviar) | ENVIADA | ACEPTADA | RECHAZADA. */
+    estado: text("estado").notNull().default("FIRMADA"),
+    monto: integer("monto").notNull(),
+    datos: jsonb("datos").notNull(),
+    /** El elemento `<DTE>` firmado. */
+    xml: text("xml").notNull(),
+    /** N.º con que el SII recibió el envío. */
+    trackId: text("trackId"),
+    /** Por qué la rechazó el SII o por qué falló el envío. */
+    error: text("error"),
+    intentos: integer("intentos").notNull().default(0),
+    createdAt: timestamp("createdAt", { precision: 3 }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { precision: 3 }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Un folio no se usa dos veces, y una boleta del comité no se emite dos veces.
+    uniqueIndex("SiiDocumento_apr_tipo_folio_key").on(table.aprId, table.tipo, table.folio),
+    uniqueIndex("SiiDocumento_boleta_key").on(table.boletaId).where(sql`${table.boletaId} IS NOT NULL`),
+  ]
 );

@@ -97,7 +97,7 @@ export function SiiVista({
   );
 
   return (
-    <div className="flex max-w-[720px] flex-col gap-4">
+    <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-[28px] leading-tight font-semibold tracking-tight">Boletas SII</h1>
         <Button variant="outline" nativeButton={false} render={<a href="/panel/sii/prueba" target="_blank" rel="noopener" />}>
@@ -270,6 +270,6 @@ export function SiiVista({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }
